@@ -184,23 +184,5 @@ class PerformanceLowScoreProcessEvent(TimestampMixin, db.Model):
         db.UniqueConstraint("process_id", "step_key", name="uq_low_score_process_step"),
     )
 
-    @property
-    @property
-    def is_finalized_for_publish(self):
-        # Yayın kesinleşmesi Başkan/Üst Onay şartını dikkate alıyor. is_president_approved
-        # İlk 70 altı için uyarı kaydı kesinleşme şartı. warning_recorded_at
-        # İkinci 70 altı için idari süreç kaydı kesinleşme şartı. administrative_process_started_at
-        # BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_FORCE_POLICY
-        # Yayın kesinleşmesi iade durumunu engelliyor.
-        if self.is_president_rejected:
-            return False
-        # Yayın kesinleşmesi Başkan/Üst Onay şartını dikkate alıyor.
-        if not self.is_president_approved:
-            return False
-        # İlk 70 altı için uyarı kaydı kesinleşme şartı.
-        if not self.is_second_or_later:
-            return bool(getattr(self, "warning_recorded_at", None))
-        # İkinci 70 altı için idari süreç kaydı kesinleşme şartı.
-        return bool(getattr(self, "administrative_process_started_at", None))
     def __repr__(self):
         return f"<PerformanceLowScoreProcessEvent process={self.process_id} step={self.step_key} status={self.status}>"
