@@ -29,6 +29,11 @@ from app.models import (
     PerformanceLowScoreProcessEvent,
     PerformancePeriod,
 )
+from app.models.performance_low_score_models import (
+    low_score_is_president_approved,
+    low_score_is_president_rejected,
+    low_score_is_second_or_later,
+)
 
 """BYS360_PHASE6_6_SECOND_LOW_SCORE_PROCESS
 
@@ -1289,18 +1294,17 @@ def get_low_score_publish_block_reason(process=None, evaluation=None, ensure=Tru
     final_score = _bys360_lh13_safe_float(getattr(target, "final_total_100", 0), 0.0)
     if final_score <= 0 or final_score >= float(LOW_SCORE_THRESHOLD):
         return None
-    if getattr(target, "president_rejected_at", None) or getattr(target, "president_rejected_by_id", None) or getattr(target, "president_rejection_note", None):
+    # İade / Başkan onayı / tekrar sırası kararları canonical model politikasından
+    # okunur (PerformanceLowScoreProcess.is_president_rejected, is_president_approved,
+    # is_second_or_later ile aynı fonksiyonlar).
+    if low_score_is_president_rejected(target):
         return "Başkan/Üst Onay tarafından iade edildi. Yayın kilidi devam ediyor."
-    if not (getattr(target, "president_approved_at", None) or getattr(target, "president_approved_by_id", None)):
+    if not low_score_is_president_approved(target):
         return "Başkan onayı bekliyor. Başkan/Üst Onay şartı tamamlanmadan yayın yapılamaz. Başkan/Üst Onay Yayın Kilidi"
-    try:
-        sequence_no = int(getattr(target, "sequence_no", 1) or 1)
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        sequence_no = 1
-    if sequence_no >= 2 and not (getattr(target, "administrative_process_started_at", None) or getattr(target, "administrative_process_started_by_id", None)):
+    second_or_later = low_score_is_second_or_later(target)
+    if second_or_later and not (getattr(target, "administrative_process_started_at", None) or getattr(target, "administrative_process_started_by_id", None)):
         return "Tekrarlayan Düşük Performans Süreci başlatılmadan yayın yapılamaz. Sistem otomatik işten çıkarma yapmaz."
-    if sequence_no < 2 and not (getattr(target, "warning_recorded_at", None) or getattr(target, "warning_recorded_by_id", None)):
+    if not second_or_later and not (getattr(target, "warning_recorded_at", None) or getattr(target, "warning_recorded_by_id", None)):
         return "İlk düşük performans uyarısı oluşmadan yayın yapılamaz."
     return None
 
@@ -1365,7 +1369,7 @@ def auto_record_first_low_score_warning(process, *, actor=None, note=None, user_
         return None
     if bool(getattr(process, "is_second_or_later", False)):
         return process
-    if not (getattr(process, "president_approved_at", None) or getattr(process, "president_approved_by_id", None)):
+    if not low_score_is_president_approved(process):
         return process
     if getattr(process, "warning_recorded_at", None) or getattr(process, "warning_recorded_by_id", None):
         return process
@@ -1417,7 +1421,7 @@ def auto_start_second_low_score_process(process, *, actor=None, note=None, user_
         return None
     if not bool(getattr(process, "is_second_or_later", False)):
         return process
-    if not (getattr(process, "president_approved_at", None) or getattr(process, "president_approved_by_id", None)):
+    if not low_score_is_president_approved(process):
         return process
     if getattr(process, "administrative_process_started_at", None) or getattr(process, "administrative_process_started_by_id", None):
         return process

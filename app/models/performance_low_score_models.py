@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # BYS360_CANLI_SAGLAMLASTIRMA_FAZ1_6_LOW_SCORE_MODEL
 import logging
+from typing import Any
 
 from app.core.datetime_utils import utc_now
 
@@ -20,6 +21,31 @@ Bu modeller puan kaydından bağımsız bir idari süreç izi tutar. Amaç: 70 a
 sonuçların Başkan onayı ve personel geçmiş/süreç kaydı
 oluşmadan kesinleşmesini engellemektir.
 """
+
+
+# Canonical 70 altı karar fonksiyonları. PerformanceLowScoreProcess property'leri
+# bunlara delege eder; low_score_process_service model örneğinin yanında
+# duck-typed süreç nesneleri de aldığı için aynı kararı doğrudan bu
+# fonksiyonlarla okur. Her alan getattr(..., None) ile okunduğundan sonuç iki
+# nesne türü için aynıdır.
+def low_score_is_president_approved(process: Any) -> bool:
+    return bool(getattr(process, "president_approved_at", None) or getattr(process, "president_approved_by_id", None))
+
+
+def low_score_is_president_rejected(process: Any) -> bool:
+    return bool(
+        getattr(process, "president_rejected_at", None)
+        or getattr(process, "president_rejected_by_id", None)
+        or getattr(process, "president_rejection_note", None)
+    )
+
+
+def low_score_is_second_or_later(process: Any) -> bool:
+    try:
+        return int(getattr(process, "sequence_no", 1) or 1) >= 2
+    except Exception:
+        logger.exception("Performans modulu kritik isleminde hata olustu", exc_info=True)
+        return False
 
 
 class PerformanceLowScoreProcess(TimestampMixin, db.Model):
@@ -124,11 +150,7 @@ class PerformanceLowScoreProcess(TimestampMixin, db.Model):
 
     @property
     def is_second_or_later(self) -> bool:
-        try:
-            return int(getattr(self, "sequence_no", 1) or 1) >= 2
-        except Exception:
-            logger.exception("Performans modulu kritik isleminde hata olustu", exc_info=True)
-            return False
+        return low_score_is_second_or_later(self)
 
     @property
     def is_hr_checked(self) -> bool:
@@ -136,15 +158,11 @@ class PerformanceLowScoreProcess(TimestampMixin, db.Model):
 
     @property
     def is_president_approved(self) -> bool:
-        return bool(getattr(self, "president_approved_at", None) or getattr(self, "president_approved_by_id", None))
+        return low_score_is_president_approved(self)
 
     @property
     def is_president_rejected(self) -> bool:
-        return bool(
-            getattr(self, "president_rejected_at", None)
-            or getattr(self, "president_rejected_by_id", None)
-            or getattr(self, "president_rejection_note", None)
-        )
+        return low_score_is_president_rejected(self)
 
 
 class PerformanceLowScoreProcessEvent(TimestampMixin, db.Model):
