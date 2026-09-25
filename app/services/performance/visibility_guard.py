@@ -36,6 +36,13 @@ kesin biçimde ayırmaktır:
    İK/yayın kilidi açılmadan göremez.
 """
 
+# Düşük performans yayın kilidi servisi yüklenemezse karne personele sessizce
+# açılmaz (fail-closed): yedek fonksiyon aynı imzayla her değerlendirme için
+# boş olmayan bir kilit nedeni döndürür; çağıranlar bunu kilit olarak okur.
+LOW_SCORE_LOCK_UNAVAILABLE_REASON = (
+    "70 altı yayın kilidi bilgisi bu anda okunamadı; görünürlük kilidi korunarak devam edildi."
+)
+
 try:
     from app.services.performance.low_score_process_service import (
         get_low_score_employee_publish_lock_reason,
@@ -43,7 +50,7 @@ try:
 except Exception:  # pragma: no cover - startup güvenliği
     logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
     def get_low_score_employee_publish_lock_reason(evaluation=None, *, ensure=False):
-        return ""
+        return LOW_SCORE_LOCK_UNAVAILABLE_REASON
 
 
 VISIBILITY_RULE_VERSION = "2026-04-18-scorecard-visibility-lock-v2"
