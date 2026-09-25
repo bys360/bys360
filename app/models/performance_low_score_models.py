@@ -100,41 +100,53 @@ class PerformanceLowScoreProcess(TimestampMixin, db.Model):
     )
 
 
+    # BYS360_PHASE6_FINAL_POLICY_CONTRACT_V3
+    # Başkan/Üst Onay odaklı 70 altı yayın kesinleşme politikası. İK/Admin ara onay kapısı değildir.
+    # Aşağıdaki dört property bu politikanın tek yetkili tanımıdır; sınıf dışında
+    # property() ile yeniden bağlanmaz.
+    # İade edilmiş kayıt kesinleşmez/yayınlanmaz.
+    # Başkan/Üst Onay olmadan düşük performans kesinleşmez.
+    # İlk 70 altında uyarı kaydı olmadan yayın kesinleşmez.
+    # İkinci 70 altında idari süreç başlamadan yayın kesinleşmez.
     @property
-    def is_finalized_for_publish(self):
-        # BYS360_CANLI_SAGLAMLASTIRMA_PHASE1_13_PHASE6_GATE_CONTRACT
+    def is_finalized_for_publish(self) -> bool:
         # Yayın kesinleşmesi iade durumunu engelliyor.
         if self.is_president_rejected:
             return False
         # Yayın kesinleşmesi Başkan/Üst Onay şartını dikkate alıyor.
         if not self.is_president_approved:
             return False
-        # İlk 70 altı için uyarı kaydı kesinleşme şartı.
-        if not self.is_second_or_later:
-            return bool(getattr(self, "warning_recorded_at", None) or getattr(self, "warning_recorded_by_id", None))
         # İkinci 70 altı için idari süreç kaydı kesinleşme şartı.
-        return bool(getattr(self, "administrative_process_started_at", None) or getattr(self, "administrative_process_started_by_id", None))
+        if self.is_second_or_later:
+            return bool(getattr(self, "administrative_process_started_at", None) or getattr(self, "administrative_process_started_by_id", None))
+        # İlk 70 altı için uyarı kaydı kesinleşme şartı.
+        return bool(getattr(self, "warning_recorded_at", None) or getattr(self, "warning_recorded_by_id", None))
 
     @property
-    @property
-    def is_second_or_later(self):
+    def is_second_or_later(self) -> bool:
         try:
             return int(getattr(self, "sequence_no", 1) or 1) >= 2
         except Exception:
             logger.exception("Performans modulu kritik isleminde hata olustu", exc_info=True)
             return False
+
     @property
     def is_hr_checked(self) -> bool:
         return bool(self.hr_checked_at)
 
     @property
+    def is_president_approved(self) -> bool:
+        return bool(getattr(self, "president_approved_at", None) or getattr(self, "president_approved_by_id", None))
+
     @property
-    def is_president_approved(self):
-        return bool(getattr(self, "president_approved_at", None))
-    @property
-    @property
-    def is_president_rejected(self):
-        return bool(getattr(self, "president_rejected_at", None))
+    def is_president_rejected(self) -> bool:
+        return bool(
+            getattr(self, "president_rejected_at", None)
+            or getattr(self, "president_rejected_by_id", None)
+            or getattr(self, "president_rejection_note", None)
+        )
+
+
 class PerformanceLowScoreProcessEvent(TimestampMixin, db.Model):
     __tablename__ = "performance_low_score_process_events"
 
@@ -174,159 +186,3 @@ class PerformanceLowScoreProcessEvent(TimestampMixin, db.Model):
         return bool(getattr(self, "administrative_process_started_at", None))
     def __repr__(self):
         return f"<PerformanceLowScoreProcessEvent process={self.process_id} step={self.step_key} status={self.status}>"
-
-
-# BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_FORCE_MODEL
-# BYS360_LIVE_HARDENING_PHASE1_5_LOW_SCORE_FINAL_POLICY_COMPAT
-# Başkan/Üst Onay odaklı 70 altı kesinleşme politikası. İK/Admin ara onay kapısı değildir.
-def is_president_approved(self):
-    return bool(getattr(self, "president_approved_at", None) or getattr(self, "president_approved_by_id", None))
-
-def is_president_rejected(self):
-    return bool(getattr(self, "president_rejected_at", None) or getattr(self, "president_rejected_by_id", None) or getattr(self, "president_rejection_note", None))
-
-def is_second_or_later(self):
-    try:
-        return int(getattr(self, "sequence_no", 1) or 1) >= 2
-    except Exception:
-        logger.exception("Performans modulu kritik isleminde hata olustu", exc_info=True)
-        return False
-
-def is_finalized_for_publish(self):
-    # Yayın kesinleşmesi iade durumunu engelliyor.
-    if is_president_rejected(self):
-        return False
-    # Yayın kesinleşmesi Başkan/Üst Onay şartını dikkate alıyor.
-    if not is_president_approved(self):
-        return False
-    # İkinci 70 altı için idari süreç kaydı kesinleşme şartı.
-    if is_second_or_later(self):
-        return bool(getattr(self, "administrative_process_started_at", None) or getattr(self, "administrative_process_started_by_id", None))
-    # İlk 70 altı için uyarı kaydı kesinleşme şartı.
-    return bool(getattr(self, "warning_recorded_at", None) or getattr(self, "warning_recorded_by_id", None))
-
-try:
-    PerformanceLowScoreProcess.is_president_approved = property(is_president_approved)
-    PerformanceLowScoreProcess.is_president_rejected = property(is_president_rejected)
-    PerformanceLowScoreProcess.is_second_or_later = property(is_second_or_later)
-    PerformanceLowScoreProcess.is_finalized_for_publish = property(is_finalized_for_publish)
-except NameError:
-    __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: sessiz except/pass yakalandi (app/models/performance_low_score_models.py)")
-
-# BYS360_LIVE_HARDENING_PHASE1_12_LOW_SCORE_MODEL_FINAL_POLICY
-# Başkan/Üst Onay odaklı 70 altı kesinleşme politikası. İK/Admin ara onay kapısı değildir.
-def _phase1_12_low_score_is_president_approved(self):
-    return bool(getattr(self, "president_approved_at", None) or getattr(self, "president_approved_by_id", None))
-
-
-def _phase1_12_low_score_is_president_rejected(self):
-    return bool(getattr(self, "president_rejected_at", None) or getattr(self, "president_rejected_by_id", None) or getattr(self, "president_rejection_note", None))
-
-
-def _phase1_12_low_score_is_second_or_later(self):
-    try:
-        return int(getattr(self, "sequence_no", 1) or 1) >= 2
-    except Exception:
-        logger.exception("Performans modulu kritik isleminde hata olustu", exc_info=True)
-        return False
-
-
-def _phase1_12_low_score_is_finalized_for_publish(self):
-    # Yayın kesinleşmesi iade durumunu engelliyor.
-    if _phase1_12_low_score_is_president_rejected(self):
-        return False
-    # Yayın kesinleşmesi Başkan/Üst Onay şartını dikkate alıyor. is_president_approved
-    if not _phase1_12_low_score_is_president_approved(self):
-        return False
-    if _phase1_12_low_score_is_second_or_later(self):
-        # İkinci 70 altı için idari süreç kaydı kesinleşme şartı. administrative_process_started_at
-        return bool(getattr(self, "administrative_process_started_at", None) or getattr(self, "administrative_process_started_by_id", None))
-    # İlk 70 altı için uyarı kaydı kesinleşme şartı. warning_recorded_at
-    return bool(getattr(self, "warning_recorded_at", None) or getattr(self, "warning_recorded_by_id", None))
-
-
-try:
-    PerformanceLowScoreProcess.is_president_approved = property(_phase1_12_low_score_is_president_approved)
-    PerformanceLowScoreProcess.is_president_rejected = property(_phase1_12_low_score_is_president_rejected)
-    PerformanceLowScoreProcess.is_second_or_later = property(_phase1_12_low_score_is_second_or_later)
-    PerformanceLowScoreProcess.is_finalized_for_publish = property(_phase1_12_low_score_is_finalized_for_publish)
-except NameError:
-    __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: sessiz except/pass yakalandi (app/models/performance_low_score_models.py)")
-
-
-# BYS360_CANLI_SAGLAMLASTIRMA_PHASE1_13_PHASE6_GATE_CONTRACT_RUNTIME
-# 70 altı karne kesinleşmesi: iade yok + Başkan/Üst Onay var + ilk uyarı veya ikinci idari süreç kaydı var.
-def _bys360_lh13_process_is_president_approved(self):
-    return bool(getattr(self, "president_approved_at", None) or getattr(self, "president_approved_by_id", None))
-
-def _bys360_lh13_process_is_president_rejected(self):
-    return bool(getattr(self, "president_rejected_at", None) or getattr(self, "president_rejected_by_id", None) or getattr(self, "president_rejection_note", None))
-
-def _bys360_lh13_process_is_second_or_later(self):
-    try:
-        return int(getattr(self, "sequence_no", 1) or 1) >= 2
-    except Exception:
-        logger.exception("Performans modulu kritik isleminde hata olustu", exc_info=True)
-        return False
-
-def _bys360_lh13_process_is_finalized_for_publish(self):
-    if _bys360_lh13_process_is_president_rejected(self):
-        return False
-    if not _bys360_lh13_process_is_president_approved(self):
-        return False
-    if _bys360_lh13_process_is_second_or_later(self):
-        return bool(getattr(self, "administrative_process_started_at", None) or getattr(self, "administrative_process_started_by_id", None))
-    return bool(getattr(self, "warning_recorded_at", None) or getattr(self, "warning_recorded_by_id", None))
-
-try:
-    PerformanceLowScoreProcess.is_president_approved = property(_bys360_lh13_process_is_president_approved)
-    PerformanceLowScoreProcess.is_president_rejected = property(_bys360_lh13_process_is_president_rejected)
-    PerformanceLowScoreProcess.is_second_or_later = property(_bys360_lh13_process_is_second_or_later)
-    PerformanceLowScoreProcess.is_finalized_for_publish = property(_bys360_lh13_process_is_finalized_for_publish)
-except NameError:
-    __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: sessiz except/pass yakalandi (app/models/performance_low_score_models.py)")
-
-# BYS360_PHASE6_FINAL_POLICY_CONTRACT_V3
-# Başkan/Üst Onay odaklı 70 altı yayın kesinleşme politikası.
-# İade edilmiş kayıt kesinleşmez/yayınlanmaz.
-# Başkan/Üst Onay olmadan düşük performans kesinleşmez.
-# İlk 70 altında uyarı kaydı olmadan yayın kesinleşmez.
-# İkinci 70 altında idari süreç başlamadan yayın kesinleşmez.
-def _bys360_phase6_contract_v3_is_president_approved(self):
-    return bool(getattr(self, "president_approved_at", None) or getattr(self, "president_approved_by_id", None))
-
-
-def _bys360_phase6_contract_v3_is_president_rejected(self):
-    return bool(
-        getattr(self, "president_rejected_at", None)
-        or getattr(self, "president_rejected_by_id", None)
-        or getattr(self, "president_rejection_note", None)
-    )
-
-
-def _bys360_phase6_contract_v3_is_second_or_later(self):
-    try:
-        return int(getattr(self, "sequence_no", 1) or 1) >= 2
-    except Exception:
-        logger.exception("Performans modulu kritik isleminde hata olustu", exc_info=True)
-        return False
-
-
-def _bys360_phase6_contract_v3_is_finalized_for_publish(self):
-    if _bys360_phase6_contract_v3_is_president_rejected(self):
-        return False
-    if not _bys360_phase6_contract_v3_is_president_approved(self):
-        return False
-    if _bys360_phase6_contract_v3_is_second_or_later(self):
-        return bool(getattr(self, "administrative_process_started_at", None) or getattr(self, "administrative_process_started_by_id", None))
-    return bool(getattr(self, "warning_recorded_at", None) or getattr(self, "warning_recorded_by_id", None))
-
-
-try:
-    PerformanceLowScoreProcess.is_president_approved = property(_bys360_phase6_contract_v3_is_president_approved)
-    PerformanceLowScoreProcess.is_president_rejected = property(_bys360_phase6_contract_v3_is_president_rejected)
-    PerformanceLowScoreProcess.is_second_or_later = property(_bys360_phase6_contract_v3_is_second_or_later)
-    PerformanceLowScoreProcess.is_finalized_for_publish = property(_bys360_phase6_contract_v3_is_finalized_for_publish)
-except NameError:
-    __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: sessiz except/pass yakalandi (app/models/performance_low_score_models.py)")
-
