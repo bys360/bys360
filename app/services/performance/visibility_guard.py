@@ -48,7 +48,11 @@ try:
         get_low_score_employee_publish_lock_reason,
     )
 except Exception:  # pragma: no cover - startup güvenliği
-    logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
+    logger.exception(
+        "BYS360_LOW_SCORE_VISIBILITY_FAIL_CLOSED | Düşük performans yayın kilidi servisi yüklenemedi; "
+        "görünürlük fail-closed moda geçti: personel karne görünürlüğü güvenlik nedeniyle kilitli "
+        "tutuluyor. Bu durum uygulama yeniden başlatılana kadar sürebilir."
+    )
     def get_low_score_employee_publish_lock_reason(evaluation=None, *, ensure=False):
         return LOW_SCORE_LOCK_UNAVAILABLE_REASON
 

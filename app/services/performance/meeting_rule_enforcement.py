@@ -379,8 +379,14 @@ def repair_published_low_score_locks(period_id: Any | None = None) -> int:
             get_low_score_publish_block_reason,
         )
     except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        return 0
+        # Onarım hiç başlayamadı; sonuç "onarılacak kayıt yok" (0) gibi
+        # görünmesin diye hata çağırana iletilir. run_meeting_rule_enforcement
+        # bunu kullanıcıya uyarı olarak gösterir.
+        logger.exception(
+            "BYS360_LOW_SCORE_LOCK_REPAIR_UNAVAILABLE | Düşük performans yayın kilidi onarımı "
+            "başlatılamadı: politika servisi yüklenemedi; hiçbir kayıt onarılmadı."
+        )
+        raise
     query = PerformanceEvaluation.query.filter(PerformanceEvaluation.final_total_100 < LOW_SCORE_THRESHOLD)
     if period_id:
         query = query.filter(PerformanceEvaluation.period_id == int(period_id))
