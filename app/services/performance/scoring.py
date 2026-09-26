@@ -199,13 +199,22 @@ def recalculate_evaluation_totals(evaluation: PerformanceEvaluation) -> Performa
     return evaluation
 
 
-def recalculate_all_evaluations(period_id: int | None = None) -> int:
+def recalculate_all_evaluations(period_id: int | None = None, *, actor_user_id: int | None = None) -> int:
+    from app.services.performance.low_score_process_service import (
+        ensure_low_score_process_for_evaluation,
+    )
+
     query = PerformanceEvaluation.query
     if period_id is not None:
         query = query.filter_by(period_id=period_id)
     rows = query.all()
     for row in rows:
+        before = (row.final_total_100, row.status)
         recalculate_evaluation_totals(row)
+        # Puanı/durumu bu hesaplamayla değişen ve nihai tamamlanmış değerlendirme için
+        # 70 altı süreç zinciri aynı transaction'da kurulur (v2 web tamamlamasıyla aynı).
+        if (row.final_total_100, row.status) != before and (row.status or "").strip().lower() in {"tamamlandi", "tamamlandı", "completed", "published"}:
+            ensure_low_score_process_for_evaluation(row, actor_user_id=actor_user_id, flush=False)
     db.session.commit()
     return len(rows)
 

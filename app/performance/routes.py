@@ -468,7 +468,7 @@ def performance_hierarchy_settings():
             selected_period.enable_level_3_scoring = bool(level_3_enabled and level_3_scoring_enabled)
 
             db.session.flush()
-            recalculated_count = recalculate_all_evaluations(selected_period.id)
+            recalculated_count = recalculate_all_evaluations(selected_period.id, actor_user_id=current_user.id)
             db.session.commit()
             flash("Dönem ağırlıkları güncellendi.", "success")
             flash(f"Seçili dönem için {recalculated_count} değerlendirme toplamı yeni 3. amir ayarına göre yeniden hesaplandı.", "info")
