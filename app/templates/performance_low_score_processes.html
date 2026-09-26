@@ -10,104 +10,11 @@
 {% extends "base.html" %}
 {# BYS360_PHASE5_4_TECHNICAL_LANGUAGE_CLEANUP #}
 {% from "performance/_workspace_shell.html" import styles, hero, nav, note %}
-{% block title %}70 Altı Süreçleri - BYS360
-<!-- BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_FORCE_TEMPLATE -->
-<section class="phase6-4-approval-panel">
-  <h2>Başkan/Üst Onay İşlemleri</h2>
-  <button type="submit">Onayla</button>
-  <button type="submit">İade Et</button>
-  <label>Süreç Notu Ekle</label>
-  <!-- performance_low_score_president_reject -->
-  <!-- performance_low_score_add_note -->
-</section>
-<section class="phase6-4-history">
-  <h3>Süreç Geçmişi</h3>
-  <p>Başkan/Üst Onay tarafından iade edildi</p>
-  <p>Tekrarlayan Düşük Performans Süreci</p>
-  <p>Sistem otomatik işten çıkarma yapmaz.</p>
-</section>
-
-
-<!-- BYS360_LIVE_HARDENING_PHASE1_5_LOW_SCORE_VISIBLE_NOTE -->
-<div class="alert alert-warning small mt-3" role="alert">
-  <strong>Başkan/Üst Onay Süreci:</strong>
-  Başkan/Üst Onay tarafından iade edilen kayıtların yayın kilidi devam eder.
-  Tekrarlayan Düşük Performans Süreci idari takip başlatır; Sistem otomatik işten çıkarma yapmaz.
-</div>
-
-{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/performance_phase3.css') }}">
-<!-- BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_FORCE_TEMPLATE -->
-<section class="phase6-4-approval-panel">
-  <h2>Başkan/Üst Onay İşlemleri</h2>
-  <button type="submit">Onayla</button>
-  <button type="submit">İade Et</button>
-  <label>Süreç Notu Ekle</label>
-  <!-- performance_low_score_president_reject -->
-  <!-- performance_low_score_add_note -->
-</section>
-<section class="phase6-4-history">
-  <h3>Süreç Geçmişi</h3>
-  <p>Başkan/Üst Onay tarafından iade edildi</p>
-  <p>Tekrarlayan Düşük Performans Süreci</p>
-  <p>Sistem otomatik işten çıkarma yapmaz.</p>
-</section>
-
-{% endblock %}
-{% block page_kicker %}Performans Yönetimi
-<!-- BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_FORCE_TEMPLATE -->
-<section class="phase6-4-approval-panel">
-  <h2>Başkan/Üst Onay İşlemleri</h2>
-  <button type="submit">Onayla</button>
-  <button type="submit">İade Et</button>
-  <label>Süreç Notu Ekle</label>
-  <!-- performance_low_score_president_reject -->
-  <!-- performance_low_score_add_note -->
-</section>
-<section class="phase6-4-history">
-  <h3>Süreç Geçmişi</h3>
-  <p>Başkan/Üst Onay tarafından iade edildi</p>
-  <p>Tekrarlayan Düşük Performans Süreci</p>
-  <p>Sistem otomatik işten çıkarma yapmaz.</p>
-</section>
-
-{% endblock %}
-{% block page_title %}70 Altı Başkan/Üst Onay ve Süreç Zinciri
-<!-- BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_FORCE_TEMPLATE -->
-<section class="phase6-4-approval-panel">
-  <h2>Başkan/Üst Onay İşlemleri</h2>
-  <button type="submit">Onayla</button>
-  <button type="submit">İade Et</button>
-  <label>Süreç Notu Ekle</label>
-  <!-- performance_low_score_president_reject -->
-  <!-- performance_low_score_add_note -->
-</section>
-<section class="phase6-4-history">
-  <h3>Süreç Geçmişi</h3>
-  <p>Başkan/Üst Onay tarafından iade edildi</p>
-  <p>Tekrarlayan Düşük Performans Süreci</p>
-  <p>Sistem otomatik işten çıkarma yapmaz.</p>
-</section>
-
-{% endblock %}
-{% block page_subtitle %}Düşük performans sonuçları doğrudan Başkan/Üst Onay ekranına düşer; Başkan/Üst Onay ve personel süreç kaydı tamamlanmadan kesinleşmez.
-<!-- BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_FORCE_TEMPLATE -->
-<section class="phase6-4-approval-panel">
-  <h2>Başkan/Üst Onay İşlemleri</h2>
-  <button type="submit">Onayla</button>
-  <button type="submit">İade Et</button>
-  <label>Süreç Notu Ekle</label>
-  <!-- performance_low_score_president_reject -->
-  <!-- performance_low_score_add_note -->
-</section>
-<section class="phase6-4-history">
-  <h3>Süreç Geçmişi</h3>
-  <p>Başkan/Üst Onay tarafından iade edildi</p>
-  <p>Tekrarlayan Düşük Performans Süreci</p>
-  <p>Sistem otomatik işten çıkarma yapmaz.</p>
-</section>
-
-{% endblock %}
+{% block title %}70 Altı Süreçleri - BYS360{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/performance_phase3.css') }}">{% endblock %}
+{% block page_kicker %}Performans Yönetimi{% endblock %}
+{% block page_title %}70 Altı Başkan/Üst Onay ve Süreç Zinciri{% endblock %}
+{% block page_subtitle %}Düşük performans sonuçları doğrudan Başkan/Üst Onay ekranına düşer; Başkan/Üst Onay ve personel süreç kaydı tamamlanmadan kesinleşmez.{% endblock %}
 {% block content %}
 {# BYS360_AI_DECISION_FAZ6_LOW_PERFORMANCE_PANEL_INCLUDE #}
 {% include "ai_decision/_faz6_low_performance_approval_panel.html" ignore missing %}
@@ -190,9 +97,9 @@
           {% for row in rows %}
           {% set p = row.process %}
           <tr>
-            <td><div class="low-person">{{ row.employee_name }}</div><div class="low-meta">{{ row.sicil_no }} · {{ row.birim }}<br>{{ row.period_title }} · {{ row.sequence_label }}</div></td>
+            <td><div class="low-person">{{ row.employee_name }}</div><div class="low-meta">{{ row.sicil_no }}{% if row.birim %} · {{ row.birim }}{% endif %}<br>{{ row.period_title }} · {{ row.sequence_label }}</div></td>
             <td><span class="low-score"><i class="fa-solid fa-arrow-trend-down"></i>{{ row.score }}</span></td>
-            <td><span class="low-status {% if row.ready_for_publish %}ready{% endif %}">{{ row.status_label }}</span><div class="low-meta">Şu an: {{ row.owner_label }}</div></td>
+            <td><span class="low-status {% if row.ready_for_publish %}ready{% endif %}">{{ row.status_label }}</span>{% if row.owner_label %}<div class="low-meta">Şu an: {{ row.owner_label }}</div>{% endif %}</td>
             <td><div class="low-timeline">{% for step in row.timeline %}<span class="low-step {% if step.is_done %}done{% endif %} {% if step.is_current %}current{% endif %}"><i class="fa-solid {% if step.is_done %}fa-check{% elif step.is_current %}fa-location-dot{% else %}fa-clock{% endif %}"></i>{{ step.title }}</span>{% endfor %}</div></td>
             <td><div class="phase6-4-approval-panel">
               <div class="phase6-4-mini-title">Başkan/Üst Onay İşlemleri</div>
@@ -218,8 +125,8 @@
               {% if row.evaluation %}<a class="performance-btn secondary" href="{{ url_for('main.performance_scorecard_detail', evaluation_id=row.evaluation.id, period_id=period.id) }}"><i class="fa-solid fa-eye"></i> Karne Detayı</a>{% endif %}
               {% if row.ready_for_publish %}<span class="low-status ready"><i class="fa-solid fa-check"></i> Yayına hazır</span>{% endif %}
               <details class="phase6-4-history"><summary>Süreç Geçmişi</summary><div class="phase6-4-history-list">
-                {% for step in row.events_history or row.timeline %}
-                <div class="phase6-4-history-item"><div class="phase6-4-history-title">{{ step.title }} · {{ step.status }}</div>{% if step.actor_name and step.actor_name != '-' %}<div class="phase6-4-history-note">İşlem yapan: {{ step.actor_name }}</div>{% endif %}{% if step.note %}<div class="phase6-4-history-note">{{ step.note }}</div>{% endif %}</div>
+                {% for step in row.events_history %}
+                <div class="phase6-4-history-item"><div class="phase6-4-history-title">{{ step.title }}{% if step.status %} · {{ step.status }}{% endif %}</div>{% if step.actor_name %}<div class="phase6-4-history-note">İşlem yapan: {{ step.actor_name }}</div>{% endif %}{% if step.note %}<div class="phase6-4-history-note">{{ step.note }}</div>{% endif %}</div>
                 {% endfor %}
               </div></details>
             </div></td>

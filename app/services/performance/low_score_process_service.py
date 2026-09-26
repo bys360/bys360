@@ -472,23 +472,95 @@ def _full_name(user: Any | None) -> str:
     return getattr(user, "full_name", None) or f"{getattr(user, 'ad', '') or ''} {getattr(user, 'soyad', '') or ''}".strip() or "-"
 
 
+def _actor_display_name(user: Any | None) -> str | None:
+    """İşlemi yapan kişinin adı; kullanıcı kaydı veya adı yoksa None (tahmin edilmez)."""
+    if user is None:
+        return None
+    name = _full_name(user)
+    return None if name == "-" else name
+
+
 def build_process_timeline(process=None):
+    """70 altı sayfasındaki "Süreç Geçmişi" özeti: süreç alanlarından üretilir.
+
+    Değişmez denetim kaydı değildir; her öğe {key, title, status, actor_name, note}.
+    actor_name yalnız o adımın kendi *_by kaydından gelir, yoksa None.
+    """
     if process is None:
         return []
     timeline = []
     if getattr(process, "president_rejected_at", None):
-        timeline.append({"key": "president_rejected", "label": "Başkan/Üst Onay tarafından iade edildi", "note": getattr(process, "president_rejection_note", None)})
+        timeline.append({
+            "key": "president_rejected",
+            "title": _event_title("president_rejected"),
+            "status": "Başkan/Üst Onay tarafından iade edildi",
+            "actor_name": _actor_display_name(getattr(process, "president_rejected_by", None)),
+            "note": getattr(process, "president_rejection_note", None),
+        })
     if getattr(process, "process_note", None):
-        timeline.append({"key": "process_note", "label": "Süreç Notu", "note": getattr(process, "process_note", None)})
+        timeline.append({
+            "key": "process_note",
+            "title": _event_title("process_note"),
+            "status": None,
+            "actor_name": _actor_display_name(getattr(process, "process_note_by", None)),
+            "note": getattr(process, "process_note", None),
+        })
     if getattr(process, "president_approved_at", None):
-        timeline.append({"key": "president_approval", "label": "Başkan/Üst Onay tamamlandı", "note": getattr(process, "president_approval_note", None)})
+        timeline.append({
+            "key": "president_approval",
+            "title": _event_title("president_approval"),
+            "status": "Başkan/Üst Onay tamamlandı",
+            "actor_name": _actor_display_name(getattr(process, "president_approved_by", None)),
+            "note": getattr(process, "president_approval_note", None),
+        })
     return timeline
+
+
+def _workflow_checklist(process) -> list[dict[str, Any]]:
+    """Güncel iş akışı adımları (checklist), denetim geçmişi değildir.
+
+    Adımlar ve tamamlanma koşulları ensure_low_score_process_for_evaluation'ın
+    oluşturduğu adım olaylarıyla aynıdır; is_current tamamlanmamış ilk adımdır.
+    """
+    second_or_later = low_score_is_second_or_later(process)
+    steps = [
+        ("evaluation_completed", True),
+        ("low_score_detected", True),
+        ("president_approval", bool(getattr(process, "president_approved_at", None))),
+        (
+            ("second_repeat_admin_process", bool(getattr(process, "administrative_process_started_at", None)))
+            if second_or_later
+            else ("first_warning_record", bool(getattr(process, "warning_recorded_at", None)))
+        ),
+        ("publish_release", bool(getattr(process, "is_finalized_for_publish", False))),
+    ]
+    current_key = next((key for key, done in steps if not done), None)
+    return [
+        {"key": key, "title": _event_title(key), "is_done": done, "is_current": key == current_key, "note": None}
+        for key, done in steps
+    ]
+
+
 def build_low_score_process_rows(processes=None):
+    """70 altı süreç sayfasının satır sözleşmesi; girdi süreç koleksiyonudur."""
     rows = []
     for process in processes or []:
+        employee = getattr(process, "employee", None)
+        sequence_no = getattr(process, "sequence_no", None)
         rows.append({
             "id": getattr(process, "id", None),
+            "process": process,
+            "evaluation": getattr(process, "evaluation", None),
+            "employee_name": _full_name(employee),
+            "sicil_no": getattr(employee, "sicil_no", None),
+            "birim": getattr(employee, "birim", None),
+            "period_title": getattr(getattr(process, "period", None), "title", None),
+            "sequence_label": f"{sequence_no}. 70 altı sonuç" if sequence_no else None,
+            "score": getattr(process, "final_total_100", None),
             "status_label": humanize_process_status(getattr(process, "status", None)),
+            "ready_for_publish": bool(getattr(process, "is_finalized_for_publish", False)),
+            "owner_label": getattr(process, "current_owner_label", None),
+            "timeline": _workflow_checklist(process),
             "events_history": build_process_timeline(process),
             "approval_note": getattr(process, "president_approval_note", None),
             "rejection_note": getattr(process, "president_rejection_note", None),
