@@ -275,14 +275,17 @@ def _recalculate_period_rankings(period_id: int) -> None:
             row.ranking_in_unit = idx
 
 
-def create_snapshots_for_period(period_id: int, actor_user_id: int | None = None) -> dict[str, int]:
+def create_snapshots_for_period(period_id: int, evaluation_ids: list[int], actor_user_id: int | None = None) -> dict[str, int]:
     period = db.session.get(PerformancePeriod, period_id)
     if not period:
         raise ValueError("Dönem bulunamadı.")
 
+    # Yalnız yayın kararının personele açtığı değerlendirmeler; yayınlanmayan
+    # karne system_published anlık görüntüsü almaz.
     evaluations = (
         PerformanceEvaluation.query
         .filter_by(period_id=period_id)
+        .filter(PerformanceEvaluation.id.in_(evaluation_ids))
         .filter(PerformanceEvaluation.status == "tamamlandi")
         .all()
     )

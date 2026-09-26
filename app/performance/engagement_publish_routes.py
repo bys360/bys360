@@ -113,7 +113,7 @@ def performance_publish_period(period_id):
         db.session.commit()
 
         try:
-            create_snapshots_for_period(period.id, actor_user_id=current_user.id)
+            create_snapshots_for_period(period.id, evaluation_ids=result.get("published_evaluation_ids", []), actor_user_id=current_user.id)
         except Exception as snap_exc:
             current_app.logger.exception("Snapshot create failed for period publish: %s", snap_exc)
             flash(f"Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu: {snap_exc}", "warning")
