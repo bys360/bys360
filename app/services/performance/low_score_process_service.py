@@ -367,11 +367,16 @@ def ensure_low_score_processes_for_period(period: PerformancePeriod | None, *, a
         return {"created_or_updated": 0, "period_id": period.id, "process_ids": [], "schema_missing": True}
     evaluations = PerformanceEvaluation.query.filter_by(period_id=period.id).all()
     process_ids: list[int] = []
-    for evaluation in evaluations:
-        process = ensure_low_score_process_for_evaluation(evaluation, actor_user_id=actor_user_id, flush=False)
-        if process:
-            db.session.flush()
-            process_ids.append(process.id)
+    # Dönem ön adımı atomiktir: tek bir SAVEPOINT içinde çalışır. Bir
+    # değerlendirmede hata olursa bu çağrının oluşturduğu/güncellediği süreç ve
+    # olay kayıtlarının tamamı geri alınır ve hata çağırana iletilir; çağıranın
+    # önceki değişiklikleri ve transaction'ı etkilenmez.
+    with db.session.begin_nested():
+        for evaluation in evaluations:
+            process = ensure_low_score_process_for_evaluation(evaluation, actor_user_id=actor_user_id, flush=False)
+            if process:
+                db.session.flush()
+                process_ids.append(process.id)
     return {"created_or_updated": len(process_ids), "period_id": period.id, "process_ids": process_ids}
 
 
