@@ -901,13 +901,9 @@ def mobile_performance_development_suggestions(user: User):
     return mobile_performance_development_suggestions_delegate(user)
 
 def _bys360_legacy_mobile_performance_reports(user: User):
-    try:
-        assignment_q = _assignment_query_for(user)
-        snapshot_q = _snapshot_query_for(user)
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        assignment_q = EvaluationAssignment.query
-        snapshot_q = PerformanceResultSnapshot.query
+    # Kapsam yalnız yetki yardımcılarından gelir; hata kapsamsız sorguya düşmez.
+    assignment_q = _assignment_query_for(user)
+    snapshot_q = _snapshot_query_for(user)
     total_assignments = _mobile_perf_safe_count(assignment_q)
     total_scorecards = _mobile_perf_safe_count(snapshot_q)
     avg_score = _safe_avg_score(snapshot_q) if '_safe_avg_score' in globals() else 0

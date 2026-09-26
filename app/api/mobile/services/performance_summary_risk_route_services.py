@@ -6,7 +6,6 @@ from typing import Any
 def phase3c_mobile_performance_full_feature_summary_service(user: Any, deps: dict[str, Any]):
     PerformancePeriod = deps['PerformancePeriod']
     PerformancePresidentApproval = deps['PerformancePresidentApproval']
-    PerformanceResultSnapshot = deps['PerformanceResultSnapshot']
     _assignment_query_for = deps['_assignment_query_for']
     _has_global_scope = deps['_has_global_scope']
     _item = deps['_item']
@@ -17,14 +16,10 @@ def phase3c_mobile_performance_full_feature_summary_service(user: Any, deps: dic
     _safe_avg_score = deps['_safe_avg_score']
     _snapshot_query_for = deps['_snapshot_query_for']
     _v2852_pending_assignments = deps['_v2852_pending_assignments']
-    logger = deps['logger']
 
-    try:
-        _assignment_query_for(user)
-        snapshot_q = _snapshot_query_for(user)
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        snapshot_q = PerformanceResultSnapshot.query
+    # Kapsam yalnız yetki yardımcılarından gelir; hata kapsamsız sorguya düşmez.
+    _assignment_query_for(user)
+    snapshot_q = _snapshot_query_for(user)
     active_periods = _mobile_perf_safe_count(PerformancePeriod.query.filter_by(is_active=True)) if hasattr(PerformancePeriod, 'is_active') else _mobile_perf_safe_count(PerformancePeriod.query)
     pending = len(_v2852_pending_assignments(user, 1000))
     scorecards = _mobile_perf_safe_count(snapshot_q)
