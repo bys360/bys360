@@ -343,7 +343,10 @@ def ensure_low_score_process_for_evaluation(evaluation: PerformanceEvaluation | 
         process.rule_version = LOW_SCORE_RULE_VERSION
         if not getattr(process, "low_score_detected_at", None):
             process.low_score_detected_at = utc_now()
-        process.updated_by_user_id = actor_user_id
+        # actor_user_id=None "işlemi yapan bilinmiyor" demektir (ör. yayın kilidi
+        # onarımı); mevcut denetim bilgisi silinmez, yalnız gerçek kullanıcı yazar.
+        if actor_user_id is not None:
+            process.updated_by_user_id = actor_user_id
 
     _add_event(process, "evaluation_completed", status="done", actor_user_id=actor_user_id)
     _add_event(process, "low_score_detected", status="done", actor_user_id=actor_user_id, note=f"Nihai puan: {score}")
