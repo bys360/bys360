@@ -27,6 +27,7 @@ from app.services.ai.dashboard_panels import (
 from app.services.auto_hierarchy_service import auto_apply_manager_chains
 from app.services.hierarchy_admin_service import sync_organization_units_from_users
 from app.services.performance.context import build_period_weight_context, list_performance_periods
+from app.services.performance.period_state_guard import validate_period_scores_mutable
 from app.services.performance.reason_codes import (
     is_informational_reason,
     reason_message,
@@ -439,6 +440,12 @@ def performance_hierarchy_settings():
         if not selected_period:
             flash("Önce bir dönem seçiniz.", "warning")
             return redirect(url_for("main.performance_hierarchy_settings"))
+        # Ağırlık değişikliği dönemin bütün puanlarını yeniden hesaplar; sonuçları
+        # yayınlanmış veya kilitli dönemde puanlama değişikliği yapılamaz.
+        scores_mutable, lock_message = validate_period_scores_mutable(selected_period)
+        if not scores_mutable:
+            flash(lock_message, "warning")
+            return redirect(url_for("main.performance_hierarchy_settings", period_id=selected_period.id, scope=selected_scope))
         try:
             w1 = int(float(request.form.get("evaluator_1_weight") or 0))
             w2 = int(float(request.form.get("evaluator_2_weight") or 0))
