@@ -20,6 +20,7 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import inspect
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.datetime_utils import utc_now
 from app.extensions import db
@@ -746,6 +747,10 @@ def get_low_score_publish_block_reason(process=None, evaluation=None, ensure=Tru
         if ensure:
             try:
                 target = ensure_low_score_process_for_evaluation(evaluation)
+            except SQLAlchemyError:
+                # Veritabanı hatası yayın kilidi gerekçesine dönüştürülmez; çağırana
+                # iletilir (kural uygulamasında ok=False ve tam geri alma).
+                raise
             except Exception:
                 logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
                 target = None
