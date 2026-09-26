@@ -614,6 +614,7 @@ from app.api.mobile.services.performance_score_route_services import (  # noqa: 
 def _phase3c_score_route_deps() -> dict[str, Any]:
     return {
         'EvaluationAssignment': EvaluationAssignment,
+        'PerformanceEvaluation': PerformanceEvaluation,
         'PerformancePeriod': PerformancePeriod,
         '_label': _label,
         '_mobile_perf_safe_get': _mobile_perf_safe_get,
