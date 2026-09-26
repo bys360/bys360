@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
 
@@ -391,15 +392,20 @@ def repair_published_low_score_locks(period_id: Any | None = None) -> int:
     if period_id:
         query = query.filter(PerformanceEvaluation.period_id == int(period_id))
     changed = 0
-    for evaluation in query.all():
-        ensure_low_score_process_for_evaluation(evaluation, flush=True)
-        reason = get_low_score_publish_block_reason(evaluation, ensure=True)
-        if reason and bool(getattr(evaluation, "is_published_to_employee", False)):
-            evaluation.is_published_to_employee = False
-            if hasattr(evaluation, "published_to_employee_at"):
-                evaluation.published_to_employee_at = None
-            changed += 1
-    db.session.flush()
+    # Onarım atomiktir: tek bir SAVEPOINT içinde çalışır. Herhangi bir kayıtta
+    # hata olursa bu adımın yaptığı süreç/olay/yayın değişikliklerinin tamamı
+    # geri alınır ve hata çağırana iletilir; çağıranın aynı transaction'daki
+    # önceki değişiklikleri etkilenmez.
+    with db.session.begin_nested():
+        for evaluation in query.all():
+            ensure_low_score_process_for_evaluation(evaluation, flush=True)
+            reason = get_low_score_publish_block_reason(evaluation, ensure=True)
+            if reason and bool(getattr(evaluation, "is_published_to_employee", False)):
+                evaluation.is_published_to_employee = False
+                if hasattr(evaluation, "published_to_employee_at"):
+                    evaluation.published_to_employee_at = None
+                changed += 1
+        db.session.flush()
     return changed
 
 
@@ -428,6 +434,10 @@ def run_meeting_rule_enforcement(period_id: Any | None = None, actor_user_id: An
             logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)
             resolved_period_id = _safe_int(period_id)
             warnings.append("Düşük performans süreç kontrolü uygulanamadı.")
+            if isinstance(exc, SQLAlchemyError):
+                # Veritabanı hatası uyarıya indirgenmez: dış blok düşük performans
+                # transaction'ını tamamen geri alır ve sonuç ok=False olur.
+                raise
         db.session.commit()
         return RuleEnforcementResult(True, RULE_ENFORCEMENT_VERSION, resolved_period_id, repaired, generated, seeded, "Toplantı kararları çalışan kural olarak uygulandı.", warnings)
     except Exception as exc:

@@ -17,7 +17,10 @@ holds. Contract, verified at 0aa34cf624d7b3096cef1c8da6dc4c4acf44d874:
 - run_meeting_rule_enforcement runs the low-score block in an inner
   ``try/except Exception`` that appends the warning "Düşük performans süreç
   kontrolü uygulanamadı." WITHOUT a rollback and then commits; its outer
-  ``except`` rolls back and returns ok=False.
+  ``except`` rolls back and returns ok=False. Since P0.2D the repair itself
+  runs in one SAVEPOINT, so a failure inside it leaves no partial repair;
+  since P0.2D-R1 a SQLAlchemyError is still re-raised to the outer except
+  (ok=False, whole low-score transaction rolled back).
 - Policy import failure inside the repair: before P0.2C it logged a generic
   message and returned 0 (indistinguishable from "nothing to repair", and the
   run reported success with no warning). Since P0.2C it logs
@@ -357,7 +360,7 @@ def test_rule_enforcement_warns_when_the_service_module_itself_cannot_load(ls_ap
 
 
 # ---------------------------------------------------------------------------
-# 7. Failure inside the repair loop: transaction behavior (unchanged by P0.2C)
+# 7. Failure inside the repair loop: transaction behavior (P0.2D: atomic repair)
 # ---------------------------------------------------------------------------
 
 
@@ -375,10 +378,11 @@ def _fail_on_second_block_reason(monkeypatch: pytest.MonkeyPatch, make_error) ->
     monkeypatch.setattr(svc, "get_low_score_publish_block_reason", _wrapped)
 
 
-def test_runtime_error_mid_repair_commits_the_partial_repair_with_a_warning(ls_app, monkeypatch) -> None:
-    """Characterizes current behavior (reported as a P0.2C finding): the inner
-    except of run_meeting_rule_enforcement does not roll back, so rows already
-    re-locked before the failure are committed and the run reports ok=True."""
+def test_runtime_error_mid_repair_leaves_no_partial_repair_and_warns(ls_app, monkeypatch) -> None:
+    """A row already re-locked before the failure does not survive: the
+    repair's SAVEPOINT (P0.2D) is rolled back; the run still reports ok=True
+    with the standard warning. The P0.2C version of this test characterized
+    the pre-P0.2D partial commit ([False, True])."""
     period_id, ids = _seed(ls_app, [(57.0, True), (44.0, True)])
     mre = _stub_rule_foundation(monkeypatch)
 
@@ -391,14 +395,16 @@ def test_runtime_error_mid_repair_commits_the_partial_repair_with_a_warning(ls_a
     assert result.ok is True
     assert result.warnings == [_LOW_SCORE_WARNING]
     assert result.repaired_low_score_locks == 0
-    assert sorted(_published_flags(ls_app, ids)) == [False, True]
-    assert _process_count(ls_app) == 2
+    assert _published_flags(ls_app, ids) == [True, True]
+    assert _process_count(ls_app) == 2  # generated before the repair step
 
 
 def test_database_error_mid_repair_rolls_back_everything_and_reports_failure(ls_app, monkeypatch) -> None:
-    """A real DB error (UNIQUE violation on flush) leaves the session needing a
-    rollback, so the commit raises, the outer except rolls back and the run
-    reports ok=False; nothing from the run is persisted."""
+    """A real DB error (UNIQUE violation on flush) is a run failure: the
+    repair's SAVEPOINT is rolled back, the SQLAlchemyError reaches the outer
+    except (P0.2D-R1), which rolls back the whole low-score transaction, and
+    the run reports ok=False; nothing from the run is persisted. Same outcome
+    as before P0.2D, where the poisoned session made the commit raise."""
     period_id, ids = _seed(ls_app, [(57.0, True), (44.0, True)])
     mre = _stub_rule_foundation(monkeypatch)
 
@@ -421,6 +427,7 @@ def test_database_error_mid_repair_rolls_back_everything_and_reports_failure(ls_
         result = mre.run_meeting_rule_enforcement(period_id=period_id)
     assert result.ok is False
     assert result.message == "Kural uygulama sırasında hata oluştu."
+    assert result.warnings == [_LOW_SCORE_WARNING]
     assert result.repaired_low_score_locks == 0
     assert _published_flags(ls_app, ids) == [True, True]
     assert _process_count(ls_app) == 0
