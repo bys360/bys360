@@ -64,8 +64,9 @@ def _redirect_publish_dashboard(period_id=None, selected_scope="", q="", status=
 def performance_snapshot_backfill():
     try:
         result = backfill_snapshots_for_published_periods(actor_user_id=current_user.id)
+        db.session.commit()
         flash(
-            f"Snapshot backfill tamamlandı. Dönem: {result.get('periods', 0)}, Yeni: {result.get('created', 0)}, Güncellenen: {result.get('updated', 0)}, Atlanan: {result.get('skipped', 0)}",
+            f"Snapshot backfill tamamlandı. Dönem: {result['period_count']}, Yeni: {result['created']}, Atlanan: {result['skipped']}",
             "success",
         )
     except Exception as exc:
