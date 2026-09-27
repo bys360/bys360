@@ -136,10 +136,11 @@ def _is_completed(evaluation: PerformanceEvaluation | None) -> bool:
     publish_status = _normalize(getattr(evaluation, "publish_status", ""))
     values = {value for value in (status, workflow, approval_status, publish_status) if value}
 
-    # Taslak / bekleyen kayıt tamamlanmış sayılmaz.
+    # Taslak / bekleyen / kısmen tamamlanmış ya da tamamlanmamış kayıt tamamlanmış sayılmaz
+    # ("kismen_tamamlandi", "tamamlanmadi" aşağıdaki "tamam" eşleşmesine düşmemeli).
     if any(value in DRAFT_OR_PENDING_EVALUATION_STATUSES for value in values):
         return False
-    if any(("bekle" in value or "pending" in value or "draft" in value or "taslak" in value or "waiting" in value) for value in values):
+    if any(("bekle" in value or "pending" in value or "draft" in value or "taslak" in value or "waiting" in value or "kismen" in value or "tamamlanma" in value) for value in values):
         return False
 
     # İade edilmiş kayıt tamamlanmış/yayınlanmış sayılmaz.
