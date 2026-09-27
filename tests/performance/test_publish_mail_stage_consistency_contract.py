@@ -442,7 +442,9 @@ def test_v2_publish_database_error_after_the_publication_commit_redirects(env, m
     assert _flashes(env.admin) == [("danger", "Yayın işlemi sırasında beklenmeyen bir hata oluştu.")]
     after = _state(env)
     assert after["published"] == [(card, True, True) for card in env.cards]
-    assert (after["publish_logs"], after["snapshots"], after["mail_logs"]) == ([], [], 0)
+    # P2-04: the v2 publication writes its publish-ledger rows in the same commit.
+    assert after["publish_logs"] == [("bulk_publish", card) for card in env.cards]
+    assert (after["snapshots"], after["mail_logs"]) == ([], 0)
 
 
 def test_v2_unpublish_database_error_redirects_and_changes_nothing(env, monkeypatch) -> None:
@@ -457,3 +459,80 @@ def test_v2_unpublish_database_error_redirects_and_changes_nothing(env, monkeypa
     assert response.status_code == 302
     assert _flashes(env.admin) == [("danger", "Yayın işlemi sırasında beklenmeyen bir hata oluştu.")]
     assert _state(env) == before
+
+
+# ---------------------------------------------------------------------------
+# P2-04 (final pre-live audit): v2 publication changes are written to the publish ledger
+# ---------------------------------------------------------------------------
+
+
+def _ledger(env: SimpleNamespace) -> list[tuple[str, int, int, int, str]]:
+    from app.extensions import db
+
+    with env.app.app_context():
+        db.session.remove()
+        rows = db.session.execute(
+            text("SELECT action_type, evaluation_id, employee_id, actor_user_id, note, created_at FROM performance_publish_logs ORDER BY id")
+        ).all()
+        employees: dict[int, int] = {
+            int(row[0]): int(row[1]) for row in db.session.execute(text("SELECT id, employee_id FROM performance_evaluations")).all()
+        }
+        db.session.remove()
+    for row in rows:
+        assert row[5] is not None  # timestamp
+        assert row[2] == employees[row[1]]  # target employee of the evaluation
+    return [(row[0], int(row[1]), int(row[2]), int(row[3]), row[4]) for row in rows]
+
+
+def test_v2_period_publish_and_unpublish_write_the_publish_ledger(env) -> None:
+    assert _v2(env, "publish").status_code == 302
+    published = _ledger(env)
+    assert [(action, evaluation_id, actor) for action, evaluation_id, _emp, actor, _note in published] == [
+        ("bulk_publish", card, env.admin_id) for card in env.cards
+    ]
+    assert {note for *_rest, note in published} == {"V2 toplu yayın işlemi ile personele açıldı."}
+
+    _flashes(env.admin)
+    assert _v2(env, "unpublish").status_code == 302
+    unpublished = _ledger(env)[len(published):]
+    assert [(action, evaluation_id, actor) for action, evaluation_id, _emp, actor, _note in unpublished] == [
+        ("bulk_unpublish", card, env.admin_id) for card in env.cards
+    ]
+    assert _state(env)["published"] == [(card, False, False) for card in env.cards]
+
+
+def test_v2_single_publish_and_unpublish_write_the_publish_ledger(env) -> None:
+    from app.extensions import db
+    from app.models import PerformancePeriod
+    from app.services.performance_v2 import publish_single_evaluation, unpublish_single_evaluation
+
+    actor = SimpleNamespace(id=env.admin_id)
+    card = env.cards[0]
+    with env.app.test_request_context("/"):
+        period = db.session.get(PerformancePeriod, env.period_id)
+        assert publish_single_evaluation(card, period, actor=actor)["ok"] is True
+        assert unpublish_single_evaluation(card, period, actor=actor)["ok"] is True
+        # unpublishing an already unpublished card is not a state change: no ledger row
+        assert unpublish_single_evaluation(card, period, actor=actor)["ok"] is True
+        db.session.remove()
+
+    assert [(action, evaluation_id, actor_id) for action, evaluation_id, _emp, actor_id, _note in _ledger(env)] == [
+        ("publish", card, env.admin_id),
+        ("unpublish", card, env.admin_id),
+    ]
+
+
+def test_v2_publication_without_an_actor_is_not_blocked_by_the_ledger(env) -> None:
+    """performance_publish_logs.actor_user_id is NOT NULL: an actorless service call
+    keeps its publication result and skips the ledger row instead of failing."""
+    from app.extensions import db
+    from app.models import PerformancePeriod
+    from app.services.performance_v2 import publish_period_results
+
+    with env.app.test_request_context("/"):
+        result = publish_period_results(db.session.get(PerformancePeriod, env.period_id), actor=None)
+        db.session.remove()
+
+    assert int(result["published_count"]) == len(env.cards)
+    assert _ledger(env) == []
+    assert _state(env)["published"] == [(card, True, True) for card in env.cards]
