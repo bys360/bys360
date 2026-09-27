@@ -369,6 +369,43 @@ def test_publication_timestamp_alone_is_publication_evidence(env) -> None:
     assert dml == [] and _state(env) == before
 
 
+def _chain_state(env: SimpleNamespace) -> dict[str, list[dict[str, Any]]]:
+    from app.extensions import db
+
+    with env.app.app_context():
+        db.session.remove()
+        state = {
+            table: [dict(row) for row in db.session.execute(text(f"SELECT * FROM {table} ORDER BY id")).mappings().all()]  # noqa: S608
+            for table in ("performance_result_snapshots", "performance_low_score_processes", "performance_low_score_process_events")
+        }
+        db.session.remove()
+    return state
+
+
+@pytest.mark.parametrize("action", ["save", "submit"])
+def test_published_approved_low_score_card_cannot_be_rescored(env, action) -> None:
+    """A 70 altı card with its Başkan/Üst Onay approval, published (v2 period publish) and
+    with its current publication snapshot (the P0.2AA backfill), while the period flag is
+    off: save and submit are refused before any change, like any published card."""
+    card = _published_card(env, low_score=True)  # 60
+    env.admin.post("/performance/snapshots/backfill", data={}, follow_redirects=False)
+    assert _flashes(env.admin) == [("success", "Snapshot backfill tamamlandı. Dönem: 1, Yeni: 1, Atlanan: 0")]
+    _toggle_period_publish_off(env)
+    before = _state(env)
+    chain_before = _chain_state(env)
+    assert [(row["final_total_100"], row["is_published_to_employee"]) for row in before["performance_evaluations"]] == [(60.0, 1)]
+    assert [(row["final_total_100"], row["is_current"]) for row in chain_before["performance_result_snapshots"]] == [(60.0, 1)]
+    assert [(row["status"], row["president_approved_at"] is not None) for row in chain_before["performance_low_score_processes"]] == [("first_low_warning", True)]
+    client = _client_for(env, card, "evaluator")
+    for _attempt in range(2):  # the same answer on retry
+        response, flashes, dml = _save(env, client, card, action, score="5")
+        assert response.status_code == 302
+        assert flashes == ([_SUBMIT_KEPT_AS_DRAFT, _BLOCKED] if action == "submit" else [_BLOCKED])
+        assert dml == []
+        assert _state(env) == before  # evaluation (score, workflow), items, tasks
+        assert _chain_state(env) == chain_before  # current snapshot, 70 altı process and its events
+
+
 # ---------------------------------------------------------------------------
 # Unchanged paths
 # ---------------------------------------------------------------------------
