@@ -1,0 +1,76 @@
+# BYS360 Şema Yeniden Kurulum Sınırlaması (P1-02 / P2-06)
+
+**Durum tarihi:** 2026-09-28 (final pre-live denetim düzeltme kampanyası V1)
+**Kaynak:** `reports/quality/BYS360_SCHEMA_REPRODUCIBILITY_INVENTORY_V1.json` / `.md`
+**Üretici:** `scripts/quality/bys360_schema_reproducibility_inventory_v1.py` (salt okuma; canlı veya PostgreSQL veritabanına bağlanmaz)
+**CI sözleşmesi:** `tests/architecture/test_schema_reproducibility_inventory_contract.py`
+
+Bu belge bilinen bir sınırlamayı dürüstçe kayda geçirir. Bir düzeltme veya migration içermez.
+
+## 1. Ne doğru, ne eksik
+
+- **Doğru:** Alembic zinciri sağlıklıdır: tek head, boş veritabanından head'e yükseltme ve ikinci yükseltmenin no-op olması CI'da PostgreSQL 15 ile doğrulanır. `bys360-prod-2026.09.23-1ea5c5dc` etiketinden bu yana yeni migration yoktur; bir sonraki adayın cutover'ı mevcut canlı şemayı değiştirmez.
+- **Eksik:** Belgelenen kurulum ve felaket kurtarma yöntemi yalnız `flask db upgrade`'dir. Bu yöntem her ORM tablosunu üretmez:
+
+| Sınıf | Tablo | Anlamı |
+|---|---:|---|
+| `MIGRATION_PRESENT` | 131 | Bir Alembic revizyonu tabloyu oluşturur. |
+| `RUNTIME_DDL_ONLY` | 3 | Yalnız uygulama çalışırken `CREATE TABLE` ile oluşur (`message_comments`, `message_reactions`, `message_typing_states`). |
+| `NO_REPRODUCIBLE_SOURCE_ACTIVE` | 28 | Depoda hiçbir DDL yok, uygulama kullanıyor. Bu tablolar yalnız geçmişteki `db.create_all()` veya onarım çalışmalarının yapıldığı veritabanlarında vardır. |
+| `NO_REPRODUCIBLE_SOURCE_CANDIDATE_DEAD` | 2 | Depoda DDL yok, `app/models` dışında referans yok (`portal_comment_reactions`, `portal_pinned_posts`). Silinmedi; ölü olduğu canlıda doğrulanmadan kaldırılamaz. |
+
+28 aktif tablo şunlardır:
+- performans süreç motoru: `performance_process_flows`, `performance_process_flow_steps`, `performance_president_approvals`, `performance_low_score_processes`, `performance_process_notifications`;
+- performans tarihçe ve arşiv: `performance_archived_results`, `performance_evaluation_history`, `performance_scoring_history`;
+- geri bildirim: 8 `feedback_*` tablosu ve `performance_feedback_pipeline_flows` / `_steps`;
+- portal: 9 `portal_*` tablosu;
+- `publication_issues`.
+
+**Şekil uyuşmazlığı:** `performance_low_score_process_events`, `9a5e1f4c2d60` migration'ı tarafından modelden farklı kolonlarla oluşturulur. Modelin `process_id`, `step_key`, `title`, `status`, `actor_user_id`, `note` kolonlarını depodaki hiçbir DDL üretmez. `performance_periods.special_scenario_type` için de depoda DDL yoktur.
+
+Test paketi şemayı `db.create_all()` ile kurduğu için bu eksikleri göremez. CI'daki PostgreSQL kapısı da model ile şema arasındaki uyumu karşılaştırmaz.
+
+## 2. Bu kampanyada yapılanlar (yalnız depo tarafı)
+
+1. Envanter makine tarafından okunabilir hale getirildi (JSON ve Markdown rapor).
+2. CI'ya sapma sözleşmesi eklendi. Şunlarda test kırılır:
+   - yeni bir ORM tablosu migration'sız eklenirse;
+   - listedeki bir tablo migration kazanırsa (liste açıkça küçültülmelidir);
+   - yeni bir tablo, hiçbir DDL'in üretmediği ORM kolonları kazanırsa.
+3. Hiçbir migration eklenmedi, hiçbir runtime DDL silinmedi, hiçbir model kaldırılmadı.
+
+## 3. Canlıya geçişten önce gereken salt okuma doğrulaması
+
+Canlı şema görülmeden adoption migration'ı yazılmaz. Aşağıdaki sorgular yalnız `SELECT` içerir. Açık yetkiyle ve salt okuma bir hesapla çalıştırılmalı, sonuç raporlanmalıdır:
+
+```sql
+SELECT version_num FROM alembic_version;                      -- beklenen: v1a2d3e4f5b6
+
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN (/* rapordaki no_migration_tables listesi */);
+
+SELECT table_name, column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name IN ('performance_low_score_process_events', 'performance_low_score_processes',
+                     'performance_periods', 'performance_process_flows')
+ORDER BY table_name, ordinal_position;
+```
+
+Karar kuralları:
+- Tablo canlıda yoksa, ilgili ekranın canlıda çalışmadığı kabul edilir; bu ayrıca raporlanır.
+- Tablo canlıda farklı kolonlarla varsa, adoption migration'ı canlıdaki şekle göre yazılır. Şekil tahmin edilmez.
+- Canlıdaki şekil modelden farklıysa, önce kod ile canlı arasındaki anlam farkı bir insan tarafından karara bağlanır.
+
+## 4. Düzeltme planı (ayrı paket, canlı kanıttan sonra)
+
+1. Aktif 28 tablo ve 3 runtime-only tablo için adoption migration'ları yazılır. Emsal: Dosya Merkezi için `10858a18e9ac`. Migration'lar idempotent olur (`has_table` kontrolü) ve mevcut canlı tablolara dokunmaz.
+2. `performance_low_score_process_events` için canlı şekle göre uzlaştırma migration'ı yazılır.
+3. CI'ya, PostgreSQL'e upgrade sonrası `db.metadata` ile gerçek şemayı kolon düzeyinde karşılaştıran bir kontrol eklenir.
+4. GET istekleriyle çalışan runtime DDL (P2-06) kaldırılır. Denetim taramasında 28 GET adresi, yani takma adlarıyla birlikte yaklaşık 18 endpoint, çalışırken `CREATE TABLE` / `CREATE INDEX IF NOT EXISTS` üretti; örnekler `/performance/v2-1-4-category-scope` ve `/performans/donem-yonetim-merkezi`. Bu kaldırma ancak 1–3 tamamlandıktan sonra yapılabilir. O zamana kadar uygulama veritabanı kullanıcısı DDL yetkisine ihtiyaç duyar.
+5. Olası ölü iki portal modeli canlıda boş ve kullanılmıyor olarak doğrulandıktan sonra ayrı bir paketle kaldırılır.
+
+## 5. Felaket kurtarma için geçici kural
+
+Planlı geri dönüş ve felaket kurtarmada **veritabanı yedekten geri yüklenir** (`BACKUP_RUNBOOK.md`). Boş bir veritabanında `flask db upgrade` çalıştırmak bugün çalışan bir BYS360 kurulumu **üretmez**. Yukarıdaki plan tamamlanana kadar sıfırdan kurulum bir geri dönüş yöntemi olarak kullanılmaz.
