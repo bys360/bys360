@@ -19,7 +19,7 @@ institution-wide count.
 Since this change the fallback is gone (the P0.2Y precedent,
 tests/performance/test_mobile_snapshot_scope_fail_closed_contract.py): the helper is
 the only scope source, and a helper error reaches the app's existing handler
-(rollback, HTTP 500 "Sistem Hatası" page; the app-wide 5xx security event is written
+(rollback, HTTP 500 JSON "Sistem Hatası" since P2-03; the app-wide 5xx security event is written
 to audit_logs) instead of returning somebody else's tasks. Execution-time database
 errors keep the existing safe read helper's behavior (no rows).
 
@@ -28,6 +28,7 @@ Real Flask app, real mobile Bearer auth; file-backed SQLite test database only.
 from __future__ import annotations
 
 import importlib
+import json
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -246,9 +247,10 @@ def test_scope_helper_failure_uses_the_existing_error_page_without_data(env, mon
     for _attempt in range(2):  # deterministic on repeat
         result = _get(env, env.person_a, path)
         assert result["status"] == 500
-        assert result["content_type"].startswith("text/html")
-        assert "Sistem Hatası" in result["text"]
-        assert result["body"] == {} and result["metrics"] == {} and result["item_ids"] == []
+        assert result["content_type"].startswith("application/json")  # P2-03 mobile JSON errors
+        assert json.loads(result["text"])["title"] == "Sistem Hatası"
+        assert set(result["body"]) == {"message", "title"}  # error fields only, no data
+        assert result["metrics"] == {} and result["item_ids"] == []
         assert result["dml"] == ["INSERT INTO audit_logs"]  # the app-wide 5xx security event only
     assert _assignments(env) == before
 
@@ -286,8 +288,9 @@ def test_transient_error_refreshing_the_user_never_widens_the_scope(env, monkeyp
         event.remove(engine, "before_cursor_execute", _fail_once)
     assert armed == []  # the refresh SELECT ran inside the real helper and failed once
     assert result["status"] == 500
-    assert "Veritabanı Hatası" in result["text"]  # the app's existing database-error page
-    assert result["body"] == {} and result["metrics"] == {} and result["item_ids"] == []
+    assert json.loads(result["text"])["title"] == "Veritabanı Hatası"  # the app's database-error handler
+    assert set(result["body"]) == {"message", "title"}  # error fields only, no data
+    assert result["metrics"] == {} and result["item_ids"] == []
     assert result["dml"] == ["INSERT INTO audit_logs"]
     assert _assignments(env) == before
 

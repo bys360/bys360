@@ -20,11 +20,17 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import HTTPException, MethodNotAllowed, RequestEntityTooLarge
 from werkzeug.wrappers import Response
 
+from app.bootstrap.error_pages import mobile_json_error, wants_mobile_json_error
 from app.extensions import db
 
 
 def render_error_page(status_code: int, title: str, message: str):
-    """Kurumsal hata sayfasini guvenli fallback ile render eder."""
+    """Kurumsal hata sayfasini guvenli fallback ile render eder.
+
+    Mobil API istekleri aynı durum kodu ve güvenli metinle JSON alır
+    (Flutter istemcisi gövdeyi {"message": ...} olarak okur)."""
+    if wants_mobile_json_error():
+        return mobile_json_error(status_code, title, message)
     try:
         return render_template(
             f"errors/{status_code}.html",
