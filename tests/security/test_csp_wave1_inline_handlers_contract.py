@@ -21,6 +21,15 @@ from pathlib import Path
 
 import pytest
 
+
+@pytest.fixture
+def client(app):
+    """Fresh anonymous client. These contracts render public pages (/login,
+    /forgot-password, /offline); the session-scoped shared client may still be
+    logged in by an earlier module, and /login then redirects (302)."""
+    return app.test_client()
+
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Wave 1 sahiplik alani: hata sayfalari + login/auth akisi + paylasilan base.html
