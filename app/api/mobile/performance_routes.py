@@ -768,11 +768,8 @@ def _v2852_done(row):
 
 
 def _v2852_pending_assignments(user, limit=1000):
-    try:
-        q = _v2822_assignment_query(user) if '_v2822_assignment_query' in globals() else _assignment_query_for(user)
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        q = EvaluationAssignment.query
+    # Kapsam yalnız yetki yardımcılarından gelir; hata kapsamsız sorguya düşmez.
+    q = _v2822_assignment_query(user) if '_v2822_assignment_query' in globals() else _assignment_query_for(user)
     return [row for row in _mobile_perf_safe_all(q.limit(limit)) if not _v2852_done(row)]
 
 
