@@ -77,6 +77,7 @@ def test_process_tracking_no_500(client, monkeypatch):
 def test_process_reports_no_500(client, monkeypatch):
     import app.performance.process_engine_phase10_reports_routes as routes
 
+    monkeypatch.setattr(routes, "can_view_process_tracking", lambda user: True)
     monkeypatch.setattr(
         routes,
         "_bys360_process_reports_advanced_context",

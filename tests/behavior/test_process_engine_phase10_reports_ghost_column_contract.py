@@ -23,11 +23,15 @@ import tempfile
 import uuid
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.pool import StaticPool
 
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_defect_an")
+# These contracts check column/SQL shape, not authorization: use an
+# institution-wide viewer (P0-01 made an unresolved viewer fail closed).
+_ADMIN_VIEWER = SimpleNamespace(id=1, role="admin", unvan="")
 
 
 def _make_app(monkeypatch: pytest.MonkeyPatch):
@@ -111,7 +115,7 @@ def test_context_real_caller_succeeds_when_no_flows_exist(app) -> None:
     )
 
     with app.app_context():
-        context = _bys360_process_reports_advanced_context(viewer=None, status_filter="")
+        context = _bys360_process_reports_advanced_context(viewer=_ADMIN_VIEWER, status_filter="")
         assert context["summary"]["total"] == 0
         assert context["recent_rows"] == []
 
@@ -143,7 +147,7 @@ def test_context_real_caller_returns_real_counts_instead_of_silent_empty(app) ->
             is_finalized=True,
             final_score=Decimal("92.00"),
         )
-        context = _bys360_process_reports_advanced_context(viewer=None, status_filter="")
+        context = _bys360_process_reports_advanced_context(viewer=_ADMIN_VIEWER, status_filter="")
         assert context["summary"]["total"] == 2
         assert context["summary"]["finalized"] == 1
         assert context["summary"]["president_required"] == 1
@@ -162,7 +166,7 @@ def test_context_owner_rows_group_by_real_owner_name(app) -> None:
     with app.app_context():
         owner = _insert_user(db, ad="Ayşe", soyad="Yılmaz")
         _insert_flow(db, evaluation_id=10003, current_owner_id=owner.id, current_status="bekliyor")
-        context = _bys360_process_reports_advanced_context(viewer=None, status_filter="")
+        context = _bys360_process_reports_advanced_context(viewer=_ADMIN_VIEWER, status_filter="")
         assert len(context["owner_rows"]) == 1
         assert "Ayşe" in context["owner_rows"][0]["owner_name"]
 
@@ -175,5 +179,5 @@ def test_context_president_status_filter_executes_without_crashing(app) -> None:
 
     with app.app_context():
         _insert_flow(db, evaluation_id=10004, president_approval_required=True, final_score=Decimal("40.00"))
-        context = _bys360_process_reports_advanced_context(viewer=None, status_filter="president")
+        context = _bys360_process_reports_advanced_context(viewer=_ADMIN_VIEWER, status_filter="president")
         assert len(context["president_rows"]) == 1

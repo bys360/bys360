@@ -510,6 +510,19 @@ def _scope_clause(viewer: Any) -> tuple[str, dict[str, Any]]:
     return "AND (f.current_owner_id = :viewer_id OR f.employee_id = :viewer_id)", {"viewer_id": viewer_id}
 
 
+def process_flow_scope_clause(viewer: Any) -> tuple[str, dict[str, Any]]:
+    """Canonical row scope for every reader of ``performance_process_flows``
+    (Süreç Takibi and Süreç Raporları).
+
+    Same rules as ``_scope_clause``; additionally a non-privileged viewer
+    without a resolvable id matches nothing instead of ``id = 0`` rows
+    (fail closed)."""
+    scope_sql, scope_params = _scope_clause(viewer)
+    if scope_sql and int(scope_params.get("viewer_id") or 0) <= 0:
+        return "AND 1 = 0", {}
+    return scope_sql, scope_params
+
+
 def _build_search_clause(search: str) -> tuple[str, dict[str, Any]]:
     cleaned = str(search or "").strip()
     if not cleaned:
