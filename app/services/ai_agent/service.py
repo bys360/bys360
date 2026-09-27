@@ -699,7 +699,7 @@ def _ag3c_answer_and_actions(intent, counts, performance_summary, dashboard_kpi_
 
     if intent == "identity":
         return (
-            "Ben BYS360 Asistanı. BYS360 için Havva Gülsen Özden tarafından geliştirildim. BYS360 içinde kullanıcıları doğru ekrana yönlendirmek, performans ve süreçlerle ilgili güvenli rehberlik sunmak ve yetki dahilindeki özetleri göstermek için tasarlandım.",
+            "Ben BYS360 Asistanı. BYS360 için Havva Gülsen Özden (geliştirici) ve Mustafa Bektaş (eş geliştirici) tarafından geliştirildim. BYS360 içinde kullanıcıları doğru ekrana yönlendirmek, performans ve süreçlerle ilgili güvenli rehberlik sunmak ve yetki dahilindeki özetleri göstermek için tasarlandım.",
             [
                 _ag3c_action("Ana sayfa", "/home"),
                 _ag3c_action("Destek", "/support"),
@@ -708,7 +708,7 @@ def _ag3c_answer_and_actions(intent, counts, performance_summary, dashboard_kpi_
 
     if intent == "developer":
         return (
-            "Beni BYS360 projesi kapsamında Havva Gülsen Özden geliştirdi. Kurumsal süreçlerde kullanıcıya rehberlik etmek, doğru ekrana yönlendirmek ve güvenli asistan deneyimi sunmak için tasarlandım.",
+            "Beni BYS360 projesi kapsamında Havva Gülsen Özden (geliştirici) ve Mustafa Bektaş (eş geliştirici) geliştirdi. Kurumsal süreçlerde kullanıcıya rehberlik etmek, doğru ekrana yönlendirmek ve güvenli asistan deneyimi sunmak için tasarlandım.",
             [
                 _ag3c_action("BYS360 ana sayfa", "/home"),
                 _ag3c_action("Yardım ve destek", "/support"),

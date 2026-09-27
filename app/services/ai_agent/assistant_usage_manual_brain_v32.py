@@ -102,13 +102,13 @@ TOPICS: tuple[Topic, ...] = (
             "Geliştirici bilgisi yalnızca kullanıcı bu konuyu açıkça sorarsa cevaplanır; üst tanıtım metninde kişi adı gösterilmez.",
         ),
         warnings=("Asistan idari karar vermez; yetki dışı veri ve hassas içerik göstermez.",),
-        checks=("Üst tanıtım metninde kişi adı olmamalı; ‘seni kim geliştirdi?’ sorusunda Havva Gülsen Özden cevabı verilmelidir.",),
+        checks=("Üst tanıtım metninde kişi adı olmamalı; ‘seni kim geliştirdi?’ sorusunda geliştirici Havva Gülsen Özden ve eş geliştirici Mustafa Bektaş cevabı verilmelidir.",),
         actions=(("Ana Sayfa", "/home", "BYS360 başlangıç ekranı"), ("Destek", "/support", "Destek ve Talepler")),
         quick=("BYS360 nedir?", "Ne yapabilirsin?", "Asistan neyi göstermez?"),
         custom_answer=(
             "Ben BYS360 Asistanı’yım. BYS360 içinde kullanıcıyı doğru ekrana yönlendirmek, işlem sırasını anlatmak "
-            "ve yetki dahilindeki güvenli özetleri açıklamak için tasarlandım. BYS360 projesi Havva Gülsen Özden "
-            "tarafından geliştirilmiştir; ben de bu yapının kullanıcı rehberliği katmanıyım."
+            "ve yetki dahilindeki güvenli özetleri açıklamak için tasarlandım. BYS360 projesi Havva Gülsen Özden (geliştirici) "
+            "ve Mustafa Bektaş (eş geliştirici) tarafından geliştirilmiştir; ben de bu yapının kullanıcı rehberliği katmanıyım."
         ),
         priority=100,
     ),

@@ -851,7 +851,7 @@
     }
 
     if (/\b(kim gelistirdi|kim geliştirdi|seni kim|seni kim gelistirdi|seni kim geliştirdi|kim yapti|kim yaptı|gelistiren kim|geliştiren kim|kimin tarafindan|kimin tarafından|havva gulsen ozden|havva gülsen özden|gulsen ozden|gülsen özden|havva mi|havva mı|gulsen mi|gülsen mi)\b/.test(n)) {
-      return makeAnswer('Ben BYS360 Asistanı’yım. BYS360 için Havva Gülsen Özden tarafından geliştirildim. Görevim, BYS360 içinde yetkiniz dâhilindeki işlemleri sade, güvenli ve doğru sırayla anlatmak; sizi gerçek ekranlara yönlendirmek ve sistemi daha kolay kullanmanıza yardımcı olmaktır.', [{ title: 'Asistan Bilgi Bankası', href: '/ai-agent/knowledge' }]);
+      return makeAnswer('Ben BYS360 Asistanı’yım. BYS360 için Havva Gülsen Özden (geliştirici) ve Mustafa Bektaş (eş geliştirici) tarafından geliştirildim. Görevim, BYS360 içinde yetkiniz dâhilindeki işlemleri sade, güvenli ve doğru sırayla anlatmak; sizi gerçek ekranlara yönlendirmek ve sistemi daha kolay kullanmanıza yardımcı olmaktır.', [{ title: 'Asistan Bilgi Bankası', href: '/ai-agent/knowledge' }]);
     }
 
     if (/\b(sen nesin|kimsin|ne ise yararsin|ne işe yararsın|kendini tanit|kendini tanıt|asistan misin|asistan mısın)\b/.test(n)) {

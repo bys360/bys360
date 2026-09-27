@@ -14,13 +14,14 @@
   function isBadIntroText(text) {
     var t = norm(text);
     if (!t) return false;
-    return (
-      t.indexOf('Merhaba, ben BYS360 Asistanı') !== -1 &&
-      (t.indexOf('Havva Gülsen Özden') !== -1 || t.indexOf('Bulunduğunuz ekrana göre') !== -1 || t.indexOf('sorunuzu yazabilirsiniz') !== -1)
-    ) || (
-      t.indexOf('BYS360 için Havva Gülsen Özden tarafından geliştirildim') !== -1 &&
-      t.indexOf('sorunuzu yazabilirsiniz') !== -1
-    );
+    // Otomatik tanıtım mesajı kişi adına değil, tanıtımın kendi kalıplarına
+    // göre tanınır; geliştirici metni değişse de davranış aynı kalır.
+    var isGreeting = t.indexOf('Merhaba, ben BYS360 Asistanı') !== -1;
+    var mentionsDeveloper = t.indexOf('tarafından geliştirildim') !== -1;
+    var asksForQuestion = t.indexOf('sorunuzu yazabilirsiniz') !== -1;
+    var isScreenPrompt = t.indexOf('Bulunduğunuz ekrana göre') !== -1;
+    return (isGreeting && (mentionsDeveloper || isScreenPrompt || asksForQuestion)) ||
+      (mentionsDeveloper && asksForQuestion);
   }
 
   function rootEl() { return document.getElementById(ROOT_ID); }
