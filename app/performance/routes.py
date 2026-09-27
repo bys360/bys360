@@ -9,7 +9,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 
 from app.extensions import db
-from app.models import PerformancePeriod, PerformanceWeightConfig, User
+from app.models import PerformanceEvaluation, PerformancePeriod, PerformanceWeightConfig, User
 from app.route_registry import main_bp
 from app.route_support import (
     admin_required,
@@ -447,6 +447,17 @@ def performance_hierarchy_settings():
             flash(lock_message, "warning")
             return redirect(url_for("main.performance_hierarchy_settings", period_id=selected_period.id, scope=selected_scope))
         try:
+            # Dönem bayrağı kapalı olsa da personele yayınlanmış karne yeniden hesaplanmaz
+            # (mobil puanlama ve iade/geri çekmeyle aynı karne düzeyi yayın kanıtı).
+            published_card = (
+                PerformanceEvaluation.query
+                .filter(PerformanceEvaluation.period_id == selected_period.id)
+                .filter(or_(PerformanceEvaluation.is_published_to_employee.is_(True), PerformanceEvaluation.published_to_employee_at.isnot(None)))
+                .first()
+            )
+            if published_card is not None:
+                flash("Bu dönemde personele yayınlanmış değerlendirme bulunduğu için puanlama değişikliği yapılamaz.", "warning")
+                return redirect(url_for("main.performance_hierarchy_settings", period_id=selected_period.id, scope=selected_scope))
             w1 = int(float(request.form.get("evaluator_1_weight") or 0))
             w2 = int(float(request.form.get("evaluator_2_weight") or 0))
             w3 = int(float(request.form.get("evaluator_3_weight") or 0))
