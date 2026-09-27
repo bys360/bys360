@@ -477,6 +477,7 @@ def build_workspace_context(assignment_id: int):
 def save_assignment_draft(assignment_id: int, form_data):
     assignment = _load_assignment(assignment_id)
     ensure_scoring_window_open(assignment.period)
+    _ensure_not_published_to_employee(assignment, 'Personele yayınlanmış değerlendirme değiştirilemez.')
     evaluation = _ensure_evaluation(assignment)
     _resolved_chain, _existing_assignments, _actionable_levels, current_level_payload = _assignment_chain_context(assignment)
     score_enabled = bool(getattr(current_level_payload, 'score_enabled', True)) if current_level_payload else True
