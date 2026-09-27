@@ -35,7 +35,7 @@ from typing import Any, cast
 import pytest
 from sqlalchemy import event, text
 
-_PASSWORD = "LowScorePartial1!"
+_PASSWORD = "TestLowScorePartial1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_overnight_p6_partial")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 _counter = 0

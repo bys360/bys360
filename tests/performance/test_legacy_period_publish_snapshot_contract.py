@@ -42,7 +42,7 @@ from sqlalchemy import event, text
 
 _ROUTES_MODULE = "app.performance.engagement_publish_routes"
 _SERVICE_MODULE = "app.services.performance_snapshot_service"
-_PASSWORD = "LegacyPublishSnapshot1!"
+_PASSWORD = "TestLegacyPublishSnapshot1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02ab_legacy_publish")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 _NOTHING_PUBLISHED = ("warning", "Yayınlanabilecek tamamlanmış kayıt bulunamadı.")

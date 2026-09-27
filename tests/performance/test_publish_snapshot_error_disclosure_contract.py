@@ -43,7 +43,7 @@ _ROUTES_MODULE = "app.performance.engagement_publish_routes"
 _SERVICE_MODULE = "app.services.performance_snapshot_service"
 _SENTINEL = "TECHNICAL_SENTINEL_DO_NOT_SHOW_9F3A"
 _SAFE_SNAPSHOT_WARNING = ("warning", "Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu.")
-_PASSWORD = "SnapshotErrorDisclosure1!"
+_PASSWORD = "TestSnapshotErrorDisclosure1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_overnight_p1_snapshot_error")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 

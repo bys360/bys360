@@ -37,7 +37,7 @@ import pytest
 from sqlalchemy import event, text
 from sqlalchemy.exc import OperationalError
 
-_PASSWORD = "PublishedCardWeightDrift1!"
+_PASSWORD = "TestPublishedCardWeightDrift1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_overnight_p8_weight_drift")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 _CARD_MESSAGE = "Bu dönemde personele yayınlanmış değerlendirme bulunduğu için puanlama değişikliği yapılamaz."

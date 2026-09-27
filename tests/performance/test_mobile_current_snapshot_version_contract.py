@@ -37,7 +37,7 @@ from typing import Any
 import pytest
 from sqlalchemy import event, text
 
-_PASSWORD = "MobileCurrentSnapshot1!"
+_PASSWORD = "TestMobileCurrentSnapshot1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02w_current_snapshot")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 _HISTORY_IMPORT = "historical_excel_import"

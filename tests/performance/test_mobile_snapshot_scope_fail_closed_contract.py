@@ -41,7 +41,7 @@ from sqlalchemy import event, text
 from sqlalchemy.exc import OperationalError
 
 _ROUTES_MODULE = "app.api.mobile.performance_routes"
-_PASSWORD = "MobileSnapshotScope1!"
+_PASSWORD = "TestMobileSnapshotScope1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02y_snapshot_scope")
 _SUMMARY = "/api/mobile/performance/full-feature-summary"
 _REPORTS = "/api/mobile/performance/reports"

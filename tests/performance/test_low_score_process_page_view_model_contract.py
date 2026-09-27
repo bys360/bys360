@@ -46,7 +46,7 @@ _PAGE_URL = "/performance/low-score-processes"
 _EMPTY_MESSAGE = "Bu dönem için 70 altı süreç kaydı görünmüyor."
 # The row badge (the summary card also contains the words "Yayına hazır").
 _READY_BADGE = '<span class="low-status ready"><i class="fa-solid fa-check"></i> Yayına hazır</span>'
-_PASSWORD = "ProcessPageContract1!"
+_PASSWORD = "TestProcessPageContract1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02m_page")
 _ROW_KEYS = {
     "id", "process", "evaluation", "employee_name", "sicil_no", "birim", "period_title", "sequence_label", "score",

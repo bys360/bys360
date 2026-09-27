@@ -38,7 +38,7 @@ import pytest
 from sqlalchemy import event, text
 from sqlalchemy.exc import OperationalError
 
-_PASSWORD = "PersonnelSupportPredecessor1!"
+_PASSWORD = "TestPersonnelSupportPredecessor1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_overnight_p5_personnel_support")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 _PERSONNEL_SUPPORT_PENDING = "Personel ve Destek Hizmetleri Grup Başkanı ön onayı tamamlanmadan karne personele açılamaz."

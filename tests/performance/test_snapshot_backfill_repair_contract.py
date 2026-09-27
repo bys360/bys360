@@ -42,7 +42,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
 _SERVICE_MODULE = "app.services.performance_snapshot_service"
 _URL = "/performance/snapshots/backfill"
-_PASSWORD = "SnapshotBackfillRepair1!"
+_PASSWORD = "TestSnapshotBackfillRepair1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02aa_snapshot_backfill")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 _ERROR_FLASH = [("danger", "Snapshot backfill sırasında hata oluştu.")]

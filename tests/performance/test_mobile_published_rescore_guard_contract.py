@@ -41,7 +41,7 @@ import pytest
 from sqlalchemy import event, text
 
 _ROUTES_MODULE = "app.api.mobile.performance_routes"
-_PASSWORD = "MobilePublishedRescore1!"
+_PASSWORD = "TestMobilePublishedRescore1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02s_mobile_published")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 _PUBLISHED_ERROR = {"message": "Personele yayınlanmış değerlendirme mobil ekrandan değiştirilemez."}

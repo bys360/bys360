@@ -56,7 +56,7 @@ _GENERIC_LOCK_REASON = "Başkan onayı bekliyor. Başkan/Üst Onay tamamlanmadan
 # Reason computed from an existing, not yet approved process.
 _PRESIDENT_PENDING_REASON = "Başkan onayı bekliyor. Başkan/Üst Onay şartı tamamlanmadan yayın yapılamaz. Başkan/Üst Onay Yayın Kilidi"
 _GENERAL_COMMENT = "Dönem boyunca hedeflere göre ayrıntılı genel görüş ve gelişim notu."
-_PASSWORD = "PublishRouteContract1!"
+_PASSWORD = "TestPublishRouteContract1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02g_r1_route")
 _counter = 0
 

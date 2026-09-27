@@ -36,7 +36,7 @@ from typing import Any
 import pytest
 from sqlalchemy import event, text
 
-_PASSWORD = "PublishedRescoreGuard1!"
+_PASSWORD = "TestPublishedRescoreGuard1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_overnight_p10_rescore")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 

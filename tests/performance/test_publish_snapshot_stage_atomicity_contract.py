@@ -47,7 +47,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
 _SERVICE_MODULE = "app.services.performance_snapshot_service"
 _SNAPSHOT_WARNING_PREFIX = "Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu"
-_PASSWORD = "SnapshotStageAtomicity1!"
+_PASSWORD = "TestSnapshotStageAtomicity1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_overnight_p2_snapshot_stage")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 

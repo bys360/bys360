@@ -46,7 +46,7 @@ from sqlalchemy import text
 
 _PREFLIGHT_MODULE = "app.services.performance.publish_preflight_rules"
 _ROUTE_MODULE = "app.performance.engagement_publish_routes"
-_PASSWORD = "PublishFailClosedContract1!"
+_PASSWORD = "TestPublishFailClosedContract1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02r_publish_fail_closed")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 _LOW = (2, 3)  # level total 50

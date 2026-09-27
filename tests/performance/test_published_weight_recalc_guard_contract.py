@@ -41,7 +41,7 @@ from typing import Any
 import pytest
 from sqlalchemy import event, text
 
-_PASSWORD = "PublishedWeightRecalc1!"
+_PASSWORD = "TestPublishedWeightRecalc1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02t_published_weights")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
 _PUBLISHED_MESSAGE = "Bu dönem sonuçları yayınlandığı için puanlama değişikliği yapılamaz."

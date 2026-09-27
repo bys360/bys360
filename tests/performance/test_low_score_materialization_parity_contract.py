@@ -42,7 +42,7 @@ _SERVICE_MODULE = "app.services.performance.low_score_process_service"
 _EVENTS_PER_FIRST_LOW_SCORE = 5
 _WEIGHTS_ERROR = "Ağırlık ayarları kaydedilirken hata oluştu."
 _LOW_COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
-_PASSWORD = "MaterializationContract1!"
+_PASSWORD = "TestMaterializationContract1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02o_materialization")
 _counter = 0
 
