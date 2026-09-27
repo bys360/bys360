@@ -3,7 +3,7 @@ name: BYS360 Score 100 Quality Gate V1
 on:
   workflow_dispatch:
   pull_request:
-    branches: [ master, main ]
+    branches: [ master, main, assistant-v2-full ]
 
 jobs:
   score100-quality-gate:
