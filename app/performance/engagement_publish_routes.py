@@ -112,8 +112,11 @@ def performance_publish_period(period_id):
 
         db.session.commit()
 
+        # Yayın yukarıda kaydedildi; snapshot adımı SAVEPOINT içinde ya tamamen
+        # kaydedilir ya da (sıralama ve dönem damgasıyla birlikte) tamamen geri alınır.
         try:
-            create_snapshots_for_period(period.id, evaluation_ids=result.get("published_evaluation_ids", []), actor_user_id=current_user.id)
+            with db.session.begin_nested():
+                create_snapshots_for_period(period.id, evaluation_ids=result.get("published_evaluation_ids", []), actor_user_id=current_user.id)
         except Exception as snap_exc:
             current_app.logger.exception("Snapshot create failed for period publish: %s", snap_exc)
             flash("Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu.", "warning")
@@ -206,8 +209,11 @@ def performance_publish_evaluation(evaluation_id):
         create_publish_log(evaluation.period_id, current_user.id, "publish", evaluation.id, evaluation.employee_id, "Tekil yayın işlemi ile personele açıldı.")
         db.session.commit()
 
+        # Yayın yukarıda kaydedildi; snapshot adımı (önceki sürümün pasife alınması dahil)
+        # SAVEPOINT içinde ya tamamen kaydedilir ya da tamamen geri alınır.
         try:
-            create_snapshot_for_evaluation(evaluation.id, actor_user_id=current_user.id)
+            with db.session.begin_nested():
+                create_snapshot_for_evaluation(evaluation.id, actor_user_id=current_user.id)
         except Exception as snap_exc:
             current_app.logger.exception("Snapshot create failed for single publish: %s", snap_exc)
             flash("Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu.", "warning")
