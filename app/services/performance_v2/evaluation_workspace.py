@@ -543,6 +543,14 @@ def submit_assignment(assignment_id: int, form_data):
     return assignment, evaluation
 
 
+def _ensure_not_published_to_employee(assignment, message: str) -> None:
+    # Personele yayınlanmış karne iş akışıyla geri alınamaz (mobil geri çekme/iade
+    # ile aynı kural); düzeltme için önce yayından kaldırılmalıdır.
+    evaluation = PerformanceEvaluation.query.filter_by(period_id=assignment.period_id, employee_id=assignment.employee_id).first()
+    if evaluation is not None and (evaluation.is_published_to_employee or evaluation.published_to_employee_at):
+        raise ValueError(message)
+
+
 def return_assignment_to_previous_level(assignment_id: int, note: str | None = None):
     assignment = _load_assignment(assignment_id)
     if assignment.manager_level != 1:
@@ -550,6 +558,7 @@ def return_assignment_to_previous_level(assignment_id: int, note: str | None = N
     note_text = (note or '').strip()
     if not note_text:
         raise ValueError('İade notu zorunludur.')
+    _ensure_not_published_to_employee(assignment, 'Personele yayınlanmış değerlendirme iade edilemez.')
     evaluation = _ensure_evaluation(assignment)
     target = EvaluationAssignment.query.filter_by(
         period_id=assignment.period_id,
@@ -571,6 +580,7 @@ def return_assignment_to_previous_level(assignment_id: int, note: str | None = N
 
 def withdraw_assignment_submission(assignment_id: int):
     assignment = _load_assignment(assignment_id)
+    _ensure_not_published_to_employee(assignment, 'Personele yayınlanmış değerlendirme geri çekilemez.')
     evaluation = _ensure_evaluation(assignment)
     level = assignment.manager_level
     assignment.status = 'taslak'
