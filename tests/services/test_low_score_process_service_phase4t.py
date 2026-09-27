@@ -308,6 +308,17 @@ def _phase5_make_app(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("SCHEDULER_ENABLED", "false")
 
     from app import create_app
+    from config import Config
+
+    # BYS360 P0.2E-R1: create_app() builds and caches the engine from Config's
+    # class attributes (frozen at config.py's first import) before the
+    # app.config.update(...) below runs, so without this patch the engine was
+    # silently bound to sqlite:///:memory: + StaticPool, one DBAPI connection
+    # shared with every inspect(db.engine) call. Same fix as
+    # tests/behavior/test_low_score_process_service_workflow_contract.py::_make_app.
+    monkeypatch.setattr(Config, "APP_ENV", "testing")
+    monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", db_uri)
+    monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     flask_app = create_app()
     flask_app.config.update(

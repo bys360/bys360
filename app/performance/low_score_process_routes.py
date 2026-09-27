@@ -47,12 +47,14 @@ def _resolve_period(period_id: int | None = None):
 @menu_key_required("performance_publish")
 def performance_low_score_processes():
     period = _resolve_period(request.args.get("period_id", type=int))
+    processes: list[PerformanceLowScoreProcess] = []
     if period:
         result = ensure_low_score_processes_for_period(period, actor_user_id=getattr(current_user, "id", None))
         if not result.get("schema_missing"):
             db.session.commit()
+            processes = PerformanceLowScoreProcess.query.filter_by(period_id=period.id).order_by(PerformanceLowScoreProcess.id.asc()).all()
     periods = PerformancePeriod.query.order_by(PerformancePeriod.id.desc()).limit(50).all()
-    rows = build_low_score_process_rows(period)
+    rows = build_low_score_process_rows(processes)
     summary = build_low_score_period_summary(period)
     return render_template("performance_low_score_processes.html", period=period, periods=periods, rows=rows, summary=summary)
 

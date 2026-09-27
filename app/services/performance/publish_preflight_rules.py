@@ -5,8 +5,12 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.models import PerformanceLowScoreProcess
 from app.performance.services import performance_rule_engine as _rule_engine
-from app.services.performance.low_score_process_service import get_low_score_publish_block_reason
+from app.services.performance.low_score_process_service import (
+    get_low_score_publish_block_reason,
+    is_low_score_evaluation,
+)
 from app.services.performance.meeting_p4_development_guidance import (
     get_development_recommendation_publish_block_reason,
 )
@@ -40,6 +44,9 @@ HIGH_SCORE_THRESHOLD = _rule_engine.HIGH_SCORE_THRESHOLD
 EXTREME_SCORE_VALUES = {float(_rule_engine.MIN_CRITERIA_SCORE), float(_rule_engine.MAX_CRITERIA_SCORE)}
 MIN_GENERAL_COMMENT_CHARS = 10
 MIN_ITEM_EXPLANATION_CHARS = 3
+# Başkan/Üst Onay kanıtı olan süreç kaydı yokken düşük puan servisinin kendi
+# "süreç yok" gerekçesiyle aynı metin.
+_LOW_SCORE_APPROVAL_NOT_PROVEN_REASON = "Başkan onayı bekliyor. Başkan/Üst Onay tamamlanmadan 70 altı karne yayınlanamaz. Başkan/Üst Onay Yayın Kilidi"
 
 
 @dataclass(slots=True)
@@ -240,26 +247,52 @@ def _edge_score_comment_required(score: Any) -> bool:
             return False
 
 
+def _low_score_publish_release(evaluation: Any, final_total: float) -> tuple[bool, str]:
+    """70 altı karne için (Başkan/Üst Onay açıkça kanıtlandı mı, blok nedeni).
+
+    Blok nedeninin olmaması onay değildir: düşük puan servisi değerlendirmeyi
+    kendi tanımına göre tamamlanmış saymadığında da (ör. workflow_status taslakta
+    kalan mobil tamamlama) None döner. 0 < puan < 70 için kilit yalnız mevcut
+    süreç kanonik model politikasına göre yayına kesinleşmişse açılır
+    (PerformanceLowScoreProcess.is_finalized_for_publish: Başkan/Üst Onay var,
+    iade yok, uyarı/idari süreç kaydı var); süreç yoksa onay da yoktur. Puanı
+    0/None olan kayıt düşük puan sayılmaz, önceki karar korunur. Sorgu hataları
+    çağırana iletilir (yayın rotası geri alır).
+    """
+    reason = get_low_score_publish_block_reason(evaluation, ensure=True)
+    if reason:
+        return False, reason
+    if not is_low_score_evaluation(final_total):
+        return True, ""
+    process = None
+    if getattr(evaluation, "id", None) is not None:
+        process = PerformanceLowScoreProcess.query.filter_by(evaluation_id=evaluation.id).first()
+    if process is not None and process.is_finalized_for_publish:
+        return True, ""
+    process_reason = get_low_score_publish_block_reason(process) if process is not None else None
+    return False, process_reason or _LOW_SCORE_APPROVAL_NOT_PROVEN_REASON
+
+
 def _build_phase1_4_rule_decision(
     *,
     final_total: float,
     status_code: Any,
     level_3_mode: str,
-    low_score_block_reason: str = "",
+    president_approved: bool,
 ):
     """Yayın öncesi kontrolün merkezi performans kural motoru kararı.
 
     70 altı süreçte gerçek Başkan/İK/personel süreç durumu mevcut
-    low_score_process_service tarafından doğrulanır. Bu nedenle kural motoruna
-    ``president_approved`` bilgisi, düşük performans blok nedeni kapanmışsa
-    tamamlandı varsayımıyla verilir. Böylece kilit kararı ayar motorundan,
-    süreç tamamlanma ayrıntısı ise süreç servisinden gelir.
+    low_score_process_service ve süreç kaydı üzerinden doğrulanır; kural
+    motoruna ``president_approved`` yalnız açık onay kanıtıyla True verilir
+    (bkz. _low_score_publish_release). Böylece kilit kararı ayar motorundan,
+    süreç tamamlanma ayrıntısı ise süreç kaydından gelir.
     """
     return _rule_engine.evaluate_performance_rules(
         _rule_engine.PerformanceRuleContext(
             final_score=final_total,
             status_code=status_code,
-            president_approved=not bool(low_score_block_reason),
+            president_approved=president_approved,
             third_reviewer_mode=level_3_mode,
         )
     )
@@ -350,16 +383,18 @@ def validate_evaluation_for_publish(period: Any, evaluation: Any) -> PublishPref
     has_general_comment = any(_has_text(value, min_len=MIN_GENERAL_COMMENT_CHARS) for value in comments.values())
 
     # Faz 1.4: 70 altı Başkan/onay/yayın kilidi kararı merkezi kural motorundan alınır.
+    # Ayar 70 altı için Başkan onayı istemiyorsa kilit kararı önceki gibi açıktır.
     low_score_block_reason = ""
+    president_approved = True
     if _rule_engine.requires_president_approval(final_total):
         # BYS360_PHASE6_1_LOW_SCORE_PUBLISH_LOCK
-        low_score_block_reason = get_low_score_publish_block_reason(evaluation, ensure=True)
+        president_approved, low_score_block_reason = _low_score_publish_release(evaluation, final_total)
 
     rule_decision = _build_phase1_4_rule_decision(
         final_total=final_total,
         status_code=getattr(evaluation, "status", None),
         level_3_mode=level_3_mode,
-        low_score_block_reason=low_score_block_reason,
+        president_approved=president_approved,
     )
 
     if rule_decision.requires_general_comment and not has_general_comment:

@@ -9,7 +9,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 
 from app.extensions import db
-from app.models import PerformancePeriod, PerformanceWeightConfig, User
+from app.models import PerformanceEvaluation, PerformancePeriod, PerformanceWeightConfig, User
 from app.route_registry import main_bp
 from app.route_support import (
     admin_required,
@@ -27,6 +27,7 @@ from app.services.ai.dashboard_panels import (
 from app.services.auto_hierarchy_service import auto_apply_manager_chains
 from app.services.hierarchy_admin_service import sync_organization_units_from_users
 from app.services.performance.context import build_period_weight_context, list_performance_periods
+from app.services.performance.period_state_guard import validate_period_scores_mutable
 from app.services.performance.reason_codes import (
     is_informational_reason,
     reason_message,
@@ -439,7 +440,24 @@ def performance_hierarchy_settings():
         if not selected_period:
             flash("Önce bir dönem seçiniz.", "warning")
             return redirect(url_for("main.performance_hierarchy_settings"))
+        # Ağırlık değişikliği dönemin bütün puanlarını yeniden hesaplar; sonuçları
+        # yayınlanmış veya kilitli dönemde puanlama değişikliği yapılamaz.
+        scores_mutable, lock_message = validate_period_scores_mutable(selected_period)
+        if not scores_mutable:
+            flash(lock_message, "warning")
+            return redirect(url_for("main.performance_hierarchy_settings", period_id=selected_period.id, scope=selected_scope))
         try:
+            # Dönem bayrağı kapalı olsa da personele yayınlanmış karne yeniden hesaplanmaz
+            # (mobil puanlama ve iade/geri çekmeyle aynı karne düzeyi yayın kanıtı).
+            published_card = (
+                PerformanceEvaluation.query
+                .filter(PerformanceEvaluation.period_id == selected_period.id)
+                .filter(or_(PerformanceEvaluation.is_published_to_employee.is_(True), PerformanceEvaluation.published_to_employee_at.isnot(None)))
+                .first()
+            )
+            if published_card is not None:
+                flash("Bu dönemde personele yayınlanmış değerlendirme bulunduğu için puanlama değişikliği yapılamaz.", "warning")
+                return redirect(url_for("main.performance_hierarchy_settings", period_id=selected_period.id, scope=selected_scope))
             w1 = int(float(request.form.get("evaluator_1_weight") or 0))
             w2 = int(float(request.form.get("evaluator_2_weight") or 0))
             w3 = int(float(request.form.get("evaluator_3_weight") or 0))
@@ -468,7 +486,7 @@ def performance_hierarchy_settings():
             selected_period.enable_level_3_scoring = bool(level_3_enabled and level_3_scoring_enabled)
 
             db.session.flush()
-            recalculated_count = recalculate_all_evaluations(selected_period.id)
+            recalculated_count = recalculate_all_evaluations(selected_period.id, actor_user_id=current_user.id)
             db.session.commit()
             flash("Dönem ağırlıkları güncellendi.", "success")
             flash(f"Seçili dönem için {recalculated_count} değerlendirme toplamı yeni 3. amir ayarına göre yeniden hesaplandı.", "info")

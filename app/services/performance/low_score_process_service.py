@@ -20,6 +20,7 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import inspect
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.datetime_utils import utc_now
 from app.extensions import db
@@ -28,6 +29,11 @@ from app.models import (
     PerformanceLowScoreProcess,
     PerformanceLowScoreProcessEvent,
     PerformancePeriod,
+)
+from app.models.performance_low_score_models import (
+    low_score_is_president_approved,
+    low_score_is_president_rejected,
+    low_score_is_second_or_later,
 )
 
 """BYS360_PHASE6_6_SECOND_LOW_SCORE_PROCESS
@@ -130,10 +136,11 @@ def _is_completed(evaluation: PerformanceEvaluation | None) -> bool:
     publish_status = _normalize(getattr(evaluation, "publish_status", ""))
     values = {value for value in (status, workflow, approval_status, publish_status) if value}
 
-    # Taslak / bekleyen kayıt tamamlanmış sayılmaz.
+    # Taslak / bekleyen / kısmen tamamlanmış ya da tamamlanmamış kayıt tamamlanmış sayılmaz
+    # ("kismen_tamamlandi", "tamamlanmadi" aşağıdaki "tamam" eşleşmesine düşmemeli).
     if any(value in DRAFT_OR_PENDING_EVALUATION_STATUSES for value in values):
         return False
-    if any(("bekle" in value or "pending" in value or "draft" in value or "taslak" in value or "waiting" in value) for value in values):
+    if any(("bekle" in value or "pending" in value or "draft" in value or "taslak" in value or "waiting" in value or "kismen" in value or "tamamlanma" in value) for value in values):
         return False
 
     # İade edilmiş kayıt tamamlanmış/yayınlanmış sayılmaz.
@@ -338,7 +345,10 @@ def ensure_low_score_process_for_evaluation(evaluation: PerformanceEvaluation | 
         process.rule_version = LOW_SCORE_RULE_VERSION
         if not getattr(process, "low_score_detected_at", None):
             process.low_score_detected_at = utc_now()
-        process.updated_by_user_id = actor_user_id
+        # actor_user_id=None "işlemi yapan bilinmiyor" demektir (ör. yayın kilidi
+        # onarımı); mevcut denetim bilgisi silinmez, yalnız gerçek kullanıcı yazar.
+        if actor_user_id is not None:
+            process.updated_by_user_id = actor_user_id
 
     _add_event(process, "evaluation_completed", status="done", actor_user_id=actor_user_id)
     _add_event(process, "low_score_detected", status="done", actor_user_id=actor_user_id, note=f"Nihai puan: {score}")
@@ -362,62 +372,18 @@ def ensure_low_score_processes_for_period(period: PerformancePeriod | None, *, a
         return {"created_or_updated": 0, "period_id": period.id, "process_ids": [], "schema_missing": True}
     evaluations = PerformanceEvaluation.query.filter_by(period_id=period.id).all()
     process_ids: list[int] = []
-    for evaluation in evaluations:
-        process = ensure_low_score_process_for_evaluation(evaluation, actor_user_id=actor_user_id, flush=False)
-        if process:
-            db.session.flush()
-            process_ids.append(process.id)
+    # Dönem ön adımı atomiktir: tek bir SAVEPOINT içinde çalışır. Bir
+    # değerlendirmede hata olursa bu çağrının oluşturduğu/güncellediği süreç ve
+    # olay kayıtlarının tamamı geri alınır ve hata çağırana iletilir; çağıranın
+    # önceki değişiklikleri ve transaction'ı etkilenmez.
+    with db.session.begin_nested():
+        for evaluation in evaluations:
+            process = ensure_low_score_process_for_evaluation(evaluation, actor_user_id=actor_user_id, flush=False)
+            if process:
+                db.session.flush()
+                process_ids.append(process.id)
     return {"created_or_updated": len(process_ids), "period_id": period.id, "process_ids": process_ids}
 
-
-    # BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_V2: Başkan onayı
-
-    # Yayın blokajı Başkan onayı şartını koruyor.
-def _legacy_get_low_score_publish_block_reason_phase1(evaluation, *, ensure: bool = False) -> str:
-    # Faz 6.3 gate sözleşmesi: Başkan onayı şartı korunur.
-    # BYS360_PHASE6_3_DIRECT_PRESIDENT_APPROVAL
-    # BYS360_CANLI_SAGLAMLASTIRMA_FAZ1_6_LOW_SCORE_STABILIZED
-    # Yayın blokajı Başkan/Üst Onay odaklı ve İK ara kapısız çalışır.
-    try:
-        if not is_low_score_evaluation(evaluation):
-            return ""
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        return ""
-    try:
-        if not _low_score_tables_ready():
-            return "70 altı performans sonucu için Başkan/Üst Onay süreci şeması uygulanmadan yayın yapılamaz."
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    process = None
-    if ensure:
-        try:
-            process = ensure_low_score_process_for_evaluation(evaluation, flush=True)
-        except Exception:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            process = _phase16_find_process(evaluation)
-    else:
-        process = _phase16_find_process(evaluation)
-    if process is None:
-        return "70 altı performans sonucu için Başkan/Üst Onay ve personel süreç kaydı oluşmadan yayın yapılamaz."
-    if getattr(process, "president_rejected_at", None):
-        return "Başkan/Üst Onay tarafından iade edilen düşük performans kaydı yeniden onaylanmadan yayınlanamaz."
-    if not getattr(process, "president_approved_at", None):
-        return "70 altı performans sonucu Başkan/Üst Onay alınmadan kesinleşemez ve personele yayınlanamaz."
-    if bool(getattr(process, "is_second_or_later", False)) and not getattr(process, "administrative_process_started_at", None):
-        return "Aynı yıl ikinci 70 altı sonucu için Tekrarlayan Düşük Performans Süreci oluşturulmadan yayın yapılamaz."
-    if (not bool(getattr(process, "is_second_or_later", False))) and not getattr(process, "warning_recorded_at", None):
-        return "İlk 70 altı sonucu için personel uyarı/süreç kaydı oluşmadan yayın yapılamaz."
-    return ""
-def _legacy_get_low_score_employee_publish_lock_reason_phase1(evaluation, *, ensure: bool = False) -> str:
-    # BYS360_PHASE6_2_LOW_SCORE_PUBLISH_LOCK
-    return get_low_score_publish_block_reason(evaluation, ensure=ensure)
-
-def _legacy_is_low_score_employee_publish_released_phase1(evaluation, *, ensure: bool = False) -> bool:
-    # BYS360_PHASE6_2_LOW_SCORE_PUBLISH_LOCK
-    return not bool(get_low_score_publish_block_reason(evaluation, ensure=ensure))
 
 def _record_personnel_history(process: PerformanceLowScoreProcess, *, actor_user_id: int | None, summary: str, description: str) -> None:
     if not _table_exists("personnel_status_history"):
@@ -465,140 +431,6 @@ def hr_precheck_process(process: PerformanceLowScoreProcess, *, actor: Any = Non
     return process
 
 
-def _legacy_president_approve_process_phase1(process, *, actor=None, note=None, user_or_id=None):
-    # BYS360_PHASE6_4_PRESIDENT_APPROVAL_SCREEN
-    # BYS360_PHASE6_6_SECOND_LOW_SCORE_PROCESS
-    # BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_V5
-    actor_obj = actor if actor is not None else user_or_id
-    actor_user_id = _actor_id(actor_obj)
-    if process is None:
-        return None
-    process.president_rejected_at = None
-    process.president_rejected_by_id = None
-    process.president_rejection_note = None
-    process.president_approved_at = getattr(process, "president_approved_at", None) or utc_now()
-    process.president_approved_by_id = actor_user_id
-    if hasattr(process, "president_approval_note"):
-        process.president_approval_note = note or getattr(process, "president_approval_note", None)
-    process.updated_by_user_id = actor_user_id
-    try:
-        _mark_event(process, "president_approval", status="done", actor_user_id=actor_user_id, note=note or "Başkan/Üst Onay verildi.")
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    if getattr(process, "is_second_or_later", False):
-        auto_start_second_low_score_process(process, actor=actor_obj, note=note or "Aynı takvim yılı içinde ikinci kez 70 altı performans sonucu oluştu. Sistem otomatik işten çıkarma yapmaz; Tekrarlayan Düşük Performans Süreci idari takip için başlatıldı.")
-    else:
-        auto_record_first_low_score_warning(process, actor=actor_obj, note=note)
-    try:
-        _sync_current_stage(process)
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    try:
-        db.session.flush()
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    return process
-def _legacy_add_low_score_process_note_phase1(process_id=None, actor=None, note=None, process=None):
-    from datetime import datetime
-    try:
-        from app.extensions import db
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        db = None  # type: ignore[assignment]
-    target = process
-    if target is None and process_id is not None and db is not None:
-        try:
-            from app.models.performance_low_score_models import PerformanceLowScoreProcess
-            target = db.session.get(PerformanceLowScoreProcess, int(process_id))
-        except Exception:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            target = None
-    if target is None:
-        return None
-    target.process_note = note
-    target.process_note_by_id = getattr(actor, "id", actor) if actor is not None else None
-    target.process_note_updated_at = datetime.utcnow()
-    if db is not None:
-        try:
-            db.session.add(target)
-            db.session.commit()
-        except Exception:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            db.session.rollback()
-    return target
-def _legacy_record_first_warning_phase1(process: PerformanceLowScoreProcess, *, actor: Any = None, note: str | None = None) -> PerformanceLowScoreProcess:
-    actor_user_id = _actor_id(actor)
-    process.warning_recorded_at = process.warning_recorded_at or utc_now()
-    process.warning_recorded_by_id = actor_user_id
-    process.warning_note = note or process.warning_note or "Aynı takvim yılı içinde ilk 70 altı performans sonucu için uyarı kaydı oluşturuldu."
-    process.updated_by_user_id = actor_user_id
-    _mark_event(process, "first_warning_record", status="done", actor_user_id=actor_user_id, note=process.warning_note)
-    _mark_event(process, "publish_release", status="ready", actor_user_id=actor_user_id, note="70 altı kesinleşme şartları tamamlandı.")
-    _sync_current_stage(process)
-    _record_personnel_history(process, actor_user_id=actor_user_id, summary="Birinci 70 altı performans uyarısı oluşturuldu", description=process.warning_note)
-    db.session.flush()
-    return process
-
-
-def _legacy_auto_record_first_low_score_warning_phase1(process: PerformanceLowScoreProcess, *, actor: Any = None, note: str | None = None) -> PerformanceLowScoreProcess:
-    """BYS360_PHASE6_5_FIRST_LOW_SCORE_WARNING | Başkan/Üst Onay sonrası ilk 70 altı için uyarı kaydı oluşturur.
-
-    Bu yardımcı yalnızca aynı takvim yılındaki ilk 70 altı süreç için çalışır.
-    İkinci ve sonraki düşük performans kayıtları Faz 6.6 idari süreç akışına bırakılır.
-    """
-    if process is None:
-        return process
-    if bool(getattr(process, "is_second_or_later", False)):
-        return process
-    if not getattr(process, "president_approved_at", None):
-        return process
-    if getattr(process, "warning_recorded_at", None):
-        return process
-    warning_note = note or "Başkan/Üst Onay sonrası aynı takvim yılı içindeki ilk 70 altı performans sonucu için düşük performans uyarısı otomatik oluşturuldu."
-    return record_first_warning(process, actor=actor, note=warning_note)
-
-
-def _legacy_start_second_repeat_admin_process_phase1(process, *, actor=None, note=None):
-    # BYS360_PHASE6_6_SECOND_LOW_SCORE_PROCESS
-    # BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_V5
-    actor_user_id = _actor_id(actor)
-    if process is None:
-        return None
-    process.administrative_process_started_at = getattr(process, "administrative_process_started_at", None) or utc_now()
-    if hasattr(process, "administrative_process_started_by_id"):
-        process.administrative_process_started_by_id = getattr(process, "administrative_process_started_by_id", None) or actor_user_id
-    if hasattr(process, "administrative_process_note"):
-        process.administrative_process_note = note or getattr(process, "administrative_process_note", None) or "Aynı takvim yılı içinde ikinci kez 70 altı performans sonucu oluştu. Sistem otomatik işten çıkarma yapmaz; Tekrarlayan Düşük Performans Süreci idari takip için başlatıldı."
-    process.process_type = "second_low_score_admin_process"
-    process.status = "second_low_repeat"
-    process.current_stage_key = "second_low_repeat"
-    process.current_owner_label = "Tekrarlayan Düşük Performans Süreci"
-    try:
-        _mark_event(process, "second_repeat_admin_process", status="done", actor_user_id=actor_user_id, note=getattr(process, "administrative_process_note", None))
-        _mark_event(process, "publish_release", status="ready", actor_user_id=actor_user_id, note="Tekrarlayan Düşük Performans Süreci oluşturuldu; sistem otomatik işten çıkarma yapmaz.")
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    try:
-        _record_personnel_history(process, actor_user_id=actor_user_id, summary="Tekrarlayan Düşük Performans Süreci", description=getattr(process, "administrative_process_note", None) or "Tekrarlayan Düşük Performans Süreci")
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    try:
-        db.session.flush()
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    return process
 @dataclass
 class LowScorePeriodSummary:
     total: int
@@ -641,67 +473,103 @@ def _full_name(user: Any | None) -> str:
     return getattr(user, "full_name", None) or f"{getattr(user, 'ad', '') or ''} {getattr(user, 'soyad', '') or ''}".strip() or "-"
 
 
+def _actor_display_name(user: Any | None) -> str | None:
+    """İşlemi yapan kişinin adı; kullanıcı kaydı veya adı yoksa None (tahmin edilmez)."""
+    if user is None:
+        return None
+    name = _full_name(user)
+    return None if name == "-" else name
+
+
 def build_process_timeline(process=None):
+    """70 altı sayfasındaki "Süreç Geçmişi" özeti: süreç alanlarından üretilir.
+
+    Değişmez denetim kaydı değildir; her öğe {key, title, status, actor_name, note}.
+    actor_name yalnız o adımın kendi *_by kaydından gelir, yoksa None.
+    """
     if process is None:
         return []
     timeline = []
     if getattr(process, "president_rejected_at", None):
-        timeline.append({"key": "president_rejected", "label": "Başkan/Üst Onay tarafından iade edildi", "note": getattr(process, "president_rejection_note", None)})
+        timeline.append({
+            "key": "president_rejected",
+            "title": _event_title("president_rejected"),
+            "status": "Başkan/Üst Onay tarafından iade edildi",
+            "actor_name": _actor_display_name(getattr(process, "president_rejected_by", None)),
+            "note": getattr(process, "president_rejection_note", None),
+        })
     if getattr(process, "process_note", None):
-        timeline.append({"key": "process_note", "label": "Süreç Notu", "note": getattr(process, "process_note", None)})
+        timeline.append({
+            "key": "process_note",
+            "title": _event_title("process_note"),
+            "status": None,
+            "actor_name": _actor_display_name(getattr(process, "process_note_by", None)),
+            "note": getattr(process, "process_note", None),
+        })
     if getattr(process, "president_approved_at", None):
-        timeline.append({"key": "president_approval", "label": "Başkan/Üst Onay tamamlandı", "note": getattr(process, "president_approval_note", None)})
+        timeline.append({
+            "key": "president_approval",
+            "title": _event_title("president_approval"),
+            "status": "Başkan/Üst Onay tamamlandı",
+            "actor_name": _actor_display_name(getattr(process, "president_approved_by", None)),
+            "note": getattr(process, "president_approval_note", None),
+        })
     return timeline
+
+
+def _workflow_checklist(process) -> list[dict[str, Any]]:
+    """Güncel iş akışı adımları (checklist), denetim geçmişi değildir.
+
+    Adımlar ve tamamlanma koşulları ensure_low_score_process_for_evaluation'ın
+    oluşturduğu adım olaylarıyla aynıdır; is_current tamamlanmamış ilk adımdır.
+    """
+    second_or_later = low_score_is_second_or_later(process)
+    steps = [
+        ("evaluation_completed", True),
+        ("low_score_detected", True),
+        ("president_approval", bool(getattr(process, "president_approved_at", None))),
+        (
+            ("second_repeat_admin_process", bool(getattr(process, "administrative_process_started_at", None)))
+            if second_or_later
+            else ("first_warning_record", bool(getattr(process, "warning_recorded_at", None)))
+        ),
+        ("publish_release", bool(getattr(process, "is_finalized_for_publish", False))),
+    ]
+    current_key = next((key for key, done in steps if not done), None)
+    return [
+        {"key": key, "title": _event_title(key), "is_done": done, "is_current": key == current_key, "note": None}
+        for key, done in steps
+    ]
+
+
 def build_low_score_process_rows(processes=None):
+    """70 altı süreç sayfasının satır sözleşmesi; girdi süreç koleksiyonudur."""
     rows = []
     for process in processes or []:
+        employee = getattr(process, "employee", None)
+        sequence_no = getattr(process, "sequence_no", None)
         rows.append({
             "id": getattr(process, "id", None),
+            "process": process,
+            "evaluation": getattr(process, "evaluation", None),
+            "employee_name": _full_name(employee),
+            "sicil_no": getattr(employee, "sicil_no", None),
+            "birim": getattr(employee, "birim", None),
+            "period_title": getattr(getattr(process, "period", None), "title", None),
+            "sequence_label": f"{sequence_no}. 70 altı sonuç" if sequence_no else None,
+            "score": getattr(process, "final_total_100", None),
             "status_label": humanize_process_status(getattr(process, "status", None)),
+            "ready_for_publish": bool(getattr(process, "is_finalized_for_publish", False)),
+            "owner_label": getattr(process, "current_owner_label", None),
+            "timeline": _workflow_checklist(process),
             "events_history": build_process_timeline(process),
             "approval_note": getattr(process, "president_approval_note", None),
             "rejection_note": getattr(process, "president_rejection_note", None),
             "process_note": getattr(process, "process_note", None),
         })
     return rows
-def _legacy_president_reject_process_phase1(process=None, *, process_id=None, actor=None, note=None, user_or_id=None):
-    # BYS360_PHASE6_4_PRESIDENT_APPROVAL_SCREEN_REJECT
-    # İade işlemi yayın kilidini sürdürüyor / publish_release engellenir.
-    target = process
-    if target is None and process_id is not None:
-        try:
-            target = db.session.get(PerformanceLowScoreProcess, int(process_id))
-        except Exception:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            target = None
-    if target is None:
-        return None
-    actor_obj = actor if actor is not None else user_or_id
-    actor_user_id = _actor_id(actor_obj)
-    target.president_rejected_at = utc_now()
-    target.president_rejected_by_id = actor_user_id
-    target.president_rejection_note = note or "Başkan/Üst Onay tarafından iade edildi"
-    target.president_approved_at = None
-    target.president_approved_by_id = None
-    if hasattr(target, "president_approval_note"):
-        target.president_approval_note = None
-    target.status = "president_rejected"
-    target.current_stage_key = "president_returned"
-    target.current_owner_label = "Başkan/Üst Onay tarafından iade edildi"
-    try:
-        _mark_event(target, "president_rejected", status="returned", actor_user_id=actor_user_id, note=target.president_rejection_note)
-        _mark_event(target, "publish_release", status="blocked", actor_user_id=actor_user_id, note="İade edilen kayıtta yayın kilidi devam eder.")
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    try:
-        db.session.flush()
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    return target
+
+
 def _phase1_5_now():
     from datetime import datetime
     return datetime.utcnow()
@@ -731,220 +599,7 @@ def _phase1_5_user_id(user_or_id=None):
 
 # BYS360_PHASE6_DIRECT_PRESIDENT_CONTRACT_V3_DUPLICATE_REMOVED: is_low_score_evaluation eski uyumluluk kopyası kaldırıldı.
 
-def _legacy_humanize_process_status_phase1(status=None):
-    # BYS360_PHASE6_3_DIRECT_TO_PRESIDENT_APPROVAL
-    # Başkan onayı bekliyor
-    text = str(status or "").strip()
-    mapping = {
-        "president_pending": "Başkan onayı bekliyor",
-        "direct_president_pending": "Başkan onayı bekliyor",
-        "president_approval_pending": "Başkan onayı bekliyor",
-        "blocked_president_pending": "Başkan/Üst Onay Yayın Kilidi",
-        "president_rejected": "Başkan/Üst Onay tarafından iade edildi",
-        "president_returned": "Başkan/Üst Onay tarafından iade edildi",
-        "rejected_by_president": "Başkan/Üst Onay tarafından iade edildi",
-        "president_approved": "Başkan/Üst Onay tamamlandı",
-        "approved_by_president": "Başkan/Üst Onay tarafından onaylandı",
-        "first_low_warning": "Düşük Performans Uyarısı Oluşturuldu",
-        "warning_recorded": "Düşük Performans Uyarısı Oluşturuldu",
-        "second_low_repeat": "Tekrarlayan Düşük Performans Süreci",
-        "second_low_score_process_started": "Tekrarlayan Düşük Performans Süreci",
-        "repeated_low_score_process_started": "Tekrarlayan Düşük Performans Süreci",
-        "administrative_process_started": "Tekrarlayan Düşük Performans Süreci",
-    }
-    return mapping.get(text, "Bilinmiyor" if text else "Başkan onayı bekliyor")
-def _legacy_get_low_score_publish_block_reason_phase2(process=None, evaluation=None, ensure=True, *args, **kwargs):
-    # BYS360_PHASE6_2_LOW_SCORE_PUBLISH_LOCK
-    # BYS360_PHASE6_3_DIRECT_TO_PRESIDENT_APPROVAL
-    # BYS360_LIVE_HARDENING_PHASE1_12_PHASE6_RUNTIME_ALIGNMENT
-    # Başkan onayı şartı korunur. Başkan onayı bekliyor.
-    # Yayın blokajı Başkan/Üst Onay odaklıdır ve İK/Admin ara kapısı yoktur.
-    target = process
-    eval_obj = evaluation
-    if eval_obj is None and target is not None:
-        looks_like_evaluation = hasattr(target, "final_total_100") and not hasattr(target, "process_type")
-        if looks_like_evaluation:
-            eval_obj = target
-            target = None
-    if target is None and eval_obj is not None:
-        if not is_low_score_evaluation(eval_obj):
-            return None
-        try:
-            if ensure:
-                target = ensure_low_score_process_for_evaluation(eval_obj)
-            else:
-                target = getattr(eval_obj, "low_score_process", None)
-                if target is None and _low_score_tables_ready():
-                    target = PerformanceLowScoreProcess.query.filter_by(evaluation_id=getattr(eval_obj, "id", None)).first()
-        except Exception:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            target = None
-        if target is None:
-            return "Başkan onayı bekliyor. Başkan/Üst Onay şartı tamamlanmadan 70 altı karne yayınlanamaz."
-    if target is None:
-        return None
-    try:
-        final_score = float(getattr(target, "final_total_100", 0) or 0)
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        final_score = 0
-    if final_score >= float(LOW_SCORE_THRESHOLD):
-        return None
-    if getattr(target, "president_rejected_at", None) or getattr(target, "president_rejection_note", None):
-        return "Başkan/Üst Onay tarafından iade edildiği için karne yayınlanamaz. Yayın kilidi devam eder."
-    if not getattr(target, "president_approved_at", None):
-        return "Başkan onayı bekliyor. Başkan/Üst Onay tamamlanmadan 70 altı karne yayınlanamaz. Başkan/Üst Onay Yayın Kilidi"
-    if getattr(target, "is_second_or_later", False) and not getattr(target, "administrative_process_started_at", None):
-        return "Tekrarlayan Düşük Performans Süreci başlatılmadan karne yayınlanamaz. Sistem otomatik işten çıkarma yapmaz."
-    if not getattr(target, "is_second_or_later", False) and not getattr(target, "warning_recorded_at", None):
-        return "İlk düşük performans uyarı kaydı oluşmadan karne yayınlanamaz."
-    return None
-def _legacy_is_low_score_employee_publish_released_phase2(evaluation=None):
-    return not bool(get_low_score_employee_publish_lock_reason(evaluation, ensure=False))
-def _legacy_record_first_low_score_warning_phase2(process_or_id, user_or_id=None, note=None):
-    process = _phase1_5_get_process(process_or_id)
-    if process is None:
-        return None
-    if not getattr(process, "warning_recorded_at", None):
-        process.warning_recorded_at = _phase1_5_now()
-    if hasattr(process, "warning_recorded_by_id") and not getattr(process, "warning_recorded_by_id", None):
-        process.warning_recorded_by_id = _phase1_5_user_id(user_or_id)
-    if hasattr(process, "warning_note") and note:
-        process.warning_note = str(note)
-    if hasattr(process, "status"):
-        process.status = "first_low_warning"
-    if hasattr(process, "current_stage_key"):
-        process.current_stage_key = "first_low_warning"
-    if hasattr(process, "current_owner_label"):
-        process.current_owner_label = "Personel Süreç Kaydı"
-    return process
 
-
-def _legacy_start_second_repeat_admin_process_phase2(process, *, actor=None, note=None):
-    # BYS360_PHASE6_6_SECOND_LOW_SCORE_PROCESS
-    # BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_V5
-    actor_user_id = _actor_id(actor)
-    if process is None:
-        return None
-    process.administrative_process_started_at = getattr(process, "administrative_process_started_at", None) or utc_now()
-    if hasattr(process, "administrative_process_started_by_id"):
-        process.administrative_process_started_by_id = getattr(process, "administrative_process_started_by_id", None) or actor_user_id
-    if hasattr(process, "administrative_process_note"):
-        process.administrative_process_note = note or getattr(process, "administrative_process_note", None) or "Aynı takvim yılı içinde ikinci kez 70 altı performans sonucu oluştu. Sistem otomatik işten çıkarma yapmaz; Tekrarlayan Düşük Performans Süreci idari takip için başlatıldı."
-    process.process_type = "second_low_score_admin_process"
-    process.status = "second_low_repeat"
-    process.current_stage_key = "second_low_repeat"
-    process.current_owner_label = "Tekrarlayan Düşük Performans Süreci"
-    try:
-        _mark_event(process, "second_repeat_admin_process", status="done", actor_user_id=actor_user_id, note=getattr(process, "administrative_process_note", None))
-        _mark_event(process, "publish_release", status="ready", actor_user_id=actor_user_id, note="Tekrarlayan Düşük Performans Süreci oluşturuldu; sistem otomatik işten çıkarma yapmaz.")
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    try:
-        _record_personnel_history(process, actor_user_id=actor_user_id, summary="Tekrarlayan Düşük Performans Süreci", description=getattr(process, "administrative_process_note", None) or "Tekrarlayan Düşük Performans Süreci")
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    try:
-        db.session.flush()
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    return process
-def _legacy_auto_start_second_low_score_process_phase2(process, *, actor=None, note=None, user_or_id=None):
-    # BYS360_PHASE6_6_SECOND_LOW_SCORE_PROCESS
-    # BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_V5
-    # Başkan/Üst Onay sonrası ikinci süreç otomatik tetikleniyor.
-    if process is None:
-        return None
-    if not getattr(process, "is_second_or_later", False):
-        return process
-    if not getattr(process, "president_approved_at", None):
-        return process
-    if getattr(process, "administrative_process_started_at", None):
-        return process
-    return start_second_repeat_admin_process(process, actor=actor if actor is not None else user_or_id, note=note)
-def _legacy_president_approve_process_phase2(process, *, actor=None, note=None, user_or_id=None):
-    # BYS360_PHASE6_4_PRESIDENT_APPROVAL_SCREEN
-    # BYS360_PHASE6_6_SECOND_LOW_SCORE_PROCESS
-    # BYS360_PHASE6_7_FINAL_GATE_ALIGNMENT_V5
-    actor_obj = actor if actor is not None else user_or_id
-    actor_user_id = _actor_id(actor_obj)
-    if process is None:
-        return None
-    process.president_rejected_at = None
-    process.president_rejected_by_id = None
-    process.president_rejection_note = None
-    process.president_approved_at = getattr(process, "president_approved_at", None) or utc_now()
-    process.president_approved_by_id = actor_user_id
-    if hasattr(process, "president_approval_note"):
-        process.president_approval_note = note or getattr(process, "president_approval_note", None)
-    process.updated_by_user_id = actor_user_id
-    try:
-        _mark_event(process, "president_approval", status="done", actor_user_id=actor_user_id, note=note or "Başkan/Üst Onay verildi.")
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    if getattr(process, "is_second_or_later", False):
-        auto_start_second_low_score_process(process, actor=actor_obj, note=note or "Aynı takvim yılı içinde ikinci kez 70 altı performans sonucu oluştu. Sistem otomatik işten çıkarma yapmaz; Tekrarlayan Düşük Performans Süreci idari takip için başlatıldı.")
-    else:
-        auto_record_first_low_score_warning(process, actor=actor_obj, note=note)
-    try:
-        _sync_current_stage(process)
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    try:
-        db.session.flush()
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    return process
-def _legacy_president_reject_process_phase2(process=None, *, process_id=None, actor=None, note=None, user_or_id=None):
-    # BYS360_PHASE6_4_PRESIDENT_APPROVAL_SCREEN_REJECT
-    # İade işlemi yayın kilidini sürdürüyor / publish_release engellenir.
-    target = process
-    if target is None and process_id is not None:
-        try:
-            target = db.session.get(PerformanceLowScoreProcess, int(process_id))
-        except Exception:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            target = None
-    if target is None:
-        return None
-    actor_obj = actor if actor is not None else user_or_id
-    actor_user_id = _actor_id(actor_obj)
-    target.president_rejected_at = utc_now()
-    target.president_rejected_by_id = actor_user_id
-    target.president_rejection_note = note or "Başkan/Üst Onay tarafından iade edildi"
-    target.president_approved_at = None
-    target.president_approved_by_id = None
-    if hasattr(target, "president_approval_note"):
-        target.president_approval_note = None
-    target.status = "president_rejected"
-    target.current_stage_key = "president_returned"
-    target.current_owner_label = "Başkan/Üst Onay tarafından iade edildi"
-    try:
-        _mark_event(target, "president_rejected", status="returned", actor_user_id=actor_user_id, note=target.president_rejection_note)
-        _mark_event(target, "publish_release", status="blocked", actor_user_id=actor_user_id, note="İade edilen kayıtta yayın kilidi devam eder.")
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    try:
-        db.session.flush()
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    return target
 def add_low_score_process_note(process_or_id, user_or_id=None, note=None):
     process = _phase1_5_get_process(process_or_id)
     if process is None:
@@ -1083,108 +738,6 @@ def _phase1_7_find_low_score_process(value=None, *, evaluation=None, ensure=Fals
         return None
 
 
-def _legacy_get_low_score_publish_block_reason_phase3(process=None, evaluation=None, ensure=True, *args, **kwargs):
-    # BYS360_PHASE6_2_LOW_SCORE_PUBLISH_LOCK
-    # BYS360_PHASE6_3_DIRECT_TO_PRESIDENT_APPROVAL
-    # BYS360_LIVE_HARDENING_PHASE1_12_PHASE6_RUNTIME_ALIGNMENT
-    # Başkan onayı şartı korunur. Başkan onayı bekliyor.
-    # Yayın blokajı Başkan/Üst Onay odaklıdır ve İK/Admin ara kapısı yoktur.
-    target = process
-    eval_obj = evaluation
-    if eval_obj is None and target is not None:
-        looks_like_evaluation = hasattr(target, "final_total_100") and not hasattr(target, "process_type")
-        if looks_like_evaluation:
-            eval_obj = target
-            target = None
-    if target is None and eval_obj is not None:
-        if not is_low_score_evaluation(eval_obj):
-            return None
-        try:
-            if ensure:
-                target = ensure_low_score_process_for_evaluation(eval_obj)
-            else:
-                target = getattr(eval_obj, "low_score_process", None)
-                if target is None and _low_score_tables_ready():
-                    target = PerformanceLowScoreProcess.query.filter_by(evaluation_id=getattr(eval_obj, "id", None)).first()
-        except Exception:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            target = None
-        if target is None:
-            return "Başkan onayı bekliyor. Başkan/Üst Onay şartı tamamlanmadan 70 altı karne yayınlanamaz."
-    if target is None:
-        return None
-    try:
-        final_score = float(getattr(target, "final_total_100", 0) or 0)
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        final_score = 0
-    if final_score >= float(LOW_SCORE_THRESHOLD):
-        return None
-    if getattr(target, "president_rejected_at", None) or getattr(target, "president_rejection_note", None):
-        return "Başkan/Üst Onay tarafından iade edildiği için karne yayınlanamaz. Yayın kilidi devam eder."
-    if not getattr(target, "president_approved_at", None):
-        return "Başkan onayı bekliyor. Başkan/Üst Onay tamamlanmadan 70 altı karne yayınlanamaz. Başkan/Üst Onay Yayın Kilidi"
-    if getattr(target, "is_second_or_later", False) and not getattr(target, "administrative_process_started_at", None):
-        return "Tekrarlayan Düşük Performans Süreci başlatılmadan karne yayınlanamaz. Sistem otomatik işten çıkarma yapmaz."
-    if not getattr(target, "is_second_or_later", False) and not getattr(target, "warning_recorded_at", None):
-        return "İlk düşük performans uyarı kaydı oluşmadan karne yayınlanamaz."
-    return None
-def _legacy_get_low_score_employee_publish_lock_reason_phase3(evaluation=None, *, ensure=False):
-    # BYS360_PHASE6_2_LOW_SCORE_EMPLOYEE_VISIBILITY_LOCK
-    return get_low_score_publish_block_reason(evaluation, ensure=ensure)
-def _legacy_is_low_score_employee_publish_released_phase3(evaluation=None, *, ensure: bool = False, **kwargs) -> bool:
-    # BYS360_PHASE6_2_LOW_SCORE_PUBLISH_LOCK
-    return not bool(get_low_score_employee_publish_lock_reason(evaluation, ensure=ensure))
-
-def _legacy_record_first_warning_phase3(process, *, actor=None, note=None):
-    # BYS360_PHASE6_5_FIRST_LOW_SCORE_WARNING
-    actor_user_id = _actor_id(actor)
-    if process is None:
-        return None
-    process.warning_recorded_at = getattr(process, "warning_recorded_at", None) or utc_now()
-    if hasattr(process, "warning_recorded_by_id"):
-        process.warning_recorded_by_id = getattr(process, "warning_recorded_by_id", None) or actor_user_id
-    if hasattr(process, "warning_note"):
-        process.warning_note = note or getattr(process, "warning_note", None) or "Başkan/Üst Onay sonrası ilk 70 altı performans sonucu için düşük performans uyarısı oluşturuldu."
-    process.status = "first_low_warning"
-    process.current_stage_key = "first_low_warning"
-    process.current_owner_label = "Düşük Performans Uyarısı Oluşturuldu"
-    try:
-        _mark_event(process, "first_warning_record", status="done", actor_user_id=actor_user_id, note=getattr(process, "warning_note", None))
-        _mark_event(process, "publish_release", status="ready", actor_user_id=actor_user_id, note="70 altı kesinleşme şartları tamamlandı.")
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    try:
-        _record_personnel_history(process, actor_user_id=actor_user_id, summary="Birinci 70 altı performans uyarısı oluşturuldu", description=getattr(process, "warning_note", None) or "Düşük performans uyarısı oluşturuldu.")
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    try:
-        db.session.flush()
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        import logging
-        logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/performance/low_score_process_service.py")
-    return process
-
-def _legacy_auto_record_first_low_score_warning_phase3(process, *, actor=None, note=None):
-    # BYS360_PHASE6_5_FIRST_LOW_SCORE_WARNING
-    if process is None:
-        return None
-    if getattr(process, "is_second_or_later", False):
-        return process
-    if not getattr(process, "president_approved_at", None):
-        return process
-    if getattr(process, "warning_recorded_at", None):
-        return process
-    return record_first_warning(process, actor=actor, note=note)
-
-_legacy_record_first_low_score_warning_phase3 = _legacy_record_first_warning_phase3
-
-
 # BYS360_CANLI_SAGLAMLASTIRMA_PHASE1_13_PHASE6_GATE_CONTRACT
 # Faz 6 gate sözleşmesi: taslak 0 puan düşük performans sayılmaz; 70 altı yayın için Başkan/Üst Onay + süreç kaydı gerekir.
 def _bys360_lh13_safe_float(value, default=0.0):
@@ -1267,6 +820,10 @@ def get_low_score_publish_block_reason(process=None, evaluation=None, ensure=Tru
         if ensure:
             try:
                 target = ensure_low_score_process_for_evaluation(evaluation)
+            except SQLAlchemyError:
+                # Veritabanı hatası yayın kilidi gerekçesine dönüştürülmez; çağırana
+                # iletilir (kural uygulamasında ok=False ve tam geri alma).
+                raise
             except Exception:
                 logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
                 target = None
@@ -1289,18 +846,17 @@ def get_low_score_publish_block_reason(process=None, evaluation=None, ensure=Tru
     final_score = _bys360_lh13_safe_float(getattr(target, "final_total_100", 0), 0.0)
     if final_score <= 0 or final_score >= float(LOW_SCORE_THRESHOLD):
         return None
-    if getattr(target, "president_rejected_at", None) or getattr(target, "president_rejected_by_id", None) or getattr(target, "president_rejection_note", None):
+    # İade / Başkan onayı / tekrar sırası kararları canonical model politikasından
+    # okunur (PerformanceLowScoreProcess.is_president_rejected, is_president_approved,
+    # is_second_or_later ile aynı fonksiyonlar).
+    if low_score_is_president_rejected(target):
         return "Başkan/Üst Onay tarafından iade edildi. Yayın kilidi devam ediyor."
-    if not (getattr(target, "president_approved_at", None) or getattr(target, "president_approved_by_id", None)):
+    if not low_score_is_president_approved(target):
         return "Başkan onayı bekliyor. Başkan/Üst Onay şartı tamamlanmadan yayın yapılamaz. Başkan/Üst Onay Yayın Kilidi"
-    try:
-        sequence_no = int(getattr(target, "sequence_no", 1) or 1)
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        sequence_no = 1
-    if sequence_no >= 2 and not (getattr(target, "administrative_process_started_at", None) or getattr(target, "administrative_process_started_by_id", None)):
+    second_or_later = low_score_is_second_or_later(target)
+    if second_or_later and not (getattr(target, "administrative_process_started_at", None) or getattr(target, "administrative_process_started_by_id", None)):
         return "Tekrarlayan Düşük Performans Süreci başlatılmadan yayın yapılamaz. Sistem otomatik işten çıkarma yapmaz."
-    if sequence_no < 2 and not (getattr(target, "warning_recorded_at", None) or getattr(target, "warning_recorded_by_id", None)):
+    if not second_or_later and not (getattr(target, "warning_recorded_at", None) or getattr(target, "warning_recorded_by_id", None)):
         return "İlk düşük performans uyarısı oluşmadan yayın yapılamaz."
     return None
 
@@ -1365,7 +921,7 @@ def auto_record_first_low_score_warning(process, *, actor=None, note=None, user_
         return None
     if bool(getattr(process, "is_second_or_later", False)):
         return process
-    if not (getattr(process, "president_approved_at", None) or getattr(process, "president_approved_by_id", None)):
+    if not low_score_is_president_approved(process):
         return process
     if getattr(process, "warning_recorded_at", None) or getattr(process, "warning_recorded_by_id", None):
         return process
@@ -1417,7 +973,7 @@ def auto_start_second_low_score_process(process, *, actor=None, note=None, user_
         return None
     if not bool(getattr(process, "is_second_or_later", False)):
         return process
-    if not (getattr(process, "president_approved_at", None) or getattr(process, "president_approved_by_id", None)):
+    if not low_score_is_president_approved(process):
         return process
     if getattr(process, "administrative_process_started_at", None) or getattr(process, "administrative_process_started_by_id", None):
         return process

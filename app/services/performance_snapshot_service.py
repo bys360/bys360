@@ -275,14 +275,17 @@ def _recalculate_period_rankings(period_id: int) -> None:
             row.ranking_in_unit = idx
 
 
-def create_snapshots_for_period(period_id: int, actor_user_id: int | None = None) -> dict[str, int]:
+def create_snapshots_for_period(period_id: int, evaluation_ids: list[int], actor_user_id: int | None = None) -> dict[str, int]:
     period = db.session.get(PerformancePeriod, period_id)
     if not period:
         raise ValueError("Dönem bulunamadı.")
 
+    # Yalnız yayın kararının personele açtığı değerlendirmeler; yayınlanmayan
+    # karne system_published anlık görüntüsü almaz.
     evaluations = (
         PerformanceEvaluation.query
         .filter_by(period_id=period_id)
+        .filter(PerformanceEvaluation.id.in_(evaluation_ids))
         .filter(PerformanceEvaluation.status == "tamamlandi")
         .all()
     )
@@ -301,28 +304,64 @@ def create_snapshots_for_period(period_id: int, actor_user_id: int | None = None
     return {"created": created}
 
 
+def _has_current_system_snapshot(evaluation_id: int) -> bool:
+    return (
+        PerformanceResultSnapshot.query
+        .filter_by(evaluation_id=evaluation_id, source_type="system_published", is_current=True)
+        .first()
+        is not None
+    )
+
+
 def backfill_snapshots_for_published_periods(actor_user_id: int | None = None) -> dict[str, int]:
+    """Yalnız eksik yayın anlık görüntüsünü onarır; yeni yayın yapmaz.
+
+    Sonuçları yayınlanmış dönemde, tamamlanmış ve personele yayınlanmış olup
+    güncel system_published kaydı bulunmayan değerlendirmeler için kayıt açar.
+    Commit çağıran rotaya aittir.
+    """
     periods = (
         PerformancePeriod.query
-        .filter(
-            db.or_(
-                PerformancePeriod.results_published.is_(True),
-                PerformancePeriod.is_active.is_(True),
-            )
-        )
+        .filter(PerformancePeriod.results_published.is_(True))
         .order_by(PerformancePeriod.id.asc())
         .all()
     )
 
-    touched_periods = 0
     created_total = 0
+    skipped_total = 0
 
     for period in periods:
-        result = create_snapshots_for_period(period.id, actor_user_id=actor_user_id)
-        touched_periods += 1
-        created_total += result.get("created", 0)
+        evaluations = (
+            PerformanceEvaluation.query
+            .filter_by(period_id=period.id)
+            .filter(PerformanceEvaluation.status == "tamamlandi")
+            .filter(
+                db.or_(
+                    PerformanceEvaluation.is_published_to_employee.is_(True),
+                    PerformanceEvaluation.published_to_employee_at.isnot(None),
+                )
+            )
+            .order_by(PerformanceEvaluation.id.asc())
+            .all()
+        )
+
+        created = 0
+        for evaluation in evaluations:
+            if _has_current_system_snapshot(evaluation.id):
+                skipped_total += 1
+                continue
+            create_snapshot_for_evaluation(evaluation.id, actor_user_id=actor_user_id)
+            created += 1
+
+        if created:
+            _recalculate_period_rankings(period.id)
+            period.snapshot_status = "completed"
+            period.snapshot_generated_at = utc_now()
+            period.snapshot_generated_by_id = actor_user_id
+            created_total += created
 
     return {
-        "period_count": touched_periods,
+        "period_count": len(periods),
         "created": created_total,
+        "skipped": skipped_total,
     }

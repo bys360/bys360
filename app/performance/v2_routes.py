@@ -410,6 +410,7 @@ def performance_v2_phase5_publish():
                 flash('Bilinmeyen yayın işlemi.', 'warning')
         except Exception as exc:
             current_app.logger.exception('V2 publish islemi basarisiz: %s', exc)
+            db.session.rollback()
             flash('Yayın işlemi sırasında beklenmeyen bir hata oluştu.', 'danger')
         return redirect(url_for('main.performance_v2_phase5_publish', period_id=period.id))
     # BYS360_PERF_SPEED: ensure_low_score GET'ten kaldirildi, sadece POST/publish'te tetiklenir

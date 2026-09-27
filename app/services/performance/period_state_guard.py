@@ -49,13 +49,21 @@ def _scoring_end(period: Any) -> datetime | None:
     return _as_datetime(getattr(period, "scoring_end_date", None))
 
 
-def validate_scoring_window(period: Any, *, now: datetime | None = None) -> tuple[bool, str]:
-    if period is None:
-        return False, "Performans dönemi bulunamadı."
+def validate_period_scores_mutable(period: Any) -> tuple[bool, str]:
+    """Sonuçları yayınlanmış veya kilitli dönemde puan değiştiren hiçbir işlem yapılamaz."""
     if bool(getattr(period, "results_published", False)):
         return False, "Bu dönem sonuçları yayınlandığı için puanlama değişikliği yapılamaz."
     if bool(getattr(period, "is_locked", False)):
         return False, "Bu dönem kilitli olduğu için puanlama değişikliği yapılamaz."
+    return True, ""
+
+
+def validate_scoring_window(period: Any, *, now: datetime | None = None) -> tuple[bool, str]:
+    if period is None:
+        return False, "Performans dönemi bulunamadı."
+    mutable, message = validate_period_scores_mutable(period)
+    if not mutable:
+        return False, message
     current = now or utc_now()
     start_at = _auto_scoring_start(period)
     if start_at and current < start_at:

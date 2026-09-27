@@ -19,6 +19,7 @@ def phase3c_mobile_performance_task_score_form_service(user: Any, assignment_id:
 
 def phase3c_mobile_performance_task_score_submit_service(user: Any, assignment_id: int, deps: dict[str, Any]):
     EvaluationAssignment = deps['EvaluationAssignment']
+    PerformanceEvaluation = deps['PerformanceEvaluation']
     PerformancePeriod = deps['PerformancePeriod']
     _label = deps['_label']
     _mobile_perf_safe_get = deps['_mobile_perf_safe_get']
@@ -80,6 +81,14 @@ def phase3c_mobile_performance_task_score_submit_service(user: Any, assignment_i
         })
 
     try:
+        # Personele yayınlanmış değerlendirme mobilden değiştirilemez (mobil geri
+        # çekme / iade ile aynı yayın kontrolü); karar hiçbir yazmadan önce verilir.
+        existing_evaluation = PerformanceEvaluation.query.filter_by(
+            period_id=getattr(assignment, 'period_id', None),
+            employee_id=getattr(assignment, 'employee_id', None),
+        ).first()
+        if existing_evaluation is not None and bool(getattr(existing_evaluation, 'is_published_to_employee', False) or getattr(existing_evaluation, 'published_to_employee_at', None)):
+            raise ValueError('Personele yayınlanmış değerlendirme mobil ekrandan değiştirilemez.')
         if score_mode:
             if completed and criteria_rows and len(item_payloads) < len(criteria_rows):
                 return _v2835_json_error('Tamamlamak için tüm değerlendirme kriterlerine 1-5 arası puan girilmelidir.', 400)

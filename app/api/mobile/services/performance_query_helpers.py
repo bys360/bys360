@@ -26,7 +26,9 @@ def _assignment_query_for(user: User):
 
 
 def _snapshot_query_for(user: User):
-    q = PerformanceResultSnapshot.query
+    # Her dönem/personel için yalnız güncel sürüm (web anlık görüntü ekranlarıyla
+    # aynı); eski sürümler tarihçe olarak veritabanında kalır.
+    q = PerformanceResultSnapshot.query.filter(PerformanceResultSnapshot.is_current.is_(True))
     if _has_global_scope(user):
         return q
     return q.filter(PerformanceResultSnapshot.employee_id == user.id)
