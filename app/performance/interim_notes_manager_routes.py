@@ -441,8 +441,11 @@ def performance_interim_notes():
             ORDER BY n.created_at DESC, n.id DESC
             LIMIT 300
         """,
-            {"scope_ids": scoped_ids} if scoped_ids else None,
-            expanding=("scope_ids",) if scoped_ids else (),
+            # Bind scope_ids only when the SQL uses it: the admin branch has no
+            # :scope_ids placeholder and binding it raised "This text() construct
+            # doesn't define a bound parameter named 'scope_ids'" (HTTP 500).
+            {"scope_ids": scoped_ids} if scope_where else None,
+            expanding=("scope_ids",) if scope_where else (),
         )
 
     # BYS360 DEFECT FS (Final Sweep A1-04): TO_CHAR(...) is PostgreSQL-only

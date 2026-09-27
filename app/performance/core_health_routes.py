@@ -19,10 +19,11 @@ def performance_core_health():
     period = get_period(request.args.get("period_id", type=int))
     snapshot = build_core_health_panel_snapshot(period=period, viewer=current_user)
     periods = snapshot.get("periods") or PerformancePeriod.query.order_by(PerformancePeriod.id.desc()).limit(50).all()
+    # The snapshot already carries "periods"; passing it both explicitly and via
+    # **snapshot raised "got multiple values for keyword argument" (HTTP 500).
+    context = {**snapshot, "periods": periods, "selected_period": snapshot.get("period")}
     return safe_render(
         "performance_core_health.html",
         "<h3>Çekirdek Sağlık Paneli</h3>",
-        periods=periods,
-        selected_period=snapshot.get("period"),
-        **snapshot,
+        **context,
     )
