@@ -99,6 +99,10 @@ from pathlib import Path
 import pytest
 from sqlalchemy.pool import StaticPool
 
+# Final pre-live audit P2-07: this authorization integrity audit carried no
+# ci_safe marker, so `pytest tests/quality -m ci_safe` never ran it in CI.
+pytestmark = pytest.mark.ci_safe
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _PY_FILES = [
