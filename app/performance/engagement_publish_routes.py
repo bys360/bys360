@@ -116,7 +116,7 @@ def performance_publish_period(period_id):
             create_snapshots_for_period(period.id, evaluation_ids=result.get("published_evaluation_ids", []), actor_user_id=current_user.id)
         except Exception as snap_exc:
             current_app.logger.exception("Snapshot create failed for period publish: %s", snap_exc)
-            flash(f"Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu: {snap_exc}", "warning")
+            flash("Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu.", "warning")
 
         notification_result = send_published_evaluation_notifications(
             period,
@@ -210,7 +210,7 @@ def performance_publish_evaluation(evaluation_id):
             create_snapshot_for_evaluation(evaluation.id, actor_user_id=current_user.id)
         except Exception as snap_exc:
             current_app.logger.exception("Snapshot create failed for single publish: %s", snap_exc)
-            flash(f"Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu: {snap_exc}", "warning")
+            flash("Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu.", "warning")
 
         notification_result = send_published_evaluation_notifications(
             cast(PerformancePeriod, evaluation.period),
