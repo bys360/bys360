@@ -36,7 +36,7 @@ os.environ.setdefault("SCHEDULER_ENABLED", "false")
 # BYS360_PHASE5_PYTEST_TEMP_CONTRACT_START
 # Tam pytest paketi (özellikle tests/quality -m ci_safe ve tests/critical)
 # çalıştırılırken, bu makinede pytest'in yerleşik `tmp_path` fixture'ı
-# Windows kullanıcı adındaki Türkçe karakterler ("Havva Gülsen ÖZDEN") ile
+# Windows kullanıcı adındaki Türkçe karakterler (ör. "Çağla Öztürk") ile
 # `%LOCALAPPDATA%\Temp` altındaki derin/uzun varsayılan yol birleşimi
 # yüzünden `PermissionError` ile başarısız olabilir. Bu davranış bu
 # dosyadaki hiçbir koddan kaynaklanmaz ve burada otomatik olarak

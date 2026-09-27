@@ -13,9 +13,9 @@ Bu paket `/portal` yayın akışı sayfasını paylaşım odaklı hale getirir.
 ## Komut
 
 ```powershell
-cd C:ys360\project
-Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_PORTAL_EXPERIENCE_V2B_FEED_FIRST_OVERLAY.zip" -DestinationPath "C:ys360\project" -Force
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_portal_experience_v2b_feed_first.ps1 -ProjectRoot "C:ys360\project" -Mode all
+cd C:\bys360\project
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_PORTAL_EXPERIENCE_V2B_FEED_FIRST_OVERLAY.zip" -DestinationPath "C:\bys360\project" -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_portal_experience_v2b_feed_first.ps1 -ProjectRoot "C:\bys360\project" -Mode all
 ```
 
 Başarılı çıktı:

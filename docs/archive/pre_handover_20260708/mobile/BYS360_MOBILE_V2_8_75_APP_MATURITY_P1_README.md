@@ -15,10 +15,10 @@ V2.8.74 P0 ile release imzalama ve FCM guvenli ac/kapat yapisi tamamlandi. V2.8.
 ## Uygulama
 
 ```powershell
-cd C:ys360\project
-Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_MOBILE_V2_8_75_APP_MATURITY_P1_OVERLAY.zip" -DestinationPath "C:ys360\project" -Force
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_mobile_v2_8_75_app_maturity_p1.ps1 -ProjectRoot "C:ys360\project"
-powershell -ExecutionPolicy Bypass -File .\scripts\windows\check_bys360_mobile_v2_8_75_app_maturity_p1.ps1 -ProjectRoot "C:ys360\project"
+cd C:\bys360\project
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_MOBILE_V2_8_75_APP_MATURITY_P1_OVERLAY.zip" -DestinationPath "C:\bys360\project" -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_mobile_v2_8_75_app_maturity_p1.ps1 -ProjectRoot "C:\bys360\project"
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\check_bys360_mobile_v2_8_75_app_maturity_p1.ps1 -ProjectRoot "C:\bys360\project"
 ```
 
 Beklenen cikti:
@@ -32,14 +32,14 @@ BYS360_MOBILE_V2_8_75_APP_MATURITY_P1_GATE_OK
 FCM kapali release APK:
 
 ```powershell
-cd C:ys360\project
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsuild_bys360_mobile_v2_8_75_release_apk.ps1 -ProjectRoot "C:ys360\project" -EnableFcm:$false
+cd C:\bys360\project
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\build_bys360_mobile_v2_8_75_release_apk.ps1 -ProjectRoot "C:\bys360\project" -EnableFcm:$false
 ```
 
 APK cikisi:
 
 ```text
-C:ys360\project\mobile_flutterys360_mobile_nativeuildpp\outputslutter-apkpp-release.apk
+C:\bys360\project\mobile_flutter\bys360_mobile_native\build\app\outputs\flutter-apk\app-release.apk
 ```
 
 ## Onemli notlar

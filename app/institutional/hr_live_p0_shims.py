@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from flask import render_template, url_for
+from flask_login import login_required
 
 
 def _safe_target() -> str:
@@ -57,7 +58,9 @@ def _make_redirect_view(title: str, message: str) -> Callable:
         return _fallback_page(title, message)
 
     _view.__name__ = "bys360_hr_live_p0_fallback_" + re_safe_name(title)
-    return _view
+    # The real institutional HR pages require login; the fallback must not be
+    # the only anonymous page in this area (final pre-live audit P3).
+    return login_required(_view)
 
 
 def re_safe_name(value: str) -> str:

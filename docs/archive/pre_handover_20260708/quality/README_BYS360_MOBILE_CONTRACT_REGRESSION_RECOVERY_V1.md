@@ -12,11 +12,11 @@ Düzeltmeler:
 Komutlar:
 
 ```powershell
-cd C:ys360\project
-Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_MOBILE_CONTRACT_REGRESSION_RECOVERY_V1_OVERLAY_FLAT.zip" -DestinationPath "C:ys360\project" -Force
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_mobile_contract_regression_recovery_v1.ps1 -ProjectRoot "C:ys360\project" -Mode audit
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_mobile_contract_regression_recovery_v1.ps1 -ProjectRoot "C:ys360\project" -Mode fix-safe -RunCompile
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_mobile_contract_regression_recovery_v1.ps1 -ProjectRoot "C:ys360\project" -Mode verify -RunCompile
+cd C:\bys360\project
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_MOBILE_CONTRACT_REGRESSION_RECOVERY_V1_OVERLAY_FLAT.zip" -DestinationPath "C:\bys360\project" -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_mobile_contract_regression_recovery_v1.ps1 -ProjectRoot "C:\bys360\project" -Mode audit
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_mobile_contract_regression_recovery_v1.ps1 -ProjectRoot "C:\bys360\project" -Mode fix-safe -RunCompile
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_mobile_contract_regression_recovery_v1.ps1 -ProjectRoot "C:\bys360\project" -Mode verify -RunCompile
 ```
 
 Beklenen statü: `OK`.

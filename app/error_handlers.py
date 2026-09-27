@@ -301,11 +301,11 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(SQLAlchemyError)
     def handle_db_error(error: SQLAlchemyError):
         _safe_rollback()
-        current_app.logger.exception("Veritabanı tarafı yine homurdandı: %s", error)
+        current_app.logger.exception("Veritabanı hatası yakalandı: %s | detay=%s", error, request_log_context())
         return render_error_page(
             500,
             "Veritabanı Hatası",
-            "İşlem sırasında veritabanı kaynaklı bir sorun oluştu. Bir işlem koyup tekrar deneyelim.",
+            "İşlem sırasında veritabanı kaynaklı bir sorun oluştu. İşlem geri alındı; lütfen kısa süre sonra tekrar deneyin.",
         )
 
     @app.errorhandler(HTTPException)
@@ -333,5 +333,5 @@ def register_error_handlers(app: Flask) -> None:
         return render_error_page(
             500,
             "Sistem Hatası",
-            "Beklenmeyen bir hata oluştu. İşlem geri alındı; veri dağılmasın diye orada kestim.",
+            "Beklenmeyen bir hata oluştu. İşlem güvenli şekilde durduruldu ve geri alındı; lütfen tekrar deneyin.",
         )

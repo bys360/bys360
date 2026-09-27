@@ -15,9 +15,9 @@ V1 toplam repo taraması yaptığı için `scripts`, testler, migration dosyalar
 ## Uygulama
 
 ```powershell
-cd C:ys360\project
-Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_OPS_HARDENING_V2_TRIAGE_OVERLAY.zip" -DestinationPath "C:ys360\project" -Force
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_ops_hardening_v2_triage.ps1 -ProjectRoot "C:ys360\project" -Mode all
+cd C:\bys360\project
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_OPS_HARDENING_V2_TRIAGE_OVERLAY.zip" -DestinationPath "C:\bys360\project" -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_ops_hardening_v2_triage.ps1 -ProjectRoot "C:\bys360\project" -Mode all
 ```
 
 ## Raporlar

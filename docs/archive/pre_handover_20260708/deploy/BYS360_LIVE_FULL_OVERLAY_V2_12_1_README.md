@@ -16,10 +16,10 @@ Bu paket canlıya uygun web overlay paketidir. `.env`, `.venv`, `app/static/uplo
 PowerShell ile proje kökünde çalıştırın:
 
 ```powershell
-cd C:ys360\project
-Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_LIVE_FULL_OVERLAY_V2_12_1.zip" -DestinationPath "C:ys360\project" -Force
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_live_full_overlay_v2_12_1.ps1 -ProjectRoot "C:ys360\project"
-powershell -ExecutionPolicy Bypass -File .\scripts\windows\check_bys360_live_full_overlay_v2_12_1.ps1 -ProjectRoot "C:ys360\project"
+cd C:\bys360\project
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_LIVE_FULL_OVERLAY_V2_12_1.zip" -DestinationPath "C:\bys360\project" -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_live_full_overlay_v2_12_1.ps1 -ProjectRoot "C:\bys360\project"
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\check_bys360_live_full_overlay_v2_12_1.ps1 -ProjectRoot "C:\bys360\project"
 ```
 
 Gate OK sonrası canlı servis:

@@ -12,5 +12,5 @@ Beklenen kazanım:
 Çalıştırma:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_claude_score_uplift_p1e_mobile_routes_personnel_kpi_split.ps1 -ProjectRoot "C:ys360\project" -Mode all -CompileAll -RunAppFactorySmoke -RunSecretGate
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_claude_score_uplift_p1e_mobile_routes_personnel_kpi_split.ps1 -ProjectRoot "C:\bys360\project" -Mode all -CompileAll -RunAppFactorySmoke -RunSecretGate
 ```

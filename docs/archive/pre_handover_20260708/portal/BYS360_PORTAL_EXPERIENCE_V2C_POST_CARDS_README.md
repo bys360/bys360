@@ -14,9 +14,9 @@ Bu paket yayın akışındaki paylaşım kutusunu ve gönderi kartlarını daha 
 ## Kurulum
 
 ```powershell
-cd C:ys360\project
-Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_PORTAL_EXPERIENCE_V2C_POST_CARDS_OVERLAY.zip" -DestinationPath "C:ys360\project" -Force
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_portal_experience_v2c_post_cards.ps1 -ProjectRoot "C:ys360\project" -Mode all
+cd C:\bys360\project
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_PORTAL_EXPERIENCE_V2C_POST_CARDS_OVERLAY.zip" -DestinationPath "C:\bys360\project" -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_portal_experience_v2c_post_cards.ps1 -ProjectRoot "C:\bys360\project" -Mode all
 ```
 
 Başarılı çıktı:
