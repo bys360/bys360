@@ -93,6 +93,7 @@ def performance_publish_period(period_id):
         flash("Dönem bulunamadı.", "danger")
         return _redirect_publish_dashboard(selected_scope=selected_scope, q=q, status=status)
 
+    publication_committed = False
     try:
         if bool(getattr(period, "results_published", False)):
             flash("Bu dönem sonuçları zaten yayımlanmış görünüyor.", "warning")
@@ -111,13 +112,17 @@ def performance_publish_period(period_id):
                 create_publish_log(period.id, current_user.id, "bulk_publish", evaluation.id, evaluation.employee_id, "Toplu yayın işlemi ile personele açıldı.")
 
         db.session.commit()
+        publication_committed = published_count > 0
 
         # Yayın yukarıda kaydedildi; snapshot adımı SAVEPOINT içinde ya tamamen
         # kaydedilir ya da (sıralama ve dönem damgasıyla birlikte) tamamen geri alınır.
+        # Sonucu bildirim aşamasından önce kaydedilir; bildirim hatası onu geri almaz.
         try:
             with db.session.begin_nested():
                 create_snapshots_for_period(period.id, evaluation_ids=result.get("published_evaluation_ids", []), actor_user_id=current_user.id)
+            db.session.commit()
         except Exception as snap_exc:
+            db.session.rollback()
             current_app.logger.exception("Snapshot create failed for period publish: %s", snap_exc)
             flash("Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu.", "warning")
 
@@ -145,7 +150,11 @@ def performance_publish_period(period_id):
     except Exception as exc:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)
         db.session.rollback()
-        flash("Toplu yayın sırasında hata oluştu.", "danger")
+        if publication_committed:
+            # Kaydedilmiş yayın geri alınmaz; yalnız bildirim aşamasının kayıtları geri alındı.
+            flash("Yayın tamamlandı ancak bilgilendirme e-postaları gönderilirken hata oluştu.", "warning")
+        else:
+            flash("Toplu yayın sırasında hata oluştu.", "danger")
 
     return _redirect_publish_dashboard(period_id=period.id, selected_scope=selected_scope, q=q, status=status)
 
@@ -199,6 +208,7 @@ def performance_publish_evaluation(evaluation_id):
         flash("Değerlendirme kaydı bulunamadı.", "danger")
         return _redirect_publish_dashboard(selected_scope=selected_scope, q=q, status=status)
 
+    publication_committed = False
     try:
         ensure_state_change(current_value=getattr(evaluation, "is_published_to_employee", False), target_value=True, entity_label="Değerlendirme sonucu")
         ok, reason = publish_evaluation(evaluation, current_user)
@@ -208,13 +218,17 @@ def performance_publish_evaluation(evaluation_id):
 
         create_publish_log(evaluation.period_id, current_user.id, "publish", evaluation.id, evaluation.employee_id, "Tekil yayın işlemi ile personele açıldı.")
         db.session.commit()
+        publication_committed = True
 
         # Yayın yukarıda kaydedildi; snapshot adımı (önceki sürümün pasife alınması dahil)
         # SAVEPOINT içinde ya tamamen kaydedilir ya da tamamen geri alınır.
+        # Sonucu bildirim aşamasından önce kaydedilir; bildirim hatası onu geri almaz.
         try:
             with db.session.begin_nested():
                 create_snapshot_for_evaluation(evaluation.id, actor_user_id=current_user.id)
+            db.session.commit()
         except Exception as snap_exc:
+            db.session.rollback()
             current_app.logger.exception("Snapshot create failed for single publish: %s", snap_exc)
             flash("Yayın tamamlandı ancak snapshot oluşturulurken hata oluştu.", "warning")
 
@@ -230,7 +244,11 @@ def performance_publish_evaluation(evaluation_id):
     except Exception as exc:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)
         db.session.rollback()
-        flash("Tekil yayın sırasında hata oluştu.", "danger")
+        if publication_committed:
+            # Kaydedilmiş yayın geri alınmaz; yalnız bildirim aşamasının kayıtları geri alındı.
+            flash("Yayın tamamlandı ancak bilgilendirme e-postaları gönderilirken hata oluştu.", "warning")
+        else:
+            flash("Tekil yayın sırasında hata oluştu.", "danger")
 
     return _redirect_publish_dashboard(period_id=evaluation.period_id, selected_scope=selected_scope, q=q, status=status)
 
