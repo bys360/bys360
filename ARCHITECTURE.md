@@ -1,5 +1,25 @@
 ﻿# BYS360 ARCHITECTURE
 
+## Current Architecture Overview
+
+- Flask/Python tabanlı web uygulaması; route katmanı iş mantığı taşımaz, servis katmanını
+  (`app/services/`) çağırır -- route/servis ayrımı proje genelinde uygulanır.
+- Kalıcılık: PostgreSQL (production), Alembic tabanlı migration'lar (`migrations/`); local
+  geliştirme için SQLite desteklenir.
+- Rol/yetki uygulaması: menü görünürlüğü tek başına yetki değildir, her backend route ayrıca
+  kendi yetki kontrolünü uygular; rol tabanlı görünürlük merkezi, kapalı bir rol sözlüğü
+  üzerinden yönetilir.
+- BYS360 Sanal Asistan (Assistant V2): deterministik akış -- güvenlik/kapsam sınıflandırması
+  -> niyet yönlendirme -> yetenek kaydı -> yetkilendirme dispatcher'ı -> yanıt sunum katmanı;
+  harici bir büyük dil modeli servisine bağımlılığı yoktur.
+- Mobil API katmanı (`app/api/mobile/`) ve Flutter istemci altyapısı.
+- CI/güvenlik/release doğrulaması: zorunlu kalite işleri, secret tarama, deterministik
+  release builder ve bağımsız doğrulama modu.
+- Exact-SHA release kimliği: canlıya alınan her paket, üretildiği tam Git commit SHA'sı ile
+  iz sürülür (bkz. README.md "Mevcut Doğrulanmış Canlı Kaynak" bölümü).
+
+Aşağıdaki kayıtlar, iz sürülebilirlik için saklanan tarihsel mimari/teknik borç kararlarıdır;
+güncel proje fazının bir beyanı değildir.
 
 <!-- PHASE2C6_ARCHITECTURE_20260613 -->
 

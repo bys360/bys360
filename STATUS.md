@@ -1,34 +1,53 @@
 # BYS360 STATUS.md
 
-## 2026-07-08 â€” Devredilebilirlik TemizliÄŸi ve Kaynak Paket StandardÄ±
+## 2026-09-24 - Current Verified Status
 
-### Ã–zet
+Bu bölüm güncel doğrulanmış durumu kaydeder. Aşağıdaki eski kayıtlar (içlerindeki coverage
+değerleri dahil) tarihseldir ve olduğu gibi korunur; yazıldıkları tarihteki durumu yansıtır,
+güncel durumu değil. Bu bölüm onların yerine geçmez ve onları değiştirmez.
 
-BYS360 kaynak aÄŸacÄ±nda devredilebilirliÄŸi dÃ¼ÅŸÃ¼ren tek kullanÄ±mlÄ±k script, iÃ§ iÃ§e proje kopyasÄ±, backup/log/instance kalÄ±ntÄ±sÄ± ve eski overlay raporlarÄ±nÄ±n ayrÄ±ÅŸtÄ±rÄ±lmasÄ± baÅŸlatÄ±ldÄ±.
+- Verified production SHA: `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6`
+- Stable production source: `assistant-v2-full`
+- Ministry review branch (`docs/ministry-review-readme`) head: `cc979048afb66fe0d237446ee7195d30b45f9c64`
+- PR #4 (governance cleanup) merged.
+- Exact production CI quality gate: PASS -- GitHub Actions run `35823128265`, `quality-gate` işi,
+  2026-09-23; tüm adımlar success, failure-masking (`continue-on-error` vb.) yok.
+- Measured combined coverage (bu run): 42.1228%
+- Stored ratchet baseline (`reports/quality/coverage_baseline.json`): 27.62% -- regression floor;
+  güncel ölçüm göstergesi değildir ve otomatik yükseltilmez.
+- Effective ratchet threshold (baseline - 0.50 puan tolerans): 27.12%
+- Aynı run'da: PostgreSQL 15 migration integrity gate PASS, Ruff PASS, mypy PASS,
+  dependency vulnerability audit PASS, secret/repo gate PASS.
+
+## 2026-07-08 — Devredilebilirlik Temizliği ve Kaynak Paket Standardı
+
+### Özet
+
+BYS360 kaynak ağacında devredilebilirliği düşüren tek kullanımlık script, iç içe proje kopyası, backup/log/instance kalıntısı ve eski overlay raporlarının ayrıştırılması başlatıldı.
 
 ### Kararlar
 
-- Aktif `scripts/` alanÄ±nda yalnÄ±zca CI/test/dokÃ¼man tarafÄ±ndan kullanÄ±lan veya elle onaylanmÄ±ÅŸ scriptler kalacak.
-- ReferanssÄ±z `ARCHIVE_CANDIDATE` scriptleri Task Scheduler kontrolÃ¼nden sonra `scripts/archive/pre_handover_YYYYMMDD/` altÄ±na taÅŸÄ±nacak.
-- `project/project/`, `backups/`, `logs/`, `instance/*.sqlite*`, `.bak` ve gerÃ§ek `.env` dosyalarÄ± kaynak paketten Ã§Ä±karÄ±lacak.
-- README proje tanÄ±tÄ±mÄ± ve hÄ±zlÄ± kurulum dokÃ¼manÄ± olarak yeniden yazÄ±lacak.
-- STATUS gÃ¼ncel durumun tek kaynaÄŸÄ± olarak sÃ¼rdÃ¼rÃ¼lecek; her temizlik/geliÅŸtirme turunda yeni rapor yÄ±ÄŸÄ±nÄ± yerine bu dosya gÃ¼ncellenecek.
+- Aktif `scripts/` alanında yalnızca CI/test/doküman tarafından kullanılan veya elle onaylanmış scriptler kalacak.
+- Referanssız `ARCHIVE_CANDIDATE` scriptleri Task Scheduler kontrolünden sonra `scripts/archive/pre_handover_YYYYMMDD/` altına taşınacak.
+- `project/project/`, `backups/`, `logs/`, `instance/*.sqlite*`, `.bak` ve gerçek `.env` dosyaları kaynak paketten çıkarılacak.
+- README proje tanıtımı ve hızlı kurulum dokümanı olarak yeniden yazılacak.
+- STATUS güncel durumun tek kaynağı olarak sürdürülecek; her temizlik/geliştirme turunda yeni rapor yığını yerine bu dosya güncellenecek.
 
-### SayÄ±sal Durum
+### Sayısal Durum
 
-- Script envanteri: 365 kayÄ±t
+- Script envanteri: 365 kayıt
 - KEEP: 49
 - REVIEW: 27
 - ARCHIVE_CANDIDATE: 90
 - ALREADY_ARCHIVED: 199
 
-### Sonraki Ä°ÅŸler
+### Sonraki İşler
 
-1. Task Scheduler raporu ile `ARCHIVE_CANDIDATE` listesini karÅŸÄ±laÅŸtÄ±r.
-2. GÃ¼venli olan adaylarÄ± `git mv` ile arÅŸivle.
-3. Repo gÃ¼rÃ¼ltÃ¼sÃ¼nÃ¼ temizle.
-4. README ve STATUS deÄŸiÅŸikliklerini normal commit olarak iÅŸle.
-5. CI ve temel smoke testleri Ã§alÄ±ÅŸtÄ±r.
+1. Task Scheduler raporu ile `ARCHIVE_CANDIDATE` listesini karşılaştır.
+2. Güvenli olan adayları `git mv` ile arşivle.
+3. Repo gürültüsünü temizle.
+4. README ve STATUS değişikliklerini normal commit olarak işle.
+5. CI ve temel smoke testleri çalıştır.
 
 ## 2026-07-08 - Faz 2A SQL Identifier Trace
 

@@ -12,7 +12,9 @@ Bir bulgu yalnız kod değiştirildiğinde değil, ilgili kalite kapıları geç
 - Korunan ana çalışma alanı: `C:\bys360\project`
 - Ana çalışma alanına yazma; yalnız Python sanal ortamını çalıştırmak için şu dosya kullanılabilir:
   `C:\bys360\project\.venv\Scripts\python.exe`
-- Beklenen dal: `phase5-critical-lint-clean-v1`
+- Her görev başlamadan önce mevcut dalı, izin verilen hedef dalı, HEAD'i ve `git status --short` sonucunu doğrula.
+- Görev talimatında açıkça belirtilen dal dışında çalışma yapma.
+- Beklenen dal veya HEAD doğrulanamıyorsa `OPEN` raporla ve değişiklik yapma.
 - Yeni paket başlatmadan önce dalı, HEAD'i ve `git status --short` sonucunu kaydet.
 - Yeni paket başlangıcında beklenmeyen değişiklik varsa dur ve `OPEN` raporla.
 

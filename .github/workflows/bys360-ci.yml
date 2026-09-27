@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, master, develop ]
   pull_request:
-    branches: [ main, master, develop, assistant-v2-full ]
+    branches: [ main, master, develop, assistant-v2-full, docs/ministry-review-readme ]
   workflow_dispatch:
 
 jobs:
@@ -88,8 +88,9 @@ jobs:
       # NOT (BYS360 Truthful Quality Gates, Campaign 1, 2026-07-24): bu adım isminden
       # farklı olarak yalnızca F821'i değil, pyproject.toml [tool.ruff.lint] select
       # listesinin tamamını (E,F,I,UP,B,SIM) uygular. Ad, gerçek kapsamı yansıtacak
-      # şekilde düzeltildi; komut/kapsam DEĞİŞTİRİLMEDİ. Bu adım şu an gerçekten
-      # kırmızıdır (41 bulgu) — bkz. reports/quality/BYS360_RUFF_GATE_DEBT_INVENTORY_FOR_CAMPAIGN2.md
+      # şekilde düzeltildi; komut/kapsam DEĞİŞTİRİLMEDİ. Bu notun yazıldığı kampanya
+      # döneminde 41 bulgu vardı; güncel durum workflow'un gerçek koşum sonucu
+      # tarafından belirlenir — bkz. reports/quality/BYS360_RUFF_GATE_DEBT_INVENTORY_FOR_CAMPAIGN2.md
       # ve branch phase5-ruff-tests-cleanup-v1.
       - name: Ruff full-select gate (E,F,I,UP,B,SIM)
         run: python -m ruff check app config.py wsgi.py run.py scripts tests

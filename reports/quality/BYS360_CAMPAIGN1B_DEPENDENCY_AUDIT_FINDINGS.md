@@ -17,7 +17,7 @@ is reported as BLOCKED, not PASS, per the "never call a timeout a PASS" rule.
 Windows Store / UWP "App Execution Alias" Python 3.12:
 
 ```
-home = C:\Users\Havva Gülsen ÖZDEN\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0
+home = C:\Users\<KULLANICI>\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0
 executable = ...WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe
 command = ...WindowsApps\...\python.exe -m venv C:\bys360\project\.venv
 ```

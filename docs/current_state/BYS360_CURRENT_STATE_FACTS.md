@@ -24,7 +24,7 @@ Son Güncelleme: 2026-09-02 (v2 — final birleştirme)
 
 | Alan | Değer | Kanıt |
 |---|---|---|
-| PROJECT_NAME | BYS360 Bütünleşik Yönetim Sistemi | DOCUMENTATION_DERIVED |
+| PROJECT_NAME | BYS360 — Bütünleşik Yönetim Sistemi 360 | DOCUMENTATION_DERIVED |
 | INSTITUTION | Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı | DOCUMENTATION_DERIVED (`reports/executive/BYS360_Kurumsal_Rapor_Kaynak.md`) |
 | CURRENT_LOCAL_SHA | `873e6d3348e644c5384a33a99c517600a3346cfd` | CODE_VERIFIED (`git rev-parse HEAD`) |
 | REMOTE_VERIFIED_SHA | `7d73ff4d468cad11d78d2339ba770f70b5ec0baf` | PRODUCTION_HISTORICAL (kullanıcı beyanı; bu incelemede bağımsız doğrulanmadı, yerel HEAD ile birebir aynı değil) |

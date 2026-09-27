@@ -1,0 +1,307 @@
+BYS360 KURUMSAL YAZILIM LİSANSI
+Sürüm 1.0 — 2026
+
+BYS360 — Bütünleşik Yönetim Sistemi 360
+
+Copyright © 2026
+T.C. Kültür ve Turizm Bakanlığı
+Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı.
+Tüm hakları saklıdır.
+
+========================================================================
+
+1. Hak Sahibi
+
+Bu lisansın konusu olan yazılımın hak sahibi aşağıdaki kurumdur:
+
+    T.C. Kültür ve Turizm Bakanlığı
+    Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı
+
+Bu lisans metninde hak sahibi kurum "Kurum" olarak anılır.
+
+2. Yazılımın Tanımı
+
+Bu lisansta "Yazılım"; BYS360 — Bütünleşik Yönetim Sistemi 360 adıyla
+oluşturulan kurumsal yönetim sistemini ifade eder ve aşağıdakileri
+kapsar:
+
+  a) sunucu tarafı uygulama kaynak kodu, şablonlar, stil ve betik
+     dosyaları;
+  b) mobil istemci kaynak kodu;
+  c) veritabanı şema tanımları, migration betikleri ve yapılandırma
+     şablonları;
+  d) test, kalite kontrol, derleme, paketleme ve kurulum betikleri;
+  e) teknik ve kullanıcı dokümantasyonu;
+  f) Kurum'a ait görseller ve kurumsal kimlik unsurları;
+  g) yukarıdakilerin derlenmiş, paketlenmiş veya kurulu biçimleri ile
+     bunların değiştirilmiş sürümleri.
+
+Madde 14'te tanımlanan üçüncü taraf yazılım bileşenleri, Yazılım ile
+birlikte kullanılsalar dahi Yazılımın parçası sayılmaz; bu bileşenler
+kendi lisans koşullarına tabidir.
+
+3. Lisansın Kapsamı
+
+Bu lisans; Yazılımın kimler tarafından, hangi amaçla ve hangi koşullarla
+kullanılabileceğini, değiştirilebileceğini, çoğaltılabileceğini ve
+dağıtılabileceğini düzenler.
+
+Bu lisans bir açık kaynak lisansı değildir. Yazılım, proprietary /
+kurumsal yazılım olarak lisanslanır.
+
+Bu lisansta yer alan yasak ve kısıtlamalar Kurum dışındaki kişilere
+yöneliktir. Bu lisansın hiçbir hükmü, Kurum'un hak sahibi olarak Yazılım
+üzerinde sahip olduğu hakları daraltacak şekilde yorumlanamaz.
+
+Bu lisansta açıkça tanınmayan hiçbir hak, zımni olarak veya başka bir
+yolla Kurum dışındaki kişilere tanınmış sayılmaz.
+
+4. Kurum İçi Kullanım Hakkı
+
+Kurum, Yazılımı süre, kullanıcı sayısı veya kurulum sayısı sınırlaması
+olmaksızın:
+
+  a) kullanabilir ve çalıştırabilir;
+  b) Kurum altyapısında veya Kurum adına ve Kurum'un denetiminde
+     işletilen altyapıda barındırabilir;
+  c) çoğaltabilir ve yedekleyebilir;
+  d) Kurum personelinin ve Kurum'un yetkilendirdiği kullanıcıların
+     kullanımına açabilir.
+
+Kurum'un yetkilendirdiği kullanıcıların Yazılımı kullanması, bu
+kullanıcılara Yazılım üzerinde bağımsız bir lisans hakkı vermez.
+
+5. Kurum İçi Geliştirme, Bakım ve Değişiklik
+
+Kurum, Yazılımın:
+
+  a) bakımını yapabilir, hatalarını giderebilir ve güvenlik
+     güncellemelerini uygulayabilir;
+  b) kaynak kodunu değiştirebilir, yeni özellikler ekleyebilir ve
+     Yazılımı geliştirebilir;
+  c) başka sistemlerle entegrasyonunu sağlayabilir;
+  d) bakım, geliştirme ve işletim sorumluluğunu kurum içindeki başka
+     teknik personele devredebilir;
+  e) Madde 6 çerçevesinde yetkilendirdiği yüklenici veya hizmet
+     sağlayıcılara bakım ve geliştirme amacıyla erişim verebilir.
+
+Kurum tarafından veya Kurum adına yapılan değişiklikler Yazılımın
+parçası sayılır ve bu lisans koşullarına tabidir.
+
+6. Yetkilendirilmiş Personel ve Hizmet Sağlayıcılar
+
+Kurum personeli ile Kurum tarafından açıkça yetkilendirilmiş yüklenici
+veya hizmet sağlayıcılar (bu lisansta "Yetkili Kişiler"), Yazılım
+üzerinde yalnız:
+
+  a) Kurum adına,
+  b) Kurum'un verdiği yetkinin konusu, amacı ve süresi ile sınırlı
+     olarak,
+  c) Kurum'un güvenlik, gizlilik ve erişim kurallarına uyarak
+
+çalışabilir.
+
+Yetkili Kişiler Yazılım üzerinde bağımsız bir lisans sahibi olmaz.
+Yetkili Kişilere tanınan erişim; Yazılımı Kurum dışında kullanma,
+çoğaltma, dağıtma veya Kurum dışındaki işlerde kullanma hakkı vermez.
+
+Yetkinin sona ermesi veya geri alınması hâlinde Yetkili Kişiler,
+ellerindeki Yazılım kopyalarını ve Yazılıma ilişkin erişim bilgilerini
+Kurum'un talimatına göre iade eder veya siler; Kurum'un talimatı
+olmaksızın kopya saklamaz.
+
+Yetkili Kişilerin ilgili sözleşmelerden ve yürürlükteki mevzuattan
+doğan yükümlülükleri saklıdır.
+
+7. Kopyalama ve Yedekleme
+
+Kurum, Yazılımı; işletim, yedekleme, felaket kurtarma, test, eğitim,
+arşivleme ve geliştirme amaçları dahil olmak üzere çoğaltabilir.
+
+Kurum dışındaki kişiler Yazılımı yalnız Kurum'un verdiği yetki
+kapsamında ve bu yetkinin amacı için zorunlu olduğu ölçüde
+çoğaltabilir.
+
+Yazılımın bütün kopyaları bu lisans koşullarına tabidir ve Madde 12'de
+belirtilen bildirimleri korur.
+
+8. Yeniden Dağıtım Yasağı
+
+Kurum dışındaki kişiler, Kurum'un açık yazılı yetkilendirmesi
+olmaksızın Yazılımı veya Yazılımın herhangi bir bölümünü; kaynak kod,
+derlenmiş kod, paket veya başka herhangi bir biçimde:
+
+  a) yeniden dağıtamaz, yayımlayamaz veya başkalarının erişimine
+     sunamaz;
+  b) satamaz, kiralayamaz veya ödünç veremez;
+  c) yeniden lisanslayamaz veya alt lisans veremez.
+
+9. Üçüncü Taraflara Kurulum / Devir
+
+Kurum dışındaki kişiler, Kurum'un açık yazılı yetkilendirmesi
+olmaksızın Yazılımı:
+
+  a) başka bir kamu kurumuna, özel kuruluşa, şirkete veya kişiye
+     kuramaz;
+  b) başka bir kurum, kuruluş veya şirket adına işletemez;
+  c) bu lisans kapsamında kendisine tanınan erişimi veya yetkiyi
+     üçüncü kişilere devredemez.
+
+Yazılımın başka bir kurum veya kuruluşta kurulmasına ya da
+kullanılmasına izin verilip verilmeyeceği ve izin koşulları, Kurum'un
+yetkili makamlarınca belirlenir.
+
+10. Ticari Kullanım Yasağı
+
+Kurum dışındaki kişiler, Kurum'un açık yazılı yetkilendirmesi
+olmaksızın Yazılımı veya Yazılımın herhangi bir bölümünü:
+
+  a) ücretli veya ücretsiz olarak hizmet biçiminde (SaaS, barındırılan
+     hizmet, uzaktan erişim hizmeti ve benzerleri) sunamaz;
+  b) ticari bir ürüne, hizmete veya çözüme dahil edemez;
+  c) danışmanlık, satış veya pazarlama faaliyetlerinde kullanamaz;
+  d) kazanç sağlama amacıyla kullanamaz.
+
+Yetkili Kişilerin Madde 6 çerçevesinde Kurum'a verdiği bakım ve
+geliştirme hizmetleri, bu madde kapsamında ticari kullanım sayılmaz.
+
+11. Türev Çalışmalar
+
+Yazılımın değiştirilmesi, uyarlanması, başka bir programlama diline
+veya platforma aktarılması ya da Yazılımın kaynak kodundan yararlanılarak
+yeni bir yazılım oluşturulması türev çalışma sayılır.
+
+Kurum tarafından veya Kurum adına oluşturulan türev çalışmalar
+Yazılımın parçası sayılır ve bu lisans koşullarına tabidir.
+
+Kurum dışındaki kişiler, Kurum'un açık yazılı yetkilendirmesi
+olmaksızın türev çalışma oluşturamaz; oluşturulmuş bir türev çalışmayı
+bağımsız olarak kullanamaz, dağıtamaz, satamaz veya başka bir ürünün
+parçası yapamaz.
+
+12. Kaynak Kodun Korunması
+
+Yazılımın kaynak kodu Kurum'un korunması gereken kurumsal varlıklarından
+biridir. Kaynak koda erişim, Kurum'un belirlediği yetkilendirme
+çerçevesinde sağlanır.
+
+Kaynak kodun herhangi bir ortamda görünür veya erişilebilir olması
+(örneğin bir kod barındırma platformunda yer alması), bu lisansta
+açıkça tanınmayan bir kullanım, kopyalama, değiştirme veya dağıtım
+hakkı doğurmaz.
+
+Kurum dışındaki kişiler, Kurum'un açık yazılı yetkilendirmesi
+olmaksızın Yazılımın kaynak kodunu veya bir bölümünü bağımsız bir ürün
+olarak ya da başka bir yazılımın parçası olarak kullanamaz.
+
+Yazılımın kopyalarında yer alan telif bildirimleri ile LICENSE ve
+NOTICE dosyaları, Kurum'un yetkisi olmaksızın kaldırılamaz veya
+değiştirilemez.
+
+13. Gizlilik ve Kurumsal Veriler
+
+Bu lisans Yazılımı düzenler; Yazılım ile işlenen verileri kapsamaz.
+Yazılım aracılığıyla oluşturulan, saklanan veya işlenen personel
+bilgileri, kişisel veriler, yazışmalar, raporlar, değerlendirme
+sonuçları ve diğer kayıtlar Kurum'un kurumsal kayıtları niteliğindedir;
+yürürlükteki mevzuata, özellikle kişisel verilerin korunmasına ilişkin
+mevzuata, ve Kurum'un bilgi güvenliği ve gizlilik kurallarına tabidir.
+
+Yazılıma veya kaynak koda erişim, Yazılım ile işlenen verilere erişim
+hakkı vermez. Verilere erişim yalnız Kurum'un yetkilendirmesi ve görev
+gereği ölçüsünde mümkündür.
+
+Ortam yapılandırma dosyaları, parolalar, anahtarlar, bağlantı bilgileri
+ve benzeri gizli değerler Yazılımın dağıtılabilir bir parçası değildir;
+bunlar Kurum'un güvenlik kurallarına göre ayrıca korunur.
+
+Gerçek kurum verileri, Kurum'un yetkilendirmesi olmaksızın geliştirme,
+test, eğitim veya gösterim amacıyla kullanılamaz ve Kurum dışına
+çıkarılamaz.
+
+14. Üçüncü Taraf Yazılım Bileşenleri
+
+Yazılım; açık kaynak kütüphaneler, çatılar (framework), paketler, yazı
+tipleri, simge setleri ve benzeri üçüncü taraf bileşenlerle birlikte
+çalışır. Bu bileşenler; Yazılım ile birlikte kullanılsalar, Yazılımın
+bağımlılık listelerinde tanımlansalar veya çalışma sırasında dış
+kaynaklardan yüklenseler dahi kendi lisans koşullarına tabidir.
+
+BYS360 Kurumsal Yazılım Lisansı, üçüncü taraf bileşenlerin kendi
+lisanslarından doğan hakları ortadan kaldırmaz, sınırlamaz veya
+değiştirmez ve bu bileşenler üzerinde Kurum adına bir hak iddiası
+oluşturmaz.
+
+Üçüncü taraf bileşenlerin lisanslarından doğan yükümlülükler, telif ve
+lisans bildirimlerinin korunması dahil, saklıdır. Bu bileşenlerin
+lisans metinleri bu dosyaya kopyalanmamıştır; ilgili bileşenin kendi
+dağıtımında veya kaynağında yer alır.
+
+15. Kurumsal İsim, Logo ve Marka Kullanımı
+
+Bu lisans; Kurum'un adı, logosu, amblemi ve diğer kurumsal kimlik
+unsurları ile "BYS360" adı ve logosu üzerinde herhangi bir kullanım
+hakkı tanımaz.
+
+Kurum dışındaki kişiler, Kurum'un açık yazılı yetkilendirmesi
+olmaksızın bu isim ve işaretleri; Yazılımın veya bir türev çalışmanın
+tanıtımında, bir ürün veya hizmetin adında ya da Kurum ile bağlantı veya
+Kurum onayı izlenimi verecek biçimde kullanamaz.
+
+Yazılımda yer alan resmî devlet simgeleri kendi mevzuatına tabidir; bu
+lisans bu simgeler üzerinde herhangi bir hak iddiası veya kullanım hakkı
+oluşturmaz.
+
+Bu madde, Yazılımın olağan işletimi sırasında bu isim ve işaretlerin
+Yazılım arayüzünde görüntülenmesini engellemez.
+
+16. Yetkilendirme
+
+Bu lisansta geçen "açık yazılı yetkilendirme", Kurum'un yetkili makamı
+tarafından yazılı olarak verilen izni ifade eder. Yetkilendirmenin
+konusu, amacı, süresi ve kapsamı Kurum tarafından belirlenir.
+
+Sözlü izin, zımni kabul, Yazılıma veya kaynak koda teknik olarak
+erişilebilmesi ya da gayriresmî yazışmalar açık yazılı yetkilendirme
+yerine geçmez.
+
+Kurum, verdiği yetkinin kapsamını, süresini veya koşullarını
+değiştirebilir ya da yetkiyi geri alabilir. Yetkinin sona ermesi veya
+geri alınması hâlinde Madde 6'daki iade ve silme yükümlülüğü uygulanır.
+
+Yetkilendirme talepleri Kurum'a yazılı olarak iletilir.
+
+17. Garanti ve Sorumluluk Sınırı
+
+Yazılım, Kurum dışındaki kişiler bakımından "olduğu gibi" sağlanır;
+belirli bir amaca uygunluk ile kesintisiz veya hatasız çalışma dahil
+olmak üzere açık veya zımni hiçbir garanti verilmez.
+
+Kurum, bu lisansa aykırı biçimde Yazılımı kullanan, çoğaltan, değiştiren
+veya dağıtan kişilerin bu kullanımından doğan zararlardan sorumlu
+tutulamaz.
+
+Yazılımın ürettiği raporlar, puanlar, öneriler ve yapay zekâ destekli
+çıktılar karar destek niteliğindedir ve idari karar yerine geçmez.
+İdari kararlar, yetkili kullanıcılar ve makamlar tarafından yürürlükteki
+mevzuata göre verilir.
+
+Bu madde; yürürlükteki mevzuat gereği sınırlandırılamayacak
+sorumlulukları ve Kurum ile yükleniciler veya hizmet sağlayıcılar
+arasındaki sözleşmelerden doğan yükümlülükleri etkilemez.
+
+18. Yürürlük ve Kurumsal Mevzuat
+
+Bu lisans, Sürüm 1.0 olarak Yazılımın kaynak kod deposuna eklendiği
+tarihte yürürlüğe girer. Yazılımın bu tarihten önce oluşturulmuş
+sürümleri bakımından da Kurum'un hakları saklıdır.
+
+Kurum bu lisansı güncelleyebilir. Güncellenmiş sürümler, sürüm numarası
+ve tarihiyle Yazılımın kaynak kod deposuna eklenir ve eklendikleri
+tarihten itibaren uygulanır.
+
+Bu lisansın herhangi bir hükmünün geçersiz veya uygulanamaz sayılması,
+diğer hükümlerin geçerliliğini etkilemez.
+
+Bu lisans, yürürlükteki mevzuat, Kurum'un yetkili makamlarınca alınan
+kararlar ve üçüncü taraf lisans koşulları saklı kalmak üzere uygulanır.
