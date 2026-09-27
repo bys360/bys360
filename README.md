@@ -1,6 +1,17 @@
-# BYS360 Bütünleşik Yönetim Sistemi
+# BYS360 — Bütünleşik Yönetim Sistemi 360
 
-BYS360, kurum içi yönetim süreçlerini tek merkezde toplayan; personel, performans, iletişim, anket, destek, raporlama, KPI/hedef ve karar destek süreçlerini modüler şekilde yöneten kurumsal dijital yönetim platformudur.
+BYS360, T.C. Kültür ve Turizm Bakanlığı Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı bünyesindeki kurumsal yönetim süreçleri için geliştirilmiştir. Kurum içi yönetim süreçlerini tek merkezde toplayan; personel, performans, iletişim, anket, destek, raporlama, KPI/hedef ve karar destek süreçlerini modüler şekilde yöneten kurumsal dijital yönetim platformudur.
+
+## Lisans ve Hak Sahipliği
+
+BYS360 — Bütünleşik Yönetim Sistemi 360, proprietary / kurumsal bir yazılımdır; açık kaynak lisansı altında sunulmaz.
+
+- **Kurumsal hak sahibi:** T.C. Kültür ve Turizm Bakanlığı / Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı
+- **Geliştirici:** Havva Gülsen Özden
+
+Copyright © 2026 T.C. Kültür ve Turizm Bakanlığı Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı. Tüm hakları saklıdır.
+
+Kullanım, çoğaltma, değiştirme ve dağıtım koşulları [`LICENSE`](LICENSE) dosyasında, telif bildirimi [`NOTICE`](NOTICE) dosyasında yer alır. Üçüncü taraf ve açık kaynak bileşenler kendi lisanslarına tabidir.
 
 ## Ana Modüller
 
@@ -232,6 +243,8 @@ Dış teknik incelemeciler (Ministry review) için:
 - `BACKUP_RUNBOOK.md`: Yedekleme ve geri dönüş prosedürü
 - `SOURCE_OF_TRUTH.md`: Güncel production kimliği ve branch rolleri (kısa canonical referans)
 - `AI_USAGE_POLICY.md`: Yapay zekâ kullanım sınırları ve insan denetimi
+- `LICENSE`: BYS360 Kurumsal Yazılım Lisansı
+- `NOTICE`: Telif ve geliştirici bildirimi
 
 ## Kaynak Paket Kuralları
 
