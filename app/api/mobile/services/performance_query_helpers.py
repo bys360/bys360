@@ -4,9 +4,17 @@ import logging
 from statistics import mean
 from typing import Any
 
+from sqlalchemy import or_
+
 from app.api.mobile.routes import _as_int, _has_global_scope
 from app.extensions import db
-from app.models import EvaluationAssignment, PerformanceResultSnapshot, User
+from app.models import (
+    EvaluationAssignment,
+    PerformanceEvaluation,
+    PerformancePeriod,
+    PerformanceResultSnapshot,
+    User,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +39,23 @@ def _snapshot_query_for(user: User):
     q = PerformanceResultSnapshot.query.filter(PerformanceResultSnapshot.is_current.is_(True))
     if _has_global_scope(user):
         return q
-    return q.filter(PerformanceResultSnapshot.employee_id == user.id)
+    return q.filter(PerformanceResultSnapshot.employee_id == user.id).filter(_employee_published_snapshot())
+
+
+def _employee_published_snapshot():
+    """Personel kendi sonucunu yalnız web'deki gibi yayındayken görür
+    (visibility_guard: kart ve dönem yayında). Web'de yayından kaldırılan
+    değerlendirmenin güncel snapshot'ı mobilde de listelenmez; değerlendirmeye
+    bağlı olmayan geçmiş yıl (Excel içe aktarma) kayıtları olduğu gibi kalır."""
+    published_evaluation = (
+        db.session.query(PerformanceEvaluation.id)
+        .join(PerformancePeriod, PerformancePeriod.id == PerformanceEvaluation.period_id)
+        .filter(PerformanceEvaluation.id == PerformanceResultSnapshot.evaluation_id)
+        .filter(PerformanceEvaluation.is_published_to_employee.is_(True))
+        .filter(PerformancePeriod.results_published.is_(True))
+        .exists()
+    )
+    return or_(PerformanceResultSnapshot.evaluation_id.is_(None), published_evaluation)
 
 
 def _period_assignment_query(user: User, period_id: int):
