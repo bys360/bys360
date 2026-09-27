@@ -7,9 +7,8 @@ BYS360, T.C. Kültür ve Turizm Bakanlığı Çanakkale Savaşları Gelibolu Tar
 BYS360 — Bütünleşik Yönetim Sistemi 360, proprietary / kurumsal bir yazılımdır; açık kaynak lisansı altında sunulmaz.
 
 - **Kurumsal hak sahibi:** T.C. Kültür ve Turizm Bakanlığı / Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı
-- **Geliştiriciler:**
-  - Havva Gülsen Özden
-  - Mustafa Bektaş
+- **Geliştirici:** Havva Gülsen Özden
+- **Eş Geliştirici (Co-developer):** Mustafa Bektaş
 
 Copyright © 2026 T.C. Kültür ve Turizm Bakanlığı Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı. Tüm hakları saklıdır.
 
