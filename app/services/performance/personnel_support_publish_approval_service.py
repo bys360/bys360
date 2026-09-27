@@ -280,6 +280,12 @@ def _low_score_predecessor_is_ready(evaluation: Any) -> bool:
     final_score = _safe_float(getattr(evaluation, "final_total_100", 0.0), 0.0)
     if final_score >= LOW_SCORE_THRESHOLD:
         return True
+    from app.performance.services import performance_rule_engine as _rule_engine
+
+    # Ayar 70 altı için Başkan onayı istemiyorsa bu adımın bekleyeceği önceki onay
+    # yoktur (yayın ön kontrolüyle aynı kural motoru kararı); ön onay yine zorunludur.
+    if not _rule_engine.requires_president_approval(final_score):
+        return True
     try:
         from app.services.performance.low_score_process_service import (
             get_low_score_publish_block_reason,
