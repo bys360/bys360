@@ -1,5 +1,16 @@
 # BYS360 STATUS.md
 
+## 2026-09-28 - Final Pre-Live Audit Remediation (candidate, not production)
+
+- Production identity is unchanged: `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6`
+  (tag `bys360-prod-2026.09.23-1ea5c5dc`); see `SOURCE_OF_TRUTH.md`.
+- `fix/final-prelive-remediation-v1` remediates the proven findings of the final pre-live
+  audit (P0-01 process-report data isolation, P1-01 mobile publication visibility, P2 items)
+  and merges the institutional docs / LICENSE / NOTICE into the application line.
+- It becomes the next candidate only after human review, a merge into `assistant-v2-full`,
+  green CI and the read-only live validations in
+  `docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md`. No migration, no deployment.
+
 ## 2026-09-24 - Current Verified Status
 
 Bu bölüm güncel doğrulanmış durumu kaydeder. Aşağıdaki eski kayıtlar (içlerindeki coverage

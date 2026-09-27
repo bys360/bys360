@@ -3,30 +3,45 @@
 Bu belge tek bir soruya kısa ve doğrulanabilir cevap verir: **Bugün hangi branch ve hangi
 exact commit SHA production gerçeğidir?**
 
-Son doğrulama: 2026-09-24.
+Son doğrulama: 2026-09-28 (production kimliği 2026-09-24'te doğrulanmıştır; §1.1 tarihli bir anlık görüntüdür).
 
 ## 1. Current Production Identity
 
 | Alan | Değer | Kanıt |
 |---|---|---|
-| Stable production source branch | `assistant-v2-full` | Branch ucu aşağıdaki SHA'dır (`git ls-remote origin refs/heads/assistant-v2-full`). |
-| Verified production SHA | `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6` | `assistant-v2-full` ucu; GitHub Actions run `35823128265` bu SHA'yı checkout etmiş ve başarıyla tamamlanmıştır. |
+| Verified production SHA | `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6` | Immutable tag `bys360-prod-2026.09.23-1ea5c5dc` (bkz. §6); GitHub Actions run `35823128265` bu SHA'yı checkout etmiş ve başarıyla tamamlanmıştır. |
+| Production lineage branch | `assistant-v2-full` | Production SHA bu branch'in soyundadır. **Branch ucu production değildir**; uç, bir sonraki adayı taşır (bkz. §1.1). |
 | Deployment date | 2026-09-23 | İnsan operatör tarafından yürütülen cutover kaydı. |
 | Production migration head | `v1a2d3e4f5b6` | Bu SHA'daki Alembic migration grafiğinin tek head'i (77 revizyon). CI'daki PostgreSQL 15 migration integrity gate, boş bir veritabanından bu head'e yükseltmeyi doğrulamıştır. |
 
-**Production source of truth, repository'nin varsayılan (default) branch'i değil, doğrulanmış
-exact commit SHA'dır.** Branch'ler bu SHA'ya ulaşmanın yoludur. Bir branch'in ucu ilerlese bile,
-yeni bir SHA doğrulanıp insan kararıyla canlıya alınana kadar production kimliği yukarıdaki SHA'dır.
+**Production source of truth, herhangi bir branch'in ucu değil, doğrulanmış exact commit SHA'dır**
+ve bu SHA immutable production tag ile işaretlidir. Yeni bir SHA doğrulanıp insan kararıyla
+canlıya alınana ve bu belge güncellenene kadar production kimliği yukarıdaki SHA'dır.
 
 Not: Canlı veritabanının revizyonu bu belge hazırlanırken doğrudan sorgulanmamıştır. Yukarıdaki
 migration head, production SHA'nın beklediği şema revizyonudur.
+
+### 1.1 Next Candidate (dated snapshot, 2026-09-28)
+
+| Alan | Değer |
+|---|---|
+| Aday kaynağı | `assistant-v2-full` ucu, final pre-live denetim düzeltme PR'ı (`fix/final-prelive-remediation-v1`) insan incelemesiyle merge edildikten sonra |
+| Aday SHA | Merge sonrası `assistant-v2-full` ucu; exact SHA cutover kaydında ve bu belgenin bir sonraki güncellemesinde yazılır |
+| Durum | **Production değildir.** CI yeşil + canlı salt okuma doğrulamaları + insan cutover kararı gerekir |
+| Yeni migration | Yok (production migration head `v1a2d3e4f5b6` ile aynı) |
+
+Canlıya geçişten önce gereken salt okuma doğrulamaları ve bilinen şema sınırlaması:
+[docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md](docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md).
+Özet: mevcut upgrade zinciri geçer; ancak tarihsel/canlı şema uyumu, cutover öncesinde kontrollü
+ve salt okuma bir canlı doğrulama gerektirir. Boş veritabanında `flask db upgrade`, bugün her ORM
+tablosunu üretmez; geri dönüşte veritabanı yedekten geri yüklenir.
 
 ## 2. Repository Branch Roles
 
 | Branch | Rol |
 |---|---|
-| `assistant-v2-full` | Doğrulanmış production kaynak branch'i; production kaynak kodu soy hattı. |
-| `docs/ministry-review-readme` | Dış/kurumsal teknik inceleme ve dokümantasyon yüzeyi; repository'nin varsayılan (default) branch'i. Production branch'i değildir: production SHA'sının üzerine inceleme dokümantasyonu ve CI tetikleyici hizalaması ekler. |
+| `assistant-v2-full` | Production soy hattı ve bir sonraki aday. Güncel uygulama kodu, performans düzeltmeleri, CI düzeltmeleri ile LICENSE / NOTICE / README ve kurumsal dokümantasyon bu hatta birleşiktir. Ucu, cutover yapılana kadar production değildir. |
+| `docs/ministry-review-readme` | Repository'nin varsayılan (default) branch'i; dış/kurumsal teknik inceleme ve dokümantasyon yüzeyi. Production branch'i değildir. Varsayılan branch'in hangi hat olacağı insan (kurumsal) kararıdır. |
 | `main` | Production source of truth değildir. Ayrı bir tarihsel/entegrasyon soy hattı içerir; production SHA, `main`'in soyunda yer almaz. |
 
 `assistant-v2-full` ve `docs/ministry-review-readme` GitHub ruleset'leri ile korunur: silme ve

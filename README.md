@@ -199,26 +199,27 @@ CI iş akışının (BYS360 Quality Assurance Gate V1 ve quality-gate) bu tam SH
 (required check context) hâlâ tarihsel/kararlı ad olan `score100-quality-gate`'tir -- yukarıdaki
 "BYS360 Quality Assurance Gate V1" yalnızca insan-okur iş akışı adıdır.
 
-**Kararlı kaynak dalı (stable source branch):** `assistant-v2-full` — bu dal, tam olarak bu
-SHA'nın ucundadır ve production kaynak kimliğini temsil eder.
+**Production soy hattı (production lineage branch):** `assistant-v2-full` — production SHA bu
+dalın soyundadır. Dalın ucu, insan kararıyla cutover yapılana kadar production değildir; bir
+sonraki adayı taşır (bkz. `SOURCE_OF_TRUTH.md` §1.1).
 
 **Bu inceleme dalı (`docs/ministry-review-readme`):** Ministry/dış teknik inceleme yüzeyi ve
 repodaki güncel varsayılan (default) daldır. Doğrudan yukarıdaki doğrulanmış production
 kaynağı üzerine kuruludur ve inceleme dokümantasyonu ile korunan inceleme/kaynak dalları için CI
 governance tetikleyici hizalamasını ekler. Production dalı değildir; production kimliği yukarıdaki
-tam SHA ve `assistant-v2-full` dalıdır.
+tam SHA'dır (immutable production tag ile işaretli).
 
 **`main`:** production kaynak doğruluğu (source of truth) değildir. PR #1 birleştirmesi nedeniyle
 ayrı bir tarihsel/entegrasyon soy hattı (lineage) içerir; production kimliği her zaman yukarıdaki
-tam SHA ve `assistant-v2-full` dalıdır.
+tam SHA'dır.
 
 ## İnceleme Rehberi (Review Guidance)
 
 Dış teknik incelemeciler (Ministry review) için:
 
-- **Kaynak kod:** production kaynak kodunun kendisini incelemek için `assistant-v2-full`
-  dalını; bu dala eklenmiş inceleme/dokümantasyon materyalini görmek için bu dalı
-  (`docs/ministry-review-readme`) kullanın.
+- **Kaynak kod:** canlıdaki kaynak kodu birebir incelemek için `bys360-prod-2026.09.23-1ea5c5dc`
+  tag'ini; güncel uygulama hattını ve bir sonraki adayı incelemek için `assistant-v2-full`
+  dalını (LICENSE, NOTICE ve kurumsal dokümantasyon bu hatta da bulunur) kullanın.
 - **Kaynak kod ve commit geçmişi:** repoyu klonlayıp `git log`, `git blame` ve tam dal/etiket
   listesiyle (`git branch -a`, `git tag`) inceleyin; hiçbir geçmiş yeniden yazılmamıştır
   (`filter-repo`/force-push kullanılmamıştır).
