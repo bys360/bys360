@@ -102,7 +102,10 @@ class PerformancePresidentApproval(db.Model):
     decision_note = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    rule_version = db.Column(db.String(120), nullable=False, default="phase2_process_engine_v1")
+    # No rule_version column: this table's schema is owned by migration
+    # 6f2b8c4d1a90 (the approval version marker there is process_version), and
+    # the verified production table has no rule_version either. Mapping it made
+    # every ORM read of this entity fail on both schemas.
 
 
 class PerformanceProcessNotification(db.Model):

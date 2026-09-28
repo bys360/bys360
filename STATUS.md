@@ -1,5 +1,16 @@
 # BYS360 STATUS.md
 
+## 2026-09-28 - Live Read-Only Validation and Schema Evidence Remediation (candidate, not production)
+
+- Production was validated read-only; nothing was changed there. The running source is
+  `1ea5c5dc`, the live Alembic revision is `v1a2d3e4f5b6`, and all 164 ORM tables exist live.
+  The low-score events table matches the ORM and `special_scenario_type` exists live.
+- Two proven code/schema incompatibilities are fixed without a migration:
+  - the ghost `PerformancePresidentApproval.rule_version` column was removed;
+  - the AI Faz 8 raw SQL now uses canonical columns.
+- The CI PostgreSQL 15 gate now also checks the columns these read paths need.
+- Details: `docs/quality/BYS360_LIVE_READONLY_VALIDATION_2026-09-28.md`. No deployment.
+
 ## 2026-09-28 - Default Branch Consolidation (repository metadata, not a deployment)
 
 - GitHub default branch: `assistant-v2-full` (changed from `docs/ministry-review-readme`).

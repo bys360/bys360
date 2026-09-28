@@ -229,6 +229,10 @@ def test_main_full_happy_path_is_pass(monkeypatch, capsys) -> None:
             "scripts.quality.bys360_postgres_migration_integrity_gate.introspect_critical_tables",
             return_value={"users": True, "portal_post_comments": True},
         ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.introspect_critical_columns",
+            return_value={"performance_president_approvals": [], "performance_periods": []},
+        ),
     ):
         exit_code = main([])
     out = capsys.readouterr().out
@@ -237,6 +241,7 @@ def test_main_full_happy_path_is_pass(monkeypatch, capsys) -> None:
     assert "POSTGRES15_HEAD_MATCH=PASS" in out
     assert "POSTGRES15_SECOND_UPGRADE=PASS" in out
     assert "POSTGRES15_SCHEMA_INTROSPECTION=PASS" in out
+    assert "POSTGRES15_COLUMN_INTROSPECTION=PASS" in out
     assert "BYS360_POSTGRES_MIGRATION_INTEGRITY_GATE_V1_RESULT=PASS" in out
     # The redacted target line must never contain a real password (there is
     # none in VALID_URL, but this also proves the print call runs redact()).
@@ -449,3 +454,60 @@ def test_main_critical_table_missing_is_blocked(monkeypatch, capsys) -> None:
         exit_code = main([])
     assert exit_code == 1
     assert "CRITICAL_TABLE_MISSING" in capsys.readouterr().out
+
+
+def test_main_critical_column_missing_is_blocked(monkeypatch, capsys) -> None:
+    monkeypatch.setenv(ENV_VAR, VALID_URL)
+    with (
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.check_postgres_major_version",
+            return_value=15,
+        ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.check_database_is_empty",
+            return_value=None,
+        ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.compute_migration_graph",
+            return_value={
+                "revision_count": 2,
+                "root_count": 1,
+                "roots": [],
+                "head_count": 1,
+                "heads": ["a2"],
+                "cycles": False,
+            },
+        ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.run_flask_db_upgrade",
+            return_value=_completed(0, ""),
+        ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.read_alembic_version",
+            return_value="a2",
+        ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.introspect_critical_tables",
+            return_value={"users": True},
+        ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.introspect_critical_columns",
+            return_value={"performance_president_approvals": ["rule_version"], "performance_periods": []},
+        ),
+    ):
+        exit_code = main([])
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "CRITICAL_COLUMN_MISSING" in out
+    assert "rule_version" in out
+    assert "_RESULT=PASS" not in out
+
+
+def test_critical_columns_list_the_canonical_read_paths() -> None:
+    from scripts.quality.bys360_postgres_migration_integrity_gate import CRITICAL_COLUMNS
+
+    assert set(CRITICAL_COLUMNS) == {"performance_president_approvals", "performance_periods", "evaluation_assignments"}
+    assert "rule_version" not in CRITICAL_COLUMNS["performance_president_approvals"]
+    assert "employee_id" in CRITICAL_COLUMNS["evaluation_assignments"]
+    for columns in CRITICAL_COLUMNS.values():
+        assert len(columns) == len(set(columns))

@@ -77,12 +77,53 @@ def _limit(default: int = 250) -> int:
         return default
 
 
+# Only columns of the canonical schema (ORM model, fresh migrations and the
+# verified production database). The earlier SELECTs named period_name,
+# scope_reference, category_id, unit_id and evaluated_user_id, none of which
+# exist, so both Faz 8 endpoints failed on every request.
+PERIOD_COLUMNS: tuple[str, ...] = (
+    "id", "title", "name", "period_type", "scope_type",
+    "scope_unit_label", "scope_category_label", "scope_personnel_filter",
+    "start_date", "end_date", "is_active", "created_at",
+)
+# employee_id is the evaluated personnel (EvaluationAssignment.employee).
+ASSIGNMENT_COLUMNS: tuple[str, ...] = ("id", "period_id", "evaluator_id", "employee_id", "status", "created_at")
+_PERIOD_SELECT = ", ".join(PERIOD_COLUMNS)
+_ASSIGNMENT_SELECT = ", ".join(ASSIGNMENT_COLUMNS)
+
+_UNIT_SCOPES = frozenset({"unit", "upper_unit"})
+_CATEGORY_SCOPES = frozenset({"category", "group"})
+_PERSONNEL_SCOPES = frozenset({"selected_personnel", "personnel"})
+SELECTED_PERSONNEL_REFERENCE = "selected_personnel"
+
+
+def _with_scope_reference(row: Any) -> dict[str, Any]:
+    """Return the period row with its scope target as ``scope_reference``.
+
+    The target is the column period_forms requires for each scope type. A
+    selected-personnel filter holds registry numbers, so only its presence is
+    reported and the filter itself is dropped from the row.
+    """
+    period = dict(row)
+    scope_type = str(period.get("scope_type") or "").strip()
+    personnel_filter = str(period.pop("scope_personnel_filter", None) or "").strip()
+    if scope_type in _UNIT_SCOPES:
+        reference = str(period.get("scope_unit_label") or "").strip()
+    elif scope_type in _CATEGORY_SCOPES:
+        reference = str(period.get("scope_category_label") or "").strip()
+    elif scope_type in _PERSONNEL_SCOPES:
+        reference = SELECTED_PERSONNEL_REFERENCE if personnel_filter else ""
+    else:
+        reference = ""
+    period["scope_reference"] = reference or None
+    return period
+
+
 def _periods(limit: int = 250) -> Sequence[Any]:
-    return db.session.execute(
+    rows = db.session.execute(
         text(
-            """
-            SELECT id, title, name, period_name, period_type, scope_type, scope_reference,
-                   category_id, unit_id, start_date, end_date, is_active, created_at
+            f"""
+            SELECT {_PERIOD_SELECT}
               FROM performance_periods
              ORDER BY COALESCE(start_date, created_at) DESC NULLS LAST, id DESC
              LIMIT :limit
@@ -90,14 +131,14 @@ def _periods(limit: int = 250) -> Sequence[Any]:
         ),
         {"limit": limit},
     ).mappings().all()
+    return [_with_scope_reference(row) for row in rows]
 
 
 def _single_period(period_id: int) -> Any:
     row = db.session.execute(
         text(
-            """
-            SELECT id, title, name, period_name, period_type, scope_type, scope_reference,
-                   category_id, unit_id, start_date, end_date, is_active, created_at
+            f"""
+            SELECT {_PERIOD_SELECT}
               FROM performance_periods
              WHERE id = :period_id
             """
@@ -106,7 +147,7 @@ def _single_period(period_id: int) -> Any:
     ).mappings().first()
     if row is None:
         raise LookupError("Dönem kaydı bulunamadı.")
-    return row
+    return _with_scope_reference(row)
 
 
 def _assignments(limit: int = 5000, period_id: int | None = None) -> Sequence[Any]:
@@ -117,7 +158,7 @@ def _assignments(limit: int = 5000, period_id: int | None = None) -> Sequence[An
     return db.session.execute(
         text(
             f"""
-            SELECT id, period_id, evaluator_id, evaluated_user_id, status, created_at
+            SELECT {_ASSIGNMENT_SELECT}
               FROM evaluation_assignments
               {where}
              ORDER BY id DESC
