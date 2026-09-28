@@ -75,7 +75,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "high",
    "wave1_status": "REMAINING",
-   "remaining_reason": "table Alembic-owned (b704bd9d68c0); runtime/migration shape equality not proven in wave 1"
+   "remaining_reason": "table Alembic-owned (b704bd9d68c0); runtime/migration shape equality not proven in wave 1",
+   "overnight_status": "FIXED_check_only_overnight",
+   "overnight_note": "Alembic b704bd9d68c0 owns table + indexes; group mobile.push_tokens"
   },
   {
    "function": "app.api.mobile.performance_routes._v2853_ensure_interim_notes_table",
@@ -100,7 +102,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "REMAINING",
-   "remaining_reason": "mobile path for performance_interim_notes (see above)"
+   "remaining_reason": "mobile path for performance_interim_notes (see above)",
+   "overnight_status": "NEEDS_HUMAN_DECISION",
+   "overnight_note": "see ensure_interim_notes_table"
   },
   {
    "function": "app.api.mobile.services.performance_note_route_services.phase3c_mobile_performance_note_scorecard_v2863a_service",
@@ -129,7 +133,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "high",
    "wave1_status": "REMAINING",
-   "remaining_reason": "mobile ALTER on performance_interim_notes (see above)"
+   "remaining_reason": "mobile ALTER on performance_interim_notes (see above)",
+   "overnight_status": "NEEDS_HUMAN_DECISION",
+   "overnight_note": "see ensure_interim_notes_table"
   },
   {
    "function": "app.performance.interim_notes_manager_routes.performance_interim_notes",
@@ -196,7 +202,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "high",
    "wave1_status": "REMAINING",
-   "remaining_reason": "table Alembic-owned (29fee38a97e1) but runtime adds columns absent from that migration; shape evidence missing"
+   "remaining_reason": "table Alembic-owned (29fee38a97e1) but runtime adds columns absent from that migration; shape evidence missing",
+   "overnight_status": "FIXED_check_only_overnight",
+   "overnight_note": "Alembic 29fee38a97e1 owns the 47 columns; group performance.development_recommendations"
   },
   {
    "function": "app.services.ai_agent.knowledge.init_knowledge_table",
@@ -439,7 +447,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "high",
    "wave1_status": "REMAINING",
-   "remaining_reason": "column repair for performance_interim_notes (see above)"
+   "remaining_reason": "column repair for performance_interim_notes (see above)",
+   "overnight_status": "NEEDS_HUMAN_DECISION",
+   "overnight_note": "see ensure_interim_notes_table"
   },
   {
    "function": "app.services.performance.interim_notes_runtime.ensure_interim_notes_table",
@@ -477,7 +487,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "high",
    "wave1_status": "REMAINING",
-   "remaining_reason": "table ownership unclear; runtime adds alias columns"
+   "remaining_reason": "table ownership unclear; runtime adds alias columns",
+   "overnight_status": "NEEDS_HUMAN_DECISION",
+   "overnight_note": "performance_interim_notes shape ambiguous (alias columns, three creators); not migratable"
   },
   {
    "function": "app.services.performance.meeting_development.ensure_meeting_foundation_schema",
@@ -559,7 +571,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "medium",
    "wave1_status": "REMAINING",
-   "remaining_reason": "request-time DDL on POST only; wave 2"
+   "remaining_reason": "request-time DDL on POST only; wave 2",
+   "overnight_status": "ALREADY_READ_ONLY",
+   "overnight_note": "static-scan false positive: 'ALTER TABLE' appears only in the docstring"
   },
   {
    "function": "app.services.performance.meeting_p2_archive_notes.ensure_archive_table",
@@ -585,7 +599,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "medium",
    "wave1_status": "REMAINING",
-   "remaining_reason": "request-time DDL on POST only; wave 2"
+   "remaining_reason": "request-time DDL on POST only; wave 2",
+   "overnight_status": "NEEDS_HUMAN_DECISION",
+   "overnight_note": "admin setup action (POST run); web setup vs CLI provisioning is a workflow decision"
   },
   {
    "function": "app.services.performance.meeting_p2_archive_notes.ensure_interim_notes_table",
@@ -611,7 +627,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "medium",
    "wave1_status": "REMAINING",
-   "remaining_reason": "request-time DDL on POST only; wave 2"
+   "remaining_reason": "request-time DDL on POST only; wave 2",
+   "overnight_status": "NEEDS_HUMAN_DECISION",
+   "overnight_note": "performance_interim_notes has three runtime creators with different shapes"
   },
   {
    "function": "app.services.performance.meeting_p3_reminders.ensure_overdue_snapshot_table",
@@ -637,7 +655,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "medium",
    "wave1_status": "REMAINING",
-   "remaining_reason": "request-time DDL on POST only; wave 2"
+   "remaining_reason": "request-time DDL on POST only; wave 2",
+   "overnight_status": "NEEDS_HUMAN_DECISION",
+   "overnight_note": "admin setup action; table has no migration and no ORM model"
   },
   {
    "function": "app.services.performance.meeting_p3_reminders.ensure_reminder_queue_table",
@@ -663,7 +683,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "medium",
    "wave1_status": "REMAINING",
-   "remaining_reason": "request-time DDL on POST only; wave 2"
+   "remaining_reason": "request-time DDL on POST only; wave 2",
+   "overnight_status": "NEEDS_HUMAN_DECISION",
+   "overnight_note": "admin setup action; table has no migration and no ORM model"
   },
   {
    "function": "app.services.performance.meeting_p4_development_guidance.ensure_recommendation_table",
@@ -691,7 +713,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "medium",
    "wave1_status": "REMAINING",
-   "remaining_reason": "adds 8 columns to an Alembic-owned table that its migration lacks; live shape unverified"
+   "remaining_reason": "adds 8 columns to an Alembic-owned table that its migration lacks; live shape unverified",
+   "overnight_status": "NEEDS_HUMAN_DECISION",
+   "overnight_note": "second, conflicting shape for performance_development_recommendations (title/status/source/employee_user_id NOT NULL); admin 'run' action + evaluation write path"
   },
   {
    "function": "app.services.performance.process_engine_phase10_reports.ensure_phase10_report_schema",
@@ -715,7 +739,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.process_engine_phase3_history._add_column_if_missing",
@@ -736,7 +762,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.process_engine_phase3_history.ensure_phase3_columns",
@@ -765,7 +793,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.process_engine_phase4_flow._add_column",
@@ -786,7 +816,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.process_engine_phase4_flow._create_index",
@@ -807,7 +839,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.process_engine_phase6_president_approvals._add_column",
@@ -828,7 +862,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.process_engine_phase6_president_approvals._create_index",
@@ -849,7 +885,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.process_engine_phase7_president_rule._add_column_if_missing",
@@ -870,7 +908,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.process_engine_phase7_president_rule.ensure_phase7_schema",
@@ -903,7 +943,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.process_engine_phase8_tracking._add_column",
@@ -924,7 +966,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.process_engine_phase8_tracking._create_index",
@@ -945,7 +989,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "low",
    "wave1_status": "OUT_OF_SCOPE",
-   "remaining_reason": null
+   "remaining_reason": null,
+   "overnight_status": "REMAINING_GUARDED_REPAIR",
+   "overnight_note": "ALTER/CREATE INDEX only when an object is missing; targets tables Alembic creates since w2d8e1f4a6c3; not steady-state DDL"
   },
   {
    "function": "app.services.performance.v2_1_2_category_engine.ensure_category_schema",
@@ -1172,7 +1218,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "high",
    "wave1_status": "REMAINING",
-   "remaining_reason": "guarded repair: executes DDL only when the object is missing (not observed in steady state); wave 2"
+   "remaining_reason": "guarded repair: executes DDL only when the object is missing (not observed in steady state); wave 2",
+   "overnight_status": "FIXED_check_only_overnight",
+   "overnight_note": "ALTERs moved to provisioner; group performance.period_center_assignment_launch"
   },
   {
    "function": "app.services.performance.v2_1_9_period_center_process_notifications._alter_add_column_sql",
@@ -1199,7 +1247,9 @@
    "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
    "risk": "high",
    "wave1_status": "REMAINING",
-   "remaining_reason": "guarded repair: executes DDL only when the object is missing (not observed in steady state); wave 2"
+   "remaining_reason": "guarded repair: executes DDL only when the object is missing (not observed in steady state); wave 2",
+   "overnight_status": "FIXED_check_only_overnight",
+   "overnight_note": "ALTERs moved to provisioner; group performance.period_center_notification_preparation"
   },
   {
    "function": "app.services.query_health.index_contracts.build_postgresql_index_sql",
@@ -1266,5 +1316,23 @@
   "/performans/toplanti-test-senaryolari",
   "/personnel/<int:user_id>/edit",
   "/personnel/<int:user_id>/profile"
- ]
+ ],
+ "overnight_2026_09_28": {
+  "migration": "w2d8e1f4a6c3 adopts 29 ORM tables, performance_periods.special_scenario_type and the ORM shape of an empty phase-6 performance_low_score_process_events table",
+  "migration_built_orm_gap_before": {
+   "missing_tables": 29,
+   "tables_with_missing_columns": 2
+  },
+  "migration_built_orm_gap_after": {
+   "missing_tables": 0,
+   "tables_with_missing_columns": 0,
+   "remaining_shape_differences": "12 columns in 6 tables (nullability/type) left unchanged; not additive"
+  },
+  "pg_gate": "POSTGRES15_ORM_PARITY added (164 tables, 2061 columns); negative control at w1c5a7d2e9b4 fails with 29 tables",
+  "request_ddl_fixed": 4,
+  "newly_found_not_in_v1_scan": {
+   "app/support/routes.py": "SQLAlchemy __table__.create(checkfirst=True) on admin-only /support/setup (POST) and guarded on /support/help-admin; tables Alembic-owned (a3d8f1c9b6e2); NEEDS_HUMAN_DECISION (admin installer workflow)"
+  },
+  "unmatched_status_keys": []
+ }
 }
