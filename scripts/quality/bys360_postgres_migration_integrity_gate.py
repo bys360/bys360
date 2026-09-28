@@ -84,6 +84,25 @@ CRITICAL_TABLES: tuple[str, ...] = (
     "portal_comment_mentions",
 )
 
+# Columns that application read paths select, which must exist after a fresh
+# empty->head migration (BYS360 live evidence remediation V1). The approval
+# entry is the full PerformancePresidentApproval ORM column set; the other two
+# are the Faz 8 decision-support SELECT lists. tests/quality/
+# test_bys360_postgres_migration_integrity_gate.py keeps these in sync with
+# the application code.
+CRITICAL_COLUMNS: dict[str, tuple[str, ...]] = {
+    "performance_president_approvals": (
+        "id", "flow_id", "evaluation_id", "period_id", "employee_id", "final_score", "status",
+        "president_user_id", "requested_at", "decided_at", "decision_note", "created_at", "updated_at",
+    ),
+    "performance_periods": (
+        "id", "title", "name", "period_type", "scope_type",
+        "scope_unit_label", "scope_category_label", "scope_personnel_filter",
+        "start_date", "end_date", "is_active", "created_at",
+    ),
+    "evaluation_assignments": ("id", "period_id", "evaluator_id", "employee_id", "status", "created_at"),
+}
+
 
 class GateFailure(RuntimeError):
     def __init__(self, code: str, detail: str) -> None:
@@ -286,6 +305,24 @@ def introspect_critical_tables(parts) -> dict[str, bool]:
     return {table: (table in present) for table in CRITICAL_TABLES}
 
 
+def introspect_critical_columns(parts) -> dict[str, list[str]]:
+    """Return, per CRITICAL_COLUMNS table, the listed columns missing from the database."""
+    conn = _connect(parts)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT table_name, column_name FROM information_schema.columns "
+                "WHERE table_schema = 'public';"
+            )
+            present = {(row[0], row[1]) for row in cur.fetchall()}
+    finally:
+        conn.close()
+    return {
+        table: [column for column in columns if (table, column) not in present]
+        for table, columns in CRITICAL_COLUMNS.items()
+    }
+
+
 # ---------------------------------------------------------------------------
 # flask db upgrade -- run via the real CLI, same semantics as any human
 # operator or CI step, not a re-implementation of Alembic's own logic.
@@ -384,6 +421,17 @@ def main(argv: list[str] | None = None) -> int:
                 f"Critical table(s) missing after full migration: {missing!r}",
             )
         print(f"POSTGRES15_SCHEMA_INTROSPECTION=PASS (checked {len(CRITICAL_TABLES)} tables)")
+
+        missing_columns = {
+            table: columns for table, columns in introspect_critical_columns(parts).items() if columns
+        }
+        if missing_columns:
+            raise GateFailure(
+                "CRITICAL_COLUMN_MISSING",
+                f"Critical column(s) missing after full migration: {missing_columns!r}",
+            )
+        checked = sum(len(columns) for columns in CRITICAL_COLUMNS.values())
+        print(f"POSTGRES15_COLUMN_INTROSPECTION=PASS (checked {checked} columns)")
 
     except GateFailure as exc:
         print(f"{PACKAGE}_{exc.code}")
