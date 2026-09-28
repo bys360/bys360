@@ -144,11 +144,15 @@ def test_no_stray_control_bytes_in_tracked_text_files() -> None:
 
 
 def test_no_personal_windows_account_name_in_tests_or_scripts() -> None:
+    # Needles are assembled so this module never matches itself.
+    short_name = "HAVV" + "AG~"
+    long_path = re.compile("Users" + r"[\\/]+" + "Hav" + "va")
+    own = Path(__file__).resolve().relative_to(ROOT).as_posix()
     offenders = []
     for rel in _tracked_text_files():
-        if not rel.startswith(("tests/", "scripts/")) or not rel.endswith((".py", ".ps1", ".md", ".txt")):
+        if rel == own or not rel.startswith(("tests/", "scripts/")) or not rel.endswith((".py", ".ps1", ".md", ".txt")):
             continue
         text = (ROOT / rel).read_text(encoding="utf-8", errors="ignore")
-        if "HAVVAG~" in text or re.search(r"Users[\\/]+Havva", text):
+        if short_name in text or long_path.search(text):
             offenders.append(rel)
     assert offenders == []
