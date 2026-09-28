@@ -172,7 +172,7 @@ MANUAL_REVIEW: dict[str, tuple[str, str]] = {
 
 def _app():
     os.environ.update({
-        "APP_ENV": "testing", "SECRET_KEY": "authorization-matrix-not-a-real-secret-0000",
+        "APP_ENV": "testing", "SECRET_KEY": "authorization-matrix-test-secret-0000",
         "DATABASE_URL": "sqlite:///:memory:", "SCHEDULER_ENABLED": "false", "FLASK_SKIP_SCHEMA_VALIDATION": "1",
     })
     sys.path.insert(0, str(REPO))

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-PASSWORD = "Faz8MissingPeriod1!"
+PASSWORD = "Faz8MissingPeriodTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "faz8_missing_period" / "dbs"
 
 

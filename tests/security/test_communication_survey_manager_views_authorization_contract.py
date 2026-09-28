@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-PASSWORD = "SurveyManagerViews1!"
+PASSWORD = "SurveyManagerViewsTest1!"
 SECRET_ANSWER = "Gizli serbest metin yaniti SMV1"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "survey_manager_views" / "dbs"
 

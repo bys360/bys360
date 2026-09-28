@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-PASSWORD = "AiRecommendationAuthz1!"
+PASSWORD = "AiRecommendationTest1!"
 SECRET_BODY = "Gizli degerlendirme onerisi AIRECAUTHZ"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "ai_recommendation_authz" / "dbs"
 

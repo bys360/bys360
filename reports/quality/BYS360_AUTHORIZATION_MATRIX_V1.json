@@ -35,7 +35,7 @@
    "main.hr_leave_update_status"
   ],
   "routes_with_object_params": 260,
-  "routes_without_test_reference": 444,
+  "routes_without_test_reference": 440,
   "method": "Flask url_map + source AST of each view (decorators, body calls); heuristic, conservative"
  },
  "routes": [
@@ -4793,7 +4793,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "AUTHENTICATED_ONLY",
    "manual_review": "aggregate period metadata and counts, no person data; POLICY QUESTION: require AI decision center access like faz3?"
@@ -8150,7 +8150,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/communication/phase2_routes.py:178",
+   "view": "app/communication/phase2_routes.py:182",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8168,7 +8168,7 @@
    ],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
    "manual_review": null
@@ -8199,7 +8199,7 @@
    ],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
    "manual_review": null
@@ -8227,7 +8227,7 @@
    ],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
    "manual_review": "POLICY QUESTION: draft bulletin titles are visible to every 'announcements' menu holder here and in the faz1 bulletin list"
@@ -8239,7 +8239,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/communication/phase2_routes.py:194",
+   "view": "app/communication/phase2_routes.py:198",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8269,7 +8269,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/communication/phase2_routes.py:363",
+   "view": "app/communication/phase2_routes.py:371",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8301,7 +8301,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/communication/phase2_routes.py:331",
+   "view": "app/communication/phase2_routes.py:339",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8333,7 +8333,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/communication/phase2_routes.py:395",
+   "view": "app/communication/phase2_routes.py:407",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8365,7 +8365,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/communication/phase2_routes.py:314",
+   "view": "app/communication/phase2_routes.py:322",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8398,7 +8398,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/communication/phase2_routes.py:261",
+   "view": "app/communication/phase2_routes.py:265",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8430,7 +8430,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/communication/phase2_routes.py:379",
+   "view": "app/communication/phase2_routes.py:391",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8462,7 +8462,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/communication/phase2_routes.py:347",
+   "view": "app/communication/phase2_routes.py:355",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8494,7 +8494,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/communication/phase2_routes.py:411",
+   "view": "app/communication/phase2_routes.py:423",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8527,7 +8527,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/communication/phase2_routes.py:209",
+   "view": "app/communication/phase2_routes.py:213",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8557,7 +8557,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/communication/phase2_routes.py:427",
+   "view": "app/communication/phase2_routes.py:443",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8586,7 +8586,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/communication/phase2_routes.py:469",
+   "view": "app/communication/phase2_routes.py:485",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8619,7 +8619,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/communication/phase2_routes.py:435",
+   "view": "app/communication/phase2_routes.py:451",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -16496,7 +16496,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 124,
+   "test_files": 125,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -21455,7 +21455,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 5,
+   "test_files": 6,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -21487,7 +21487,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 6,
+   "test_files": 7,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -21520,7 +21520,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 5,
+   "test_files": 6,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -21552,7 +21552,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 5,
+   "test_files": 6,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -21584,7 +21584,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 5,
+   "test_files": 6,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -21616,7 +21616,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 5,
+   "test_files": 6,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
