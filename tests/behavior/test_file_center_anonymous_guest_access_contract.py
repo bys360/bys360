@@ -85,7 +85,7 @@ _TMP_STORAGE_ROOT = os.path.join(_TMP_DB_DIR, f"storage_{_RUN_ID}")
 
 def _inside_scratch_root(path) -> bool:
     """Containment check on resolved paths: on Windows the temp dir can appear in 8.3 short form
-    (e.g. an 8.3 short user-folder name) while the application resolves the long form of the same directory."""
+    (a user folder such as ABCDEF~1) while the application resolves the long form of the same directory."""
     return Path(path).resolve().is_relative_to(Path(_TMP_STORAGE_ROOT).resolve())
 
 DEFAULT_FIRST_LOGIN_PASSWORD = "file-center-guest-first-login-test-pw"
