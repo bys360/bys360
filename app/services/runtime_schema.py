@@ -46,6 +46,7 @@ _verified: set[tuple[str, str]] = set()
 
 # Every module that registers a group; the CLI imports them all so no group is skipped.
 GROUP_MODULES = (
+    "app.api.mobile.domains.push_notifications",
     "app.services.performance.v2_1_2_category_engine",
     "app.services.performance.v2_1_3_personnel_category_card",
     "app.services.performance.v2_1_4_category_scope_visibility",

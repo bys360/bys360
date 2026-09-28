@@ -163,6 +163,17 @@ def test_recommendation_check_matches_the_alembic_migration():
     checked = {column for _, column in DEVELOPMENT_RECOMMENDATIONS_SCHEMA.columns}
     assert checked | {"id"} == set(migration._EXPECTED_COLUMNS)
 
+
+def test_mobile_push_token_check_never_creates_the_table(app):
+    from app.api.mobile.domains.push_notifications import _ensure_mobile_push_token_table
+    from app.extensions import db
+    from app.services.runtime_schema import RuntimeSchemaMissing
+
+    with app.app_context():
+        with pytest.raises(RuntimeSchemaMissing):
+            _ensure_mobile_push_token_table()
+        assert not inspect(db.engine).has_table("mobile_push_tokens")
+
 def test_require_is_read_only_and_caches_a_positive_check(provisioned_app):
     from app.extensions import db
     from app.services import runtime_schema
