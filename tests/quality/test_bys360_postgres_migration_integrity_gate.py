@@ -19,6 +19,7 @@ from scripts.quality.bys360_postgres_migration_integrity_gate import (
     ENV_VAR,
     GateFailure,
     compute_migration_graph,
+    compute_orm_gaps,
     main,
     redact,
     validate_url,
@@ -233,10 +234,19 @@ def test_main_full_happy_path_is_pass(monkeypatch, capsys) -> None:
             "scripts.quality.bys360_postgres_migration_integrity_gate.introspect_critical_columns",
             return_value={"performance_president_approvals": [], "performance_periods": []},
         ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.load_orm_columns",
+            return_value={"users": ["id", "email"]},
+        ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.introspect_orm_parity",
+            return_value={},
+        ),
     ):
         exit_code = main([])
     out = capsys.readouterr().out
     assert exit_code == 0
+    assert "POSTGRES15_ORM_PARITY=PASS (checked 1 tables, 2 columns)" in out
     assert "POSTGRES15_EMPTY_TO_HEAD=PASS" in out
     assert "POSTGRES15_HEAD_MATCH=PASS" in out
     assert "POSTGRES15_SECOND_UPGRADE=PASS" in out
@@ -514,3 +524,43 @@ def test_critical_columns_list_the_canonical_read_paths() -> None:
     assert {"evaluation_start_date", "evaluation_end_date", "evaluation_due_days"} <= set(CRITICAL_COLUMNS["performance_periods"])
     for columns in CRITICAL_COLUMNS.values():
         assert len(columns) == len(set(columns))
+
+
+def test_orm_gaps_report_missing_tables_and_columns() -> None:
+    present = {("users", "id"), ("users", "email"), ("performance_periods", "id")}
+    orm = {
+        "users": ["id", "email"],
+        "performance_periods": ["id", "special_scenario_type"],
+        "performance_low_score_processes": ["id"],
+    }
+    assert compute_orm_gaps(present, orm) == {
+        "performance_low_score_processes": ["<table>"],
+        "performance_periods": ["special_scenario_type"],
+    }
+
+
+def test_orm_gaps_are_empty_when_every_orm_column_exists() -> None:
+    present = {("users", "id"), ("users", "email"), ("raw_sql_only_table", "id")}
+    assert compute_orm_gaps(present, {"users": ["id", "email"]}) == {}
+
+
+def test_main_orm_schema_gap_is_blocked(monkeypatch, capsys) -> None:
+    monkeypatch.setenv(ENV_VAR, VALID_URL)
+    gate = "scripts.quality.bys360_postgres_migration_integrity_gate"
+    graph = {"revision_count": 1, "root_count": 1, "roots": [], "head_count": 1, "heads": ["h1"], "cycles": False}
+    with (
+        patch(f"{gate}.check_postgres_major_version", return_value=15),
+        patch(f"{gate}.check_database_is_empty", return_value=None),
+        patch(f"{gate}.compute_migration_graph", return_value=graph),
+        patch(f"{gate}.run_flask_db_upgrade", side_effect=[_completed(0), _completed(0)]),
+        patch(f"{gate}.read_alembic_version", return_value="h1"),
+        patch(f"{gate}.introspect_critical_tables", return_value={"users": True}),
+        patch(f"{gate}.introspect_critical_columns", return_value={"users": []}),
+        patch(f"{gate}.load_orm_columns", return_value={"performance_low_score_processes": ["id"]}),
+        patch(f"{gate}.introspect_orm_parity", return_value={"performance_low_score_processes": ["<table>"]}),
+    ):
+        exit_code = main([])
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "ORM_SCHEMA_MISSING" in out
+    assert "performance_low_score_processes" in out

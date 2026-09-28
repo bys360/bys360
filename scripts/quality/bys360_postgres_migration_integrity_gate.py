@@ -37,6 +37,7 @@ or the migration chain itself failed -- see stdout for exactly which.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -327,6 +328,63 @@ def introspect_critical_columns(parts) -> dict[str, list[str]]:
     }
 
 
+# Prints {table: [columns]} for every ORM model; run in a subprocess so the
+# gate process itself never imports the application.
+ORM_COLUMNS_SCRIPT = "\n".join((
+    "import json, logging, warnings",
+    "logging.disable(logging.CRITICAL)",
+    "warnings.simplefilter('ignore')",
+    "from app import create_app",
+    "from app.extensions import db",
+    "create_app()",
+    "print(json.dumps({t.name: [c.name for c in t.columns] for t in db.metadata.tables.values()}))",
+))
+
+
+def load_orm_columns(database_url: str) -> dict[str, list[str]]:
+    env = dict(os.environ)
+    env["DATABASE_URL"] = database_url
+    proc = subprocess.run(
+        [sys.executable, "-c", ORM_COLUMNS_SCRIPT],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if proc.returncode != 0 or not proc.stdout.strip():
+        raise GateFailure("ORM_METADATA_FAILURE", "Could not read ORM metadata: " + proc.stderr)
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+def compute_orm_gaps(present: set[tuple[str, str]], orm_columns: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Return ORM tables the database lacks entirely, and missing columns of tables it has."""
+    tables = {table for table, _ in present}
+    gaps: dict[str, list[str]] = {}
+    for table, columns in sorted(orm_columns.items()):
+        if table not in tables:
+            gaps[table] = ["<table>"]
+            continue
+        missing = [column for column in columns if (table, column) not in present]
+        if missing:
+            gaps[table] = missing
+    return gaps
+
+
+def introspect_orm_parity(parts, orm_columns: dict[str, list[str]]) -> dict[str, list[str]]:
+    conn = _connect(parts)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT table_name, column_name FROM information_schema.columns "
+                "WHERE table_schema = 'public';"
+            )
+            present = {(row[0], row[1]) for row in cur.fetchall()}
+    finally:
+        conn.close()
+    return compute_orm_gaps(present, orm_columns)
+
+
 # ---------------------------------------------------------------------------
 # flask db upgrade -- run via the real CLI, same semantics as any human
 # operator or CI step, not a re-implementation of Alembic's own logic.
@@ -436,6 +494,16 @@ def main(argv: list[str] | None = None) -> int:
             )
         checked = sum(len(columns) for columns in CRITICAL_COLUMNS.values())
         print(f"POSTGRES15_COLUMN_INTROSPECTION=PASS (checked {checked} columns)")
+
+        orm_columns = load_orm_columns(raw_url)
+        orm_gaps = introspect_orm_parity(parts, orm_columns)
+        if orm_gaps:
+            raise GateFailure(
+                "ORM_SCHEMA_MISSING",
+                f"ORM table(s)/column(s) missing after full migration: {orm_gaps!r}",
+            )
+        orm_column_count = sum(len(columns) for columns in orm_columns.values())
+        print(f"POSTGRES15_ORM_PARITY=PASS (checked {len(orm_columns)} tables, {orm_column_count} columns)")
 
     except GateFailure as exc:
         print(f"{PACKAGE}_{exc.code}")

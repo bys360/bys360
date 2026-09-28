@@ -59,7 +59,7 @@ def test_revision_extends_the_production_head():
     assert module.down_revision == "v1a2d3e4f5b6"
     config = Config(str(ROOT / "migrations" / "alembic.ini"))
     config.set_main_option("script_location", str(ROOT / "migrations"))
-    assert ScriptDirectory.from_config(config).get_heads() == ["w1c5a7d2e9b4"]
+    assert ScriptDirectory.from_config(config).get_revision("w2d8e1f4a6c3").down_revision == "w1c5a7d2e9b4"
 
 
 def test_migration_built_database_gains_the_orm_columns_and_keeps_rows():
