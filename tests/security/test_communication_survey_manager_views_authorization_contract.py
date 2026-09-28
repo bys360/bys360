@@ -100,3 +100,14 @@ def test_manager_still_sees_results(app):
     response = _client(app, "SMV02").get(_paths(app)[0])
     assert response.status_code == 200
     assert SECRET_ANSWER in response.get_data(as_text=True)
+
+
+@pytest.mark.parametrize("path", [
+    "/communication/faz2/surveys/999999",
+    "/communication/faz2/surveys/999999/results",
+    "/communication/faz2/surveys/999999/edit",
+    "/communication/faz2/bulletins/999999/history",
+])
+def test_missing_record_is_a_controlled_redirect_not_a_server_error(app, path):
+    response = _client(app, "SMV02").get(path)
+    assert response.status_code == 302, response.status_code
