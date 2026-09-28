@@ -1,6 +1,6 @@
 # BYS360 Şema Yeniden Kurulum Sınırlaması (P1-02 / P2-06)
 
-**Durum tarihi:** 2026-09-28 (final pre-live denetim düzeltme kampanyası V1)
+**Durum tarihi:** 2026-09-28 (final pre-live denetim düzeltme kampanyası V1; canlı salt okuma doğrulaması sonucu §6'da)
 **Kaynak:** `reports/quality/BYS360_SCHEMA_REPRODUCIBILITY_INVENTORY_V1.json` / `.md`
 **Üretici:** `scripts/quality/bys360_schema_reproducibility_inventory_v1.py` (salt okuma; canlı veya PostgreSQL veritabanına bağlanmaz)
 **CI sözleşmesi:** `tests/architecture/test_schema_reproducibility_inventory_contract.py`
@@ -41,6 +41,8 @@ Test paketi şemayı `db.create_all()` ile kurduğu için bu eksikleri göremez.
 
 ## 3. Canlıya geçişten önce gereken salt okuma doğrulaması
 
+**Durum:** 2026-09-28'de tamamlandı; sonuç §6'da.
+
 Canlı şema görülmeden adoption migration'ı yazılmaz. Aşağıdaki sorgular yalnız `SELECT` içerir. Açık yetkiyle ve salt okuma bir hesapla çalıştırılmalı, sonuç raporlanmalıdır:
 
 ```sql
@@ -66,11 +68,24 @@ Karar kuralları:
 ## 4. Düzeltme planı (ayrı paket, canlı kanıttan sonra)
 
 1. Aktif 28 tablo ve 3 runtime-only tablo için adoption migration'ları yazılır. Emsal: Dosya Merkezi için `10858a18e9ac`. Migration'lar idempotent olur (`has_table` kontrolü) ve mevcut canlı tablolara dokunmaz.
-2. `performance_low_score_process_events` için canlı şekle göre uzlaştırma migration'ı yazılır.
-3. CI'ya, PostgreSQL'e upgrade sonrası `db.metadata` ile gerçek şemayı kolon düzeyinde karşılaştıran bir kontrol eklenir.
+2. `performance_low_score_process_events` için uzlaştırma migration'ı yazılır. Canlı şekil ORM ile aynıdır (§6). Bu migration yalnız boş veritabanından kurulumun da aynı şekli üretmesi içindir; canlı tabloyu değiştirmez.
+3. CI'ya, PostgreSQL'e upgrade sonrası `db.metadata` ile gerçek şemayı kolon düzeyinde karşılaştıran bir kontrol eklenir. İlk adım atıldı: kapı artık kritik okuma yollarının kolonlarını (`CRITICAL_COLUMNS`) denetliyor (§6).
 4. GET istekleriyle çalışan runtime DDL (P2-06) kaldırılır. Denetim taramasında 28 GET adresi, yani takma adlarıyla birlikte yaklaşık 18 endpoint, çalışırken `CREATE TABLE` / `CREATE INDEX IF NOT EXISTS` üretti; örnekler `/performance/v2-1-4-category-scope` ve `/performans/donem-yonetim-merkezi`. Bu kaldırma ancak 1–3 tamamlandıktan sonra yapılabilir. O zamana kadar uygulama veritabanı kullanıcısı DDL yetkisine ihtiyaç duyar.
 5. Olası ölü iki portal modeli canlıda boş ve kullanılmıyor olarak doğrulandıktan sonra ayrı bir paketle kaldırılır.
 
 ## 5. Felaket kurtarma için geçici kural
 
 Planlı geri dönüş ve felaket kurtarmada **veritabanı yedekten geri yüklenir** (`BACKUP_RUNBOOK.md`). Boş bir veritabanında `flask db upgrade` çalıştırmak bugün çalışan bir BYS360 kurulumu **üretmez**. Yukarıdaki plan tamamlanana kadar sıfırdan kurulum bir geri dönüş yöntemi olarak kullanılmaz.
+
+## 6. Canlı salt okuma doğrulaması sonucu (2026-09-28)
+
+Ayrıntı: [BYS360_LIVE_READONLY_VALIDATION_2026-09-28.md](BYS360_LIVE_READONLY_VALIDATION_2026-09-28.md).
+
+- Canlı Alembic revizyonu `v1a2d3e4f5b6`'dır ve depodaki head ile aynıdır.
+- 164 ORM tablosunun 164'ü canlıda vardır. Dağılım: 131 migration'lı, 28 aktif DDL'siz, 2 ölü aday ve 3 runtime-only tablo. Bu nedenle canlı için eksik tablo yoktur.
+- `performance_low_score_process_events` tablosunun canlı şekli ORM ile aynıdır. `performance_periods.special_scenario_type` canlıda vardır. Canlı için migration gerekmez.
+- Kanıtlanan iki uyumsuzluk migration'sız, kod tarafında düzeltildi:
+  - `PerformancePresidentApproval.rule_version` modelden kaldırıldı. Bu kolonu ne canlı tablo ne de şema sahibi olan `6f2b8c4d1a90` migration'ı içerir.
+  - AI Faz 8 ham SQL'i kanonik kolonlara taşındı.
+- `performance_president_approvals` aslında `6f2b8c4d1a90` migration'ı ile oluşturulur. Envanter bu tabloyu migration'sız sınıflar, çünkü migration tablo adını bir sabitle verir. Bu yüzden modelle migration arasındaki kolon farkı envanterde görünmedi.
+- Bu belgedeki boş veritabanı sınırlaması (§1, §5) değişmedi: canlıda bulunan şema, depodan sıfırdan üretilemez.

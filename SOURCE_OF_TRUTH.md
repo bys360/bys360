@@ -3,7 +3,7 @@
 Bu belge tek bir soruya kısa ve doğrulanabilir cevap verir: **Bugün hangi branch ve hangi
 exact commit SHA production gerçeğidir?**
 
-Son doğrulama: 2026-09-28 (production kimliği 2026-09-24'te doğrulanmıştır; §1.1 tarihli bir anlık görüntüdür).
+Son doğrulama: 2026-09-28 (production kimliği 2026-09-24'te doğrulanmış, 2026-09-28'de canlı salt okuma doğrulamasıyla teyit edilmiştir; §1.1 tarihli bir anlık görüntüdür).
 
 ## 1. Current Production Identity
 
@@ -18,8 +18,10 @@ Son doğrulama: 2026-09-28 (production kimliği 2026-09-24'te doğrulanmıştır
 ve bu SHA immutable production tag ile işaretlidir. Yeni bir SHA doğrulanıp insan kararıyla
 canlıya alınana ve bu belge güncellenene kadar production kimliği yukarıdaki SHA'dır.
 
-Not: Canlı veritabanının revizyonu bu belge hazırlanırken doğrudan sorgulanmamıştır. Yukarıdaki
-migration head, production SHA'nın beklediği şema revizyonudur.
+Canlı doğrulama (2026-09-28, salt okuma):
+- Çalışan kaynak SHA'nın `1ea5c5dc…` olduğu, sunucudaki loopback `/versionz` çıktısı ve terfi makbuzu ile doğrulandı.
+- Canlı veritabanının Alembic revizyonu `v1a2d3e4f5b6` olarak okundu.
+- Ayrıntı: [docs/quality/BYS360_LIVE_READONLY_VALIDATION_2026-09-28.md](docs/quality/BYS360_LIVE_READONLY_VALIDATION_2026-09-28.md).
 
 ### 1.1 Next Candidate (dated snapshot, 2026-09-28)
 
@@ -27,14 +29,19 @@ migration head, production SHA'nın beklediği şema revizyonudur.
 |---|---|
 | Aday kaynağı | `assistant-v2-full` ucu, final pre-live denetim düzeltme PR'ı (`fix/final-prelive-remediation-v1`) insan incelemesiyle merge edildikten sonra |
 | Aday SHA | Merge sonrası `assistant-v2-full` ucu; exact SHA cutover kaydında ve bu belgenin bir sonraki güncellemesinde yazılır |
-| Durum | **Production değildir.** CI yeşil + canlı salt okuma doğrulamaları + insan cutover kararı gerekir |
+| Durum | **Production değildir.** Canlı salt okuma doğrulaması 2026-09-28'de tamamlandı. Bulunan iki kod/şema uyumsuzluğu `fix/live-schema-evidence-remediation-v1` ile düzeltildi. Cutover için CI yeşil ve insan cutover kararı gerekir. |
 | Yeni migration | Yok (production migration head `v1a2d3e4f5b6` ile aynı) |
 
-Canlıya geçişten önce gereken salt okuma doğrulamaları ve bilinen şema sınırlaması:
-[docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md](docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md).
-Özet: mevcut upgrade zinciri geçer; ancak tarihsel/canlı şema uyumu, cutover öncesinde kontrollü
-ve salt okuma bir canlı doğrulama gerektirir. Boş veritabanında `flask db upgrade`, bugün her ORM
-tablosunu üretmez; geri dönüşte veritabanı yedekten geri yüklenir.
+Canlı doğrulama sonucu ve bilinen şema sınırlaması:
+- [docs/quality/BYS360_LIVE_READONLY_VALIDATION_2026-09-28.md](docs/quality/BYS360_LIVE_READONLY_VALIDATION_2026-09-28.md)
+- [docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md](docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md)
+
+Özet:
+- Canlı Alembic revizyonu head ile aynıdır.
+- 164 ORM tablosunun tamamı canlıda vardır.
+- Düşük puan olay tablosunun şekli ORM ile aynıdır.
+- `special_scenario_type` canlıda vardır.
+- Boş veritabanında `flask db upgrade` bugün her ORM tablosunu üretmez; bu nedenle geri dönüşte veritabanı yedekten geri yüklenir.
 
 ## 2. Repository Branch Roles
 
