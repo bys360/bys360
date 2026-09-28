@@ -52,6 +52,8 @@ GROUP_MODULES = (
     "app.services.performance.v2_1_4_category_scope_visibility",
     "app.services.performance.v2_1_5_category_period_scope",
     "app.services.performance.v2_1_6_category_period_integration",
+    "app.services.performance.v2_1_8_period_center_assignment_launch",
+    "app.services.performance.v2_1_9_period_center_process_notifications",
     "app.services.performance.meeting_development",
     "app.services.performance.feedback_aftercare",
     "app.services.performance.feedback_followup_phase4",

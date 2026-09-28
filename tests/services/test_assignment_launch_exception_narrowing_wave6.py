@@ -5,7 +5,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db as flask_db
 from app.services.performance import (
-    v2_1_6_category_period_integration as category_integration,
     v2_1_8_period_center_assignment_launch as launch,
 )
 
@@ -52,9 +51,9 @@ from app.services.performance import (
 
 @pytest.fixture
 def provisioned_app(app):
-    """Session app whose database also holds the category tables the launch schema extends."""
+    """Session app whose database also holds the category tables and the launch columns."""
     with app.app_context():
-        category_integration.provision_category_period_integration_schema()
+        launch.provision_period_center_assignment_launch_schema()
     return app
 
 
@@ -210,22 +209,22 @@ def test_safe_int_does_not_swallow_unexpected_runtime_error(
 
 
 # ---------------------------------------------------------------------------
-# ensure_period_center_assignment_launch_schema (ALTER handler)
+# provision_period_center_assignment_launch_schema (ALTER handler, maintenance only)
 # ---------------------------------------------------------------------------
 
 
-def test_ensure_schema_success_path_adds_missing_columns(provisioned_app) -> None:
+def test_provision_schema_success_path_adds_missing_columns(provisioned_app) -> None:
     with provisioned_app.app_context():
-        result = launch.ensure_period_center_assignment_launch_schema()
+        result = launch.provision_period_center_assignment_launch_schema()
 
     assert result["ok"] is True
     assert result["rule_version"] == launch.RULE_VERSION
 
 
-def test_ensure_schema_rolls_back_and_reraises_when_column_still_missing_after_sqlalchemy_error(
+def test_provision_schema_rolls_back_and_reraises_when_column_still_missing_after_sqlalchemy_error(
     app, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(launch, "ensure_category_period_integration_schema", lambda: None)
+    monkeypatch.setattr(launch, "provision_category_period_integration_schema", lambda: None)
     monkeypatch.setattr(launch, "_dialect_name", lambda: "sqlite")
     monkeypatch.setattr(launch, "_has_column", lambda table, column: False)
 
@@ -238,7 +237,7 @@ def test_ensure_schema_rolls_back_and_reraises_when_column_still_missing_after_s
     monkeypatch.setattr(flask_db.session, "rollback", lambda: rollback_calls.append(True))
 
     with app.app_context(), pytest.raises(SQLAlchemyError):
-        launch.ensure_period_center_assignment_launch_schema()
+        launch.provision_period_center_assignment_launch_schema()
 
     # Rollback runs exactly once per attempted column, and the failure is
     # never swallowed into a fake success -- it propagates because the
@@ -246,10 +245,10 @@ def test_ensure_schema_rolls_back_and_reraises_when_column_still_missing_after_s
     assert rollback_calls == [True]
 
 
-def test_ensure_schema_rollback_failure_does_not_lose_original_error(
+def test_provision_schema_rollback_failure_does_not_lose_original_error(
     app, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(launch, "ensure_category_period_integration_schema", lambda: None)
+    monkeypatch.setattr(launch, "provision_category_period_integration_schema", lambda: None)
     monkeypatch.setattr(launch, "_dialect_name", lambda: "sqlite")
     monkeypatch.setattr(launch, "_has_column", lambda table, column: False)
 
@@ -263,7 +262,7 @@ def test_ensure_schema_rollback_failure_does_not_lose_original_error(
     monkeypatch.setattr(flask_db.session, "rollback", raise_rollback)
 
     with app.app_context(), pytest.raises(SQLAlchemyError) as excinfo:
-        launch.ensure_period_center_assignment_launch_schema()
+        launch.provision_period_center_assignment_launch_schema()
 
     # The rollback-failure exception itself propagates (this handler does not
     # wrap its own rollback() in a nested try) -- nothing is silently
@@ -271,10 +270,10 @@ def test_ensure_schema_rollback_failure_does_not_lose_original_error(
     assert "rollback failure" in str(excinfo.value)
 
 
-def test_ensure_schema_does_not_swallow_unexpected_runtime_error(
+def test_provision_schema_does_not_swallow_unexpected_runtime_error(
     app, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(launch, "ensure_category_period_integration_schema", lambda: None)
+    monkeypatch.setattr(launch, "provision_category_period_integration_schema", lambda: None)
     monkeypatch.setattr(launch, "_dialect_name", lambda: "sqlite")
     monkeypatch.setattr(launch, "_has_column", lambda table, column: False)
 
@@ -287,7 +286,7 @@ def test_ensure_schema_does_not_swallow_unexpected_runtime_error(
     monkeypatch.setattr(flask_db.session, "rollback", lambda: rollback_calls.append(True))
 
     with app.app_context(), pytest.raises(RuntimeError):
-        launch.ensure_period_center_assignment_launch_schema()
+        launch.provision_period_center_assignment_launch_schema()
 
     assert rollback_calls == []
 

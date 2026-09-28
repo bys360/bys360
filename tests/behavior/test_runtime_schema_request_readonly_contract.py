@@ -174,6 +174,29 @@ def test_mobile_push_token_check_never_creates_the_table(app):
             _ensure_mobile_push_token_table()
         assert not inspect(db.engine).has_table("mobile_push_tokens")
 
+
+@pytest.mark.parametrize("module, check", [
+    ("app.services.performance.v2_1_8_period_center_assignment_launch", "ensure_period_center_assignment_launch_schema"),
+    ("app.services.performance.v2_1_9_period_center_process_notifications", "ensure_period_center_process_notification_schema"),
+])
+def test_period_center_column_checks_never_alter_the_integration_table(app, module, check):
+    import importlib
+
+    from app.extensions import db
+    from app.services.performance.v2_1_6_category_period_integration import (
+        INTEGRATION_TABLE,
+        provision_category_period_integration_schema,
+    )
+    from app.services.runtime_schema import RuntimeSchemaMissing
+
+    verify = getattr(importlib.import_module(module), check)
+    with app.app_context():
+        provision_category_period_integration_schema()
+        before = {c["name"] for c in inspect(db.engine).get_columns(INTEGRATION_TABLE)}
+        with pytest.raises(RuntimeSchemaMissing):
+            verify()
+        assert {c["name"] for c in inspect(db.engine).get_columns(INTEGRATION_TABLE)} == before
+
 def test_require_is_read_only_and_caches_a_positive_check(provisioned_app):
     from app.extensions import db
     from app.services import runtime_schema

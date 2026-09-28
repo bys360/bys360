@@ -7,10 +7,12 @@ from typing import Any
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.services import runtime_schema
 from app.services.performance.v2_1_6_category_period_integration import (
     INTEGRATION_TABLE,
     ensure_category_period_integration_schema,
     list_integrations,
+    provision_category_period_integration_schema,
 )
 
 logger = logging.getLogger(__name__)
@@ -130,10 +132,18 @@ def _integration_for_plan(plan_key: str) -> dict[str, Any] | None:
     return None
 
 
-def ensure_period_center_process_notification_schema() -> dict[str, Any]:
-    """Entegrasyon tablosuna bildirim hazırlığı özet alanlarını ekler."""
+NOTIFICATION_PREPARATION_COLUMNS = (
+    "notification_preparation_status",
+    "notification_preparation_summary",
+    "notification_prepared_at",
+    "notification_prepared_by_id",
+)
+
+
+def provision_period_center_process_notification_schema() -> dict[str, Any]:
+    """Add the notification-preparation columns (explicit maintenance only: flask runtime-schema provision)."""
     try:
-        ensure_category_period_integration_schema()
+        provision_category_period_integration_schema()
     except SQLAlchemyError:
         logger.exception("BYS360 V6C guarded exception | file=app/services/performance/v2_1_9_period_center_process_notifications.py | line=123")
         try:
@@ -147,12 +157,7 @@ def ensure_period_center_process_notification_schema() -> dict[str, Any]:
         return {"ok": False, "message": "Dönem entegrasyon tablosu bulunamadı.", "added_columns": added, "rule_version": RULE_VERSION}
     dialect = _dialect_name()
     timestamp_type = "TIMESTAMP WITHOUT TIME ZONE" if dialect != "sqlite" else "DATETIME"
-    columns = {
-        "notification_preparation_status": "VARCHAR(80)",
-        "notification_preparation_summary": "TEXT",
-        "notification_prepared_at": timestamp_type,
-        "notification_prepared_by_id": "INTEGER",
-    }
+    columns = dict(zip(NOTIFICATION_PREPARATION_COLUMNS, ("VARCHAR(80)", "TEXT", timestamp_type, "INTEGER"), strict=True))
     for name, sql_type in columns.items():
         if not _has_column(INTEGRATION_TABLE, name):
             try:
@@ -165,6 +170,21 @@ def ensure_period_center_process_notification_schema() -> dict[str, Any]:
                     raise
     db.session.commit()
     return {"ok": True, "added_columns": added, "dialect": dialect, "rule_version": RULE_VERSION}
+
+
+NOTIFICATION_PREPARATION_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.period_center_notification_preparation",
+    tables=(INTEGRATION_TABLE,),
+    columns=tuple((INTEGRATION_TABLE, name) for name in NOTIFICATION_PREPARATION_COLUMNS),
+    provision=provision_period_center_process_notification_schema,
+))
+
+
+def ensure_period_center_process_notification_schema() -> dict[str, Any]:
+    """Verify the notification-preparation columns exist; never alters the table."""
+    ensure_category_period_integration_schema()
+    runtime_schema.require(NOTIFICATION_PREPARATION_SCHEMA)
+    return {"ok": True, "added_columns": [], "dialect": _dialect_name(), "rule_version": RULE_VERSION}
 
 
 def _period_summary(period_id: int | None) -> dict[str, Any]:
