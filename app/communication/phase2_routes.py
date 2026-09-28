@@ -192,6 +192,9 @@ def communication_phase2_bulletin_archive(bulletin_id: int):
 @login_required
 @menu_key_required("surveys")
 def communication_phase2_surveys():
+    if not is_manager(current_user):
+        flash("Bu işlem için yönetici yetkisi gerekir.", "warning")
+        return redirect(url_for("main.surveys_list"))
     payload = survey_manager_snapshot(limit=100)
     return safe_render(
         "communication/phase2_survey_manager.html",
@@ -358,6 +361,9 @@ def communication_phase2_survey_reopen(survey_id: int):
 @login_required
 @menu_key_required("surveys")
 def communication_phase2_survey_detail(survey_id: int):
+    if not is_manager(current_user):
+        flash("Bu işlem için yönetici yetkisi gerekir.", "warning")
+        return redirect(url_for("main.surveys_list"))
     payload = survey_detail_payload(survey_id)
     return safe_render(
         "communication/phase2_survey_detail.html",
@@ -403,6 +409,9 @@ def communication_phase2_survey_close(survey_id: int):
 @login_required
 @menu_key_required("surveys")
 def communication_phase2_survey_results(survey_id: int):
+    if not is_manager(current_user):
+        flash("Bu işlem için yönetici yetkisi gerekir.", "warning")
+        return redirect(url_for("main.surveys_list"))
     payload = survey_results_snapshot(survey_id)
     return safe_render(
         "communication/phase2_survey_results.html",
