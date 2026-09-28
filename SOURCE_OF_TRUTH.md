@@ -40,8 +40,8 @@ tablosunu üretmez; geri dönüşte veritabanı yedekten geri yüklenir.
 
 | Branch | Rol |
 |---|---|
-| `assistant-v2-full` | Production soy hattı ve bir sonraki aday. Güncel uygulama kodu, performans düzeltmeleri, CI düzeltmeleri ile LICENSE / NOTICE / README ve kurumsal dokümantasyon bu hatta birleşiktir. Ucu, cutover yapılana kadar production değildir. |
-| `docs/ministry-review-readme` | Repository'nin varsayılan (default) branch'i; dış/kurumsal teknik inceleme ve dokümantasyon yüzeyi. Production branch'i değildir. Varsayılan branch'in hangi hat olacağı insan (kurumsal) kararıdır. |
+| `assistant-v2-full` | Repository'nin varsayılan (default) branch'i; production soy hattı ve bir sonraki aday hattı. Güncel uygulama kodu, performans düzeltmeleri, CI düzeltmeleri ile LICENSE / NOTICE / README ve kurumsal dokümantasyon bu hatta birleşiktir. Varsayılan branch olması canlıda olduğu anlamına gelmez: ucu, insan kararıyla cutover yapılana kadar production değildir; production kimliği §1'deki exact SHA'dır. |
+| `docs/ministry-review-readme` | Tarihsel dış/kurumsal teknik inceleme ve dokümantasyon branch'i; 2026-09-28'e kadar repository'nin varsayılan branch'iydi. Tüm commit'leri `assistant-v2-full` içinde yer alır; silinmemiştir ve korunur. Production branch'i değildir. |
 | `main` | Production source of truth değildir. Ayrı bir tarihsel/entegrasyon soy hattı içerir; production SHA, `main`'in soyunda yer almaz. |
 
 `assistant-v2-full` ve `docs/ministry-review-readme` GitHub ruleset'leri ile korunur: silme ve

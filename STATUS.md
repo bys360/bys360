@@ -1,5 +1,17 @@
 # BYS360 STATUS.md
 
+## 2026-09-28 - Default Branch Consolidation (repository metadata, not a deployment)
+
+- GitHub default branch: `assistant-v2-full` (changed from `docs/ministry-review-readme`).
+- `docs/ministry-review-readme` is fully contained in `assistant-v2-full` (it has no commit
+  outside it); it is kept as a historical branch and was not deleted.
+- The final pre-live remediation PR (#11) is merged into `assistant-v2-full` with merge commit
+  `01dc7536c5c6114d074aa3184800d0b297e7de56`.
+- `assistant-v2-full` is the repository's current line and next-live candidate line; its tip is
+  not production until a human cutover.
+- Production identity is unchanged: `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6`
+  (tag `bys360-prod-2026.09.23-1ea5c5dc`); see `SOURCE_OF_TRUTH.md`. No deployment.
+
 ## 2026-09-28 - Final Pre-Live Audit Remediation (candidate, not production)
 
 - Production identity is unchanged: `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6`
