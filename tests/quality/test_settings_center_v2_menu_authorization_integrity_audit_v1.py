@@ -93,6 +93,7 @@ from __future__ import annotations
 
 import os
 import re
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -429,7 +430,10 @@ def app(monkeypatch):
     monkeypatch.setenv("MAIL_SUPPRESS_SEND", "true")
     monkeypatch.setenv("SCHEDULER_ENABLED", "false")
 
-    tmp_dir = Path(os.environ.get("TEMP") or "C:/pytest_short_tmp") / "bys360_menu_auth_audit"
+    # TEMP is unset on the Linux CI runner; the old Windows-only fallback
+    # ("C:/pytest_short_tmp") became a relative SQLite path that Flask-SQLAlchemy
+    # resolves under the missing instance folder ("unable to open database file").
+    tmp_dir = Path(os.environ.get("TEMP") or tempfile.gettempdir()) / "bys360_menu_auth_audit"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     db_path = tmp_dir / f"menu_auth_audit_{uuid.uuid4().hex}.sqlite3"
     db_uri = "sqlite:///" + str(db_path).replace("\\", "/")
