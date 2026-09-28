@@ -1333,6 +1333,22 @@
   "newly_found_not_in_v1_scan": {
    "app/support/routes.py": "SQLAlchemy __table__.create(checkfirst=True) on admin-only /support/setup (POST) and guarded on /support/help-admin; tables Alembic-owned (a3d8f1c9b6e2); NEEDS_HUMAN_DECISION (admin installer workflow)"
   },
-  "unmatched_status_keys": []
+  "unmatched_status_keys": [],
+  "migration_only_get_probe": {
+   "database": "PG15, flask db upgrade (head w2d8e1f4a6c3) + flask runtime-schema provision; no ORM fill, no production shaping",
+   "routes_probed": 565,
+   "routes_with_ddl_pass1": 0,
+   "routes_with_ddl_pass2": 0,
+   "status_distribution_equal_to_production_shaped_db": true,
+   "routes_worse_than_production_shaped_db": 0,
+   "remaining_5xx": {
+    "harness_artifact": "12 AI decision-support routes: one outer app context keeps flask_login g._login_user across probe requests (DetachedInstanceError); 200 in isolation",
+    "faz7_archive": "/ai/decision-support/performance/archive/* use performance_archived_results.user_id (Faz 7 raw SQL; left unchanged on user instruction)",
+    "fixed": "faz2 survey/bulletin not-found (73fc2c52) and faz8 missing period (c7b314d0) now answer 302/404"
+   }
+  },
+  "provisioner_lock_fix": "9c896b65: v2_1_8/v2_1_9 provisioners inspected the table through another connection after an uncommitted ALTER; on PostgreSQL this waited forever (the former request-time path had the same loop)",
+  "pg_gate_runtime_schema_step": "eff84e80: POSTGRES15_RUNTIME_SCHEMA runs provision, check and a second provision on the gate database (15 groups); against the pre-fix provisioners it fails with RUNTIME_SCHEMA_TIMEOUT",
+  "latent_same_pattern_not_reachable": "process_engine_phase4/6/8 apply_phase*_schema (_add_column inspects per column) are only called by tests"
  }
 }
