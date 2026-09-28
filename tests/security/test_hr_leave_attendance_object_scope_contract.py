@@ -92,7 +92,7 @@ def _ids(app):
     return state["leave"][0][0], state["attendance"][0][0], state["delegation"][0][0]
 
 
-ACTIONS = (
+ACTIONS: tuple[tuple[str, dict[str, str]], ...] = (
     ("/hr-management/leave/{leave}/status", {"status": "onaylandi"}),
     ("/hr-management/attendance/{attendance}/status", {"status": "onaylandi"}),
     ("/hr-management/delegations/{delegation}/status", {"status": "iptal"}),
