@@ -1,4 +1,4 @@
-"""Contract: ordinary requests never alter the schema (schema / runtime DDL wave 1).
+"""Contract: ordinary requests never alter the schema (schema / runtime DDL waves 1-2).
 
 Raw-SQL tables that are not owned by Alembic are verified by request code
 (app.services.runtime_schema.require, read-only) and created only by the
@@ -32,7 +32,11 @@ FORMER_DDL_GET_PAGES = (
     "/performance/feedback-followup",
     "/performance/interim-notes",
     "/ai-agent/knowledge",
+    # development-guidance pages (overnight wave 2)
+    "/performance/meeting-development/faz10",
+    "/performans/toplanti-gelistirme/faz10-gelisim-rehberi",
 )
+RECOMMENDATIONS_MIGRATION = REPO / "migrations" / "versions" / "29fee38a97e1_adopt_performance_development_.py"
 
 
 def _make_app(monkeypatch):
@@ -128,6 +132,36 @@ def test_missing_runtime_schema_fails_closed_without_creating_it(app):
     with app.app_context():
         assert not inspect(db.engine).has_table("performance_personnel_categories")
 
+
+
+def test_missing_recommendation_table_is_reported_without_creating_it(provisioned_app):
+    from app.extensions import db
+    from app.services import runtime_schema
+
+    with provisioned_app.app_context():
+        db.session.execute(db.text("DROP TABLE performance_development_recommendations"))
+        db.session.commit()
+        runtime_schema.forget_verified()
+    client = provisioned_app.test_client()
+    _login(client)
+    response, ddl = _get_capturing_ddl(provisioned_app, client, "/performance/meeting-development/faz10")
+    assert ddl == []
+    assert response.status_code == 200
+    with provisioned_app.app_context():
+        assert not inspect(db.engine).has_table("performance_development_recommendations")
+
+
+def test_recommendation_check_matches_the_alembic_migration():
+    import importlib.util
+
+    from app.performance.phase10_development_guidance_ui import DEVELOPMENT_RECOMMENDATIONS_SCHEMA
+
+    spec = importlib.util.spec_from_file_location("migration_29fee38a97e1", RECOMMENDATIONS_MIGRATION)
+    assert spec and spec.loader
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    checked = {column for _, column in DEVELOPMENT_RECOMMENDATIONS_SCHEMA.columns}
+    assert checked | {"id"} == set(migration._EXPECTED_COLUMNS)
 
 def test_require_is_read_only_and_caches_a_positive_check(provisioned_app):
     from app.extensions import db

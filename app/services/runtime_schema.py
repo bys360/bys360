@@ -55,6 +55,7 @@ GROUP_MODULES = (
     "app.services.performance.feedback_aftercare",
     "app.services.performance.feedback_followup_phase4",
     "app.performance.interim_notes_manager_routes",
+    "app.performance.phase10_development_guidance_ui",
     "app.services.ai_agent.knowledge",
     "app.services.cic.cic_context",
 )
