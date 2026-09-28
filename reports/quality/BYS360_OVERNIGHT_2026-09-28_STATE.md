@@ -51,5 +51,5 @@ Phase 2 — reports/quality/BYS360_AUTHORIZATION_MATRIX_V1.json
 Phase 2: build route inventory -> classify -> actively test priority areas for IDOR.
 
 ## SAFE RESUME COMMAND
-cd C:ys360\worktrees\schema-runtime-ddl-wave1 && git status --short && git branch --show-current && git rev-parse HEAD
+cd C:\bys360\worktrees\schema-runtime-ddl-wave1 && git status --short && git branch --show-current && git rev-parse HEAD
 then read this file and continue from NEXT ACTION.
