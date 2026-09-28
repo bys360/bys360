@@ -111,6 +111,7 @@ from app.institutional.hr_scope_helpers import (
     url_for,
     utc_now,
 )
+from app.services.ui_context.scope import build_user_scope_context
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +264,13 @@ def hr_attendance_ai_report_export():
     return _export_simple_report("devamsizlik_ve_vekalet_raporu", _attendance_page_context())
 
 
+def _row_in_caller_scope(row: Any) -> bool:
+    """The record's person is in the caller's widest scope (the population the management pages list)."""
+    scope_ids = set(build_user_scope_context(current_user, "all").get("scope_user_ids") or [])
+    owner_ids = {getattr(row, name, None) for name in ("user_id", "delegator_user_id", "delegate_user_id")}
+    return bool(scope_ids & owner_ids)
+
+
 def _set_status(model: Any, row_id: int, status: str, redirect_endpoint: str) -> Any:
     if not _model_ready(model):
         flash("İlgili tablo hazır değil.", "warning")
@@ -271,6 +279,8 @@ def _set_status(model: Any, row_id: int, status: str, redirect_endpoint: str) ->
         row = db.session.get(model, int(row_id))
         if not row:
             flash("Kayıt bulunamadı.", "warning")
+        elif not _row_in_caller_scope(row):
+            flash("Bu kayıt yetki kapsamınız dışında.", "danger")
         else:
             row.status = status
             db.session.add(row)
@@ -289,7 +299,9 @@ def _delete_row(model: Any, row_id: int, redirect_endpoint: str) -> Any:
         return redirect(url_for(redirect_endpoint))
     try:
         row = db.session.get(model, int(row_id))
-        if row:
+        if row and not _row_in_caller_scope(row):
+            flash("Bu kayıt yetki kapsamınız dışında.", "danger")
+        elif row:
             db.session.delete(row)
             db.session.commit()
             flash("Kayıt silindi.", "success")
