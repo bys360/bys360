@@ -1,5 +1,22 @@
 # BYS360 STATUS.md
 
+## 2026-09-28 — Verified Production Cutover
+
+- **Release:**
+  - Deployed SHA: `67f2a29dc29c7977dbbf5b16b0629daa630e9ef9`, tag `bys360-prod-2026.09.28-67f2a29d`.
+  - Previous SHA: `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6`, tag `bys360-prod-2026.09.23-1ea5c5dc`.
+  - Alembic before and after: `v1a2d3e4f5b6`. No migration revision change.
+  - Release package SHA-256: `36bc8150b7521e15de9d398fa9ee0bc67c0c657699abd759b0e9d04c90d27a79` (2275 files).
+- **Checks (all PASS unless noted):**
+  - Candidate preparation and shadow rehearsal.
+  - Production cutover (deploy exit 0) and schema contract.
+  - File Center 19/19.
+  - Release identity (`/versionz`) and readiness (`/readyz`).
+  - Public health 200.
+  - Smoke checks; security-critical findings: 0.
+- **Rollback:** not required. The previous application tree and the pre-cutover database backup were preserved by the deployment tooling.
+- **Details:** `docs/quality/BYS360_PRODUCTION_CUTOVER_2026-09-28.md`; production identity: `SOURCE_OF_TRUTH.md`.
+
 ## 2026-09-28 - Live Read-Only Validation and Schema Evidence Remediation (candidate, not production)
 
 - Production was validated read-only; nothing was changed there. The running source is
