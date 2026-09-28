@@ -99,8 +99,12 @@ CRITICAL_COLUMNS: dict[str, tuple[str, ...]] = {
         "id", "title", "name", "period_type", "scope_type",
         "scope_unit_label", "scope_category_label", "scope_personnel_filter",
         "start_date", "end_date", "is_active", "created_at",
+        # adopted by w1c5a7d2e9b4 (previously runtime-only)
+        "evaluation_start_date", "evaluation_end_date", "evaluation_due_days",
     ),
     "evaluation_assignments": ("id", "period_id", "evaluator_id", "employee_id", "status", "created_at"),
+    # adopted by w1c5a7d2e9b4 (previously runtime-only)
+    "users": ("birth_date", "hire_date", "celebration_opt_out"),
 }
 
 

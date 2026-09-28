@@ -63,7 +63,9 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
     )
     with flask_app.app_context():
         from app.extensions import db
+        from app.services import runtime_schema
         db.create_all()
+        runtime_schema.provision_all()  # raw-SQL tables production already has
     return flask_app
 
 

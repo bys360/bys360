@@ -61,12 +61,12 @@ def test_knowledge_bank_adapter_never_returns_inactive_entries(app):
     from app.extensions import db
     from app.services.ai_agent.knowledge import (
         create_knowledge_entry,
-        init_knowledge_table,
+        provision_knowledge_table,
         toggle_knowledge_entry,
     )
 
     with app.app_context():
-        init_knowledge_table()
+        provision_knowledge_table()
         entry_id = create_knowledge_entry(
             title="AV2 Legacy Test Inactive Entry",
             question_patterns="av2 legacy test inactive kw",
@@ -84,10 +84,10 @@ def test_knowledge_bank_adapter_never_returns_inactive_entries(app):
 
 def test_knowledge_bank_question_routes_through_api(app, client):
     from app.extensions import db
-    from app.services.ai_agent.knowledge import create_knowledge_entry, init_knowledge_table
+    from app.services.ai_agent.knowledge import create_knowledge_entry, provision_knowledge_table
 
     with app.app_context():
-        init_knowledge_table()
+        provision_knowledge_table()
         create_knowledge_entry(
             title="AV2 Legacy Test Active Entry",
             question_patterns="av2 legacy test benzersiz soru kalibi",

@@ -156,9 +156,11 @@ def nav_app():
 
     from app.extensions import db
     from app.models import User
+    from app.services import runtime_schema
 
     with app.app_context():
         db.create_all()
+        runtime_schema.provision_all()  # raw-SQL tables production already has
         user = User(
             sicil_no="msenfx01",
             email="msenfx01@ktb.gov.tr",

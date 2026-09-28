@@ -7,18 +7,22 @@ from typing import Any
 
 from sqlalchemy import inspect, text
 
+from app.services import runtime_schema
 from app.services.performance.v2_1_2_category_engine import (
     canonical_category_key,
     ensure_category_schema,
     list_categories,
+    provision_category_schema,
     seed_default_categories,
 )
 from app.services.performance.v2_1_3_personnel_category_card import (
     ensure_v2_1_3_schema,
     get_personnel_category_rows,
+    provision_v2_1_3_schema,
 )
 from app.services.performance.v2_1_4_category_scope_visibility import (
     ensure_category_scope_schema,
+    provision_category_scope_schema,
 )
 
 """BYS360 Performans V2.1.5 kategoriye göre dönem kapsamı ve görev üretimi hazırlığı.
@@ -99,11 +103,11 @@ def _today() -> str:
     return date.today().isoformat()
 
 
-def ensure_category_period_scope_schema() -> dict[str, Any]:
-    ensure_category_schema()
+def provision_category_period_scope_schema() -> dict[str, Any]:
+    provision_category_schema()
     seed_default_categories(overwrite=False)
-    ensure_v2_1_3_schema()
-    ensure_category_scope_schema()
+    provision_v2_1_3_schema()
+    provision_category_scope_schema()
     db = _db()
     created: list[str] = []
     dialect = _dialect_name()
@@ -189,6 +193,29 @@ def ensure_category_period_scope_schema() -> dict[str, Any]:
     db.session.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{PLAN_ITEM_TABLE}_category ON {PLAN_ITEM_TABLE} (category_key)"))
     db.session.commit()
     return {"ok": True, "created": created, "dialect": dialect, "rule_version": RULE_VERSION}
+
+
+CATEGORY_PERIOD_SCOPE_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.category_period_scope",
+    tables=(PLAN_TABLE, PLAN_ITEM_TABLE),
+    indexes=(
+        (PLAN_TABLE, f"ix_{PLAN_TABLE}_category_active"),
+        (PLAN_TABLE, f"ix_{PLAN_TABLE}_status_active"),
+        (PLAN_ITEM_TABLE, f"ix_{PLAN_ITEM_TABLE}_plan_user"),
+        (PLAN_ITEM_TABLE, f"ix_{PLAN_ITEM_TABLE}_category"),
+    ),
+    provision=provision_category_period_scope_schema,
+))
+
+
+def ensure_category_period_scope_schema() -> dict[str, Any]:
+    """Verify this module's tables exist; never creates them (see app.services.runtime_schema)."""
+    ensure_category_schema()
+    seed_default_categories(overwrite=False)
+    ensure_v2_1_3_schema()
+    ensure_category_scope_schema()
+    runtime_schema.require(CATEGORY_PERIOD_SCOPE_SCHEMA)
+    return {"ok": True, "created": [], "dialect": _dialect_name(), "rule_version": RULE_VERSION}
 
 
 def make_plan_key(category_key: str, period_type: str, start_date: str | None, end_date: str | None) -> str:

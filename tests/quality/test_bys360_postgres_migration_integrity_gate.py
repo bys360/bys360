@@ -506,8 +506,11 @@ def test_main_critical_column_missing_is_blocked(monkeypatch, capsys) -> None:
 def test_critical_columns_list_the_canonical_read_paths() -> None:
     from scripts.quality.bys360_postgres_migration_integrity_gate import CRITICAL_COLUMNS
 
-    assert set(CRITICAL_COLUMNS) == {"performance_president_approvals", "performance_periods", "evaluation_assignments"}
+    assert set(CRITICAL_COLUMNS) == {"performance_president_approvals", "performance_periods", "evaluation_assignments", "users"}
     assert "rule_version" not in CRITICAL_COLUMNS["performance_president_approvals"]
     assert "employee_id" in CRITICAL_COLUMNS["evaluation_assignments"]
+    # Schema/runtime DDL wave 1: columns adopted into Alembic by w1c5a7d2e9b4.
+    assert set(CRITICAL_COLUMNS["users"]) == {"birth_date", "hire_date", "celebration_opt_out"}
+    assert {"evaluation_start_date", "evaluation_end_date", "evaluation_due_days"} <= set(CRITICAL_COLUMNS["performance_periods"])
     for columns in CRITICAL_COLUMNS.values():
         assert len(columns) == len(set(columns))

@@ -94,9 +94,11 @@ def _make_app(monkeypatch):
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI="sqlite:///" + db_path.as_posix())
 
     from app.extensions import db
+    from app.services import runtime_schema
 
     with app.app_context():
         db.create_all()
+        runtime_schema.provision_all()  # raw-SQL tables production already has
 
     return app
 

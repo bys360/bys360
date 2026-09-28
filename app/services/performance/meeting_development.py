@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import inspect, text
 
 from app.extensions import db
+from app.services import runtime_schema
 
 logger = logging.getLogger(__name__)
 
@@ -175,8 +176,8 @@ def _mtd_id_sql() -> str:
     return "id INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "id SERIAL PRIMARY KEY"
 
 
-def ensure_meeting_foundation_schema(seed_categories: bool = False) -> None:
-    """Toplantı kararlarının canlıda beyaz sayfaya düşmeden çalışması için idempotent omurga."""
+def provision_meeting_foundation_schema() -> None:
+    """Create the meeting-decision tables (explicit maintenance only: flask runtime-schema provision)."""
     id_sql = _mtd_id_sql()
     ddl = [
         f"""
@@ -262,6 +263,32 @@ def ensure_meeting_foundation_schema(seed_categories: bool = False) -> None:
         except Exception:
             logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
             db.session.rollback()
+    db.session.commit()
+
+
+MEETING_FOUNDATION_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.meeting_foundation",
+    tables=(
+        "performance_employee_categories",
+        "performance_employee_category_assignments",
+        "performance_period_targets",
+        "performance_period_observation_notes",
+        "performance_legacy_scorecards",
+    ),
+    indexes=(
+        ("performance_employee_category_assignments", "ix_perf_category_assign_employee"),
+        ("performance_period_targets", "ix_perf_period_targets_period"),
+        ("performance_period_observation_notes", "ix_perf_observation_period_employee"),
+        ("performance_legacy_scorecards", "ix_perf_legacy_employee_year"),
+    ),
+    columns=(("performance_period_observation_notes", "remind_in_evaluation"),),
+    provision=provision_meeting_foundation_schema,
+))
+
+
+def ensure_meeting_foundation_schema(seed_categories: bool = False) -> None:
+    """Verify the meeting tables exist (never creates them), then seed default settings."""
+    runtime_schema.require(MEETING_FOUNDATION_SCHEMA)
     _seed_default_settings(flush=True)
     if seed_categories:
         _seed_default_categories(flush=True)

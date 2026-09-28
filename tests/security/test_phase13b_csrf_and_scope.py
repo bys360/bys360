@@ -53,9 +53,11 @@ def _make_app(monkeypatch, **config_overrides):
     app.config.update(config_overrides)
 
     from app.extensions import db
+    from app.services import runtime_schema
 
     with app.app_context():
         db.create_all()
+        runtime_schema.provision_all()  # raw-SQL tables production already has
 
     return app
 

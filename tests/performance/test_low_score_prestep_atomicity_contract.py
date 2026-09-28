@@ -92,6 +92,7 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
     from sqlalchemy import event
 
     from app.extensions import db
+    from app.services import runtime_schema
 
     with flask_app.app_context():
 
@@ -104,6 +105,7 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
             conn.exec_driver_sql("BEGIN")
 
         db.create_all()
+        runtime_schema.provision_all()  # raw-SQL tables production already has
     return flask_app
 
 

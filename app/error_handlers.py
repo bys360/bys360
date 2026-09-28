@@ -22,6 +22,7 @@ from werkzeug.wrappers import Response
 
 from app.bootstrap.error_pages import mobile_json_error, wants_mobile_json_error
 from app.extensions import db
+from app.services.runtime_schema import RuntimeSchemaMissing
 
 
 def render_error_page(status_code: int, title: str, message: str):
@@ -293,6 +294,21 @@ def register_error_handlers(app: Flask) -> None:
             response = redirect(url_for("main.login"))
             return _bys360_csrf_logout_delete_auth_cookies(response)
         return _handle_expired_csrf_response(error)
+
+    @app.errorhandler(RuntimeSchemaMissing)
+    def handle_runtime_schema_missing(error: RuntimeSchemaMissing):
+        current_app.logger.error(
+            "Runtime schema not provisioned | group=%s | missing=%s | detay=%s",
+            error.group,
+            error.missing,
+            request_log_context(),
+        )
+        _safe_rollback()
+        return render_error_page(
+            503,
+            "Ekran Hazır Değil",
+            "Bu ekranın veritabanı yapısı henüz hazırlanmamış. Lütfen sistem yöneticisine bildirin.",
+        )
 
     @app.errorhandler(RequestEntityTooLarge)
     def handle_request_too_large(_error: RequestEntityTooLarge):

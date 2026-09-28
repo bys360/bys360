@@ -17,6 +17,7 @@ from typing import Any
 from sqlalchemy import inspect, text
 
 from app.extensions import db
+from app.services import runtime_schema
 
 logger = logging.getLogger(__name__)
 
@@ -197,10 +198,17 @@ def _add_column_if_missing(table_name: str, column_name: str, definition: str) -
         return False
 
 
-def ensure_followup_schema() -> dict[str, Any]:
-    """Faz 4 için gerekli izleme alanlarını ve log tablosunu oluşturur."""
-    if not (_has_table("feedback_meeting_action_plans") and _has_table("feedback_meetings") and _has_table("users")):
-        return {"ok": False, "skipped": True, "reason": "Faz 1 eylem planı / görüşme / kullanıcı tabloları bulunamadı"}
+_FOLLOWUP_BASE_MISSING = {"ok": False, "skipped": True, "reason": "Faz 1 eylem planı / görüşme / kullanıcı tabloları bulunamadı"}
+
+
+def _followup_base_tables_exist() -> bool:
+    return _has_table("feedback_meeting_action_plans") and _has_table("feedback_meetings") and _has_table("users")
+
+
+def provision_followup_schema() -> dict[str, Any]:
+    """Create the follow-up columns and notice table (explicit maintenance only: flask runtime-schema provision)."""
+    if not _followup_base_tables_exist():
+        return dict(_FOLLOWUP_BASE_MISSING)
     added = []
     for column, definition in [
         ("follow_up_check_date", "DATE NULL"),
@@ -241,6 +249,32 @@ def ensure_followup_schema() -> dict[str, Any]:
         logger.exception("BYS360 V6C guarded exception | file=app/services/performance/feedback_followup_phase4.py | line=233")
         db.session.rollback()
     return {"ok": True, "added_columns": added, "table": "feedback_action_followup_notices"}
+
+
+FOLLOWUP_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.feedback_followup",
+    tables=("feedback_action_followup_notices",),
+    indexes=(
+        ("feedback_action_followup_notices", "ix_feedback_followup_notices_action"),
+        ("feedback_action_followup_notices", "ix_feedback_followup_notices_recipient"),
+        ("feedback_action_followup_notices", "ix_feedback_followup_notices_type"),
+    ),
+    columns=(
+        ("feedback_meeting_action_plans", "follow_up_check_date"),
+        ("feedback_meeting_action_plans", "reminder_sent_at"),
+        ("feedback_meeting_action_plans", "overdue_notice_sent_at"),
+        ("feedback_meeting_action_plans", "last_followup_status_at"),
+    ),
+    provision=provision_followup_schema,
+))
+
+
+def ensure_followup_schema() -> dict[str, Any]:
+    """Verify the follow-up columns and notice table exist; never creates them (see app.services.runtime_schema)."""
+    if not _followup_base_tables_exist():
+        return dict(_FOLLOWUP_BASE_MISSING)
+    runtime_schema.require(FOLLOWUP_SCHEMA)
+    return {"ok": True, "added_columns": [], "table": "feedback_action_followup_notices"}
 
 
 def normalize_30_day_followups() -> int:

@@ -1,0 +1,1270 @@
+{
+ "inventory": "BYS360_RUNTIME_DDL_INVENTORY_V1",
+ "summary": {
+  "base_sha": "ebd5ff08bbd64ba9db51ac86e6e1d1e5c311c76b",
+  "ddl_functions_static": 39,
+  "by_classification": {
+   "A_request_get": 19,
+   "B_request_write": 7,
+   "D_maintenance": 1,
+   "F_no_static_route_path": 12
+  },
+  "get_routes_with_steady_state_ddl_before": 32,
+  "distinct_steady_state_ddl_statements_before": 35,
+  "by_wave1_status": {
+   "FIXED_alembic_adopted_w1c5a7d2e9b4": 2,
+   "FIXED_check_only": 11,
+   "OUT_OF_SCOPE": 12,
+   "REMAINING": 14
+  },
+  "method": "static AST call graph from route handlers + dynamic GET probe (565 routes, admin, PG15, production-shaped DB, pass 2 = steady state)",
+  "after_wave1": {
+   "get_routes_with_steady_state_ddl": 2,
+   "routes": [
+    "/performance/meeting-development/faz10",
+    "/performans/toplanti-gelistirme/faz10-gelisim-rehberi"
+   ],
+   "route_status_changes_vs_before": 0,
+   "probe": "same 565 routes, PG15, production-shaped DB with runtime objects provisioned explicitly",
+   "pg15_final_tree_evidence": {
+    "empty_to_head": "PASS (78 revisions, head w1c5a7d2e9b4)",
+    "second_upgrade_no_op": "PASS",
+    "legacy_production_shaped_upgrade_v1a2d3e4f5b6": "PASS (0 columns/indexes changed, rows preserved, second upgrade no-op)",
+    "schema_contract": "PASS (26 tables, 336 columns, 0 errors)",
+    "runtime_schema_cli": "check exit 1 (10 raw groups missing on a migration-built DB) -> provision exit 0 -> check exit 0 -> provision 'already present'"
+   },
+   "test_fixture_policy": "Test databases built with db.create_all() that model production call runtime_schema.provision_all() explicitly; tests of the missing-schema path do not."
+  },
+  "classes_not_counted": {
+   "C_startup": "app/schema_guard_engine.py (see 'startup'); runs only when AUTO_REPAIR_SCHEMA=true",
+   "E_migration_helper": "migrations/versions/* (DDL by design; not runtime)",
+   "G_test_only": "tests/* (fixtures build their own databases; not runtime)"
+  }
+ },
+ "items": [
+  {
+   "function": "app.api.mobile.domains.push_notifications._ensure_mobile_push_token_table",
+   "file": "app/api/mobile/domains/push_notifications.py",
+   "line": 30,
+   "operations": [
+    "CREATE INDEX",
+    "CREATE TABLE",
+    "CREATE UNIQUE INDEX"
+   ],
+   "tables": [
+    "mobile_push_tokens"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/notifications/fcm-token",
+    "/push/register-token",
+    "/push/status",
+    "/push/unregister-token"
+   ],
+   "route_count": 4,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [
+    "mobile_push_tokens"
+   ],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "table Alembic-owned (b704bd9d68c0); runtime/migration shape equality not proven in wave 1"
+  },
+  {
+   "function": "app.api.mobile.performance_routes._v2853_ensure_interim_notes_table",
+   "file": "app/api/mobile/performance_routes.py",
+   "line": 958,
+   "operations": [
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_interim_notes"
+   ],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [
+    "performance_interim_notes"
+   ],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "mobile path for performance_interim_notes (see above)"
+  },
+  {
+   "function": "app.api.mobile.services.performance_note_route_services.phase3c_mobile_performance_note_scorecard_v2863a_service",
+   "file": "app/api/mobile/services/performance_note_route_services.py",
+   "line": 159,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [
+    "performance_interim_notes"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET"
+   ],
+   "routes": [
+    "/performance/note-scorecard"
+   ],
+   "route_count": 1,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [
+    "performance_interim_notes"
+   ],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "mobile ALTER on performance_interim_notes (see above)"
+  },
+  {
+   "function": "app.performance.interim_notes_manager_routes.performance_interim_notes",
+   "file": "app/performance/interim_notes_manager_routes.py",
+   "line": 254,
+   "operations": [
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_interim_notes_live"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/interim-notes",
+    "/performans/donem-ici-notlar"
+   ],
+   "route_count": 2,
+   "auth_decorated_routes": 1,
+   "observed_get_ddl_routes_steady_state": [
+    "/performance/interim-notes",
+    "/performans/donem-ici-notlar"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.performance.phase10_development_guidance_ui.ensure_phase10_recommendation_table",
+   "file": "app/performance/phase10_development_guidance_ui.py",
+   "line": 218,
+   "operations": [
+    "ALTER TABLE",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_development_recommendations"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/meeting-development/faz10",
+    "/performans/toplanti-gelistirme/faz10-gelisim-rehberi"
+   ],
+   "route_count": 2,
+   "auth_decorated_routes": 1,
+   "observed_get_ddl_routes_steady_state": [
+    "/performance/meeting-development/faz10",
+    "/performans/toplanti-gelistirme/faz10-gelisim-rehberi"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [
+    "performance_development_recommendations"
+   ],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "table Alembic-owned (29fee38a97e1) but runtime adds columns absent from that migration; shape evidence missing"
+  },
+  {
+   "function": "app.services.ai_agent.knowledge.init_knowledge_table",
+   "file": "app/services/ai_agent/knowledge.py",
+   "line": 61,
+   "operations": [
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "ai_agent_knowledge_entries"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/api/knowledge-search",
+    "/knowledge",
+    "/knowledge/<int:entry_id>/delete",
+    "/knowledge/<int:entry_id>/toggle"
+   ],
+   "route_count": 4,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [
+    "/ai-agent/knowledge"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.cic.celebration_service.ensure_celebration_schema",
+   "file": "app/services/cic/celebration_service.py",
+   "line": 138,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [
+    "users"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET"
+   ],
+   "routes": [
+    "/dashboard/kurumsal-bilgilendirme/kutlamalar"
+   ],
+   "route_count": 1,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [
+    "users"
+   ],
+   "alembic_creates": [
+    "users"
+   ],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_alembic_adopted_w1c5a7d2e9b4",
+   "remaining_reason": null,
+   "reachability_note": "route reaches it through a function-local import; found by manual review, missed by the static call graph"
+  },
+  {
+   "function": "app.services.cic.cic_context._cic_v45_ensure_schema",
+   "file": "app/services/cic/cic_context.py",
+   "line": 422,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [
+    "users"
+   ],
+   "classification": "B_request_write",
+   "http_methods": [
+    "POST"
+   ],
+   "routes": [
+    "/dashboard/kurumsal-bilgilendirme/kutlamalar/excel-yukle"
+   ],
+   "route_count": 1,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [
+    "users"
+   ],
+   "alembic_creates": [
+    "users"
+   ],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "medium",
+   "wave1_status": "FIXED_alembic_adopted_w1c5a7d2e9b4",
+   "remaining_reason": null,
+   "reachability_note": "route reaches it through a function-local import; found by manual review, missed by the static call graph"
+  },
+  {
+   "function": "app.services.performance.feedback_aftercare.ensure_feedback_aftercare_schema",
+   "file": "app/services/performance/feedback_aftercare.py",
+   "line": 202,
+   "operations": [
+    "CREATE INDEX",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "feedback_meeting_action_plans",
+    "feedback_meeting_after_notes",
+    "feedback_meeting_preparations"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/feedback-aftercare",
+    "/performance/feedback-aftercare/<int:meeting_id>",
+    "/performance/feedback-aftercare/<int:meeting_id>/actions",
+    "/performance/feedback-aftercare/<int:meeting_id>/after-note",
+    "/performance/feedback-aftercare/<int:meeting_id>/preparation",
+    "/performance/feedback-aftercare/actions/<int:action_id>/update",
+    "/performance/feedback-aftercare/create-person-period",
+    "/performance/feedback-aftercare/new",
+    "/performans/gorusme-sonrasi-notlar",
+    "/performans/gorusme-sonrasi-notlar/<int:meeting_id>",
+    "/performans/gorusme-sonrasi-notlar/personel-donem-yeni",
+    "/performans/gorusme-sonrasi-notlar/yeni"
+   ],
+   "route_count": 12,
+   "auth_decorated_routes": 8,
+   "observed_get_ddl_routes_steady_state": [
+    "/performance/feedback-aftercare",
+    "/performance/feedback-aftercare/<int:meeting_id>",
+    "/performance/feedback-aftercare/new",
+    "/performans/gorusme-sonrasi-notlar",
+    "/performans/gorusme-sonrasi-notlar/<int:meeting_id>",
+    "/performans/gorusme-sonrasi-notlar/yeni"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.feedback_followup_phase4._add_column_if_missing",
+   "file": "app/services/performance/feedback_followup_phase4.py",
+   "line": 187,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/feedback-followup",
+    "/performance/feedback-followup/actions/<int:action_id>/quick-update",
+    "/performance/feedback-followup/generate-notices",
+    "/performans/eylem-plani-takibi"
+   ],
+   "route_count": 4,
+   "auth_decorated_routes": 3,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.feedback_followup_phase4.ensure_followup_schema",
+   "file": "app/services/performance/feedback_followup_phase4.py",
+   "line": 200,
+   "operations": [
+    "CREATE INDEX",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "feedback_action_followup_notices"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/feedback-followup",
+    "/performance/feedback-followup/actions/<int:action_id>/quick-update",
+    "/performance/feedback-followup/generate-notices",
+    "/performans/eylem-plani-takibi"
+   ],
+   "route_count": 4,
+   "auth_decorated_routes": 3,
+   "observed_get_ddl_routes_steady_state": [
+    "/performance/feedback-followup",
+    "/performans/eylem-plani-takibi"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.interim_notes_runtime._safe_add_column",
+   "file": "app/services/performance/interim_notes_runtime.py",
+   "line": 100,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/scorecard/<int:evaluation_id>",
+    "/performance/scorecard/<int:evaluation_id>/pdf",
+    "/performance/v2/faz3/assignment/<int:assignment_id>",
+    "/performance/v2/faz4/assignment/<int:assignment_id>",
+    "/performance/v2/faz8/assignment/<int:assignment_id>",
+    "/performans/v2/faz3/assignment/<int:assignment_id>",
+    "/performans/v2/faz4/assignment/<int:assignment_id>",
+    "/performans/v2/faz8/assignment/<int:assignment_id>"
+   ],
+   "route_count": 8,
+   "auth_decorated_routes": 5,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "column repair for performance_interim_notes (see above)"
+  },
+  {
+   "function": "app.services.performance.interim_notes_runtime.ensure_interim_notes_table",
+   "file": "app/services/performance/interim_notes_runtime.py",
+   "line": 113,
+   "operations": [
+    "CREATE INDEX",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_interim_notes"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/scorecard/<int:evaluation_id>",
+    "/performance/scorecard/<int:evaluation_id>/pdf",
+    "/performance/v2/faz3/assignment/<int:assignment_id>",
+    "/performance/v2/faz4/assignment/<int:assignment_id>",
+    "/performance/v2/faz8/assignment/<int:assignment_id>",
+    "/performans/v2/faz3/assignment/<int:assignment_id>",
+    "/performans/v2/faz4/assignment/<int:assignment_id>",
+    "/performans/v2/faz8/assignment/<int:assignment_id>"
+   ],
+   "route_count": 8,
+   "auth_decorated_routes": 5,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [
+    "performance_interim_notes"
+   ],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "table ownership unclear; runtime adds alias columns"
+  },
+  {
+   "function": "app.services.performance.meeting_development.ensure_meeting_foundation_schema",
+   "file": "app/services/performance/meeting_development.py",
+   "line": 178,
+   "operations": [
+    "ALTER TABLE",
+    "CREATE INDEX",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_employee_categories",
+    "performance_employee_category_assignments",
+    "performance_legacy_scorecards",
+    "performance_period_observation_notes",
+    "performance_period_targets"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/meeting-development",
+    "/performance/meeting-development/faz3",
+    "/performance/meeting-development/faz3/category-assignment",
+    "/performance/meeting-development/faz3/legacy-scorecard",
+    "/performance/meeting-development/final-gate",
+    "/performance/meeting-development/notes",
+    "/performance/meeting-development/p0",
+    "/performance/meeting-development/p0/apply",
+    "/performance/meeting-development/period-targets",
+    "/performance/meeting-development/rules/apply",
+    "/performance/meeting-development/test-scenarios",
+    "/performans/toplanti-gelistirme"
+   ],
+   "route_count": 18,
+   "auth_decorated_routes": 11,
+   "observed_get_ddl_routes_steady_state": [
+    "/performance/meeting-development",
+    "/performance/meeting-development/faz3",
+    "/performance/meeting-development/final-gate",
+    "/performance/meeting-development/p0",
+    "/performance/meeting-development/test-scenarios",
+    "/performans/toplanti-gelistirme",
+    "/performans/toplanti-gelistirme/derinlestirme",
+    "/performans/toplanti-gelistirme/final-kontrol",
+    "/performans/toplanti-gelistirme/p0-tamamlama",
+    "/performans/toplanti-test-senaryolari"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.meeting_p1_scope.ensure_p1_period_scope_columns",
+   "file": "app/services/performance/meeting_p1_scope.py",
+   "line": 139,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [],
+   "classification": "B_request_write",
+   "http_methods": [
+    "POST"
+   ],
+   "routes": [
+    "/performance/meeting-development/p1/apply",
+    "/performans/toplanti-gelistirme/p1-gelistirme/uygula"
+   ],
+   "route_count": 2,
+   "auth_decorated_routes": 1,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "medium",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "request-time DDL on POST only; wave 2"
+  },
+  {
+   "function": "app.services.performance.meeting_p2_archive_notes.ensure_archive_table",
+   "file": "app/services/performance/meeting_p2_archive_notes.py",
+   "line": 133,
+   "operations": [
+    "CREATE TABLE"
+   ],
+   "tables": [],
+   "classification": "B_request_write",
+   "http_methods": [
+    "POST"
+   ],
+   "routes": [
+    "/performance/meeting-development/p2/apply",
+    "/performans/toplanti-gelistirme/p2-arsiv-ara-not/uygula"
+   ],
+   "route_count": 2,
+   "auth_decorated_routes": 1,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "medium",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "request-time DDL on POST only; wave 2"
+  },
+  {
+   "function": "app.services.performance.meeting_p2_archive_notes.ensure_interim_notes_table",
+   "file": "app/services/performance/meeting_p2_archive_notes.py",
+   "line": 157,
+   "operations": [
+    "CREATE TABLE"
+   ],
+   "tables": [],
+   "classification": "B_request_write",
+   "http_methods": [
+    "POST"
+   ],
+   "routes": [
+    "/performance/meeting-development/p2/apply",
+    "/performans/toplanti-gelistirme/p2-arsiv-ara-not/uygula"
+   ],
+   "route_count": 2,
+   "auth_decorated_routes": 1,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "medium",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "request-time DDL on POST only; wave 2"
+  },
+  {
+   "function": "app.services.performance.meeting_p3_reminders.ensure_overdue_snapshot_table",
+   "file": "app/services/performance/meeting_p3_reminders.py",
+   "line": 149,
+   "operations": [
+    "CREATE TABLE"
+   ],
+   "tables": [],
+   "classification": "B_request_write",
+   "http_methods": [
+    "POST"
+   ],
+   "routes": [
+    "/performance/meeting-development/faz9/apply",
+    "/performans/toplanti-gelistirme/faz9-hatirlatma/uygula"
+   ],
+   "route_count": 2,
+   "auth_decorated_routes": 1,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "medium",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "request-time DDL on POST only; wave 2"
+  },
+  {
+   "function": "app.services.performance.meeting_p3_reminders.ensure_reminder_queue_table",
+   "file": "app/services/performance/meeting_p3_reminders.py",
+   "line": 125,
+   "operations": [
+    "CREATE TABLE"
+   ],
+   "tables": [],
+   "classification": "B_request_write",
+   "http_methods": [
+    "POST"
+   ],
+   "routes": [
+    "/performance/meeting-development/faz9/apply",
+    "/performans/toplanti-gelistirme/faz9-hatirlatma/uygula"
+   ],
+   "route_count": 2,
+   "auth_decorated_routes": 1,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "medium",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "request-time DDL on POST only; wave 2"
+  },
+  {
+   "function": "app.services.performance.meeting_p4_development_guidance.ensure_recommendation_table",
+   "file": "app/services/performance/meeting_p4_development_guidance.py",
+   "line": 293,
+   "operations": [
+    "ALTER TABLE",
+    "CREATE TABLE"
+   ],
+   "tables": [],
+   "classification": "B_request_write",
+   "http_methods": [
+    "POST"
+   ],
+   "routes": [
+    "/performance/meeting-development/faz10/apply",
+    "/performance/scorecard/<int:evaluation_id>/development-note",
+    "/performans/toplanti-gelistirme/faz10-gelisim-rehberi/uygula"
+   ],
+   "route_count": 3,
+   "auth_decorated_routes": 2,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "medium",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "adds 8 columns to an Alembic-owned table that its migration lacks; live shape unverified"
+  },
+  {
+   "function": "app.services.performance.process_engine_phase10_reports.ensure_phase10_report_schema",
+   "file": "app/services/performance/process_engine_phase10_reports.py",
+   "line": 81,
+   "operations": [
+    "CREATE INDEX",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_process_report_snapshots"
+   ],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.process_engine_phase3_history._add_column_if_missing",
+   "file": "app/services/performance/process_engine_phase3_history.py",
+   "line": 169,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.process_engine_phase3_history.ensure_phase3_columns",
+   "file": "app/services/performance/process_engine_phase3_history.py",
+   "line": 184,
+   "operations": [
+    "CREATE INDEX"
+   ],
+   "tables": [
+    "performance_process_flow_steps",
+    "performance_scoring_history"
+   ],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [
+    "performance_process_flow_steps",
+    "performance_scoring_history"
+   ],
+   "alembic_creates": [
+    "performance_process_flow_steps"
+   ],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.process_engine_phase4_flow._add_column",
+   "file": "app/services/performance/process_engine_phase4_flow.py",
+   "line": 131,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.process_engine_phase4_flow._create_index",
+   "file": "app/services/performance/process_engine_phase4_flow.py",
+   "line": 144,
+   "operations": [
+    "CREATE INDEX"
+   ],
+   "tables": [],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.process_engine_phase6_president_approvals._add_column",
+   "file": "app/services/performance/process_engine_phase6_president_approvals.py",
+   "line": 65,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.process_engine_phase6_president_approvals._create_index",
+   "file": "app/services/performance/process_engine_phase6_president_approvals.py",
+   "line": 78,
+   "operations": [
+    "CREATE INDEX"
+   ],
+   "tables": [],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.process_engine_phase7_president_rule._add_column_if_missing",
+   "file": "app/services/performance/process_engine_phase7_president_rule.py",
+   "line": 134,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.process_engine_phase7_president_rule.ensure_phase7_schema",
+   "file": "app/services/performance/process_engine_phase7_president_rule.py",
+   "line": 155,
+   "operations": [
+    "CREATE INDEX"
+   ],
+   "tables": [
+    "performance_president_approvals",
+    "performance_process_flows",
+    "performance_process_notifications"
+   ],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [
+    "performance_president_approvals",
+    "performance_process_flows",
+    "performance_process_notifications"
+   ],
+   "alembic_creates": [
+    "performance_president_approvals",
+    "performance_process_flows",
+    "performance_process_notifications"
+   ],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.process_engine_phase8_tracking._add_column",
+   "file": "app/services/performance/process_engine_phase8_tracking.py",
+   "line": 161,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.process_engine_phase8_tracking._create_index",
+   "file": "app/services/performance/process_engine_phase8_tracking.py",
+   "line": 176,
+   "operations": [
+    "CREATE INDEX"
+   ],
+   "tables": [],
+   "classification": "F_no_static_route_path",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.v2_1_2_category_engine.ensure_category_schema",
+   "file": "app/services/performance/v2_1_2_category_engine.py",
+   "line": 128,
+   "operations": [
+    "CREATE INDEX",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_personnel_categories",
+    "performance_personnel_category_assignments"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/v2-1-2-categories",
+    "/performance/v2-1-3-personnel-category-card",
+    "/performance/v2-1-4-category-scope",
+    "/performance/v2-1-5-category-period-scope",
+    "/performance/v2-1-6-category-period-integration",
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "route_count": 7,
+   "auth_decorated_routes": 6,
+   "observed_get_ddl_routes_steady_state": [
+    "/performance/v2-1-2-categories",
+    "/performance/v2-1-3-personnel-category-card",
+    "/performance/v2-1-4-category-scope",
+    "/performance/v2-1-5-category-period-scope",
+    "/performance/v2-1-6-category-period-integration",
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi",
+    "/personnel/<int:user_id>/edit",
+    "/personnel/<int:user_id>/profile"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.v2_1_3_personnel_category_card.ensure_v2_1_3_schema",
+   "file": "app/services/performance/v2_1_3_personnel_category_card.py",
+   "line": 75,
+   "operations": [
+    "CREATE INDEX",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_personnel_category_audit_logs"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/v2-1-3-personnel-category-card",
+    "/performance/v2-1-4-category-scope",
+    "/performance/v2-1-5-category-period-scope",
+    "/performance/v2-1-6-category-period-integration",
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "route_count": 6,
+   "auth_decorated_routes": 5,
+   "observed_get_ddl_routes_steady_state": [
+    "/performance/v2-1-3-personnel-category-card",
+    "/performance/v2-1-4-category-scope",
+    "/performance/v2-1-5-category-period-scope",
+    "/performance/v2-1-6-category-period-integration",
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.v2_1_4_category_scope_visibility.ensure_category_scope_schema",
+   "file": "app/services/performance/v2_1_4_category_scope_visibility.py",
+   "line": 64,
+   "operations": [
+    "CREATE INDEX",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_category_scope_drafts"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/v2-1-4-category-scope",
+    "/performance/v2-1-5-category-period-scope",
+    "/performance/v2-1-6-category-period-integration",
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "route_count": 5,
+   "auth_decorated_routes": 4,
+   "observed_get_ddl_routes_steady_state": [
+    "/performance/v2-1-4-category-scope",
+    "/performance/v2-1-5-category-period-scope",
+    "/performance/v2-1-6-category-period-integration",
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.v2_1_5_category_period_scope.ensure_category_period_scope_schema",
+   "file": "app/services/performance/v2_1_5_category_period_scope.py",
+   "line": 102,
+   "operations": [
+    "CREATE INDEX",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_category_period_scope_plan_items",
+    "performance_category_period_scope_plans"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/v2-1-5-category-period-scope",
+    "/performance/v2-1-6-category-period-integration",
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "route_count": 4,
+   "auth_decorated_routes": 3,
+   "observed_get_ddl_routes_steady_state": [
+    "/performance/v2-1-5-category-period-scope",
+    "/performance/v2-1-6-category-period-integration",
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.v2_1_6_category_period_integration.ensure_category_period_integration_schema",
+   "file": "app/services/performance/v2_1_6_category_period_integration.py",
+   "line": 101,
+   "operations": [
+    "CREATE INDEX",
+    "CREATE TABLE"
+   ],
+   "tables": [
+    "performance_category_assignment_preintegrations",
+    "performance_category_period_scope_integrations"
+   ],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/v2-1-6-category-period-integration",
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "route_count": 3,
+   "auth_decorated_routes": 2,
+   "observed_get_ddl_routes_steady_state": [
+    "/performance/v2-1-6-category-period-integration",
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "FIXED_check_only",
+   "remaining_reason": null
+  },
+  {
+   "function": "app.services.performance.v2_1_8_period_center_assignment_launch._alter_add_column_sql",
+   "file": "app/services/performance/v2_1_8_period_center_assignment_launch.py",
+   "line": 56,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "route_count": 2,
+   "auth_decorated_routes": 1,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "guarded repair: executes DDL only when the object is missing (not observed in steady state); wave 2"
+  },
+  {
+   "function": "app.services.performance.v2_1_9_period_center_process_notifications._alter_add_column_sql",
+   "file": "app/services/performance/v2_1_9_period_center_process_notifications.py",
+   "line": 111,
+   "operations": [
+    "ALTER TABLE"
+   ],
+   "tables": [],
+   "classification": "A_request_get",
+   "http_methods": [
+    "GET",
+    "POST"
+   ],
+   "routes": [
+    "/performance/v2-1-7-period-management-center",
+    "/performans/donem-yonetim-merkezi"
+   ],
+   "route_count": 2,
+   "auth_decorated_routes": 1,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "high",
+   "wave1_status": "REMAINING",
+   "remaining_reason": "guarded repair: executes DDL only when the object is missing (not observed in steady state); wave 2"
+  },
+  {
+   "function": "app.services.query_health.index_contracts.build_postgresql_index_sql",
+   "file": "app/services/query_health/index_contracts.py",
+   "line": 114,
+   "operations": [
+    "CREATE INDEX"
+   ],
+   "tables": [],
+   "classification": "D_maintenance",
+   "http_methods": [],
+   "routes": [],
+   "route_count": 0,
+   "auth_decorated_routes": 0,
+   "observed_get_ddl_routes_steady_state": [],
+   "orm_defines": [],
+   "alembic_creates": [],
+   "live_evidence": "ORM tables verified 164/164 on 2026-09-28; raw-SQL tables not covered by live validation",
+   "risk": "low",
+   "wave1_status": "OUT_OF_SCOPE",
+   "remaining_reason": null
+  }
+ ],
+ "startup": [
+  {
+   "function": "app.schema_guard_engine (SCHEMA_PATCHES, core maintenances)",
+   "file": "app/schema_guard_engine.py",
+   "classification": "C_startup",
+   "risk": "low",
+   "note": "runs only when AUTO_REPAIR_SCHEMA=true (default false; production check-first); duplicates some Alembic-owned columns",
+   "wave1_status": "OUT_OF_SCOPE"
+  }
+ ],
+ "get_routes_with_steady_state_ddl_before": [
+  "/ai-agent/knowledge",
+  "/performance/feedback-aftercare",
+  "/performance/feedback-aftercare/<int:meeting_id>",
+  "/performance/feedback-aftercare/new",
+  "/performance/feedback-followup",
+  "/performance/interim-notes",
+  "/performance/meeting-development",
+  "/performance/meeting-development/faz10",
+  "/performance/meeting-development/faz3",
+  "/performance/meeting-development/final-gate",
+  "/performance/meeting-development/p0",
+  "/performance/meeting-development/test-scenarios",
+  "/performance/v2-1-2-categories",
+  "/performance/v2-1-3-personnel-category-card",
+  "/performance/v2-1-4-category-scope",
+  "/performance/v2-1-5-category-period-scope",
+  "/performance/v2-1-6-category-period-integration",
+  "/performance/v2-1-7-period-management-center",
+  "/performans/donem-ici-notlar",
+  "/performans/donem-yonetim-merkezi",
+  "/performans/eylem-plani-takibi",
+  "/performans/gorusme-sonrasi-notlar",
+  "/performans/gorusme-sonrasi-notlar/<int:meeting_id>",
+  "/performans/gorusme-sonrasi-notlar/yeni",
+  "/performans/toplanti-gelistirme",
+  "/performans/toplanti-gelistirme/derinlestirme",
+  "/performans/toplanti-gelistirme/faz10-gelisim-rehberi",
+  "/performans/toplanti-gelistirme/final-kontrol",
+  "/performans/toplanti-gelistirme/p0-tamamlama",
+  "/performans/toplanti-test-senaryolari",
+  "/personnel/<int:user_id>/edit",
+  "/personnel/<int:user_id>/profile"
+ ]
+}

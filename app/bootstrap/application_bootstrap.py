@@ -32,6 +32,7 @@ from app.services.assistant_shortcut_visibility import (
     register_assistant_shortcut_visibility_context,
 )
 from app.services.performance.feedback_followup_scheduler import init_feedback_followup_scheduler
+from app.services.runtime_schema import register_runtime_schema_cli
 from app.startup_checks import run_schema_guard_bootstrap
 from app.template_helpers import register_template_helpers
 from app.template_safety import register_template_safety
@@ -66,6 +67,7 @@ def configure_runtime_services(app: Flask) -> None:
     register_assistant_shortcut_visibility_context(app)  # BYS360_V58_ASSISTANT_SHORTCUT_VISIBILITY_BOOTSTRAP
     register_template_helpers(app)  # BYS360_MAINTENANCE_V13_P1_TEMPLATE_HELPERS_BOOTSTRAP
     init_feedback_followup_scheduler(app)  # BYS360_MAINTENANCE_MEDIUM_FEEDBACK_FOLLOWUP_SCHEDULER
+    register_runtime_schema_cli(app)
 
 
 def run_startup_validation_pipeline(app: Flask) -> None:

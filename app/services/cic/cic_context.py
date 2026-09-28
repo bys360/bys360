@@ -20,6 +20,7 @@ from typing import Any
 import app.services.cic.template_service as _template_service
 from app.extensions import db
 from app.models import User
+from app.services import runtime_schema
 from app.services.cic.celebration_dates import (
     _cic_v40_days_until,
     _cic_v40_parse_date,
@@ -419,34 +420,17 @@ def _cic_v45_header_key(value: object) -> str | None:
     }
     return mapping.get(h)
 
+# Owned by Alembic revision w1c5a7d2e9b4; no runtime provisioner (run flask db upgrade).
+USER_CELEBRATION_COLUMNS = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="core.user_celebration_columns",
+    tables=("users",),
+    columns=(("users", "birth_date"), ("users", "hire_date"), ("users", "celebration_opt_out")),
+))
+
+
 def _cic_v45_ensure_schema() -> None:
-    # BYS360 DEFECT AJ: the "if col not in cols" Python guards below were
-    # already correct, but each guarded ALTER statement's own SQL string
-    # still contained the literal "ADD COLUMN IF NOT EXISTS" keywords --
-    # PostgreSQL-only syntax that SQLite's parser rejects unconditionally
-    # (sqlite3.OperationalError: near "EXISTS": syntax error) regardless of
-    # whether the Python-level guard is correct, since this is a parse-time
-    # failure, not a "column already exists" runtime condition. Confirmed
-    # empirically: against a real SQLite users table missing all three
-    # columns, this function used to silently add none of them (the broad
-    # except below swallowed the error) -- now, with the keywords dropped,
-    # it adds all three correctly.
-    try:
-        from sqlalchemy import inspect as _sa_inspect, text as _sa_text
-        inspector = _sa_inspect(db.engine)
-        if not inspector.has_table("users"):
-            return
-        cols = {c.get("name") for c in inspector.get_columns("users")}
-        with db.engine.begin() as conn:
-            if "birth_date" not in cols:
-                conn.execute(_sa_text("ALTER TABLE users ADD COLUMN birth_date DATE"))
-            if "hire_date" not in cols:
-                conn.execute(_sa_text("ALTER TABLE users ADD COLUMN hire_date DATE"))
-            if "celebration_opt_out" not in cols:
-                conn.execute(_sa_text("ALTER TABLE users ADD COLUMN celebration_opt_out BOOLEAN NOT NULL DEFAULT FALSE"))
-    except Exception:
-        __import__("logging").getLogger(__name__).exception("BYS360 SAFE V5: sessiz except loglandi: app/services/corporate_information_center.py:2625")
-        pass
+    """Verify the users celebration columns exist; never alters the table."""
+    runtime_schema.require(USER_CELEBRATION_COLUMNS)
 
 def _cic_v45_existing_user_rows() -> list[dict[str, Any]]:
     from sqlalchemy import inspect as _sa_inspect, text as _sa_text

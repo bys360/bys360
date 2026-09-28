@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy import inspect, text
 
+from app.services import runtime_schema
 from app.services.performance.v2_1_2_category_engine import (
     RULE_VERSION as V212_RULE_VERSION,
     assign_user_category,
@@ -14,6 +15,7 @@ from app.services.performance.v2_1_2_category_engine import (
     ensure_category_schema,
     get_user_category,
     list_categories,
+    provision_category_schema,
     seed_default_categories,
 )
 
@@ -72,9 +74,9 @@ def _bool_expr_for_dialect(value: bool) -> str:
     return "TRUE" if value else "FALSE"
 
 
-def ensure_v2_1_3_schema() -> dict[str, Any]:
-    """V2.1.3 audit tablosunu kurar ve V2.1.2 temelini doğrular."""
-    ensure_category_schema()
+def provision_v2_1_3_schema() -> dict[str, Any]:
+    """Explicit maintenance only (flask runtime-schema provision). V2.1.3 audit tablosunu kurar ve V2.1.2 temelini doğrular."""
+    provision_category_schema()
     seed_default_categories(overwrite=False)
     db = _db()
     created: list[str] = []
@@ -114,6 +116,25 @@ def ensure_v2_1_3_schema() -> dict[str, Any]:
     db.session.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{AUDIT_TABLE}_new_category ON {AUDIT_TABLE} (new_category_key)"))
     db.session.commit()
     return {"ok": True, "created": created, "dialect": dialect, "rule_version": RULE_VERSION}
+
+
+CATEGORY_AUDIT_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.personnel_category_audit",
+    tables=(AUDIT_TABLE,),
+    indexes=(
+        (AUDIT_TABLE, f"ix_{AUDIT_TABLE}_user_created"),
+        (AUDIT_TABLE, f"ix_{AUDIT_TABLE}_new_category"),
+    ),
+    provision=provision_v2_1_3_schema,
+))
+
+
+def ensure_v2_1_3_schema() -> dict[str, Any]:
+    """Verify this module's tables exist; never creates them (see app.services.runtime_schema)."""
+    ensure_category_schema()
+    seed_default_categories(overwrite=False)
+    runtime_schema.require(CATEGORY_AUDIT_SCHEMA)
+    return {"ok": True, "created": [], "dialect": _dialect_name(), "rule_version": RULE_VERSION}
 
 
 def _safe_row_value(row: dict[str, Any], *names: str, default: Any = "") -> Any:

@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db as flask_db
 from app.services.performance import (
+    v2_1_6_category_period_integration as category_integration,
     v2_1_8_period_center_assignment_launch as launch,
 )
 
@@ -47,6 +48,14 @@ from app.services.performance import (
 #     genuine context-absence condition -- not safely distinguishable. This
 #     matches the precedent and its documented rationale in
 #     tests/services/test_period_center_notifications_wave5.py.
+
+
+@pytest.fixture
+def provisioned_app(app):
+    """Session app whose database also holds the category tables the launch schema extends."""
+    with app.app_context():
+        category_integration.provision_category_period_integration_schema()
+    return app
 
 
 class _FakeScalarResult:
@@ -109,8 +118,8 @@ def test_dialect_name_does_not_swallow_unexpected_value_error(
 # ---------------------------------------------------------------------------
 
 
-def test_has_column_returns_true_when_column_present(app) -> None:
-    with app.app_context():
+def test_has_column_returns_true_when_column_present(provisioned_app) -> None:
+    with provisioned_app.app_context():
         launch.ensure_period_center_assignment_launch_schema()
         assert launch._has_column(launch.INTEGRATION_TABLE, "plan_key") is True
 
@@ -205,8 +214,8 @@ def test_safe_int_does_not_swallow_unexpected_runtime_error(
 # ---------------------------------------------------------------------------
 
 
-def test_ensure_schema_success_path_adds_missing_columns(app) -> None:
-    with app.app_context():
+def test_ensure_schema_success_path_adds_missing_columns(provisioned_app) -> None:
+    with provisioned_app.app_context():
         result = launch.ensure_period_center_assignment_launch_schema()
 
     assert result["ok"] is True

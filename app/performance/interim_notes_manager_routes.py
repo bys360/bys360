@@ -14,11 +14,37 @@ from app.extensions import db
 from app.route_registry import main_bp
 
 # BYS360_STUB_AI_V60_INTERIM_IMPORT
+from app.services import runtime_schema
 from app.services.ai.stub_panel_bridge import build_interim_notes_ai_panel
 from app.services.performance.interim_notes_runtime import _id_sql
 
 logger = logging.getLogger(__name__)
 # /BYS360_STUB_AI_V60_INTERIM_IMPORT
+
+
+def provision_interim_notes_live_table() -> None:
+    """Create the manager interim-notes table (explicit maintenance only: flask runtime-schema provision)."""
+    db.session.execute(text(f"""
+        CREATE TABLE IF NOT EXISTS performance_interim_notes_live (
+            {_id_sql()},
+            personnel_id INTEGER,
+            period_id INTEGER,
+            note_type VARCHAR(40) NOT NULL DEFAULT 'genel',
+            title VARCHAR(180),
+            note TEXT NOT NULL,
+            scorecard_visible BOOLEAN NOT NULL DEFAULT FALSE,
+            created_by_user_id INTEGER,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """))
+    db.session.commit()
+
+
+INTERIM_NOTES_LIVE_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.interim_notes_live",
+    tables=("performance_interim_notes_live",),
+    provision=provision_interim_notes_live_table,
+))
 
 # BYS360_INTERIM_NOTES_MENU_REDESIGN_V3_ROUTE
 
@@ -294,24 +320,6 @@ def performance_interim_notes():
             logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
             return default
 
-    def _ensure_table():
-        # BYS360 DEFECT AR: id kolonu artik dialect'e gore uretiliyor; eskiden
-        # sabit SERIAL kullanildigi icin SQLite'ta id her zaman NULL kaliyordu.
-        db.session.execute(_sql_text(f"""
-            CREATE TABLE IF NOT EXISTS performance_interim_notes_live (
-                {_id_sql()},
-                personnel_id INTEGER,
-                period_id INTEGER,
-                note_type VARCHAR(40) NOT NULL DEFAULT 'genel',
-                title VARCHAR(180),
-                note TEXT NOT NULL,
-                scorecard_visible BOOLEAN NOT NULL DEFAULT FALSE,
-                created_by_user_id INTEGER,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
-        db.session.commit()
-
     def _type_label(value):
         labels = {
             "olumlu": "Olumlu Olay",
@@ -324,7 +332,7 @@ def performance_interim_notes():
         }
         return labels.get((value or "genel").strip().lower(), "Genel Gözlem")
 
-    _ensure_table()
+    runtime_schema.require(INTERIM_NOTES_LIVE_SCHEMA)
 
     if request.method == "POST":
         personnel_id_raw = (request.form.get("personnel_id") or "").strip()

@@ -7,6 +7,8 @@ from typing import Any
 
 from sqlalchemy import inspect, text
 
+from app.services import runtime_schema
+
 """BYS360 Performans V2.1.2 personel grup/kategori altyapısı.
 
 Bu servis mevcut personel tablosunu değiştirmeden, performans kategori bilgisini
@@ -125,8 +127,8 @@ def has_category_tables() -> bool:
     return _has_table(CATEGORY_TABLE) and _has_table(ASSIGNMENT_TABLE)
 
 
-def ensure_category_schema() -> dict[str, Any]:
-    """Kategori tablolarını güvenli DDL ile oluşturur.
+def provision_category_schema() -> dict[str, Any]:
+    """Create the category tables (explicit maintenance only: flask runtime-schema provision).
 
     Mevcut çekirdek personel/performance tablolarına dokunmaz.
     """
@@ -205,6 +207,23 @@ def ensure_category_schema() -> dict[str, Any]:
     db.session.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{ASSIGNMENT_TABLE}_category_active ON {ASSIGNMENT_TABLE} (category_key, is_active)"))
     db.session.commit()
     return {"ok": True, "created": created, "dialect": dialect}
+
+
+CATEGORY_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.personnel_categories",
+    tables=(CATEGORY_TABLE, ASSIGNMENT_TABLE),
+    indexes=(
+        (ASSIGNMENT_TABLE, f"ix_{ASSIGNMENT_TABLE}_user_active"),
+        (ASSIGNMENT_TABLE, f"ix_{ASSIGNMENT_TABLE}_category_active"),
+    ),
+    provision=provision_category_schema,
+))
+
+
+def ensure_category_schema() -> dict[str, Any]:
+    """Verify the category tables exist; never creates them (see app.services.runtime_schema)."""
+    runtime_schema.require(CATEGORY_SCHEMA)
+    return {"ok": True, "created": [], "dialect": _dialect_name()}
 
 
 def normalize_category_key(value: Any) -> str:

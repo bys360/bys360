@@ -10,6 +10,7 @@ from sqlalchemy import inspect, text
 
 from app import db
 from app.models import PerformancePeriod, User
+from app.services import runtime_schema
 from app.services.performance.period_scope_assignment import employee_matches_period_scope
 from app.services.performance.v2_1_2_category_engine import canonical_category_key, list_categories
 from app.services.performance.v2_1_5_category_period_scope import (
@@ -17,6 +18,7 @@ from app.services.performance.v2_1_5_category_period_scope import (
     ensure_category_period_scope_schema,
     list_category_period_scope_plans,
     list_plan_items,
+    provision_category_period_scope_schema,
 )
 
 """BYS360 Performans V2.1.6 kategori dönem entegrasyonu.
@@ -98,8 +100,8 @@ def _category_display_name(category_key: str) -> str:
     return key
 
 
-def ensure_category_period_integration_schema() -> dict[str, Any]:
-    ensure_category_period_scope_schema()
+def provision_category_period_integration_schema() -> dict[str, Any]:
+    provision_category_period_scope_schema()
     db = _db()
     created: list[str] = []
     dialect = _dialect_name()
@@ -182,6 +184,26 @@ def ensure_category_period_integration_schema() -> dict[str, Any]:
     db.session.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{PRECHECK_TABLE}_period ON {PRECHECK_TABLE} (period_id)"))
     db.session.commit()
     return {"ok": True, "created": created, "dialect": dialect, "rule_version": RULE_VERSION}
+
+
+CATEGORY_PERIOD_INTEGRATION_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.category_period_integration",
+    tables=(INTEGRATION_TABLE, PRECHECK_TABLE),
+    indexes=(
+        (INTEGRATION_TABLE, f"ix_{INTEGRATION_TABLE}_plan"),
+        (INTEGRATION_TABLE, f"ix_{INTEGRATION_TABLE}_period"),
+        (PRECHECK_TABLE, f"ix_{PRECHECK_TABLE}_plan_user"),
+        (PRECHECK_TABLE, f"ix_{PRECHECK_TABLE}_period"),
+    ),
+    provision=provision_category_period_integration_schema,
+))
+
+
+def ensure_category_period_integration_schema() -> dict[str, Any]:
+    """Verify this module's tables exist; never creates them (see app.services.runtime_schema)."""
+    ensure_category_period_scope_schema()
+    runtime_schema.require(CATEGORY_PERIOD_INTEGRATION_SCHEMA)
+    return {"ok": True, "created": [], "dialect": _dialect_name(), "rule_version": RULE_VERSION}
 
 
 def get_scope_plan(plan_key: str) -> dict[str, Any] | None:
