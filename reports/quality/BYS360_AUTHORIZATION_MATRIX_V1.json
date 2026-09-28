@@ -4,23 +4,20 @@
   "routes": 996,
   "by_classification": {
    "AUTHENTICATED_ONLY": 182,
-   "NEEDS_REVIEW": 123,
-   "OBJECT_GATED": 122,
+   "NEEDS_REVIEW": 74,
+   "OBJECT_GATED": 126,
    "PUBLIC_INTENTIONAL": 23,
-   "ROLE_GATED": 546
+   "ROLE_GATED": 591
   },
   "needs_review_by_area": {
-   "admin_settings": 10,
    "ai_knowledge": 1,
    "file_center": 5,
-   "other": 45,
-   "performance": 32,
-   "personnel": 14,
-   "president_approvals": 4,
-   "process_reports": 20,
+   "other": 47,
+   "performance": 1,
+   "process_reports": 6,
    "survey": 14
   },
-  "manually_reviewed_routes": 70,
+  "manually_reviewed_routes": 89,
   "fixed_2026_09_28": [
    "health.health_deep",
    "main.ai_performance_evaluation_consistency",
@@ -31,10 +28,16 @@
    "main.ai_recommendation_status",
    "main.communication_phase2_survey_detail",
    "main.communication_phase2_survey_results",
-   "main.communication_phase2_surveys"
+   "main.communication_phase2_surveys",
+   "main.hr_attendance_delete",
+   "main.hr_attendance_update_status",
+   "main.hr_delegation_delete",
+   "main.hr_delegation_update_status",
+   "main.hr_leave_delete",
+   "main.hr_leave_update_status"
   ],
   "routes_with_object_params": 260,
-  "routes_without_test_reference": 446,
+  "routes_without_test_reference": 444,
   "method": "Flask url_map + source AST of each view (decorators, body calls); heuristic, conservative"
  },
  "routes": [
@@ -1655,8 +1658,8 @@
     "admin_settings"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -1726,8 +1729,8 @@
     "admin_settings"
    ],
    "test_files": 0,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -3096,8 +3099,8 @@
     "admin_settings"
    ],
    "test_files": 4,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -3133,8 +3136,8 @@
     "admin_settings"
    ],
    "test_files": 4,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -3169,8 +3172,8 @@
     "admin_settings"
    ],
    "test_files": 4,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -3404,8 +3407,8 @@
     "admin_settings"
    ],
    "test_files": 3,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -3440,8 +3443,8 @@
     "admin_settings"
    ],
    "test_files": 3,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -3475,8 +3478,8 @@
     "admin_settings"
    ],
    "test_files": 3,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -3511,8 +3514,8 @@
     "admin_settings"
    ],
    "test_files": 3,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -3547,8 +3550,8 @@
     "admin_settings"
    ],
    "test_files": 3,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -5156,7 +5159,7 @@
    "inline_scope_checks": [],
    "areas": [],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": "FIXED 2026-09-28: admin_required + menu_key_required('ai_center'); service never applies"
   },
@@ -5188,7 +5191,7 @@
    "inline_scope_checks": [],
    "areas": [],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": "FIXED 2026-09-28: admin_required + menu_key_required('ai_center') (was login-only)"
   },
@@ -5335,8 +5338,8 @@
    "areas": [],
    "test_files": 0,
    "heuristic_classification": "ROLE_GATED",
-   "classification": "ROLE_GATED",
-   "manual_review": null
+   "classification": "NEEDS_REVIEW",
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5366,8 +5369,8 @@
    "areas": [],
    "test_files": 0,
    "heuristic_classification": "OBJECT_GATED",
-   "classification": "OBJECT_GATED",
-   "manual_review": null
+   "classification": "NEEDS_REVIEW",
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5397,7 +5400,7 @@
    "test_files": 0,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5427,7 +5430,7 @@
    "test_files": 0,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5483,7 +5486,7 @@
    "test_files": 0,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5511,8 +5514,8 @@
    "areas": [],
    "test_files": 0,
    "heuristic_classification": "ROLE_GATED",
-   "classification": "ROLE_GATED",
-   "manual_review": null
+   "classification": "NEEDS_REVIEW",
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5570,8 +5573,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "ROLE_GATED",
-   "classification": "ROLE_GATED",
-   "manual_review": null
+   "classification": "NEEDS_REVIEW",
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5655,8 +5658,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "OBJECT_GATED",
-   "classification": "OBJECT_GATED",
-   "manual_review": null
+   "classification": "NEEDS_REVIEW",
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5686,7 +5689,7 @@
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5716,7 +5719,7 @@
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5772,7 +5775,7 @@
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5799,8 +5802,8 @@
    "areas": [],
    "test_files": 0,
    "heuristic_classification": "ROLE_GATED",
-   "classification": "ROLE_GATED",
-   "manual_review": null
+   "classification": "NEEDS_REVIEW",
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -5851,8 +5854,8 @@
    "areas": [],
    "test_files": 0,
    "heuristic_classification": "ROLE_GATED",
-   "classification": "ROLE_GATED",
-   "manual_review": null
+   "classification": "NEEDS_REVIEW",
+   "manual_review": "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"
   },
   {
    "blueprint": "main",
@@ -13423,7 +13426,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 10,
+   "test_files": 11,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -13436,7 +13439,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:244",
+   "view": "app/institutional/hr_leave_attendance_routes.py:245",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -13456,7 +13459,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 4,
+   "test_files": 5,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -13468,7 +13471,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:333",
+   "view": "app/institutional/hr_leave_attendance_routes.py:345",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -13490,10 +13493,10 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 4,
+   "test_files": 5,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"
   },
   {
    "blueprint": "main",
@@ -13502,7 +13505,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:325",
+   "view": "app/institutional/hr_leave_attendance_routes.py:337",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -13524,10 +13527,10 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 4,
+   "test_files": 5,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"
   },
   {
    "blueprint": "main",
@@ -13536,7 +13539,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:262",
+   "view": "app/institutional/hr_leave_attendance_routes.py:263",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -13569,7 +13572,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:349",
+   "view": "app/institutional/hr_leave_attendance_routes.py:361",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -13591,10 +13594,10 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"
   },
   {
    "blueprint": "main",
@@ -13603,7 +13606,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:341",
+   "view": "app/institutional/hr_leave_attendance_routes.py:353",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -13625,10 +13628,10 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"
   },
   {
    "blueprint": "main",
@@ -13638,7 +13641,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:199",
+   "view": "app/institutional/hr_leave_attendance_routes.py:200",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -13658,7 +13661,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 2,
+   "test_files": 3,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -13670,7 +13673,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:317",
+   "view": "app/institutional/hr_leave_attendance_routes.py:329",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -13692,10 +13695,10 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 2,
+   "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"
   },
   {
    "blueprint": "main",
@@ -13704,7 +13707,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:309",
+   "view": "app/institutional/hr_leave_attendance_routes.py:321",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -13726,10 +13729,10 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 2,
+   "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"
   },
   {
    "blueprint": "main",
@@ -13738,7 +13741,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:254",
+   "view": "app/institutional/hr_leave_attendance_routes.py:255",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -13772,7 +13775,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/institutional/hr_leave_attendance_routes.py:199",
+   "view": "app/institutional/hr_leave_attendance_routes.py:200",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -16395,7 +16398,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 123,
+   "test_files": 124,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -17197,8 +17200,8 @@
    "inline_scope_checks": [],
    "areas": [],
    "test_files": 4,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -17230,8 +17233,8 @@
    "inline_scope_checks": [],
    "areas": [],
    "test_files": 4,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -17633,8 +17636,8 @@
     "performance"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -17665,8 +17668,8 @@
     "performance"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -17697,8 +17700,8 @@
     "performance"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -19603,8 +19606,8 @@
     "performance"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -19940,8 +19943,8 @@
     "process_reports"
    ],
    "test_files": 11,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -19975,8 +19978,8 @@
     "process_reports"
    ],
    "test_files": 11,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20011,8 +20014,8 @@
     "process_reports"
    ],
    "test_files": 11,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20047,8 +20050,8 @@
     "process_reports"
    ],
    "test_files": 11,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20082,8 +20085,8 @@
     "process_reports"
    ],
    "test_files": 11,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20117,8 +20120,8 @@
     "process_reports"
    ],
    "test_files": 11,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20185,8 +20188,8 @@
     "process_reports"
    ],
    "test_files": 2,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20278,8 +20281,8 @@
     "performance"
    ],
    "test_files": 0,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20310,8 +20313,8 @@
     "performance"
    ],
    "test_files": 0,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20342,8 +20345,8 @@
     "performance"
    ],
    "test_files": 0,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20404,8 +20407,8 @@
     "performance"
    ],
    "test_files": 0,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20437,8 +20440,8 @@
     "performance"
    ],
    "test_files": 0,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -20469,8 +20472,8 @@
     "performance"
    ],
    "test_files": 0,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -21381,8 +21384,8 @@
     "performance"
    ],
    "test_files": 6,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -21414,8 +21417,8 @@
     "performance"
    ],
    "test_files": 5,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -21446,8 +21449,8 @@
     "performance"
    ],
    "test_files": 5,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -21478,8 +21481,8 @@
     "performance"
    ],
    "test_files": 5,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -21510,8 +21513,8 @@
     "performance"
    ],
    "test_files": 5,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -23395,8 +23398,8 @@
     "personnel"
    ],
    "test_files": 0,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -23912,8 +23915,8 @@
     "process_reports"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -23948,8 +23951,8 @@
     "process_reports"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -23983,8 +23986,8 @@
     "process_reports"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -24019,8 +24022,8 @@
     "process_reports"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -24054,8 +24057,8 @@
     "process_reports"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -24089,8 +24092,8 @@
     "process_reports"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -24157,8 +24160,8 @@
     "process_reports"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -26270,8 +26273,8 @@
     "personnel"
    ],
    "test_files": 0,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -26817,8 +26820,8 @@
     "personnel"
    ],
    "test_files": 33,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -26852,8 +26855,8 @@
     "personnel"
    ],
    "test_files": 33,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -26886,8 +26889,8 @@
     "personnel"
    ],
    "test_files": 33,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -26920,8 +26923,8 @@
     "personnel"
    ],
    "test_files": 33,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -28467,8 +28470,8 @@
    "inline_scope_checks": [],
    "areas": [],
    "test_files": 3,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -28500,8 +28503,8 @@
    "inline_scope_checks": [],
    "areas": [],
    "test_files": 3,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {
@@ -28532,8 +28535,8 @@
    "inline_scope_checks": [],
    "areas": [],
    "test_files": 3,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "ROLE_GATED",
+   "classification": "ROLE_GATED",
    "manual_review": null
   },
   {

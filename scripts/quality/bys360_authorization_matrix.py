@@ -134,6 +134,18 @@ MANUAL_REVIEW: dict[str, tuple[str, str]] = {
     "main.portal_post_delete": (_OG, "can_user_delete_post"),
     "main.portal_post_moderate": ("ROLE_GATED", "can_manage_portal"),
     "main.portal_group_detail": (_OG, "is_group_member or can_manage_portal"),
+    "main.hr_leave_update_status": (_OG, "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"),
+    "main.hr_leave_delete": (_OG, "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"),
+    "main.hr_attendance_update_status": (_OG, "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"),
+    "main.hr_attendance_delete": (_OG, "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"),
+    "main.hr_delegation_update_status": (_OG, "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"),
+    "main.hr_delegation_delete": (_OG, "FIXED 2026-09-28: record person must be in build_user_scope_context(current_user, 'all') (was any record by id)"),
+    "main.announcement_popup_manage": ('NEEDS_REVIEW', "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"),
+    "main.announcement_popup_new": ('NEEDS_REVIEW', "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"),
+    "main.announcement_popup_edit": ('NEEDS_REVIEW', "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"),
+    "main.announcement_popup_toggle": ('NEEDS_REVIEW', "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"),
+    "main.announcement_popup_report": ('NEEDS_REVIEW', "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"),
+    "main.announcement_popup_report_csv": ('NEEDS_REVIEW', "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"),
 }
 
 def _app():
@@ -241,7 +253,9 @@ def build(app) -> dict:
             classification = "NEEDS_REVIEW"
         elif object_params and inline_scope:
             classification = "OBJECT_GATED"
-        elif role or inline_role or any("admin" in g for g in guards):
+        elif "admin_required" in decorators or any("admin" in g for g in guards):
+            classification = "ROLE_GATED"  # admin family sees every record by policy
+        elif role or inline_role:
             classification = "ROLE_GATED" if not object_params else "NEEDS_REVIEW"
         else:
             classification = "AUTHENTICATED_ONLY" if not object_params else "NEEDS_REVIEW"
