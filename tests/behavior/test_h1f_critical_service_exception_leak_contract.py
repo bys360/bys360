@@ -142,9 +142,13 @@ def test_file_center_move_file_to_area_failure_sanitizes_audit_message(app, monk
     source_file.write_text("data", encoding="utf-8")
     item = SimpleNamespace(id=42, storage_path=str(source_file), owner_user_id=7, stored_filename="sample_upload.txt")
 
-    with app.app_context():
-        caplog.set_level("ERROR")
-        fc_services._move_file_to_area(cast(FileStorageItem, item), "quarantine")
+    try:
+        with app.app_context():
+            caplog.set_level("ERROR")
+            fc_services._move_file_to_area(cast(FileStorageItem, item), "quarantine")
+    finally:
+        # shutil.move is patched to fail, so the file stays; never leave it in the repo tree.
+        source_file.unlink(missing_ok=True)
 
     assert captured.get("action") == "file_security_move_failed"
     message = str(captured.get("message") or "")

@@ -112,3 +112,6 @@ cleanup_manifest/
 
 # BYS360 Style-2B - secret repo gate local run output
 /reports/quality/BYS360_SECRET_REPO_GATE_V1_REPORT.json
+
+# BYS360 final pre-live audit P3 - test-written scratch artifacts
+/reports/quality/h1f_critical_service_test_scratch/

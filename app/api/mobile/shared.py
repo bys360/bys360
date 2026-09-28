@@ -528,12 +528,28 @@ def _mobile_survey_validate_answers(survey: Survey, questions: list[SurveyQuesti
             prepared.append({"question_id": int(qid), "answer_text": text or None})
     return prepared
 
+# BYS360_MOBILE_TOKEN_SECURITY_STAMP: web oturumu gibi (User.get_id / load_user)
+# token'a hesabin security_stamp degeri gomulur; parola sifirlama stamp'i
+# degistirdiginde eski mobil access/refresh token'lari reddedilir. Stamp
+# tasimayan eski token'lar web'deki eski cerezler gibi kabul edilir ve kendi
+# sureleri (24 saat / 30 gun) dolunca biter.
+def _token_stamp_matches(data: dict, user: User) -> bool:
+    stamp = data.get("stamp")
+    return stamp is None or stamp == (getattr(user, "security_stamp", None) or "")
+
+
 def _issue_token(user: User, max_age: int | None = None) -> str:
-    return _serializer().dumps({"uid": user.id, "kind": "access"}, salt=_TOKEN_SALT)
+    return _serializer().dumps(
+        {"uid": user.id, "kind": "access", "stamp": getattr(user, "security_stamp", None) or ""},
+        salt=_TOKEN_SALT,
+    )
 
 
 def _issue_refresh_token(user: User) -> str:
-    return _serializer().dumps({"uid": user.id, "kind": "refresh"}, salt=_REFRESH_TOKEN_SALT)
+    return _serializer().dumps(
+        {"uid": user.id, "kind": "refresh", "stamp": getattr(user, "security_stamp", None) or ""},
+        salt=_REFRESH_TOKEN_SALT,
+    )
 
 
 def _load_refresh_token_user(refresh_token: str | None) -> User | None:
@@ -548,7 +564,7 @@ def _load_refresh_token_user(refresh_token: str | None) -> User | None:
     except (BadSignature, SignatureExpired, ValueError, TypeError):
         return None
     user = db.session.get(User, user_id)
-    if not user or not getattr(user, "is_active", True):
+    if not user or not getattr(user, "is_active", True) or not _token_stamp_matches(data, user):
         return None
     return user
 
@@ -566,7 +582,7 @@ def _load_token_user() -> User | None:
     except (BadSignature, SignatureExpired, ValueError, TypeError):
         return None
     user = db.session.get(User, user_id)
-    if not user or not getattr(user, "is_active", True):
+    if not user or not getattr(user, "is_active", True) or not _token_stamp_matches(data, user):
         return None
     return user
 

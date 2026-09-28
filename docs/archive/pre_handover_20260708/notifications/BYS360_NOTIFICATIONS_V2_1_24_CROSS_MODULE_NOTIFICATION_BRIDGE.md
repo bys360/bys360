@@ -17,8 +17,8 @@ Bu overlay; destek/talep, hızlı geri bildirim, kurumsal geri bildirim kampanya
 ## Kurulum
 
 ```powershell
-cd C:ys360\project
-Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_NOTIFICATIONS_V2_1_24_CROSS_MODULE_NOTIFICATION_BRIDGE_OVERLAY.zip" -DestinationPath "C:ys360\project" -Force
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_notifications_v2_1_24_cross_module_bridge.ps1 -ProjectRoot "C:ys360\project" -Mode all
+cd C:\bys360\project
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_NOTIFICATIONS_V2_1_24_CROSS_MODULE_NOTIFICATION_BRIDGE_OVERLAY.zip" -DestinationPath "C:\bys360\project" -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_notifications_v2_1_24_cross_module_bridge.ps1 -ProjectRoot "C:\bys360\project" -Mode all
 python -m compileall app scripts
 ```

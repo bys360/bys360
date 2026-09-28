@@ -221,7 +221,7 @@ function Copy-BysFilteredTree {
     )
 
     # NOT: Resolve-Path (ProviderPath) 8.3 kisa yol parcalarini (ornegin
-    # "HAVVAG~1") OLDUGU GIBI birakabilirken, Get-ChildItem -Recurse'un
+    # "KULLAN~1") OLDUGU GIBI birakabilirken, Get-ChildItem -Recurse'un
     # dondurdugu FullName degerleri UZUN adi kullanir. Bu ikisini karistirmak
     # (birini Resolve-Path, digerini Get-ChildItem'dan almak) asagidaki
     # Substring tabanli goreli-yol hesabini BOZAR (yanlis yerden kesilmis

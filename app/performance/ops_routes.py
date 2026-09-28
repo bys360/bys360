@@ -30,17 +30,22 @@ def performance_operations_center():
         scope_user_ids=scope_ctx.get("employee_ids"),
     ) or {}
     periods = PerformancePeriod.query.order_by(PerformancePeriod.id.desc()).limit(50).all()
+    # The snapshot already carries "period"; passing it both explicitly and via
+    # **snapshot raised "got multiple values for keyword argument" (HTTP 500).
+    context = {
+        **snapshot,
+        "period": period,
+        "periods": periods,
+        "selected_scope": scope_ctx.get("selected_scope"),
+        "scope_options": scope_ctx.get("scope_options"),
+        "scope_option_pairs": scope_ctx.get("scope_option_pairs"),
+        "scope_label": scope_ctx.get("scope_label"),
+        "scope_role_title": scope_ctx.get("role_title"),
+        "scope_user_count": scope_ctx.get("scope_user_count", 0),
+        "scope_unit_count": scope_ctx.get("scope_unit_count", 0),
+    }
     return safe_render(
         "performance_operations_center.html",
         "<h3>Performans Operasyon Merkezi</h3>",
-        period=period,
-        periods=periods,
-        selected_scope=scope_ctx.get("selected_scope"),
-        scope_options=scope_ctx.get("scope_options"),
-        scope_option_pairs=scope_ctx.get("scope_option_pairs"),
-        scope_label=scope_ctx.get("scope_label"),
-        scope_role_title=scope_ctx.get("role_title"),
-        scope_user_count=scope_ctx.get("scope_user_count", 0),
-        scope_unit_count=scope_ctx.get("scope_unit_count", 0),
-        **snapshot,
+        **context,
     )

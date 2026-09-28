@@ -215,9 +215,11 @@ def create_controlled_action_queue_suggestion(user: Any, action_key: str, source
         )
         queue_id = int(result.scalar() or 0) or None
         db.session.commit()
-    except Exception as exc:
+    except Exception:
         db.session.rollback()
-        return {"ok": False, "error": str(exc), "status": "failed"}
+        # Raw exception text (SQL, table names) must not reach the API client.
+        __import__("logging").getLogger(__name__).exception("BYS360 AG-5 aksiyon kuyruğu kaydı oluşturulamadı.")
+        return {"ok": False, "error": "Öneri kuyruğa alınamadı. Lütfen daha sonra tekrar deneyin.", "status": "failed"}
 
     return {
         "ok": True,

@@ -3,16 +3,24 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from flask import render_template, request
+from flask import abort, render_template, request
 from flask_login import current_user, login_required
 
 from app.routes import main
+from app.services.performance.process_engine_phase8_tracking import (
+    can_view_process_tracking,
+    process_flow_scope_clause,
+)
 
 logger = logging.getLogger(__name__)
 @main.route("/performans/surec-raporlari", methods=["GET"])
 @main.route("/performance/process-reports", methods=["GET"])
 @login_required
 def performance_process_reports():
+    # P0-01: same gate as the sibling Süreç Takibi page and the menu registry
+    # entry; a direct URL must not bypass it.
+    if not can_view_process_tracking(current_user):
+        abort(403)
     status_filter = request.args.get('status') or request.args.get('status_filter') or ''
     context = _bys360_process_reports_advanced_context(viewer=current_user, status_filter=status_filter)
     return render_template('performance/process_reports_advanced.html', **context)
@@ -111,8 +119,11 @@ def _bys360_process_reports_advanced_context(viewer=None, status_filter=None):
     )
     emp_name_from_join = "TRIM(COALESCE(emp.ad, '') || ' ' || COALESCE(emp.soyad, ''))"
 
-    where = "WHERE 1=1"
-    params: dict[str, Any] = {}
+    # P0-01: rows are limited to the viewer's canonical process-flow scope
+    # (admin/başkan unrestricted, others own or owned flows, unresolved -> none).
+    scope_sql, scope_params = process_flow_scope_clause(viewer)
+    where = f"WHERE 1=1 {scope_sql}"
+    params: dict[str, Any] = dict(scope_params)
 
     if status_filter == "pending":
         where += " AND COALESCE(f.is_finalized, FALSE) = FALSE"

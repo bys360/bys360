@@ -93,7 +93,7 @@
     }
 
     if (/sen kimsin|seni kim gelistirdi|seni kim geliştirdi|kim gelistirdi|kim geliştirdi|kim yaptı|kim yapti|havva gulsen ozden|havva gülsen özden|gulsen ozden|gülsen özden|nasıl çalışıyorsun|yapay zekaya bağlı mısın|chatgpt misin/.test(q)) {
-      return "Ben BYS360 Asistanı’yım. BYS360 için Havva Gülsen Özden tarafından geliştirildim. Görevim, BYS360 içinde yetkiniz dâhilindeki işlemleri sade, güvenli ve doğru sırayla anlatmak; sizi gerçek ekranlara yönlendirmek ve sistemi daha kolay kullanmanıza yardımcı olmaktır. İdari karar üretmem, performans puanı belirlemem ve hassas veri göstermem.";
+      return "Ben BYS360 Asistanı’yım. BYS360 için Havva Gülsen Özden (geliştirici) ve Mustafa Bektaş (eş geliştirici) tarafından geliştirildim. Görevim, BYS360 içinde yetkiniz dâhilindeki işlemleri sade, güvenli ve doğru sırayla anlatmak; sizi gerçek ekranlara yönlendirmek ve sistemi daha kolay kullanmanıza yardımcı olmaktır. İdari karar üretmem, performans puanı belirlemem ve hassas veri göstermem.";
     }
 
     if (/neler yapabiliyorsun|hangi konularda yardımcı|bana nasıl yardımcı/.test(q)) {
@@ -1249,7 +1249,7 @@
     }
 
     if (q.includes("seni kim geliştirdi") || q.includes("seni kim gelistirdi") || q.includes("kim geliştirdi") || q.includes("kim gelistirdi") || q.includes("havva gülsen özden") || q.includes("havva gulsen ozden") || q.includes("gülsen özden") || q.includes("gulsen ozden") || q.includes("sen kimsin") || q.includes("chatgpt misin") || q.includes("nasıl çalışıyorsun")) {
-      return "Ben BYS360 Asistanı’yım. BYS360 için Havva Gülsen Özden tarafından geliştirildim. Görevim, BYS360 içinde yetkiniz dâhilindeki işlemleri sade, güvenli ve doğru sırayla anlatmak; sizi gerçek ekranlara yönlendirmek ve sistemi daha kolay kullanmanıza yardımcı olmaktır.";
+      return "Ben BYS360 Asistanı’yım. BYS360 için Havva Gülsen Özden (geliştirici) ve Mustafa Bektaş (eş geliştirici) tarafından geliştirildim. Görevim, BYS360 içinde yetkiniz dâhilindeki işlemleri sade, güvenli ve doğru sırayla anlatmak; sizi gerçek ekranlara yönlendirmek ve sistemi daha kolay kullanmanıza yardımcı olmaktır.";
     }
 
     if (q.includes("neler yapabiliyorsun") || q.includes("hangi konularda yardımcı")) {

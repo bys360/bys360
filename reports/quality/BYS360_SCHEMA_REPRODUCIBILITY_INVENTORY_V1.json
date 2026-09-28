@@ -1,0 +1,2695 @@
+{
+ "inventory": "BYS360_SCHEMA_REPRODUCIBILITY_INVENTORY_V1",
+ "orm_table_count": 164,
+ "summary": {
+  "MIGRATION_PRESENT": 131,
+  "NO_REPRODUCIBLE_SOURCE_ACTIVE": 28,
+  "NO_REPRODUCIBLE_SOURCE_CANDIDATE_DEAD": 2,
+  "RUNTIME_DDL_ONLY": 3
+ },
+ "no_migration_tables": [
+  "feedback_action_plans",
+  "feedback_answers",
+  "feedback_campaign_assignments",
+  "feedback_campaigns",
+  "feedback_pulse_entries",
+  "feedback_question_options",
+  "feedback_questions",
+  "feedback_submissions",
+  "message_comments",
+  "message_reactions",
+  "message_typing_states",
+  "performance_archived_results",
+  "performance_evaluation_history",
+  "performance_feedback_pipeline_flows",
+  "performance_feedback_pipeline_steps",
+  "performance_low_score_processes",
+  "performance_president_approvals",
+  "performance_process_flow_steps",
+  "performance_process_flows",
+  "performance_process_notifications",
+  "performance_scoring_history",
+  "portal_activity_logs",
+  "portal_comment_reactions",
+  "portal_group_members",
+  "portal_moderation_logs",
+  "portal_pinned_posts",
+  "portal_post_attachments",
+  "portal_post_audiences",
+  "portal_post_reactions",
+  "portal_post_reports",
+  "portal_profiles",
+  "portal_saved_posts",
+  "publication_issues"
+ ],
+ "migration_only_tables": [
+  "workflow_instances",
+  "workflow_logs",
+  "workflow_notifications",
+  "workflow_steps"
+ ],
+ "tables_with_orm_columns_not_in_migrations": [
+  "performance_low_score_process_events",
+  "performance_periods",
+  "users"
+ ],
+ "tables_with_orm_columns_without_any_ddl": [
+  "performance_low_score_process_events",
+  "performance_periods"
+ ],
+ "tables": [
+  {
+   "table": "ai_feedback_logs",
+   "model_classes": [
+    "AIFeedbackLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/b7f4e2a1c9d0_add_ai_support_tables.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 22,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "ai_recommendations",
+   "model_classes": [
+    "AIRecommendation"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/b7f4e2a1c9d0_add_ai_support_tables.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 37,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "ai_redaction_rules",
+   "model_classes": [
+    "AIRedactionRule"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/b7f4e2a1c9d0_add_ai_support_tables.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 19,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "ai_request_logs",
+   "model_classes": [
+    "AIRequestLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/b7f4e2a1c9d0_add_ai_support_tables.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 33,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "ai_summary_cache",
+   "model_classes": [
+    "AISummaryCache"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/b7f4e2a1c9d0_add_ai_support_tables.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 23,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "announcement_reads",
+   "model_classes": [
+    "AnnouncementRead"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/1f4b9c8d7e6a_add_announcement_popup_foundation.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "announcements",
+   "model_classes": [
+    "Announcement"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/1f4b9c8d7e6a_add_announcement_popup_foundation.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 27,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "assignment_coverage_logs",
+   "model_classes": [
+    "AssignmentCoverageLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/e6b7d4c2f107_add_assignment_coverage_logs.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 15,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "attendance_exceptions",
+   "model_classes": [
+    "AttendanceException"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d2a8c1f9e006_add_leave_delegation_live_flow.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 21,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "audit_logs",
+   "model_classes": [
+    "AuditLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/c1d9f4b2a001_add_audit_logs_table.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 16,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_automation_logs",
+   "model_classes": [
+    "CommunicationAutomationLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f5b1c2d3e4f9_add_communication_phase5_operations.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 9,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_bulletin_audiences",
+   "model_classes": [
+    "CommunicationBulletinAudience"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/c9f1a2b3d4e5_add_communication_phase1_bulletins.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_bulletin_receipts",
+   "model_classes": [
+    "CommunicationBulletinReceipt"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/c9f1a2b3d4e5_add_communication_phase1_bulletins.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 5,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_bulletin_revisions",
+   "model_classes": [
+    "CommunicationBulletinRevision"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d2f1a2b3e4f6_add_communication_phase2_editors.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_bulletins",
+   "model_classes": [
+    "CommunicationBulletin"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/c9f1a2b3d4e5_add_communication_phase1_bulletins.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 6,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_daily_metrics",
+   "model_classes": [
+    "CommunicationDailyMetric"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f4a1b2c3d4e8_add_communication_phase4_reporting.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_digest_jobs",
+   "model_classes": [
+    "CommunicationDigestJob"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f5b1c2d3e4f9_add_communication_phase5_operations.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_escalation_rules",
+   "model_classes": [
+    "CommunicationEscalationRule"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f5b1c2d3e4f9_add_communication_phase5_operations.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_executive_reports",
+   "model_classes": [
+    "CommunicationExecutiveReport"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f4a1b2c3d4e8_add_communication_phase4_reporting.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_governance_reviews",
+   "model_classes": [
+    "CommunicationGovernanceReview"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f4a1b2c3d4e8_add_communication_phase4_reporting.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_help_article_view_logs",
+   "model_classes": [
+    "CommunicationHelpArticleViewLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/e3f1a2b3c4d7_add_communication_phase3_runtime.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_notification_preferences",
+   "model_classes": [
+    "CommunicationNotificationPreference"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f5b1c2d3e4f9_add_communication_phase5_operations.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_operation_health",
+   "model_classes": [
+    "CommunicationOperationHealth"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f5b1c2d3e4f9_add_communication_phase5_operations.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_report_export_logs",
+   "model_classes": [
+    "CommunicationReportExportLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f4a1b2c3d4e8_add_communication_phase4_reporting.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_retention_policies",
+   "model_classes": [
+    "CommunicationRetentionPolicy"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f5b1c2d3e4f9_add_communication_phase5_operations.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_support_assignment_logs",
+   "model_classes": [
+    "CommunicationSupportAssignmentLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/e3f1a2b3c4d7_add_communication_phase3_runtime.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_support_sla_policies",
+   "model_classes": [
+    "CommunicationSupportSlaPolicy"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/e3f1a2b3c4d7_add_communication_phase3_runtime.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_survey_reminder_logs",
+   "model_classes": [
+    "CommunicationSurveyReminderLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/e3f1a2b3c4d7_add_communication_phase3_runtime.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_survey_template_questions",
+   "model_classes": [
+    "CommunicationSurveyTemplateQuestion"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d2f1a2b3e4f6_add_communication_phase2_editors.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "communication_survey_templates",
+   "model_classes": [
+    "CommunicationSurveyTemplate"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d2f1a2b3e4f6_add_communication_phase2_editors.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "competency_library",
+   "model_classes": [
+    "CompetencyLibrary"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/20260508_sp1a_strategic_performance.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 6,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "delegation_assignments",
+   "model_classes": [
+    "DelegationAssignment"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d2a8c1f9e006_add_leave_delegation_live_flow.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 29,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "employee_org_assignment_history",
+   "model_classes": [
+    "EmployeeOrgAssignmentHistory"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/3f2a9c4b7d10_add_history_and_snapshot_models.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 13,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "evaluation_assignments",
+   "model_classes": [
+    "EvaluationAssignment"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 88,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "evaluation_publish_logs",
+   "model_classes": [
+    "EvaluationPublishLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 7,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "feedback_action_plans",
+   "model_classes": [
+    "FeedbackActionPlan"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 10,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "feedback_answers",
+   "model_classes": [
+    "FeedbackAnswer"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "feedback_campaign_assignments",
+   "model_classes": [
+    "FeedbackCampaignAssignment"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 5,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "feedback_campaigns",
+   "model_classes": [
+    "FeedbackCampaign"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 19,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "feedback_meetings",
+   "model_classes": [
+    "FeedbackMeeting"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 37,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "feedback_pulse_entries",
+   "model_classes": [
+    "FeedbackPulseEntry"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 8,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "feedback_question_options",
+   "model_classes": [
+    "FeedbackQuestionOption"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "feedback_questions",
+   "model_classes": [
+    "FeedbackQuestion"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 4,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "feedback_requests",
+   "model_classes": [
+    "FeedbackRequest"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 24,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "feedback_submissions",
+   "model_classes": [
+    "FeedbackSubmission"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 7,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "file_access_logs",
+   "model_classes": [
+    "FileAccessLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_audit_logs",
+   "model_classes": [
+    "FileAuditLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_center_mail_logs",
+   "model_classes": [
+    "FileCenterMailLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_center_role_permissions",
+   "model_classes": [
+    "FileCenterRolePermission"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_center_settings",
+   "model_classes": [
+    "FileCenterSetting"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_download_logs",
+   "model_classes": [
+    "FileDownloadLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_quota_policies",
+   "model_classes": [
+    "FileQuotaPolicy"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 4,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_quota_usage",
+   "model_classes": [
+    "FileQuotaUsage"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 5,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_request_uploads",
+   "model_classes": [
+    "FileRequestUpload"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_requests",
+   "model_classes": [
+    "FileRequest"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 4,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_security_scans",
+   "model_classes": [
+    "FileSecurityScan"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 4,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_share_links",
+   "model_classes": [
+    "FileShareLink"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_storage_folders",
+   "model_classes": [
+    "FileStorageFolder"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 0,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_storage_items",
+   "model_classes": [
+    "FileStorageItem"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_transfer_items",
+   "model_classes": [
+    "FileTransferItem"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_transfer_recipients",
+   "model_classes": [
+    "FileTransferRecipient"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_transfers",
+   "model_classes": [
+    "FileTransfer"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_upload_chunks",
+   "model_classes": [
+    "FileUploadChunk"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "file_upload_sessions",
+   "model_classes": [
+    "FileUploadSession"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/10858a18e9ac_adopt_file_center_schema_into_alembic_.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "leave_balances",
+   "model_classes": [
+    "LeaveBalance"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d2a8c1f9e006_add_leave_delegation_live_flow.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 16,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "mail_logs",
+   "model_classes": [
+    "MailLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 29,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "message_attachments",
+   "model_classes": [
+    "MessageAttachment"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/9b6f2c11d003_add_message_attachments.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 12,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "message_comments",
+   "model_classes": [
+    "MessageComment"
+   ],
+   "status": "RUNTIME_DDL_ONLY",
+   "migration_files": [],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 4,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "message_reactions",
+   "model_classes": [
+    "MessageReaction"
+   ],
+   "status": "RUNTIME_DDL_ONLY",
+   "migration_files": [],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 9,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "message_thread_participants",
+   "model_classes": [
+    "MessageThreadParticipant"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/7c4d9a21b001_add_messages_and_notifications.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 30,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "message_threads",
+   "model_classes": [
+    "MessageThread"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/7c4d9a21b001_add_messages_and_notifications.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 33,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "message_typing_states",
+   "model_classes": [
+    "MessageTypingState"
+   ],
+   "status": "RUNTIME_DDL_ONLY",
+   "migration_files": [],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 10,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "messages",
+   "model_classes": [
+    "Message"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/7c4d9a21b001_add_messages_and_notifications.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 71,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "module_settings",
+   "model_classes": [
+    "ModuleSetting"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/4b1e6f2a9c80_performance_completion_phase1_rule_center_settings.py",
+    "migrations/versions/5c2d7a8e9f11_performance_completion_phase2_personnel_category_groups.py",
+    "migrations/versions/6d3f8a1b2c44_performance_completion_phase3_visibility_scope.py",
+    "migrations/versions/f103a9d7c2b1_add_settings_foundation_phase1.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 49,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "notifications",
+   "model_classes": [
+    "Notification"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/7c4d9a21b001_add_messages_and_notifications.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 88,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "organization_unit_versions",
+   "model_classes": [
+    "OrganizationUnitVersion"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/3f2a9c4b7d10_add_history_and_snapshot_models.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 11,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "organization_units",
+   "model_classes": [
+    "OrganizationUnit"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 29,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "performance_archived_results",
+   "model_classes": [
+    "PerformanceArchivedResult"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 6,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_criteria",
+   "model_classes": [
+    "PerformanceCriteria"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 38,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "performance_evaluation_history",
+   "model_classes": [
+    "PerformanceEvaluationHistory"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 6,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_evaluation_items",
+   "model_classes": [
+    "PerformanceEvaluationItem"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 24,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "performance_evaluations",
+   "model_classes": [
+    "PerformanceEvaluation"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 108,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "performance_feedback_pipeline_flows",
+   "model_classes": [
+    "PerformanceFeedbackPipelineFlow"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_feedback_pipeline_steps",
+   "model_classes": [
+    "PerformanceFeedbackPipelineStep"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_import_batch_rows",
+   "model_classes": [
+    "PerformanceImportBatchRow"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/3f2a9c4b7d10_add_history_and_snapshot_models.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 5,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "performance_import_batches",
+   "model_classes": [
+    "PerformanceImportBatch"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/3f2a9c4b7d10_add_history_and_snapshot_models.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 6,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "performance_low_score_process_events",
+   "model_classes": [
+    "PerformanceLowScoreProcessEvent"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/9a5e1f4c2d60_performance_completion_phase6_low_score_approval.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [
+    "actor_user_id",
+    "note",
+    "process_id",
+    "status",
+    "step_key",
+    "title"
+   ],
+   "orm_columns_without_any_ddl": [
+    "actor_user_id",
+    "note",
+    "process_id",
+    "status",
+    "step_key",
+    "title"
+   ],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_low_score_processes",
+   "model_classes": [
+    "PerformanceLowScoreProcess"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 9,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_periods",
+   "model_classes": [
+    "PerformancePeriod"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 130,
+   "orm_columns_not_in_migrations": [
+    "evaluation_due_days",
+    "evaluation_end_date",
+    "evaluation_start_date",
+    "special_scenario_type"
+   ],
+   "orm_columns_without_any_ddl": [
+    "special_scenario_type"
+   ],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_president_approvals",
+   "model_classes": [
+    "PerformancePresidentApproval"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 31,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_process_flow_steps",
+   "model_classes": [
+    "PerformanceProcessFlowStep"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 10,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_process_flows",
+   "model_classes": [
+    "PerformanceProcessFlow"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 14,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_process_notifications",
+   "model_classes": [
+    "PerformanceProcessNotification"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 5,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_publish_logs",
+   "model_classes": [
+    "PerformancePublishLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 11,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "performance_result_snapshots",
+   "model_classes": [
+    "PerformanceResultSnapshot"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/3f2a9c4b7d10_add_history_and_snapshot_models.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 18,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "performance_scoring_history",
+   "model_classes": [
+    "PerformanceScoringHistory"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 9,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "performance_target_periods",
+   "model_classes": [
+    "PerformanceTargetPeriod"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/20260508_sp1a_strategic_performance.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "performance_targets",
+   "model_classes": [
+    "PerformanceTarget"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/20260508_sp1a_strategic_performance.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 10,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "performance_weight_configs",
+   "model_classes": [
+    "PerformanceWeightConfig"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 12,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_approval_stations",
+   "model_classes": [
+    "PersonnelApprovalStation"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/9bd13f42a001_add_hr_phase13_approval_doc_risk.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_asset_assignments",
+   "model_classes": [
+    "PersonnelAssetAssignment"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a91c7e4d2f30_add_hr_assets_checklists_and_reminders.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_asset_transfer_logs",
+   "model_classes": [
+    "PersonnelAssetTransferLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d1a9f0c4b210_add_hr_renewal_calendar_transfer_dashboard.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_categories",
+   "model_classes": [
+    "PersonnelCategory"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/2f6c1e9a2b30_add_personnel_categories_phase2.py",
+    "migrations/versions/5c2d7a8e9f11_performance_completion_phase2_personnel_category_groups.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_patches.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 4,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_checklist_reviews",
+   "model_classes": [
+    "PersonnelChecklistReview"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a91c7e4d2f30_add_hr_assets_checklists_and_reminders.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_checklist_template_items",
+   "model_classes": [
+    "PersonnelChecklistTemplateItem"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a91c7e4d2f30_add_hr_assets_checklists_and_reminders.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_digital_handover_documents",
+   "model_classes": [
+    "PersonnelDigitalHandoverDocument"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/9bd13f42a001_add_hr_phase13_approval_doc_risk.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_document_categories",
+   "model_classes": [
+    "PersonnelDocumentCategory"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/e91c2d4f5a10_add_hr_document_catalog_and_batches.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_document_reminder_logs",
+   "model_classes": [
+    "PersonnelDocumentReminderLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a91c7e4d2f30_add_hr_assets_checklists_and_reminders.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_document_upload_batches",
+   "model_classes": [
+    "PersonnelDocumentUploadBatch"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/e91c2d4f5a10_add_hr_document_catalog_and_batches.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_documents",
+   "model_classes": [
+    "PersonnelDocument"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d8e4a1b2c301_add_hr_professional_foundation.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 6,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_exit_interviews",
+   "model_classes": [
+    "PersonnelExitInterview"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/e4b9d2f1a660_add_hr_lifecycle_cases_and_exit_interviews.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_exit_risk_assessments",
+   "model_classes": [
+    "PersonnelExitRiskAssessment"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/9bd13f42a001_add_hr_phase13_approval_doc_risk.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_handover_items",
+   "model_classes": [
+    "PersonnelHandoverItem"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f1c8e2a7b450_add_hr_handover_and_clearance.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_handover_records",
+   "model_classes": [
+    "PersonnelHandoverRecord"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f1c8e2a7b450_add_hr_handover_and_clearance.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_leaves",
+   "model_classes": [
+    "PersonnelLeave"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d2a8c1f9e006_add_leave_delegation_live_flow.py"
+   ],
+   "runtime_ddl_files": [
+    "app/schema_guard_core_maintenances.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 28,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_lifecycle_cases",
+   "model_classes": [
+    "PersonnelLifecycleCase"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/e4b9d2f1a660_add_hr_lifecycle_cases_and_exit_interviews.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 4,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_lifecycle_tasks",
+   "model_classes": [
+    "PersonnelLifecycleTask"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/e4b9d2f1a660_add_hr_lifecycle_cases_and_exit_interviews.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_position_histories",
+   "model_classes": [
+    "PersonnelPositionHistory"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f8c4e2d1a7b9_add_hr_position_history.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_process_notes",
+   "model_classes": [
+    "PersonnelProcessNote"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d8e4a1b2c301_add_hr_professional_foundation.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_self_service_request_attachments",
+   "model_classes": [
+    "PersonnelSelfServiceRequestAttachment"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/aa51c0d9e221_add_hr_request_templates_attachments_sla.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_self_service_request_escalations",
+   "model_classes": [
+    "PersonnelSelfServiceRequestEscalation"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/c7d39b1e4a20_add_hr_request_analytics_sla_and_escalations.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_self_service_request_logs",
+   "model_classes": [
+    "PersonnelSelfServiceRequestLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f4a12c9e0b21_add_hr_self_service_requests.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_self_service_request_sla_policies",
+   "model_classes": [
+    "PersonnelSelfServiceRequestSlaPolicy"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/c7d39b1e4a20_add_hr_request_analytics_sla_and_escalations.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_self_service_request_tasks",
+   "model_classes": [
+    "PersonnelSelfServiceRequestTask"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/b6a72f1c9d10_add_hr_request_tasks_dashboard.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_self_service_request_templates",
+   "model_classes": [
+    "PersonnelSelfServiceRequestTemplate"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/aa51c0d9e221_add_hr_request_templates_attachments_sla.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_self_service_requests",
+   "model_classes": [
+    "PersonnelSelfServiceRequest"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f4a12c9e0b21_add_hr_self_service_requests.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 4,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "personnel_status_history",
+   "model_classes": [
+    "PersonnelStatusHistory"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/d8e4a1b2c301_add_hr_professional_foundation.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 4,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "portal_activity_logs",
+   "model_classes": [
+    "PortalActivityLog"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "portal_comment_mentions",
+   "model_classes": [
+    "PortalCommentMention"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/bys360_portal_media_comments_mentions_v2_12_1.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "portal_comment_reactions",
+   "model_classes": [
+    "PortalCommentReaction"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_CANDIDATE_DEAD",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 0,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "portal_group_members",
+   "model_classes": [
+    "PortalGroupMember"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "portal_groups",
+   "model_classes": [
+    "PortalGroup"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/c3d8e5f19a02_reconstruct_portal_comment_base_schema.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 10,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "portal_moderation_logs",
+   "model_classes": [
+    "PortalModerationLog"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "portal_pinned_posts",
+   "model_classes": [
+    "PortalPinnedPost"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_CANDIDATE_DEAD",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 0,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "portal_post_attachments",
+   "model_classes": [
+    "PortalPostAttachment"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "portal_post_audiences",
+   "model_classes": [
+    "PortalPostAudience"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 2,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "portal_post_comments",
+   "model_classes": [
+    "PortalPostComment"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/c3d8e5f19a02_reconstruct_portal_comment_base_schema.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 4,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "portal_post_reactions",
+   "model_classes": [
+    "PortalPostReaction"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "portal_post_reports",
+   "model_classes": [
+    "PortalPostReport"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 3,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "portal_posts",
+   "model_classes": [
+    "PortalPost"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/c3d8e5f19a02_reconstruct_portal_comment_base_schema.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 10,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "portal_profiles",
+   "model_classes": [
+    "PortalProfile"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 11,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "portal_saved_posts",
+   "model_classes": [
+    "PortalSavedPost"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "publication_issues",
+   "model_classes": [
+    "PublicationIssue"
+   ],
+   "status": "NO_REPRODUCIBLE_SOURCE_ACTIVE",
+   "migration_files": [],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  },
+  {
+   "table": "role_competency_templates",
+   "model_classes": [
+    "RoleCompetencyTemplate"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/20260508_sp1a_strategic_performance.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "role_menu_defaults",
+   "model_classes": [
+    "RoleMenuDefault"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f103a9d7c2b1_add_settings_foundation_phase1.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 30,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "self_reviews",
+   "model_classes": [
+    "SelfReview"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/20260508_sp1a_strategic_performance.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 1,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "settings_change_logs",
+   "model_classes": [
+    "SettingsChangeLog"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/b2c3d4e5f6a7_add_settings_change_logs_phase3.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 18,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "support_categories",
+   "model_classes": [
+    "SupportCategory"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a3d8f1c9b6e2_add_support_ticket_schema.py"
+   ],
+   "runtime_ddl_files": [
+    "app/support/routes.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 6,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "support_feedback_ratings",
+   "model_classes": [
+    "SupportFeedbackRating"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a3d8f1c9b6e2_add_support_ticket_schema.py"
+   ],
+   "runtime_ddl_files": [
+    "app/support/routes.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 6,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "support_help_articles",
+   "model_classes": [
+    "SupportHelpArticle"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a3d8f1c9b6e2_add_support_ticket_schema.py"
+   ],
+   "runtime_ddl_files": [
+    "app/support/routes.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 8,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "support_ticket_attachments",
+   "model_classes": [
+    "SupportTicketAttachment"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a3d8f1c9b6e2_add_support_ticket_schema.py"
+   ],
+   "runtime_ddl_files": [
+    "app/support/routes.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 8,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "support_ticket_messages",
+   "model_classes": [
+    "SupportTicketMessage"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a3d8f1c9b6e2_add_support_ticket_schema.py"
+   ],
+   "runtime_ddl_files": [
+    "app/support/routes.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 12,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "support_ticket_status_history",
+   "model_classes": [
+    "SupportTicketStatusHistory"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a3d8f1c9b6e2_add_support_ticket_schema.py"
+   ],
+   "runtime_ddl_files": [
+    "app/support/routes.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 12,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "support_tickets",
+   "model_classes": [
+    "SupportTicket"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a3d8f1c9b6e2_add_support_ticket_schema.py"
+   ],
+   "runtime_ddl_files": [
+    "app/support/routes.py"
+   ],
+   "script_ddl_files": [],
+   "app_reference_files": 38,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "survey_answers",
+   "model_classes": [
+    "SurveyAnswer"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/8d5e7f31c002_add_surveys_module.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 9,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "survey_assignments",
+   "model_classes": [
+    "SurveyAssignment"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/8d5e7f31c002_add_surveys_module.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 22,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "survey_question_options",
+   "model_classes": [
+    "SurveyQuestionOption"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/8d5e7f31c002_add_surveys_module.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 8,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "survey_questions",
+   "model_classes": [
+    "SurveyQuestion"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/8d5e7f31c002_add_surveys_module.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 11,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "survey_responses",
+   "model_classes": [
+    "SurveyResponse"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/8d5e7f31c002_add_surveys_module.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 25,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "surveys",
+   "model_classes": [
+    "Survey"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/8d5e7f31c002_add_surveys_module.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 78,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "system_settings",
+   "model_classes": [
+    "SystemSetting"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/f103a9d7c2b1_add_settings_foundation_phase1.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 35,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "unit_menu_profiles",
+   "model_classes": [
+    "UnitMenuProfile"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/a9f2b7c4d001_add_unit_menu_profiles_phase2.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 15,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "user_menu_permissions",
+   "model_classes": [
+    "UserMenuPermission"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 30,
+   "orm_columns_not_in_migrations": [],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": false
+  },
+  {
+   "table": "users",
+   "model_classes": [
+    "User"
+   ],
+   "status": "MIGRATION_PRESENT",
+   "migration_files": [
+    "migrations/versions/fae32fb68b1b_initial_clean_setup.py"
+   ],
+   "runtime_ddl_files": [],
+   "script_ddl_files": [],
+   "app_reference_files": 234,
+   "orm_columns_not_in_migrations": [
+    "birth_date",
+    "celebration_opt_out",
+    "hire_date"
+   ],
+   "orm_columns_without_any_ddl": [],
+   "live_validation_required": true
+  }
+ ]
+}

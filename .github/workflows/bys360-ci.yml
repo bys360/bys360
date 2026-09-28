@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, master, develop ]
   pull_request:
-    branches: [ main, master, develop, assistant-v2-full ]
+    branches: [ main, master, develop, assistant-v2-full, docs/ministry-review-readme ]
   workflow_dispatch:
 
 jobs:
@@ -88,8 +88,9 @@ jobs:
       # NOT (BYS360 Truthful Quality Gates, Campaign 1, 2026-07-24): bu adım isminden
       # farklı olarak yalnızca F821'i değil, pyproject.toml [tool.ruff.lint] select
       # listesinin tamamını (E,F,I,UP,B,SIM) uygular. Ad, gerçek kapsamı yansıtacak
-      # şekilde düzeltildi; komut/kapsam DEĞİŞTİRİLMEDİ. Bu adım şu an gerçekten
-      # kırmızıdır (41 bulgu) — bkz. reports/quality/BYS360_RUFF_GATE_DEBT_INVENTORY_FOR_CAMPAIGN2.md
+      # şekilde düzeltildi; komut/kapsam DEĞİŞTİRİLMEDİ. Bu notun yazıldığı kampanya
+      # döneminde 41 bulgu vardı; güncel durum workflow'un gerçek koşum sonucu
+      # tarafından belirlenir — bkz. reports/quality/BYS360_RUFF_GATE_DEBT_INVENTORY_FOR_CAMPAIGN2.md
       # ve branch phase5-ruff-tests-cleanup-v1.
       - name: Ruff full-select gate (E,F,I,UP,B,SIM)
         run: python -m ruff check app config.py wsgi.py run.py scripts tests
@@ -185,8 +186,13 @@ jobs:
       # actual runtime requirement. Markers removed from the file; 2 isolated
       # runs + full-suite-mixed + post-full-suite isolated re-run all 3/3, 0
       # failed, identical whether or not the marker filter is applied.
+      # BYS360 Final Pre-Live Audit P2-07 (2026-09-28): the two loose
+      # tests/test_h1e_n_*.py status-label contracts were never named here, so
+      # CI never ran them; they are listed now. tests/architecture/
+      # test_ci_test_selection_blind_spot_contract.py fails if a loose
+      # tests/test_*.py file or an unmarked tests/quality module is left out again.
       - name: Run integration and architecture tests
-        run: python -m pytest tests/integration tests/architecture tests/security tests/critical tests/services tests/migrations tests/release tests/communication tests/behavior tests/mobile tests/performance tests/quality/test_workflow_orphan_presentation_subsystem_cleanup_contract.py tests/test_10_10_core_static_gate.py tests/test_ai_analysis_excel_preview_static.py tests/test_ai_executive_report_static.py tests/test_ai_recommendation_priority_static.py tests/test_ai_routes.py tests/test_claude_phase5_function_signatures.py tests/test_claude_phase5_template_compilation.py tests/test_compat_redirects.py tests/test_datetime_utils.py tests/test_error_support.py tests/test_feedback_admin_endpoint_static.py tests/test_feedback_privacy_static.py tests/test_feedback_pulse_admin_tab_static.py tests/test_feedback_pulse_menu_visibility_static.py tests/test_feedback_pulse_privacy_behavior.py tests/test_hr_reports_template_no_unpack_static.py tests/test_live_scope_and_security_static.py tests/test_module_maturity_scoring.py tests/test_no_admin_org_units_duplicate_static.py tests/test_no_duplicate_admin_org_units_static.py tests/test_performance_archive_visibility_contract.py tests/test_performance_chain_constitution.py tests/test_performance_form_guard.py tests/test_performance_ops_center.py tests/test_performance_preflight.py tests/test_performance_publish_guard.py tests/test_performance_publish_preflight_static.py tests/test_performance_publish_preflight_rules_behavior.py tests/test_personel_analizi_dalga7_static.py tests/test_score100_handover_docs_contract_v1.py tests/test_shared_cache_store_behavior.py tests/test_sp_routes_smoke.py tests/test_team_compare_publish_visibility.py tests/test_team_compare_service.py --cov=app --cov-append --cov-report=term-missing --cov-report=xml:reports/quality/coverage.xml --cov-fail-under=0 --tb=short -q
+        run: python -m pytest tests/integration tests/architecture tests/security tests/critical tests/services tests/migrations tests/release tests/communication tests/behavior tests/mobile tests/performance tests/quality/test_workflow_orphan_presentation_subsystem_cleanup_contract.py tests/test_10_10_core_static_gate.py tests/test_ai_analysis_excel_preview_static.py tests/test_ai_executive_report_static.py tests/test_ai_recommendation_priority_static.py tests/test_ai_routes.py tests/test_claude_phase5_function_signatures.py tests/test_claude_phase5_template_compilation.py tests/test_compat_redirects.py tests/test_datetime_utils.py tests/test_error_support.py tests/test_feedback_admin_endpoint_static.py tests/test_feedback_privacy_static.py tests/test_feedback_pulse_admin_tab_static.py tests/test_feedback_pulse_menu_visibility_static.py tests/test_feedback_pulse_privacy_behavior.py tests/test_h1e_n_feedback_meeting_p4_archive_status_label_contract.py tests/test_h1e_n_team_compare_status_label_contract.py tests/test_hr_reports_template_no_unpack_static.py tests/test_live_scope_and_security_static.py tests/test_module_maturity_scoring.py tests/test_no_admin_org_units_duplicate_static.py tests/test_no_duplicate_admin_org_units_static.py tests/test_performance_archive_visibility_contract.py tests/test_performance_chain_constitution.py tests/test_performance_form_guard.py tests/test_performance_ops_center.py tests/test_performance_preflight.py tests/test_performance_publish_guard.py tests/test_performance_publish_preflight_static.py tests/test_performance_publish_preflight_rules_behavior.py tests/test_personel_analizi_dalga7_static.py tests/test_score100_handover_docs_contract_v1.py tests/test_shared_cache_store_behavior.py tests/test_sp_routes_smoke.py tests/test_team_compare_publish_visibility.py tests/test_team_compare_service.py --cov=app --cov-append --cov-report=term-missing --cov-report=xml:reports/quality/coverage.xml --cov-fail-under=0 --tb=short -q
 
       # TD-032 closure (2026-08-16): the `postgres:15` service above is a
       # fresh container per job run, so `postgres` (its own maintenance DB)

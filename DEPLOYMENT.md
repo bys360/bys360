@@ -45,6 +45,11 @@ flask db upgrade
 
 Migration öncesinde mutlaka yedek alınır. Yedek prosedürü için `BACKUP_RUNBOOK.md` dosyasına bakılır.
 
+> **Bilinen sınırlama (2026-09-28):** `flask db upgrade` mevcut canlı veritabanını güncel tutar, ancak boş bir
+> veritabanında her ORM tablosunu üretmez (Alembic'siz 30 tablo, yalnız runtime DDL ile oluşan 3 tablo, bir şekil
+> uyuşmazlığı). Geri dönüş ve felaket kurtarmada veritabanı yedekten geri yüklenir; ayrıntı ve salt okuma canlı
+> doğrulama adımları: `docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md`.
+
 ## 5. Lokal smoke test
 
 ```powershell

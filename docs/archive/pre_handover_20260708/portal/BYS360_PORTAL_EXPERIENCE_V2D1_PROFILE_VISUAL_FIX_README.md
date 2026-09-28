@@ -11,7 +11,7 @@ Bu overlay, yayın akışındaki profil kartının fotoğraf ve metin yerleşimi
 
 ## Komut
 ```powershell
-cd C:ys360\project
-Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_PORTAL_EXPERIENCE_V2D1_PROFILE_VISUAL_FIX_OVERLAY.zip" -DestinationPath "C:ys360\project" -Force
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_portal_experience_v2d1_profile_visual_fix.ps1 -ProjectRoot "C:ys360\project" -Mode all
+cd C:\bys360\project
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_PORTAL_EXPERIENCE_V2D1_PROFILE_VISUAL_FIX_OVERLAY.zip" -DestinationPath "C:\bys360\project" -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_portal_experience_v2d1_profile_visual_fix.ps1 -ProjectRoot "C:\bys360\project" -Mode all
 ```

@@ -15,15 +15,15 @@ Bu paket Android tarafı V1 genel kaldığı için hazırlanmış daha güçlü 
 ## Kurulum
 
 ```powershell
-cd C:ys360\project
-Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_ANDROID_RESPONSIVE_COMPLETION_V2_OVERLAY.zip" -DestinationPath "C:ys360\project" -Force
-powershell -ExecutionPolicy Bypass -File .\scripts\windowsepair_bys360_android_responsive_completion_v2.ps1 -ProjectRoot "C:ys360\project" -Mode all
+cd C:\bys360\project
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\BYS360_ANDROID_RESPONSIVE_COMPLETION_V2_OVERLAY.zip" -DestinationPath "C:\bys360\project" -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_android_responsive_completion_v2.ps1 -ProjectRoot "C:\bys360\project" -Mode all
 ```
 
 ## Kontrol
 
 ```powershell
-.\.venv\Scripts\python.exe .\scripts\quality\check_bys360_android_responsive_completion_v2.py "C:ys360\project"
+.\.venv\Scripts\python.exe .\scripts\quality\check_bys360_android_responsive_completion_v2.py "C:\bys360\project"
 ```
 
 Beklenen sonuç: `BYS360_ANDROID_RESPONSIVE_COMPLETION_V2_OK`

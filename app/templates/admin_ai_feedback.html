@@ -31,7 +31,7 @@
           <td>{{ req.module_type|ai_module_label if req else '-' }}</td>
           <td>{{ req.feature_type|ai_feature_label if req else '-' }}</td>
           <td>{{ req.prompt_version if req and req.prompt_version else '-' }}</td>
-          <td>{{ row.user.display_name() if row.user else '-' }}</td>
+          <td>{{ row.user.full_name if row.user else '-' }}</td>
           <td>{{ row.feedback_note or '-' }}</td>
           <td>{{ req.target_table|ai_target_label if req else '-' }}{% if req and req.target_id %} #{{ req.target_id }}{% endif %}</td>
         </tr>

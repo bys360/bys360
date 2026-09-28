@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterable
 from typing import Any
 
 from app.extensions import db
@@ -10,6 +12,7 @@ from app.services.performance.period_state_guard import (
     validate_publish_window,
     validate_unpublish_allowed,
 )
+from app.services.performance_admin_service import create_publish_log
 from app.services.publish_service import (
     publish_evaluation as core_publish_evaluation,
     publish_period_results as core_publish_period_results,
@@ -17,6 +20,31 @@ from app.services.publish_service import (
     unpublish_evaluation as core_unpublish_evaluation,
     unpublish_period_results as core_unpublish_period_results,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _record_publish_log(period, actor: Any, action_type: str, evaluation_ids: Iterable[Any], note: str) -> None:
+    """v2 yayın durum değişikliklerini eski yayın rotalarıyla aynı yayın
+    defterine (performance_publish_logs, create_publish_log) yazar: kim, ne
+    yaptı, hangi değerlendirme/personel, ne zaman. Durum değişikliğiyle aynı
+    işlemde (commit öncesi) eklenir; yayın sırası ve sonucu değişmez."""
+    ids = [int(value) for value in evaluation_ids or [] if value]
+    if not ids:
+        return
+    actor_id = getattr(actor, "id", None)
+    if not actor_id:
+        # performance_publish_logs.actor_user_id zorunludur; aktörsüz çağrıda
+        # yayını bozmamak için kayıt atlanır ve operatöre iz bırakılır.
+        logger.warning("BYS360 v2 yayın defteri kaydı aktör olmadığı için atlandı | action=%s | adet=%s", action_type, len(ids))
+        return
+    employee_by_evaluation = dict(
+        db.session.query(PerformanceEvaluation.id, PerformanceEvaluation.employee_id)
+        .filter(PerformanceEvaluation.id.in_(ids))
+        .all()
+    )
+    for evaluation_id in ids:
+        create_publish_log(period.id, actor_id, action_type, evaluation_id, employee_by_evaluation.get(evaluation_id), note)
 
 
 def publish_period_results(period, actor: Any = None):
@@ -43,6 +71,7 @@ def publish_period_results(period, actor: Any = None):
     ensure_low_score_processes_for_period(period, actor_user_id=getattr(actor, "id", None))
     db.session.flush()
     result = core_publish_period_results(period=period, acted_by=actor)
+    _record_publish_log(period, actor, "bulk_publish", result.get("published_evaluation_ids", []), "V2 toplu yayın işlemi ile personele açıldı.")
     db.session.commit()
     notification_result = send_published_evaluation_notifications(
         period,
@@ -74,6 +103,7 @@ def unpublish_period_results(period, actor: Any = None):
         }
 
     result = core_unpublish_period_results(period=period, acted_by=actor)
+    _record_publish_log(period, actor, "bulk_unpublish", result.get("unpublished_evaluation_ids", []), "V2 toplu yayından kaldırma işlemi uygulandı.")
     db.session.commit()
     result["period_id"] = period.id
     return result
@@ -117,6 +147,8 @@ def publish_single_evaluation(evaluation_id: int | None, period, actor: Any = No
         }
 
     ok, message = core_publish_evaluation(evaluation, acted_by=actor)
+    if ok:
+        _record_publish_log(period, actor, "publish", [evaluation.id], "V2 tekil yayın işlemi ile personele açıldı.")
     # Başarısız yayında bile düşük performans süreç kaydı / yayın kilidi gibi
     # kontrol kayıtları oluşmuş olabilir; bu izler kaybolmasın.
     db.session.commit()
@@ -171,7 +203,10 @@ def unpublish_single_evaluation(evaluation_id: int | None, period, actor: Any = 
             "message": "Seçilen değerlendirme bu döneme ait değil veya bulunamadı.",
         }
 
+    was_published = bool(getattr(evaluation, "is_published_to_employee", False))
     ok, message = core_unpublish_evaluation(evaluation, acted_by=actor)
+    if ok and was_published:
+        _record_publish_log(period, actor, "unpublish", [evaluation.id], "V2 tekil yayından kaldırma işlemi uygulandı.")
     db.session.commit()
     return {
         "ok": bool(ok),

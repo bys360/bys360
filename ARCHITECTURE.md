@@ -1,5 +1,25 @@
 ﻿# BYS360 ARCHITECTURE
 
+## Current Architecture Overview
+
+- Flask/Python tabanlı web uygulaması; route katmanı iş mantığı taşımaz, servis katmanını
+  (`app/services/`) çağırır -- route/servis ayrımı proje genelinde uygulanır.
+- Kalıcılık: PostgreSQL (production), Alembic tabanlı migration'lar (`migrations/`); local
+  geliştirme için SQLite desteklenir.
+- Rol/yetki uygulaması: menü görünürlüğü tek başına yetki değildir, her backend route ayrıca
+  kendi yetki kontrolünü uygular; rol tabanlı görünürlük merkezi, kapalı bir rol sözlüğü
+  üzerinden yönetilir.
+- BYS360 Sanal Asistan (Assistant V2): deterministik akış -- güvenlik/kapsam sınıflandırması
+  -> niyet yönlendirme -> yetenek kaydı -> yetkilendirme dispatcher'ı -> yanıt sunum katmanı;
+  harici bir büyük dil modeli servisine bağımlılığı yoktur.
+- Mobil API katmanı (`app/api/mobile/`) ve Flutter istemci altyapısı.
+- CI/güvenlik/release doğrulaması: zorunlu kalite işleri, secret tarama, deterministik
+  release builder ve bağımsız doğrulama modu.
+- Exact-SHA release kimliği: canlıya alınan her paket, üretildiği tam Git commit SHA'sı ile
+  iz sürülür (bkz. README.md "Mevcut Doğrulanmış Canlı Kaynak" bölümü).
+
+Aşağıdaki kayıtlar, iz sürülebilirlik için saklanan tarihsel mimari/teknik borç kararlarıdır;
+güncel proje fazının bir beyanı değildir.
 
 <!-- PHASE2C6_ARCHITECTURE_20260613 -->
 
@@ -7,14 +27,14 @@
 
 ### Bağlam
 
-Faz 2C boyunca wildcard import borcu kontrollü ve test kapılı şekilde azaltılmıştır. Mobil API alanında pp.api.mobile.shared kaynaklı wildcard importlar domain dosyalarında açık importa dönüştürülmüş, pp/api/mobile/routes.py ise facade/aggregator rolü nedeniyle bilinçli istisna olarak bırakılmıştır.
+Faz 2C boyunca wildcard import borcu kontrollü ve test kapılı şekilde azaltılmıştır. Mobil API alanında `app.api.mobile.shared` kaynaklı wildcard importlar domain dosyalarında açık importa dönüştürülmüş, `app/api/mobile/routes.py` ise facade/aggregator rolü nedeniyle bilinçli istisna olarak bırakılmıştır.
 
 ### Alınan Kararlar
 
-- pp/api/mobile/routes.py içindeki rom app.api.mobile.shared import * satırı bilinçli facade istisnasıdır.
+- `app/api/mobile/routes.py` içindeki `from app.api.mobile.shared import *` satırı bilinçli facade istisnasıdır.
 - Bu dosya doğrudan açık importa çevrildiğinde mobil route map ve auth guard testleri kırıldığı için mevcut hali korunmuştur.
 - Faz 2C5 ile düşük riskli 4 ek wildcard import kalıcı olarak temizlenmiştir.
-- pp/institutional/hr_scope_helpers.py otomatik açık import için güvenli değildir; manuel refactor gerektirir.
+- `app/institutional/hr_scope_helpers.py` otomatik açık import için güvenli değildir; manuel refactor gerektirir.
 - Kalan wildcard importlar artık “toplu otomatik temizlik” yerine “dosya bazlı refactor” olarak ele alınacaktır.
 
 ### Yeni Geliştirme Disiplini
@@ -32,7 +52,7 @@ Bundan sonra:
 - scripts/quality envanteri çıkarılacak.
 - Aktif kullanılan kalite/deploy/migration yardımcıları ayrılacak.
 - Kullanılmayan scriptler scripts/archive/quality/ altına taşınacak.
-- Dağınık rapor ve dokümanlar docs/archive/ ve eports/archive/ altında toplanacak.
+- Dağınık rapor ve dokümanlar `docs/archive/` ve `reports/archive/` altında toplanacak.
 - Güncel mimari bilgi ARCHITECTURE.md, güncel durum bilgisi STATUS.md içinde tutulacak.
 
 

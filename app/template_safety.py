@@ -12,6 +12,7 @@ class _AboutModalDefaults(TypedDict):
     description: str
     application_name: str
     developer_name: str
+    co_developer_name: str
     institution_name: str
     release_info: str
 
@@ -32,7 +33,8 @@ def _build_about_modal_context() -> dict[str, Any]:
             "kullanım dili içinde bir araya getirir."
         ),
         "application_name": "BYS360 – Bütünleşik Yönetim Sistemi",
-        "developer_name": "Personel Gülsen Özden",
+        "developer_name": "Havva Gülsen Özden",
+        "co_developer_name": "Mustafa Bektaş",
         "institution_name": "Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı",
         "release_info": "Sürüm 1.0.0\nYapı 2026.04",
     }
@@ -52,6 +54,7 @@ def _build_about_modal_context() -> dict[str, Any]:
             "about.modal_description",
             "about.application_name",
             "about.developer_name",
+            "about.co_developer_name",
             "about.institution_name",
             "about.release_info",
             "about.hero_subtitle",
@@ -83,6 +86,7 @@ def _build_about_modal_context() -> dict[str, Any]:
             "description": pick("about.modal_description", "about.hero_subtitle", fallback=defaults["description"]),
             "application_name": pick("about.application_name", "general.system_name", fallback=defaults["application_name"]),
             "developer_name": pick("about.developer_name", fallback=defaults["developer_name"]),
+            "co_developer_name": pick("about.co_developer_name", fallback=defaults["co_developer_name"]),
             "institution_name": pick("about.institution_name", "general.institution_name", fallback=defaults["institution_name"]),
             "release_info": pick("about.release_info", fallback=defaults["release_info"]),
         }

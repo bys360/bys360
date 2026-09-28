@@ -265,3 +265,75 @@ def test_mobile_refresh_with_missing_token_returns_401(client):
     response = client.post("/api/mobile/auth/refresh", json={})
 
     assert response.status_code == 401
+
+
+# --- P2-02 (final pre-live audit): tokens follow the web security_stamp model ---
+
+
+def _login_tokens(client, sicil_no, password):
+    payload = client.post("/api/mobile/auth/login", json={"username": sicil_no, "password": password}).get_json()
+    return payload["access_token"], payload["refresh_token"]
+
+
+def _rotate_stamp(app, user_id):
+    """Same primitive the web forgot-password reset uses (User.rotate_security_stamp)."""
+    from app.extensions import db
+    from app.models import User
+
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user is not None
+        user.rotate_security_stamp()
+        db.session.commit()
+
+
+def test_mobile_tokens_are_rejected_after_security_stamp_rotation(app, client):
+    user_id = _create_user(app, sicil_no="90030", email="w1.stamp.rotate@bys360.test", password="StampTestRotate1!")
+    access_token, refresh_token = _login_tokens(client, "90030", "StampTestRotate1!")
+    assert client.get("/api/mobile/me", headers={"Authorization": f"Bearer {access_token}"}).status_code == 200
+
+    _rotate_stamp(app, user_id)
+
+    assert client.get("/api/mobile/me", headers={"Authorization": f"Bearer {access_token}"}).status_code == 401
+    assert client.post("/api/mobile/auth/refresh", json={"refresh_token": refresh_token}).status_code == 401
+
+
+def test_fresh_mobile_login_after_stamp_rotation_is_accepted(app, client):
+    user_id = _create_user(app, sicil_no="90031", email="w1.stamp.fresh@bys360.test", password="StampTestFresh1!")
+    _login_tokens(client, "90031", "StampTestFresh1!")
+    _rotate_stamp(app, user_id)
+
+    access_token, refresh_token = _login_tokens(client, "90031", "StampTestFresh1!")
+
+    assert client.get("/api/mobile/me", headers={"Authorization": f"Bearer {access_token}"}).status_code == 200
+    refreshed = client.post("/api/mobile/auth/refresh", json={"refresh_token": refresh_token})
+    assert refreshed.status_code == 200
+    new_access = refreshed.get_json()["access_token"]
+    assert client.get("/api/mobile/me", headers={"Authorization": f"Bearer {new_access}"}).status_code == 200
+
+
+def test_mobile_refresh_for_deactivated_user_is_rejected(app, client):
+    from app.extensions import db
+    from app.models import User
+
+    user_id = _create_user(app, sicil_no="90032", email="w1.stamp.inactive@bys360.test", password="StampTestInactive1!")
+    _access, refresh_token = _login_tokens(client, "90032", "StampTestInactive1!")
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user is not None
+        user.is_active = False
+        db.session.commit()
+
+    assert client.post("/api/mobile/auth/refresh", json={"refresh_token": refresh_token}).status_code == 401
+
+
+def test_legacy_stampless_token_keeps_web_compatible_semantics(app, client):
+    """Web load_user accepts a legacy session value without a stamp; tokens issued
+    before this change (no "stamp" claim) behave the same until they expire."""
+    from app.api.mobile.shared import _TOKEN_SALT, _serializer
+
+    user_id = _create_user(app, sicil_no="90033", email="w1.stamp.legacy@bys360.test", password="StampTestLegacy1!")
+    with app.app_context():
+        legacy = _serializer().dumps({"uid": user_id, "kind": "access"}, salt=_TOKEN_SALT)
+
+    assert client.get("/api/mobile/me", headers={"Authorization": f"Bearer {legacy}"}).status_code == 200

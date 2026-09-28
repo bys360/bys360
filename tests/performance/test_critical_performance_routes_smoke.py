@@ -15,9 +15,20 @@ class Row(dict):
 
 @pytest.fixture(autouse=True)
 def _disable_login(app):
+    # The app fixture is session-scoped: restore the flags afterwards, otherwise
+    # LOGIN_DISABLED leaks into every later test (e.g. login-required contracts).
+    keys = ("LOGIN_DISABLED", "WTF_CSRF_ENABLED", "CSRF_ENABLED")
+    missing = object()
+    original = {key: app.config.get(key, missing) for key in keys}
     app.config["LOGIN_DISABLED"] = True
     app.config["WTF_CSRF_ENABLED"] = False
     app.config["CSRF_ENABLED"] = False
+    yield
+    for key, value in original.items():
+        if value is missing:
+            app.config.pop(key, None)
+        else:
+            app.config[key] = value
 
 
 def test_feedback_pipeline_loads_without_500(client, monkeypatch):
@@ -77,6 +88,7 @@ def test_process_tracking_no_500(client, monkeypatch):
 def test_process_reports_no_500(client, monkeypatch):
     import app.performance.process_engine_phase10_reports_routes as routes
 
+    monkeypatch.setattr(routes, "can_view_process_tracking", lambda user: True)
     monkeypatch.setattr(
         routes,
         "_bys360_process_reports_advanced_context",

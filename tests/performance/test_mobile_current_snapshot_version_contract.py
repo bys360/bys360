@@ -19,8 +19,11 @@ is_current filter, so an old version was listed next to the current one and
 counted in the average, the "70 altı" count, the risk list and the development
 suggestions (v1=40 old + v2=80 current -> average 60, one false low score).
 
-Since P0.2W the shared query keeps only is_current=True. Publication visibility
-(period / card publish flags) is deliberately NOT changed (P0.2V CASE C).
+Since P0.2W the shared query keeps only is_current=True. Since P1-01 (final
+pre-live audit) a non-global viewer's evaluation-linked snapshot is listed only
+while that evaluation and its period are published to the employee, like the
+web (visibility_guard); a web unpublish no longer leaves the result on mobile.
+Snapshots without an evaluation (historical Excel import) are unchanged.
 
 Real Flask app, real publish / unpublish routes, real mobile Bearer auth;
 file-backed SQLite test database only. Rows that the real writers would create
@@ -396,3 +399,90 @@ def test_missing_token_keeps_the_existing_session_error(env) -> None:
     result = _get(env, None, "/api/mobile/performance/scorecards")
     assert (result["status"], result["body"]) == (401, {"message": "Mobil oturum bulunamadı veya süresi doldu."})
     assert result["dml"] == []
+
+
+# ---------------------------------------------------------------------------
+# P1-01 (final pre-live audit): web unpublish hides the result on mobile too
+# ---------------------------------------------------------------------------
+
+
+def _approved_evaluation(env: SimpleNamespace) -> tuple[int, int, int]:
+    """A completed, pre-approved evaluation ready for the real publish route."""
+    from app.extensions import db
+    from app.models import PerformanceEvaluation, PerformanceEvaluationItem
+    from app.services.performance.personnel_support_publish_approval_service import (
+        ensure_personnel_support_publish_approval_for_evaluation,
+    )
+
+    period_id = _period(env)
+    l1_id, l1_sicil = _user(env.app, role="grup_baskani")
+    l2_id, l2_sicil = _user(env.app, role="koordinator")
+    employee_id, _sicil = _user(env.app, role="personel", managers=(l1_sicil, l2_sicil, None))
+    with env.app.app_context():
+        evaluation = PerformanceEvaluation(
+            period_id=period_id, employee_id=employee_id, level_1_evaluator_id=l1_id, level_2_evaluator_id=l2_id,
+            level_1_completed=True, level_2_completed=True, status="tamamlandi", workflow_status="tamamlandi",
+            level_1_general_comment=_COMMENT, final_total_100=90.0, level_1_total_100=80.0, level_2_total_100=100.0,
+        )
+        db.session.add(evaluation)
+        db.session.flush()
+        for level, scores in ((1, (4, 4)), (2, (5, 5))):
+            for criteria_id, score in zip(env.criteria_ids, scores, strict=True):
+                db.session.add(PerformanceEvaluationItem(evaluation_id=evaluation.id, criteria_id=criteria_id, manager_level=level, score=float(score), score_100=float(score) * 20, justification="Gerekçe"))
+        db.session.commit()
+        evaluation_id = int(evaluation.id)
+        row = ensure_personnel_support_publish_approval_for_evaluation(evaluation)
+        assert row is not None
+        approval_id = int(row["id"])
+        db.session.commit()
+    assert env.chair.post(f"/performance/personnel-support-publish-approvals/{approval_id}/approve", data={"note": "Uygundur."}).status_code == 302
+    return employee_id, evaluation_id, period_id
+
+
+def _web_publish(env: SimpleNamespace, evaluation_id: int, *, publish: bool) -> None:
+    path = f"/performance/{'publish' if publish else 'unpublish'}/evaluation/{evaluation_id}"
+    flash = ("success", "Sonuç personele yayımlandı.") if publish else ("success", "Sonuç yayından kaldırıldı.")
+    assert env.admin.post(path, data={}, follow_redirects=False).status_code == 302
+    assert flash in _flashes(env.admin)
+
+
+def test_unpublished_result_is_hidden_from_the_employee_on_mobile(env) -> None:
+    employee_id, evaluation_id, period_id = _approved_evaluation(env)
+
+    _web_publish(env, evaluation_id, publish=True)
+    [(snapshot_id, _version, _current)] = _rows(env, employee_id)
+    published = _get(env, employee_id, "/api/mobile/performance/scorecards")
+    assert (published["items"], published["metrics"]["Karne"]) == ([str(snapshot_id)], "1")
+
+    _web_publish(env, evaluation_id, publish=False)
+    assert _rows(env, employee_id) == [(snapshot_id, 1, True)]  # the snapshot row itself is untouched
+
+    scorecards = _get(env, employee_id, "/api/mobile/performance/scorecards")
+    assert (scorecards["items"], scorecards["metrics"]["Karne"]) == ([], "0")
+    summary = _get(env, employee_id, "/api/mobile/performance/summary")
+    assert summary["metrics"]["Ortalama Puan"] in ("-", "0/100")
+    period_detail = _get(env, employee_id, f"/api/mobile/performance/periods/{period_id}")
+    assert period_detail["items"][1:] == []  # items[0] is the period itself
+    for result in (scorecards, summary, period_detail):
+        assert result["status"] == 200 and result["dml"] == []
+
+
+def test_unpublished_result_stays_visible_to_global_mobile_scope(env) -> None:
+    """Internal (admin) semantics are unchanged: the current snapshot is still listed."""
+    employee_id, evaluation_id, _period_id = _approved_evaluation(env)
+    _web_publish(env, evaluation_id, publish=True)
+    [(snapshot_id, _version, _current)] = _rows(env, employee_id)
+    _web_publish(env, evaluation_id, publish=False)
+
+    assert str(snapshot_id) in _get(env, env.admin_id, "/api/mobile/performance/scorecards")["items"]
+
+
+def test_republished_result_is_visible_to_the_employee_again(env) -> None:
+    employee_id, evaluation_id, _period_id = _approved_evaluation(env)
+    _web_publish(env, evaluation_id, publish=True)
+    _web_publish(env, evaluation_id, publish=False)
+    _web_publish(env, evaluation_id, publish=True)
+
+    current = [row_id for row_id, _version, is_current in _rows(env, employee_id) if is_current]
+    result = _get(env, employee_id, "/api/mobile/performance/scorecards")
+    assert (result["items"], result["metrics"]["Karne"]) == ([str(current[0])], "1")

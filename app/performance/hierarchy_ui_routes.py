@@ -5,8 +5,15 @@ from typing import cast
 
 logger = logging.getLogger(__name__)
 
-def _build_surface_scope_context(*args, **kwargs):
-    return _build_surface_scope_context(*args, **kwargs)
+def _build_surface_scope_context(user, raw_scope):
+    """view_helpers import döngüsünü kırmak için gerçek yardımcı çağrı anında
+    yüklenir (app/performance/routes.py ile aynı desen). Eskiden kendi kendini
+    çağırıyordu; /performance/hierarchy-tree-live her istekte RecursionError
+    ile 500 dönüyordu."""
+    from importlib import import_module
+
+    helper = import_module("app.view_helpers").build_surface_scope_context
+    return helper(user, raw_scope)
 
 
 # --- BYS360 third-manager Excel import compatibility patch ---

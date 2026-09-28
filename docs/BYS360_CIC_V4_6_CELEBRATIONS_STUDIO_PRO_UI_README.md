@@ -12,7 +12,7 @@ Kutlamalar sayfasını taslak görünümden çıkarıp BYS360 kurumsal tasarım 
 
 ## Komut
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windowsepair_cic_v4_6_celebrations_studio_pro_ui.ps1 -ProjectRoot "C:ys360\project"
-python .\scripts\quality\check_cic_v4_6_celebrations_studio_pro_ui.py --project-root "C:ys360\project"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\repair_cic_v4_6_celebrations_studio_pro_ui.ps1 -ProjectRoot "C:\bys360\project"
+python .\scripts\quality\check_cic_v4_6_celebrations_studio_pro_ui.py --project-root "C:\bys360\project"
 python -m compileall app config.py scripts
 ```

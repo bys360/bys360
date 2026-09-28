@@ -6,7 +6,7 @@
 - Geliştirme yedekleri `.bak`, `.orig`, `.old` olarak kaynak kod ağacında tutulmaz; git branch/stash kullanılır.
 - Route dosyaları iş mantığı taşımaz; servis katmanı çağırır.
 - Kullanıcı ekranında teknik faz, debug, endpoint, raw exception veya geliştirici notu gösterilmez.
-- Her overlay tek amaçlı, geri alınabilir ve raporlu olmalıdır.
+- Her değişiklik tek amaçlı, geri alınabilir, açıklanabilir ve doğrulanabilir olmalıdır.
 
 ## Kalite kontrol
 

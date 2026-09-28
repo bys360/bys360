@@ -19,8 +19,8 @@ queries; P0.2X), but any error there turned an employee's result into
 institution-wide numbers without the current-version filter.
 
 Since P0.2Y the fallbacks are gone: the helpers are the only scope source, and a
-helper error reaches the app's existing handler (rollback, HTTP 500 "Sistem
-Hatası" page; the app-wide 5xx security event is written to audit_logs) instead
+helper error reaches the app's existing handler (rollback, HTTP 500 JSON "Sistem
+Hatası" (since P2-03); the app-wide 5xx security event is written to audit_logs) instead
 of returning somebody else's data. Execution-time database errors keep the
 existing safe read helpers' behavior (0 / "-"). Publication visibility is not
 changed (P0.2V CASE C).
@@ -30,6 +30,7 @@ Real Flask app, real mobile Bearer auth; file-backed SQLite test database only.
 from __future__ import annotations
 
 import importlib
+import json
 import tempfile
 from datetime import date, datetime
 from pathlib import Path
@@ -253,9 +254,10 @@ def test_scope_helper_failure_uses_the_existing_error_page_without_data(env, mon
     for _attempt in range(2):  # deterministic on repeat
         result = _get(env, env.person_a, path)
         assert result["status"] == 500
-        assert result["content_type"].startswith("text/html")
-        assert "Sistem Hatası" in result["text"]
-        assert result["body"] == {} and result["metrics"] == {}
+        assert result["content_type"].startswith("application/json")  # P2-03 mobile JSON errors
+        assert json.loads(result["text"])["title"] == "Sistem Hatası"
+        assert set(result["body"]) == {"message", "title"}  # error fields only, no data
+        assert result["metrics"] == {}
         assert result["dml"] == ["INSERT INTO audit_logs"]  # the app-wide 5xx security event only
     assert _rows(env) == before
 

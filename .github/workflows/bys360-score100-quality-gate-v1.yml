@@ -1,9 +1,9 @@
-name: BYS360 Score 100 Quality Gate V1
+name: BYS360 Quality Assurance Gate V1
 
 on:
   workflow_dispatch:
   pull_request:
-    branches: [ master, main, assistant-v2-full ]
+    branches: [ master, main, assistant-v2-full, docs/ministry-review-readme ]
 
 jobs:
   score100-quality-gate:
@@ -24,7 +24,7 @@ jobs:
           if (Test-Path requirements.txt) { python -m pip install -r requirements.txt }
           python -m pip install -r requirements-dev.txt
 
-      - name: Run BYS360 Score 100 Quality Gate V1
+      - name: Run BYS360 Quality Assurance Gate V1
         shell: pwsh
         run: |
           powershell -ExecutionPolicy Bypass -File .\scripts\windows\repair_bys360_score100_quality_gate_v1.ps1 -ProjectRoot "." -Mode gate -RunPipAudit -RunRuff

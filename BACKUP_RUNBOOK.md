@@ -84,6 +84,9 @@ pg_restore --clean --if-exists --dbname "%DATABASE_URL%" "C:\bys360\backups\bys3
 
 Restore canlıda yapılacaksa öncesinde yetkili onay ve kesinti planı gerekir.
 
+Yedekten geri yükleme, boş veritabanında `flask db upgrade` ile yeniden kurulumun yerine geçer; ikincisi bugün
+her ORM tablosunu üretmez (`docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md`).
+
 ## 7. Yedek sonrası doğrulama
 
 - Yedek dosyası var mı?

@@ -34,10 +34,10 @@
           <td>{{ row.prompt_version or '-' }}</td>
           <td><span class="ai-badge {{ 'success' if row.was_masked else 'warning' }}">{{ 'Evet' if row.was_masked else 'Hayır' }}</span></td>
           <td>{{ row.latency_ms or '-' }}{% if row.latency_ms %} ms{% endif %}</td>
-          <td>{{ row.user.display_name() if row.user else '-' }}</td>
+          <td>{{ row.user.full_name if row.user else '-' }}</td>
           <td>{{ row.model_name or row.provider_name or '-' }}</td>
           <td>{{ row.target_table|ai_target_label if row.target_table else '-' }}{% if row.target_id %} #{{ row.target_id }}{% endif %}</td>
-          <td>{{ row.error_message or (row.response_text[:120] ~ ('…' if row.response_text and row.response_text|length > 120 else '')) or '-' }}</td>
+          <td>{{ row.error_message or ((row.response_text or '')[:120] ~ ('…' if row.response_text and row.response_text|length > 120 else '')) or '-' }}</td>
         </tr>{% else %}<tr><td colspan="11"><div class="ai-note">Filtrelere uyan AI işlem kaydı bulunamadı.</div></td></tr>{% endfor %}
       </tbody>
     </table>
