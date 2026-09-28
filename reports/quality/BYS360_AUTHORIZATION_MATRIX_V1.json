@@ -4,20 +4,18 @@
   "routes": 996,
   "by_classification": {
    "AUTHENTICATED_ONLY": 182,
-   "NEEDS_REVIEW": 74,
-   "OBJECT_GATED": 126,
+   "NEEDS_REVIEW": 46,
+   "OBJECT_GATED": 152,
    "PUBLIC_INTENTIONAL": 23,
-   "ROLE_GATED": 591
+   "ROLE_GATED": 593
   },
   "needs_review_by_area": {
-   "ai_knowledge": 1,
-   "file_center": 5,
-   "other": 47,
+   "other": 26,
    "performance": 1,
-   "process_reports": 6,
+   "process_reports": 5,
    "survey": 14
   },
-  "manually_reviewed_routes": 89,
+  "manually_reviewed_routes": 110,
   "fixed_2026_09_28": [
    "health.health_deep",
    "main.ai_performance_evaluation_consistency",
@@ -5458,7 +5456,7 @@
    "test_files": 0,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "manual_review": "part of the popup management surface (see announcement_popup_manage)"
   },
   {
    "blueprint": "main",
@@ -5747,7 +5745,7 @@
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "manual_review": "part of the popup management surface (see announcement_popup_manage)"
   },
   {
    "blueprint": "main",
@@ -5873,7 +5871,9 @@
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [],
    "test_files": 1,
    "heuristic_classification": "AUTHENTICATED_ONLY",
@@ -7757,6 +7757,7 @@
     "survey_id"
    ],
    "inline_scope_checks": [
+    "_for_user(",
     "scope"
    ],
    "areas": [
@@ -7931,7 +7932,8 @@
     "menu_key_required"
    ],
    "inline_role_checks": [
-    "can_manage"
+    "can_manage",
+    "is_manager("
    ],
    "object_params": [],
    "inline_scope_checks": [],
@@ -7959,7 +7961,8 @@
     "menu_key_required"
    ],
    "inline_role_checks": [
-    "can_manage"
+    "can_manage",
+    "is_manager("
    ],
    "object_params": [
     "bulletin_id"
@@ -7998,8 +8001,8 @@
    ],
    "test_files": 2,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "records the current user's own acknowledgement"
   },
   {
    "blueprint": "main",
@@ -8018,7 +8021,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "bulletin_id"
    ],
@@ -8047,7 +8052,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
@@ -8153,7 +8160,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "bulletin_id"
    ],
@@ -8182,7 +8191,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "bulletin_id"
    ],
@@ -8238,7 +8249,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [
@@ -8266,7 +8279,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -8296,7 +8311,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -8326,7 +8343,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -8356,7 +8375,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -8387,7 +8408,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -8417,7 +8440,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -8447,7 +8472,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -8477,7 +8504,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -8508,7 +8537,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [
@@ -8565,7 +8596,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "template_id"
    ],
@@ -8596,7 +8629,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [
@@ -8785,7 +8820,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "ticket_id"
    ],
@@ -8813,7 +8850,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "ticket_id"
    ],
@@ -8841,7 +8880,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "ticket_id"
    ],
@@ -8895,7 +8936,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -8930,12 +8973,14 @@
    "object_params": [
     "survey_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [
     "survey"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
    "classification": "OBJECT_GATED",
    "manual_review": "get_survey_for_user(survey_id, current_user)"
   },
@@ -8958,7 +9003,9 @@
    ],
    "inline_role_checks": [],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [
     "survey"
    ],
@@ -8984,7 +9031,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
@@ -9088,7 +9137,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [
     "review_id"
    ],
@@ -9416,7 +9467,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "is_manager("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
@@ -11475,7 +11528,9 @@
    ],
    "inline_role_checks": [],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [],
    "test_files": 1,
    "heuristic_classification": "ROLE_GATED",
@@ -11603,8 +11658,8 @@
    "areas": [],
    "test_files": 2,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "ROLE_GATED",
+   "manual_review": "manager_required + menu 'feedback_admin'; POLICY QUESTION: any manager can publish any campaign"
   },
   {
    "blueprint": "main",
@@ -11635,8 +11690,8 @@
    "areas": [],
    "test_files": 2,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "ROLE_GATED",
+   "manual_review": "manager_required + menu 'feedback_admin'; POLICY QUESTION: any manager can change any campaign"
   },
   {
    "blueprint": "main",
@@ -11718,7 +11773,9 @@
    ],
    "inline_role_checks": [],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [],
    "test_files": 2,
    "heuristic_classification": "ROLE_GATED",
@@ -11751,8 +11808,8 @@
    "areas": [],
    "test_files": 2,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "submit: user_can_see_campaign; GET renders only the campaign questions (low)"
   },
   {
    "blueprint": "main",
@@ -11854,7 +11911,9 @@
     "manager_required",
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_can_export_feedback_now("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
@@ -11943,7 +12002,9 @@
     "manager_required",
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_can_export_feedback_now("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
@@ -12029,7 +12090,9 @@
     "manager_required",
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_can_export_feedback_now("
+   ],
    "object_params": [
     "campaign_id"
    ],
@@ -12087,7 +12150,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_admin("
+   ],
    "areas": [
     "file_center"
    ],
@@ -12398,7 +12463,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_admin("
+   ],
    "areas": [
     "file_center"
    ],
@@ -12425,7 +12492,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_admin("
+   ],
    "areas": [
     "file_center"
    ],
@@ -12452,7 +12521,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_admin("
+   ],
    "areas": [
     "file_center"
    ],
@@ -12509,6 +12580,7 @@
    ],
    "object_params": [],
    "inline_scope_checks": [
+    "can_manage_file_center_quota_policy(",
     "scope"
    ],
    "areas": [
@@ -12539,13 +12611,15 @@
    "object_params": [
     "policy_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_quota_policy("
+   ],
    "areas": [
     "file_center"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
    "manual_review": null
   },
   {
@@ -12773,7 +12847,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_admin("
+   ],
    "areas": [
     "file_center"
    ],
@@ -12802,13 +12878,15 @@
    "object_params": [
     "file_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_admin("
+   ],
    "areas": [
     "file_center"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
    "manual_review": null
   },
   {
@@ -12831,13 +12909,15 @@
    "object_params": [
     "file_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_admin("
+   ],
    "areas": [
     "file_center"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
    "manual_review": null
   },
   {
@@ -12860,13 +12940,15 @@
    "object_params": [
     "file_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_admin("
+   ],
    "areas": [
     "file_center"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
    "manual_review": null
   },
   {
@@ -12887,7 +12969,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_admin("
+   ],
    "areas": [
     "file_center"
    ],
@@ -12916,13 +13000,15 @@
    "object_params": [
     "file_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_admin("
+   ],
    "areas": [
     "file_center"
    ],
    "test_files": 1,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
    "manual_review": null
   },
   {
@@ -12943,7 +13029,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_settings("
+   ],
    "areas": [
     "admin_settings",
     "file_center"
@@ -12971,7 +13059,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_settings("
+   ],
    "areas": [
     "admin_settings",
     "file_center"
@@ -12999,7 +13089,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_settings("
+   ],
    "areas": [
     "admin_settings",
     "file_center"
@@ -13027,7 +13119,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_role_matrix("
+   ],
    "areas": [
     "admin_settings",
     "file_center"
@@ -13055,7 +13149,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_role_matrix("
+   ],
    "areas": [
     "admin_settings",
     "file_center"
@@ -13083,7 +13179,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_manage_file_center_role_matrix("
+   ],
    "areas": [
     "admin_settings",
     "file_center"
@@ -16520,8 +16618,8 @@
    "areas": [],
    "test_files": 16,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16548,8 +16646,8 @@
    "areas": [],
    "test_files": 16,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16576,8 +16674,8 @@
    "areas": [],
    "test_files": 16,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16604,8 +16702,8 @@
    "areas": [],
    "test_files": 16,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16685,8 +16783,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16713,8 +16811,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16741,8 +16839,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16769,8 +16867,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16797,8 +16895,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16825,8 +16923,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16853,8 +16951,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16881,8 +16979,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16909,8 +17007,8 @@
    "areas": [],
    "test_files": 3,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"
   },
   {
    "blueprint": "main",
@@ -16963,8 +17061,8 @@
    "areas": [],
    "test_files": 20,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "filter_by(id, user_id=current_user.id)"
   },
   {
    "blueprint": "main",
@@ -16991,8 +17089,8 @@
    "areas": [],
    "test_files": 20,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "filter_by(id, user_id=current_user.id)"
   },
   {
    "blueprint": "main",
@@ -17286,7 +17384,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [
     "performance"
    ],
@@ -18435,12 +18535,14 @@
    "object_params": [
     "action_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [
     "performance"
    ],
    "test_files": 0,
-   "heuristic_classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
    "classification": "OBJECT_GATED",
    "manual_review": "scoped action lookup (is_admin / owner)"
   },
@@ -19777,7 +19879,8 @@
    ],
    "object_params": [],
    "inline_scope_checks": [
-    "_can_manage"
+    "_can_manage",
+    "_for_user("
    ],
    "areas": [
     "performance"
@@ -21282,6 +21385,7 @@
    "inline_role_checks": [],
    "object_params": [],
    "inline_scope_checks": [
+    "_for_user(",
     "scope"
    ],
    "areas": [
@@ -23229,6 +23333,7 @@
    "inline_role_checks": [],
    "object_params": [],
    "inline_scope_checks": [
+    "_for_user(",
     "can_see",
     "scope"
    ],
@@ -24662,7 +24767,9 @@
     "can_manage"
    ],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [
     "performance"
    ],
@@ -25265,7 +25372,8 @@
    ],
    "object_params": [],
    "inline_scope_checks": [
-    "_can_manage"
+    "_can_manage",
+    "_for_user("
    ],
    "areas": [
     "performance"
@@ -25295,6 +25403,7 @@
    "object_params": [],
    "inline_scope_checks": [
     "_can_manage",
+    "_for_user(",
     "can_view"
    ],
    "areas": [
@@ -27076,7 +27185,9 @@
    ],
    "inline_role_checks": [],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [],
    "test_files": 20,
    "heuristic_classification": "ROLE_GATED",
@@ -27131,7 +27242,9 @@
    ],
    "inline_role_checks": [],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [],
    "test_files": 0,
    "heuristic_classification": "ROLE_GATED",
@@ -27162,6 +27275,7 @@
     "group_id"
    ],
    "inline_scope_checks": [
+    "_for_user(",
     "is_group_member"
    ],
    "areas": [],
@@ -27338,11 +27452,13 @@
    "object_params": [
     "post_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_user_view_post("
+   ],
    "areas": [],
    "test_files": 2,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
    "manual_review": null
   },
   {
@@ -27428,11 +27544,13 @@
    "object_params": [
     "post_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_user_view_post("
+   ],
    "areas": [],
    "test_files": 2,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
    "manual_review": null
   },
   {
@@ -27458,13 +27576,15 @@
    "object_params": [
     "post_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_user_view_post("
+   ],
    "areas": [
     "process_reports"
    ],
    "test_files": 2,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
    "manual_review": null
   },
   {
@@ -27490,11 +27610,13 @@
    "object_params": [
     "post_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "can_user_view_post("
+   ],
    "areas": [],
    "test_files": 2,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
    "manual_review": null
   },
   {
@@ -27628,6 +27750,7 @@
    ],
    "inline_scope_checks": [
     "== current_user.id",
+    "_for_user(",
     "owner_id"
    ],
    "areas": [],
@@ -28182,6 +28305,7 @@
     "menu_key_required"
    ],
    "inline_role_checks": [
+    "_can_use_all_support_view(",
     "abort(403)",
     "can_manage"
    ],
@@ -28215,6 +28339,7 @@
     "menu_key_required"
    ],
    "inline_role_checks": [
+    "_can_use_all_support_view(",
     "abort(403)"
    ],
    "object_params": [
@@ -28278,6 +28403,7 @@
     "menu_key_required"
    ],
    "inline_role_checks": [
+    "_can_use_all_support_view(",
     "abort(403)"
    ],
    "object_params": [
@@ -28342,6 +28468,7 @@
     "menu_key_required"
    ],
    "inline_role_checks": [
+    "_can_use_all_support_view(",
     "abort(403)"
    ],
    "object_params": [
@@ -28372,6 +28499,7 @@
     "menu_key_required"
    ],
    "inline_role_checks": [
+    "_can_use_all_support_view(",
     "abort(403)"
    ],
    "object_params": [],
@@ -28849,7 +28977,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -28879,7 +29009,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [
@@ -28907,7 +29039,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -28938,7 +29072,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [
@@ -28966,7 +29102,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -28997,7 +29135,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -29027,7 +29167,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [
@@ -29055,7 +29197,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -29085,7 +29229,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -29115,7 +29261,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [
@@ -29143,7 +29291,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [
@@ -29171,7 +29321,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [
@@ -29199,7 +29351,9 @@
    "role_decorators": [
     "menu_key_required"
    ],
-   "inline_role_checks": [],
+   "inline_role_checks": [
+    "_manager_allowed("
+   ],
    "object_params": [
     "survey_id"
    ],
@@ -29231,7 +29385,9 @@
    ],
    "inline_role_checks": [],
    "object_params": [],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [
     "survey"
    ],
@@ -29262,6 +29418,7 @@
     "survey_id"
    ],
    "inline_scope_checks": [
+    "_for_user(",
     "scope"
    ],
    "areas": [
@@ -29293,12 +29450,14 @@
    "object_params": [
     "survey_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_for_user("
+   ],
    "areas": [
     "survey"
    ],
    "test_files": 19,
-   "heuristic_classification": "NEEDS_REVIEW",
+   "heuristic_classification": "OBJECT_GATED",
    "classification": "OBJECT_GATED",
    "manual_review": "survey access check in handler"
   },

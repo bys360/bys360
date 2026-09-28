@@ -35,13 +35,15 @@ ROLE_DECORATORS = re.compile(
 )
 INLINE_ROLE = re.compile(
     r"(is_admin|is_super_admin|has_role|user_has_role|current_user\.role|role in|role not in|has_permission|"
-    r"can_manage|can_access|require_admin|_guard\(|abort\(403\)|forbidden|menu_key|has_menu_access|is_hr|is_president)"
+    r"can_manage|can_access|require_admin|_guard\(|abort\(403\)|forbidden|menu_key|has_menu_access|is_hr|is_president|"
+    r"is_manager\(|_manager_allowed\(|_can_use_all_[a-z_]+\(|_can_export_[a-z_]+\()"
 )
 INLINE_SCOPE = re.compile(
     r"(scope|can_view|can_edit|can_see|is_owner|owner_id|_owns|visible_to|allowed_employee|manager_of|"
     r"subordinate|\.filter_by\([^)]*(user_id|employee_id|owner|created_by)[^)]*current_user|"
     r"current_user\.id\s*[!=]=|!=\s*current_user\.id|==\s*current_user\.id|ensure_.*access|check_.*access|authorize|"
-    r"_own_|_can_operate|_can_manage|is_group_member|participant|_thread_access)"
+    r"_own_|_can_operate|_can_manage|is_group_member|participant|_thread_access|can_user_view_[a-z_]+\(|"
+    r"can_manage_file_center_[a-z_]+\(|_for_user\()"
 )
 PUBLIC_ENDPOINT_HINTS = re.compile(
     r"(^static$|login|logout|healthz|readyz|versionz|password|forgot|reset|security_question|captcha|manifest|"
@@ -146,6 +148,26 @@ MANUAL_REVIEW: dict[str, tuple[str, str]] = {
     "main.announcement_popup_toggle": ('NEEDS_REVIEW', "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"),
     "main.announcement_popup_report": ('NEEDS_REVIEW', "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"),
     "main.announcement_popup_report_csv": ('NEEDS_REVIEW', "HIGH POLICY QUESTION: popup announcement management has no gate beyond menu 'announcements', which static defaults grant to 'personel'; bulletins (is_manager) and portal (can_publish_announcement) both exclude employees"),
+    "main.messages_thread": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_thread_activity": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_thread_live": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_thread_typing": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_react": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_comment": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_send": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_mark_read": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_toggle_mute": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_toggle_archive": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_toggle_pin": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_edit": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.messages_delete": (_OG, "participant of the thread (service participant_for_thread / MessageThreadParticipant, or *_for_user(current_user.id))"),
+    "main.notifications_mark_read": (_OG, "filter_by(id, user_id=current_user.id)"),
+    "main.notifications_mark_unread": (_OG, "filter_by(id, user_id=current_user.id)"),
+    "main.communication_phase1_bulletin_acknowledge": (_OG, "records the current user's own acknowledgement"),
+    "main.feedback_campaign_detail": (_OG, "submit: user_can_see_campaign; GET renders only the campaign questions (low)"),
+    "main.feedback_campaign_status": ("ROLE_GATED", "manager_required + menu 'feedback_admin'; POLICY QUESTION: any manager can change any campaign"),
+    "main.feedback_campaign_publish": ("ROLE_GATED", "manager_required + menu 'feedback_admin'; POLICY QUESTION: any manager can publish any campaign"),
+    "main.announcement_popup_target_count": ("NEEDS_REVIEW", "part of the popup management surface (see announcement_popup_manage)"),
 }
 
 def _app():
