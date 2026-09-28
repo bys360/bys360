@@ -95,16 +95,18 @@ def provision_period_center_assignment_launch_schema() -> dict[str, Any]:
         "VARCHAR(160)",
         "TIMESTAMP WITHOUT TIME ZONE" if dialect != "sqlite" else "DATETIME",
     ), strict=True))
-    for name, sql_type in columns.items():
-        if not _has_column(INTEGRATION_TABLE, name):
-            try:
-                db.session.execute(text(_alter_add_column_sql(INTEGRATION_TABLE, name, sql_type)))
-                added.append(name)
-            except SQLAlchemyError:
-                logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-                db.session.rollback()
-                if not _has_column(INTEGRATION_TABLE, name):
-                    raise
+    # Inspect before any ALTER: on PostgreSQL an uncommitted ALTER locks the table and
+    # _has_column() inspects through another connection, which would wait forever.
+    missing = [name for name in columns if not _has_column(INTEGRATION_TABLE, name)]
+    for name in missing:
+        try:
+            db.session.execute(text(_alter_add_column_sql(INTEGRATION_TABLE, name, columns[name])))
+            added.append(name)
+        except SQLAlchemyError:
+            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
+            db.session.rollback()
+            if not _has_column(INTEGRATION_TABLE, name):
+                raise
     db.session.commit()
     return {"ok": True, "added_columns": added, "dialect": dialect, "rule_version": RULE_VERSION}
 
