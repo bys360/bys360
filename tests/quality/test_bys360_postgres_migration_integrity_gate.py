@@ -18,6 +18,7 @@ import pytest
 from scripts.quality.bys360_postgres_migration_integrity_gate import (
     ENV_VAR,
     GateFailure,
+    check_runtime_schema,
     compute_migration_graph,
     compute_orm_gaps,
     main,
@@ -242,11 +243,16 @@ def test_main_full_happy_path_is_pass(monkeypatch, capsys) -> None:
             "scripts.quality.bys360_postgres_migration_integrity_gate.introspect_orm_parity",
             return_value={},
         ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.check_runtime_schema",
+            return_value=15,
+        ),
     ):
         exit_code = main([])
     out = capsys.readouterr().out
     assert exit_code == 0
     assert "POSTGRES15_ORM_PARITY=PASS (checked 1 tables, 2 columns)" in out
+    assert "POSTGRES15_RUNTIME_SCHEMA=PASS (provisioned and verified 15 groups" in out
     assert "POSTGRES15_EMPTY_TO_HEAD=PASS" in out
     assert "POSTGRES15_HEAD_MATCH=PASS" in out
     assert "POSTGRES15_SECOND_UPGRADE=PASS" in out
@@ -564,3 +570,47 @@ def test_main_orm_schema_gap_is_blocked(monkeypatch, capsys) -> None:
     assert exit_code == 1
     assert "ORM_SCHEMA_MISSING" in out
     assert "performance_low_score_processes" in out
+
+
+def _cli(returncode: int, *lines: str) -> subprocess.CompletedProcess:
+    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout="".join(line + chr(10) for line in lines), stderr="")
+
+
+GATE = "scripts.quality.bys360_postgres_migration_integrity_gate"
+
+
+def test_runtime_schema_step_counts_verified_groups() -> None:
+    runs = [
+        _cli(0, "performance.a: provisioned t1", "mobile.b: already present"),
+        _cli(0, "performance.a: OK", "mobile.b: OK"),
+        _cli(0, "performance.a: already present", "mobile.b: already present"),
+    ]
+    with patch(f"{GATE}.run_flask_runtime_schema", side_effect=runs):
+        assert check_runtime_schema(VALID_URL) == 2
+
+
+def test_runtime_schema_step_fails_when_provision_fails() -> None:
+    with (
+        patch(f"{GATE}.run_flask_runtime_schema", side_effect=[_cli(1, "performance.a: STILL MISSING t1")]),
+        pytest.raises(GateFailure) as excinfo,
+    ):
+        check_runtime_schema(VALID_URL)
+    assert excinfo.value.code == "RUNTIME_SCHEMA_FAILURE"
+
+
+def test_runtime_schema_step_fails_when_second_provision_changes_something() -> None:
+    runs = [_cli(0, "performance.a: provisioned t1"), _cli(0, "performance.a: OK"), _cli(0, "performance.a: provisioned t1")]
+    with patch(f"{GATE}.run_flask_runtime_schema", side_effect=runs), pytest.raises(GateFailure) as excinfo:
+        check_runtime_schema(VALID_URL)
+    assert excinfo.value.code == "RUNTIME_SCHEMA_NOT_IDEMPOTENT"
+
+
+def test_runtime_schema_timeout_is_a_gate_failure() -> None:
+    from scripts.quality.bys360_postgres_migration_integrity_gate import run_flask_runtime_schema
+
+    with (
+        patch(f"{GATE}.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="flask", timeout=1)),
+        pytest.raises(GateFailure) as excinfo,
+    ):
+        run_flask_runtime_schema(VALID_URL, "provision")
+    assert excinfo.value.code == "RUNTIME_SCHEMA_TIMEOUT"

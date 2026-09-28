@@ -405,6 +405,51 @@ def run_flask_db_upgrade(database_url: str) -> subprocess.CompletedProcess:
     )
 
 
+RUNTIME_SCHEMA_TIMEOUT_SECONDS = 300
+RUNTIME_SCHEMA_LINE = re.compile(r"^[a-z0-9_.]+: ")
+
+
+def run_flask_runtime_schema(database_url: str, command: str) -> subprocess.CompletedProcess:
+    """`flask runtime-schema <command>`; a hang (e.g. a lock wait) becomes a gate failure, not a stuck job."""
+    env = dict(os.environ)
+    env["DATABASE_URL"] = database_url
+    env["FLASK_APP"] = "wsgi.py"
+    try:
+        return subprocess.run(
+            [sys.executable, "-m", "flask", "runtime-schema", command],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=RUNTIME_SCHEMA_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise GateFailure(
+            "RUNTIME_SCHEMA_TIMEOUT",
+            f"flask runtime-schema {command} did not finish within {RUNTIME_SCHEMA_TIMEOUT_SECONDS}s",
+        ) from exc
+
+
+def check_runtime_schema(database_url: str) -> int:
+    """Provision the raw-SQL runtime groups, verify them, and require a second provision to change nothing."""
+    for command in ("provision", "check"):
+        result = run_flask_runtime_schema(database_url, command)
+        if result.returncode != 0:
+            raise GateFailure(
+                "RUNTIME_SCHEMA_FAILURE",
+                f"flask runtime-schema {command} failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}",
+            )
+    groups = [line for line in result.stdout.splitlines() if RUNTIME_SCHEMA_LINE.match(line)]
+    again = run_flask_runtime_schema(database_url, "provision")
+    changed = [
+        line for line in again.stdout.splitlines()
+        if RUNTIME_SCHEMA_LINE.match(line) and not line.rstrip().endswith("already present")
+    ]
+    if again.returncode != 0 or changed:
+        raise GateFailure("RUNTIME_SCHEMA_NOT_IDEMPOTENT", f"Second provision changed or failed: {changed!r}")
+    return len(groups)
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_url = os.environ.get(ENV_VAR, "")
 
@@ -504,6 +549,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         orm_column_count = sum(len(columns) for columns in orm_columns.values())
         print(f"POSTGRES15_ORM_PARITY=PASS (checked {len(orm_columns)} tables, {orm_column_count} columns)")
+
+        runtime_groups = check_runtime_schema(raw_url)
+        print(f"POSTGRES15_RUNTIME_SCHEMA=PASS (provisioned and verified {runtime_groups} groups, second provision no-op)")
 
     except GateFailure as exc:
         print(f"{PACKAGE}_{exc.code}")
