@@ -824,7 +824,7 @@ def hr_personnel_document_save():
     hr_scope, _, scope_user_ids = _current_scope_bundle()
     if not consume_form_token("hr_personnel_document_save", request.form.get("form_token"), scope="hr_personnel_operations"):
         flash("Belge formu güvenlik doğrulaması başarısız oldu. Sayfayı yenileyip tekrar deneyin.", "danger")
-        return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+        return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
     try:
         user_id = int(request.form.get("user_id") or 0)
@@ -867,7 +867,7 @@ def hr_personnel_document_save():
         logger.exception("Beklenmeyen hata: %s", exc)
         safe_db_rollback()
         flash("İşlem sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.", "danger")
-    return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+    return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
 
 @main_bp.route("/hr-management/personnel-operations/document/bulk-upload", methods=["POST"])
@@ -878,7 +878,7 @@ def hr_personnel_document_bulk_upload():
     hr_scope, _, scope_user_ids = _current_scope_bundle()
     if not consume_form_token("hr_personnel_document_bulk_upload", request.form.get("form_token"), scope="hr_personnel_operations"):
         flash("Toplu belge yükleme güvenlik doğrulaması başarısız oldu.", "danger")
-        return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+        return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
     try:
         user_id = int(request.form.get("user_id") or 0)
@@ -966,7 +966,7 @@ def hr_personnel_document_bulk_upload():
         logger.exception("Beklenmeyen hata: %s", exc)
         safe_db_rollback()
         flash("İşlem sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.", "danger")
-    return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+    return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
 
 @main_bp.route("/hr-management/personnel-operations/document/<int:document_id>/delete", methods=["POST"])
@@ -977,7 +977,7 @@ def hr_personnel_document_delete(document_id: int):
     hr_scope, _, scope_user_ids = _current_scope_bundle()
     if not consume_form_token("hr_personnel_document_delete", request.form.get("form_token"), scope="hr_personnel_operations"):
         flash("Belge silme güvenlik doğrulaması başarısız oldu.", "danger")
-        return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+        return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
     try:
         row = _document_in_scope(document_id, scope_user_ids)
@@ -991,7 +991,7 @@ def hr_personnel_document_delete(document_id: int):
         logger.exception("Beklenmeyen hata: %s", exc)
         safe_db_rollback()
         flash("İşlem sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.", "danger")
-        user_id = int(request.form.get("user_id") or 0) or None
+        user_id = _safe_int(request.form.get("user_id")) or None
     return _redirect_operations(hr_scope=hr_scope, user_id=user_id)
 
 
@@ -1021,7 +1021,7 @@ def hr_personnel_note_save():
     hr_scope, _, scope_user_ids = _current_scope_bundle()
     if not consume_form_token("hr_personnel_note_save", request.form.get("form_token"), scope="hr_personnel_operations"):
         flash("İşlem notu formu güvenlik doğrulaması başarısız oldu.", "danger")
-        return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+        return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
     try:
         user_id = int(request.form.get("user_id") or 0)
@@ -1048,7 +1048,7 @@ def hr_personnel_note_save():
         logger.exception("Beklenmeyen hata: %s", exc)
         safe_db_rollback()
         flash("İşlem sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.", "danger")
-    return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+    return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
 
 @main_bp.route("/hr-management/personnel-operations/note/<int:note_id>/toggle", methods=["POST"])
@@ -1059,7 +1059,7 @@ def hr_personnel_note_toggle(note_id: int):
     hr_scope, _, scope_user_ids = _current_scope_bundle()
     if not consume_form_token("hr_personnel_note_close", request.form.get("form_token"), scope="hr_personnel_operations"):
         flash("İşlem notu kapatma güvenlik doğrulaması başarısız oldu.", "danger")
-        return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+        return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
     try:
         row = _note_in_scope(note_id, scope_user_ids)
@@ -1079,7 +1079,7 @@ def hr_personnel_note_toggle(note_id: int):
         logger.exception("Beklenmeyen hata: %s", exc)
         safe_db_rollback()
         flash("İşlem sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.", "danger")
-        user_id = int(request.form.get("user_id") or 0) or None
+        user_id = _safe_int(request.form.get("user_id")) or None
     return _redirect_operations(hr_scope=hr_scope, user_id=user_id)
 
 
@@ -1091,7 +1091,7 @@ def hr_personnel_note_delete(note_id: int):
     hr_scope, _, scope_user_ids = _current_scope_bundle()
     if not consume_form_token("hr_personnel_note_delete", request.form.get("form_token"), scope="hr_personnel_operations"):
         flash("İşlem notu silme güvenlik doğrulaması başarısız oldu.", "danger")
-        return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+        return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
     try:
         row = _note_in_scope(note_id, scope_user_ids)
@@ -1103,7 +1103,7 @@ def hr_personnel_note_delete(note_id: int):
         logger.exception("Beklenmeyen hata: %s", exc)
         safe_db_rollback()
         flash("İşlem sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.", "danger")
-        user_id = int(request.form.get("user_id") or 0) or None
+        user_id = _safe_int(request.form.get("user_id")) or None
     return _redirect_operations(hr_scope=hr_scope, user_id=user_id)
 
 
@@ -1115,7 +1115,7 @@ def hr_personnel_status_save():
     hr_scope, _, scope_user_ids = _current_scope_bundle()
     if not consume_form_token("hr_personnel_status_save", request.form.get("form_token"), scope="hr_personnel_operations"):
         flash("Durum geçmişi formu güvenlik doğrulaması başarısız oldu.", "danger")
-        return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+        return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
     try:
         user_id = int(request.form.get("user_id") or 0)
@@ -1139,7 +1139,7 @@ def hr_personnel_status_save():
         logger.exception("Beklenmeyen hata: %s", exc)
         safe_db_rollback()
         flash("İşlem sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.", "danger")
-    return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+    return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
 
 @main_bp.route("/hr-management/personnel-operations/status/<int:status_id>/delete", methods=["POST"])
@@ -1150,7 +1150,7 @@ def hr_personnel_status_delete(status_id: int):
     hr_scope, _, scope_user_ids = _current_scope_bundle()
     if not consume_form_token("hr_personnel_status_delete", request.form.get("form_token"), scope="hr_personnel_operations"):
         flash("Durum geçmişi silme güvenlik doğrulaması başarısız oldu.", "danger")
-        return _redirect_operations(hr_scope=hr_scope, user_id=int(request.form.get("user_id") or 0) or None)
+        return _redirect_operations(hr_scope=hr_scope, user_id=_safe_int(request.form.get("user_id")) or None)
 
     try:
         row = _status_in_scope(status_id, scope_user_ids)
@@ -1162,7 +1162,7 @@ def hr_personnel_status_delete(status_id: int):
         logger.exception("Beklenmeyen hata: %s", exc)
         safe_db_rollback()
         flash("İşlem sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.", "danger")
-        user_id = int(request.form.get("user_id") or 0) or None
+        user_id = _safe_int(request.form.get("user_id")) or None
     return _redirect_operations(hr_scope=hr_scope, user_id=user_id)
 
 
