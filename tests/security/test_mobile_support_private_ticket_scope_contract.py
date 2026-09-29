@@ -158,3 +158,23 @@ def test_non_creator_personnel_is_still_refused(app):
     assert _detail(app, "MSP05", "private").status_code == 403
     assert _reply(app, "MSP05", "private").status_code == 403
     assert _message_count(app, "private") == 0
+
+
+def _list_body(app, sicil):
+    response = app.test_client().get("/api/mobile/support/tickets", headers=_headers(app, sicil))
+    assert response.status_code == 200
+    return response.get_data(as_text=True)
+
+
+@pytest.mark.parametrize("sicil", ["MSP02", "MSP06"])
+def test_other_unit_mobile_global_role_list_omits_the_private_ticket_body(app, sicil):
+    # The list showed a 180-character description snippet of every ticket. The private-ticket
+    # rule hides the body on the detail; the title stays listed (human decision H3).
+    body = _list_body(app, sicil)
+    assert "Talep MSP-T1" in body
+    assert body.count(MARKER) == 1
+
+
+@pytest.mark.parametrize("sicil", ["MSP03", "MSP04"])
+def test_same_unit_global_role_and_admin_list_keeps_the_private_ticket_body(app, sicil):
+    assert _list_body(app, sicil).count(MARKER) == 2
