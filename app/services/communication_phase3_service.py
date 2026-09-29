@@ -29,6 +29,7 @@ from app.models.communication_phase3_models import (
     CommunicationSurveyReminderLog,
 )
 from app.services.communication_phase2_service import SURVEY_STATUS_LABELS
+from app.services.support_ticket_access import can_view_private_support_ticket
 
 logger = logging.getLogger(__name__)
 
@@ -541,7 +542,8 @@ def _load_sla_policy(ticket: Any) -> dict[str, int]:
 
 def _sla_snapshot_for_ticket(ticket: Any) -> dict[str, Any]:
     created_at = getattr(ticket, "created_at", None) or _now()
-    first_message = ticket.messages.filter(SupportTicketMessage.is_internal.is_(False)).first()
+    # "messages" is a plain list relationship ordered by created_at, not a dynamic query.
+    first_message = next((row for row in (ticket.messages or []) if not getattr(row, "is_internal", False)), None)
     first_response_at = getattr(first_message, "created_at", None)
     resolved_at = getattr(ticket, "closed_at", None)
     now = _now()
@@ -612,9 +614,19 @@ def support_queue_snapshot(user: Any, filter_name: str = "all") -> dict[str, Any
     }
 
 
+def _can_access_ticket(ticket: Any, user: Any) -> bool:
+    user_id = int(getattr(user, "id", 0) or 0)
+    if user_id in {
+        int(getattr(ticket, "created_by_user_id", 0) or 0),
+        int(getattr(ticket, "assigned_to_user_id", 0) or 0),
+    }:
+        return True
+    return is_manager(user) and can_view_private_support_ticket(ticket, user)
+
+
 def support_detail_payload(ticket_id: int, user: Any) -> dict[str, Any]:
     ticket = SupportTicket.query.get_or_404(ticket_id)
-    if not is_manager(user) and int(getattr(ticket, "created_by_user_id", 0) or 0) != int(getattr(user, "id", 0) or 0) and int(getattr(ticket, "assigned_to_user_id", 0) or 0) != int(getattr(user, "id", 0) or 0):
+    if not _can_access_ticket(ticket, user):
         raise CommunicationPhase3Error("Bu talebi görüntüleme yetkiniz yok.")
 
     users = []
@@ -630,8 +642,17 @@ def support_detail_payload(ticket_id: int, user: Any) -> dict[str, Any]:
     }
 
 
-def assign_support_ticket(ticket_id: int, assignee_user_id: int | None, actor_user_id: int, note: str = "") -> Any:
+def assign_support_ticket(
+    ticket_id: int,
+    assignee_user_id: int | None,
+    actor_user_id: int,
+    note: str = "",
+    *,
+    actor_user: Any = None,
+) -> Any:
     ticket = SupportTicket.query.get_or_404(ticket_id)
+    if actor_user is not None and not _can_access_ticket(ticket, actor_user):
+        raise CommunicationPhase3Error("Bu talebi yönetme yetkiniz yok.")
     old_user_id = getattr(ticket, "assigned_to_user_id", None)
     ticket.assigned_to_user_id = assignee_user_id
     old_status = safe_str(getattr(ticket, "status", "")) or "open"
@@ -682,8 +703,17 @@ def assign_support_ticket(ticket_id: int, assignee_user_id: int | None, actor_us
     return ticket
 
 
-def update_support_status(ticket_id: int, new_status: str, actor_user_id: int, note: str = "") -> Any:
+def update_support_status(
+    ticket_id: int,
+    new_status: str,
+    actor_user_id: int,
+    note: str = "",
+    *,
+    actor_user: Any = None,
+) -> Any:
     ticket = SupportTicket.query.get_or_404(ticket_id)
+    if actor_user is not None and not _can_access_ticket(ticket, actor_user):
+        raise CommunicationPhase3Error("Bu talebi yönetme yetkiniz yok.")
     new_status = safe_str(new_status).lower()
     if new_status not in SUPPORT_STATUS_LABELS:
         raise CommunicationPhase3Error("Geçersiz destek talebi durumu.")
@@ -730,6 +760,8 @@ def update_support_status(ticket_id: int, new_status: str, actor_user_id: int, n
 
 def add_support_message(ticket_id: int, actor_user: Any, message: str, is_internal: bool = False) -> Any:
     ticket = SupportTicket.query.get_or_404(ticket_id)
+    if not _can_access_ticket(ticket, actor_user):
+        raise CommunicationPhase3Error("Bu talebe mesaj yazma yetkiniz yok.")
     clean_message = safe_str(message)
     if not clean_message:
         raise CommunicationPhase3Error("Mesaj boş bırakılamaz.")

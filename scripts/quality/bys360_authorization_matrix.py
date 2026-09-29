@@ -28,6 +28,13 @@ DEFAULT_OUT = REPO / "reports" / "quality" / "BYS360_AUTHORIZATION_MATRIX_V1.jso
 AUTH_DECORATORS = {"login_required", "require_mobile_user", "mobile_login_required", "api_login_required"}
 # Role decorators in app/route_support.py that redirect anonymous users to login first.
 AUTHENTICATING_ROLE_DECORATORS = {"menu_key_required", "_require_role_family", "admin_required", "manager_required"}
+# Views whose first check is a helper that refuses anonymous users; read in the source
+# (tests/security/test_anonymous_route_runtime_contract.py confirms it at runtime).
+AUTHENTICATED_BY_HELPER = {
+    "ai_agent.ag5_knowledge_toggle": "can_manage_ai_knowledge() returns False unless current_user.is_authenticated",
+    "ai_agent.ag5_knowledge_delete": "can_manage_ai_knowledge() returns False unless current_user.is_authenticated",
+}
+_BODY_AUTH_CHECK = re.compile(r"current_user\.is_authenticated|current_user\s*,\s*['\"]is_authenticated['\"]")
 ROLE_DECORATORS = re.compile(
     r"(admin_required|roles?_required|permission_required|menu_key_required|hr_required|president_required|"
     r"manager_required|superadmin_required|require_role|require_permission|require_admin|file_center_admin_required|"
@@ -82,7 +89,7 @@ MANUAL_REVIEW: dict[str, tuple[str, str]] = {
     "main.ai_decision_performance_category_groups_for_period": ("NEEDS_REVIEW", "answers 400: AI policy performance/category_group_decision_support is undefined (functional defect)"),
     "main.ai_decision_faz8_single_period_scope_check": ("AUTHENTICATED_ONLY", "aggregate period metadata and counts, no person data; POLICY QUESTION: require AI decision center access like faz3?"),
     "main.ai_support_ticket_triage": (_OG, "get_support_ticket_payload: creator, assignee or manager family"),
-    "main.ai_feedback": ("NEEDS_REVIEW", "any user can attach feedback to any AI request log id; returns only the new row id (low impact)"),
+    "main.ai_feedback": ("NEEDS_REVIEW", "POLICY QUESTION: any user can attach feedback to any AI request log id; returns only the new row id (low impact). 2026-09-29: a missing log now answers 404 and an oversized type 400 (were 500 / orphan row)"),
     "main.announcement_popup_acknowledge": (_OG, "records the current user's own acknowledgement"),
     "main.announcement_popup_dismiss": (_OG, "records the current user's own dismissal"),
     "main.bys360_feedback_success": (_OG, "ticket.created_by_user_id == current_user.id"),
@@ -110,6 +117,13 @@ MANUAL_REVIEW: dict[str, tuple[str, str]] = {
     "main.ai_recommendation_list": ("ROLE_GATED", "FIXED 2026-09-28: admin_required + menu_key_required('ai_center') (was login-only)"),
     "main.ai_recommendation_bulk_apply": ("ROLE_GATED", "FIXED 2026-09-28: admin_required + menu_key_required('ai_center'); service never applies"),
     "health.health_deep": ("PUBLIC_INTENTIONAL", "FIXED 2026-09-28: no longer echoes dependency exception text"),
+    "ai_agent.ai_agent_public_healthz": ("PUBLIC_INTENTIONAL", "anonymous smoke check: status, service, version, mode and bridge flags only; was misread as guarded by the ai_agent before_request"),
+    "main.support_assign": (_OG, "FIXED 2026-09-29: _can_operate_ticket, i.e. the Phase 13B private-ticket unit scope (was the all-tickets permission only; self-assignment exposed private tickets)"),
+    "main.communication_phase3_support_detail": (_OG, "FIXED 2026-09-29: _can_access_ticket on GET and POST: creator, assignee, or a manager within the private-ticket unit scope"),
+    "main.communication_phase3_support_assign": (_OG, "FIXED 2026-09-29: is_manager + _can_access_ticket (private-ticket unit scope)"),
+    "main.communication_phase3_support_status": (_OG, "FIXED 2026-09-29: is_manager + _can_access_ticket (private-ticket unit scope)"),
+    "main.portal_press_news_publish": ("ROLE_GATED", "_portal_press_news_admin_only_allowed: admin roles only"),
+    "main.portal_press_news_archive": ("ROLE_GATED", "_portal_press_news_admin_only_allowed: admin roles only"),
     "main.setup_admin": ("PUBLIC_INTENTIONAL", "404 unless explicitly permitted; redirects once any user exists"),
     "main.communication_phase2_surveys": ("ROLE_GATED", "FIXED 2026-09-28: is_manager() like the module's write actions (was menu 'surveys' only)"),
     "main.communication_phase2_survey_detail": ("ROLE_GATED", "FIXED 2026-09-28: is_manager() like the module's write actions (was menu 'surveys' only)"),
@@ -132,7 +146,7 @@ MANUAL_REVIEW: dict[str, tuple[str, str]] = {
     "main.survey_edit": ("ROLE_GATED", "_survey_manager_allowed"),
     "main.survey_delete": ("ROLE_GATED", "_survey_manager_allowed"),
     "main.support_comment": (_OG, "_can_operate_ticket"),
-    "main.support_status": ("ROLE_GATED", "_can_use_all_support_view"),
+    "main.support_status": (_OG, "FIXED 2026-09-29: _can_operate_ticket, i.e. the Phase 13B private-ticket unit scope (was _can_use_all_support_view only)"),
     "main.portal_post_delete": (_OG, "can_user_delete_post"),
     "main.portal_post_moderate": ("ROLE_GATED", "can_manage_portal"),
     "main.portal_group_detail": (_OG, "is_group_member or can_manage_portal"),
@@ -228,6 +242,19 @@ def _body_source(node) -> str:
     return "\n".join(ast.unparse(stmt) for stmt in node.body)
 
 
+def _view_location(path: str, line: int) -> str:
+    """Repo-relative "file:line", or a machine-independent label for views outside the repo."""
+    if not path:
+        return ""
+    resolved = Path(path).resolve()
+    if resolved.is_relative_to(REPO):
+        return f"{str(resolved.relative_to(REPO)).replace(chr(92), '/')}:{line}"
+    parts = resolved.parts
+    if "site-packages" in parts:
+        return "site-packages/" + "/".join(parts[parts.index("site-packages") + 1:])
+    return resolved.name
+
+
 def _test_index() -> dict[str, str]:
     return {str(p.relative_to(REPO)).replace("\\", "/"): p.read_text(encoding="utf-8-sig", errors="ignore")
             for p in (REPO / "tests").rglob("*.py")}
@@ -260,13 +287,13 @@ def build(app) -> dict:
         guards = []
         if admin_guard_paths(rule.rule):
             guards.append("app.admin_path_guard(authenticated + admin family role)")
-        if blueprint in {"ai_agent"}:
-            guards.append("ai_agent_bp.before_request")
+        # The ai_agent blueprint's before_request hooks return early for anonymous users, so
+        # they are not an authentication guard; hierarchy_governance's hook is @login_required.
         if blueprint in {"hierarchy_governance"}:
             guards.append("hierarchy_governance_bp.before_request")
         authenticated = (bool(authn) or bool(guards) or "require_mobile_user" in body
                          or bool(set(decorators) & AUTHENTICATING_ROLE_DECORATORS))
-        if not authenticated and "current_user.is_authenticated" in body:
+        if not authenticated and (_BODY_AUTH_CHECK.search(body) or rule.endpoint in AUTHENTICATED_BY_HELPER):
             authenticated = True
         public_hint = PUBLIC_ENDPOINT_HINTS.search(rule.endpoint) or PUBLIC_ENDPOINT_HINTS.search(rule.rule)
         if rule.endpoint == "static" or (not authenticated and public_hint):
@@ -288,19 +315,24 @@ def build(app) -> dict:
         areas = sorted(k for k, rx in PRIORITY_AREAS.items() if rx.search(rule.rule) or rx.search(rule.endpoint))
         rows.append({
             "blueprint": blueprint, "endpoint": rule.endpoint, "url": rule.rule, "methods": methods,
-            "view": f"{str(Path(path).resolve().relative_to(REPO)).replace(chr(92), '/')}:{line}" if path and Path(path).resolve().is_relative_to(REPO) else path,
+            "view": _view_location(path, line),
             "authenticated": authenticated, "decorators": decorators, "app_or_blueprint_guards": guards,
             "role_decorators": role, "inline_role_checks": inline_role, "object_params": object_params,
             "inline_scope_checks": inline_scope, "areas": areas, "test_files": len(test_files),
             "heuristic_classification": heuristic, "classification": classification,
             "manual_review": review[1] if review else None,
         })
+    fixed: dict[str, list[str]] = {}
+    for r in rows:
+        note = r["manual_review"] or ""
+        if note.startswith("FIXED"):
+            fixed.setdefault(note.split(":", 1)[0].removeprefix("FIXED").strip() or "undated", []).append(r["endpoint"])
     summary = {
         "routes": len(rows),
         "by_classification": dict(sorted(Counter(r["classification"] for r in rows).items())),
         "needs_review_by_area": dict(sorted(Counter(a for r in rows if r["classification"] == "NEEDS_REVIEW" for a in r["areas"] or ["other"]).items())),
         "manually_reviewed_routes": sum(1 for r in rows if r["manual_review"]),
-        "fixed_2026_09_28": sorted(r["endpoint"] for r in rows if (r["manual_review"] or "").startswith("FIXED")),
+        "fixed_by_review_date": {day: sorted(endpoints) for day, endpoints in sorted(fixed.items())},
         "routes_with_object_params": sum(1 for r in rows if r["object_params"]),
         "routes_without_test_reference": sum(1 for r in rows if not r["test_files"]),
         "method": "Flask url_map + source AST of each view (decorators, body calls); heuristic, conservative",

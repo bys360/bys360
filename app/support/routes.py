@@ -26,7 +26,6 @@ from app.route_registry import main_bp
 from app.route_support import (
     admin_required,
     can_access_menu,
-    is_admin_family_user,
     is_manager_family_user,
     menu_key_required,
     safe_db_rollback,
@@ -41,6 +40,7 @@ from app.services.bys360_notification_bridge import (
     notify_support_ticket_rating,
     notify_support_ticket_status_changed,
 )
+from app.services.support_ticket_access import can_view_private_support_ticket
 from app.support.help_center_content import (
     HELP_CATEGORIES,
     HELP_ROLES,
@@ -266,15 +266,7 @@ def _can_use_all_support_view() -> bool:
 # disinda, gizli bir bilet artik yalnizca talebin birim anlik goruntusuyle
 # ayni birimdeki yoneticilere acilir.
 def _can_view_private_scope(ticket: SupportTicket) -> bool:
-    if is_admin_family_user(current_user):
-        return True
-    if not bool(getattr(ticket, "is_private", False)):
-        return True
-    ticket_unit = getattr(ticket, "unit_name_snapshot", None)
-    if not ticket_unit:
-        return False
-    viewer_units = {getattr(current_user, "birim", None), getattr(current_user, "ust_birim", None)}
-    return ticket_unit in viewer_units
+    return can_view_private_support_ticket(ticket, current_user)
 
 
 def _can_view_ticket(ticket: SupportTicket) -> bool:
@@ -1025,6 +1017,8 @@ def support_status(ticket_id: int):
     if guard is not None:
         return guard
     ticket = SupportTicket.query.get_or_404(ticket_id)
+    if not _can_operate_ticket(ticket):
+        abort(403)
     try:
         new_status = _normalize_choice(request.form.get("status"), set(_status_map().keys()), ticket.status)
         note = sanitize_free_text(request.form.get("status_note"), limit=500)
@@ -1074,6 +1068,8 @@ def support_assign(ticket_id: int):
     if guard is not None:
         return guard
     ticket = SupportTicket.query.get_or_404(ticket_id)
+    if not _can_operate_ticket(ticket):
+        abort(403)
     try:
         assignee_id = request.form.get("assigned_to_user_id", type=int)
         assignee = User.query.get(assignee_id) if assignee_id else None
