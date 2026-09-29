@@ -1,15 +1,18 @@
-"""Contract: POST /api/mobile/kpi/target-management/<id>/progress uses the list's owner scope.
+"""Contract: POST /api/mobile/kpi/target-management/<id>/progress uses the web SP-1D edit rule.
 
-GET /api/mobile/kpi/target-management shows a caller without mobile global scope only
-the targets they own (``Target.owner_user_id == user.id``). The progress write path
-accepted ``owner_user_id in {0, user.id}``, so any mobile user, a plain ``personel``
-included, could overwrite ``current_value``, ``completion_rate`` and ``status`` of an
-ownerless target (an institution or unit target created on the web with no owner user),
-a target that the same user can neither see in the mobile list nor edit on the web.
+The progress write path accepted ``owner_user_id in {0, user.id}``, so any mobile user, a
+plain ``personel`` included, could overwrite ``current_value``, ``completion_rate`` and
+``status`` of ANY ownerless target (an institution target, or another unit's target).
 
-Rule reused: the list filter of the same mobile route family
-(``_bys360_legacy_mobile_kpi_target_management_v2853``), already reused for
-GET /api/mobile/kpi/goals by ``test_mobile_kpi_goals_scope_leak_contract.py``.
+Rule reused: the web SP-1D edit rule for the same ``performance_targets`` table
+(``app/services/sp1d_target_management_service.py``: ``get_target_for_edit`` and
+``list_targets_for_user``). A caller who is not globally scoped may edit a target when
+``owner_user_id = user.id`` OR ``owner_unit_id = _current_unit_id(user)`` (the user's
+``organization_unit_id``). A NULL unit never matches (SQL ``= NULL`` is never true).
+Mobile global scope (``_has_global_scope``) is unchanged.
+
+W3-01 first applied the narrower mobile list filter (owner user only), which also refused
+same-unit unit targets that the web allows; the follow-up corrects it to the SP-1D rule.
 """
 from __future__ import annotations
 
@@ -46,23 +49,34 @@ def app(monkeypatch):
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
     from app.models import User
+    from app.models.org_models import OrganizationUnit
     from app.modules.strategic_performance.models import PerformanceTarget
 
     with flask_app.app_context():
         db.create_all()
+        units = {}
+        for key in ("A", "B"):
+            unit = OrganizationUnit(name=f"MKP Birim-{key}", unit_type="birim", is_active=True, sort_order=0)
+            db.session.add(unit)
+            db.session.flush()
+            units[key] = unit.id
         users = {}
-        for sicil, role in (("MKP01", "personel"), ("MKP02", "personel"), ("MKP03", "birim_sorumlusu"), ("MKP04", "admin")):
+        for sicil, role, unit_key in (
+            ("MKP01", "personel", "A"), ("MKP02", "personel", "A"), ("MKP03", "birim_sorumlusu", "A"),
+            ("MKP04", "admin", "A"), ("MKP05", "personel", None),
+        ):
             user = User(sicil_no=sicil, email=f"{sicil.lower()}@example.gov.tr", ad="Kpi", soyad=sicil, role=role,
-                        birim="Birim-A", is_active=True, must_change_password=False, must_set_security_question=False)
+                        birim="Birim-A", is_active=True, must_change_password=False, must_set_security_question=False,
+                        organization_unit_id=units[unit_key] if unit_key else None)
             user.set_password(PASSWORD)
             db.session.add(user)
             users[sicil] = user
         db.session.flush()
 
-        def _target(name, owner_user_id):
+        def _target(name, owner_user_id, owner_unit_id=None):
             target = PerformanceTarget(
                 target_code=f"MKP-{uuid.uuid4().hex[:10]}", target_name=name, target_type="personnel", category="KPI",
-                owner_user_id=owner_user_id, weight=0, target_value=100, current_value=10, completion_rate=10,
+                owner_user_id=owner_user_id, owner_unit_id=owner_unit_id, weight=0, target_value=100, current_value=10, completion_rate=10,
                 status="ongoing", risk_level="low", start_date=datetime.date(2026, 1, 1),
                 end_date=datetime.date(2026, 12, 31),
             )
@@ -74,6 +88,8 @@ def app(monkeypatch):
             "own": _target("MKP own target", users["MKP01"].id),
             "other": _target("MKP other user target", users["MKP02"].id),
             "ownerless": _target("MKP ownerless institution target", None),
+            "same_unit": _target("MKP same unit target", None, units["A"]),
+            "other_unit": _target("MKP other unit target", None, units["B"]),
         }
         flask_app.config["_USER_IDS"] = {sicil: user.id for sicil, user in users.items()}
         db.session.commit()
@@ -147,3 +163,20 @@ def test_mobile_global_scope_can_still_update_an_ownerless_target(app):
     response = _progress(app, "MKP04", "ownerless")
     assert response.status_code == 200
     assert _current_value(app, "ownerless") == 95
+
+
+@pytest.mark.parametrize("sicil", ["MKP01", "MKP03"])
+def test_same_unit_caller_can_update_progress_of_a_unit_target(app, sicil):
+    response = _progress(app, sicil, "same_unit")
+    assert response.status_code == 200
+    assert _current_value(app, "same_unit") == 95
+
+
+def test_personnel_cannot_update_progress_of_another_units_ownerless_target(app):
+    assert _progress(app, "MKP01", "other_unit").status_code == 403
+    assert _current_value(app, "other_unit") == 10
+
+
+def test_personnel_without_a_unit_cannot_update_an_institution_target(app):
+    assert _progress(app, "MKP05", "ownerless").status_code == 403
+    assert _current_value(app, "ownerless") == 10
