@@ -214,7 +214,8 @@ def _bys360_legacy_mobile_kpi_target_progress_v2853(user: User, target_id: int):
     target = db.session.get(Target, int(target_id))
     if target is None:
         return jsonify({'message': 'KPI hedef kartı bulunamadı.'}), 404
-    if not _has_global_scope(user) and hasattr(target, 'owner_user_id') and int(getattr(target, 'owner_user_id', 0) or 0) not in {0, int(getattr(user, 'id', 0) or 0)}:
+    # Same owner scope as the mobile list (GET /kpi/target-management): an ownerless target is not the caller's.
+    if not _has_global_scope(user) and hasattr(target, 'owner_user_id') and int(getattr(target, 'owner_user_id', 0) or 0) != int(getattr(user, 'id', 0) or 0):
         return jsonify({'message': 'Bu KPI hedef kartını güncelleme yetkiniz bulunmamaktadır.'}), 403
     payload = request.get_json(silent=True) or {}
     current_value = _v2853_float(payload.get('current_value'), 0.0)
