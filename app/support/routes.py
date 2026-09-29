@@ -1025,6 +1025,8 @@ def support_status(ticket_id: int):
     if guard is not None:
         return guard
     ticket = SupportTicket.query.get_or_404(ticket_id)
+    if not _can_operate_ticket(ticket):
+        abort(403)
     try:
         new_status = _normalize_choice(request.form.get("status"), set(_status_map().keys()), ticket.status)
         note = sanitize_free_text(request.form.get("status_note"), limit=500)
@@ -1074,6 +1076,8 @@ def support_assign(ticket_id: int):
     if guard is not None:
         return guard
     ticket = SupportTicket.query.get_or_404(ticket_id)
+    if not _can_operate_ticket(ticket):
+        abort(403)
     try:
         assignee_id = request.form.get("assigned_to_user_id", type=int)
         assignee = User.query.get(assignee_id) if assignee_id else None
