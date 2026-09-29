@@ -10,6 +10,10 @@ Rule reused: the web account-creation route ``/personnel/add`` (app/admin/routes
 ``admin_required`` (route_support.ADMIN_FAMILY_ROLES), so on the web only admin-family users
 can create accounts and grant roles. Mobile keeps the HR create right for other roles; which
 non-admin-family roles HR may grant is a human decision and is not changed here.
+
+The admin aliases super_admin, system_admin, sistem_yoneticisi, administrator and president get the
+same treatment: the code grants them admin-level access (routes_president_scorecard_v2.py,
+feedback_aftercare_phase7.py, account_communication_helpers.py required_roles).
 """
 from __future__ import annotations
 
@@ -86,7 +90,8 @@ def _created_role(app, sicil):
         return None if user is None else user.role
 
 
-@pytest.mark.parametrize("role", ["admin", "baskan", "baskan_yardimcisi", "grup_baskani", "mali_musavir", " Admin "])
+@pytest.mark.parametrize("role", ["admin", "baskan", "baskan_yardimcisi", "grup_baskani", "mali_musavir", " Admin ",
+                                  "super_admin", "system_admin", "sistem_yoneticisi", "administrator", "president"])
 def test_hr_creator_cannot_grant_an_admin_family_role(app, role):
     response, sicil = _create(app, "MPR01", role)
     assert response.status_code == 403
