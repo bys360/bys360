@@ -12,6 +12,7 @@ from __future__ import annotations
 import tempfile
 import uuid
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -77,9 +78,10 @@ def _url(app, rule):
     from flask import url_for
 
     for value in (1, "probe"):
+        values: dict[str, Any] = {name: value for name in rule.arguments}
         try:
             with app.test_request_context():
-                return url_for(rule.endpoint, **{name: value for name in rule.arguments})
+                return url_for(rule.endpoint, **values)
         except Exception:  # noqa: BLE001 - try the next placeholder type
             continue
     raise AssertionError(f"cannot build a URL for {rule.endpoint} ({rule.rule})")

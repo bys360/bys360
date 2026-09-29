@@ -86,6 +86,7 @@ def _ticket_state(app, key):
 
     with app.app_context():
         ticket = db.session.get(SupportTicket, app.config["_TICKETS"][key])
+        assert ticket is not None
         return ticket.status, ticket.assigned_to_user_id
 
 
