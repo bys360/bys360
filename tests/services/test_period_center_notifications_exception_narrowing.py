@@ -179,10 +179,10 @@ def test_assignment_status_counts_rolls_back_and_returns_empty_on_sqlalchemy_err
     assert rollback_calls == [True]
 
 
-def test_ensure_schema_alter_column_reraises_when_column_still_missing(
+def test_provision_schema_alter_column_reraises_when_column_still_missing(
     app, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(notifications, "ensure_category_period_integration_schema", lambda: None)
+    monkeypatch.setattr(notifications, "provision_category_period_integration_schema", lambda: None)
     monkeypatch.setattr(notifications, "_has_table", lambda name: True)
     monkeypatch.setattr(notifications, "_has_column", lambda table, column: False)
     monkeypatch.setattr(notifications, "_dialect_name", lambda: "sqlite")
@@ -196,7 +196,7 @@ def test_ensure_schema_alter_column_reraises_when_column_still_missing(
     monkeypatch.setattr(flask_db.session, "rollback", lambda: rollback_calls.append(True))
 
     with app.app_context(), pytest.raises(SQLAlchemyError):
-        notifications.ensure_period_center_process_notification_schema()
+        notifications.provision_period_center_process_notification_schema()
 
     # Rollback must still run before the pre-existing re-raise-if-still-missing
     # behavior fires -- this is existing behavior, unchanged by the narrowing.

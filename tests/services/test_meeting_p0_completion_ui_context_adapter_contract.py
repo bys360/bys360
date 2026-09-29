@@ -469,10 +469,12 @@ def p0_ui_env():
     from app.extensions import db
     from app.models import User
     from app.models.settings_models import ModuleSetting
+    from app.services import runtime_schema
     from app.services.performance.meeting_p0_completion import P0_REQUIRED_SETTINGS
 
     with app.app_context():
         db.create_all()
+        runtime_schema.provision_all()  # raw-SQL tables production already has
         for key, meta in P0_REQUIRED_SETTINGS.items():
             value = "false" if key == _TOGGLED_OFF_SETTING_KEY else "true"
             db.session.add(

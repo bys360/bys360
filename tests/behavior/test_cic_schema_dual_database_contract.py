@@ -1,38 +1,19 @@
 """BYS360_DEFECT_AJ_CIC_SCHEMA_DUAL_DATABASE_CONTRACT
 
-Regression contract for Defect AJ's CIC (Corporate Information Center)
-candidates, triaged and mechanically proven independently rather than
-assumed:
+History: Defect AJ proved that the CIC helpers'
+``ADD COLUMN IF NOT EXISTS`` ALTERs failed silently on SQLite. Schema wave 1
+removed request-time schema mutation instead: the users celebration columns
+(birth_date, hire_date, celebration_opt_out) are owned by Alembic revision
+w1c5a7d2e9b4, and both helpers now only verify them.
 
   - app/services/cic/celebration_service.py::ensure_celebration_schema()
-    CLASSIFICATION: DUPLICATE_HELPER_ALREADY_SAFE. This function already
-    dialect-branches correctly (``if dialect == "postgresql": ...ADD
-    COLUMN IF NOT EXISTS... else: ...plain ADD COLUMN...``) -- the
-    "ADD COLUMN IF NOT EXISTS" string a repo-wide grep found here is
-    genuinely unreachable under SQLite (the ``else`` branch runs instead).
-    Proven below against a real legacy-shaped SQLite ``users`` table
-    missing all three target columns -- not assumed from the source text.
-
+    reports missing columns (ok=False, migration warning), never alters.
   - app/services/cic/cic_context.py::_cic_v45_ensure_schema()
-    CLASSIFICATION: AJ_CONFIRMED_DEFECT. This function's Python-level
-    existence guards (``if "birth_date" not in cols: ...``) were already
-    correct, but each guarded ALTER statement's own SQL string still
-    contained the literal "ADD COLUMN IF NOT EXISTS" keywords -- a SQLite
-    PARSE-TIME syntax error (``near "EXISTS": syntax error``) that fires
-    regardless of whether the Python guard correctly determined the
-    column was missing. Mechanically reproduced against a real legacy
-    SQLite ``users`` table before the fix: the function silently added
-    NONE of the three columns (the broad ``except Exception: ...log...
-    pass`` swallowed the error, so callers had no way to know the repair
-    failed). Fixed by dropping the redundant "IF NOT EXISTS" keywords
-    (the Python guard already prevents the duplicate-column case those
-    keywords existed for).
+    raises RuntimeSchemaMissing (controlled 503 on a request), never alters.
 
-Both functions are exercised here against a deliberately legacy-shaped
-``users`` table (created via raw DDL, NOT db.create_all()) that lacks
-birth_date/hire_date/celebration_opt_out entirely -- db.create_all() would
-otherwise create them from the current User model's own column
-declarations, masking whether the ADD COLUMN path is genuinely exercised.
+The legacy fixture replaces the model-driven ``users`` table with one that
+lacks the three columns (raw DDL, NOT db.create_all(), which would create
+them), so the missing-column path is genuinely exercised on SQLite.
 """
 from __future__ import annotations
 
@@ -45,6 +26,7 @@ import pytest
 from sqlalchemy.pool import StaticPool
 
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_defect_aj_cic")
+CELEBRATION_COLUMNS = {"birth_date", "hire_date", "celebration_opt_out"}
 
 
 def _make_app(monkeypatch: pytest.MonkeyPatch):
@@ -89,6 +71,16 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 def app(monkeypatch: pytest.MonkeyPatch):
     flask_app = _make_app(monkeypatch)
     with flask_app.app_context():
+        from app.extensions import db
+
+        db.create_all()
+    yield flask_app
+
+
+@pytest.fixture
+def legacy_app(monkeypatch: pytest.MonkeyPatch):
+    flask_app = _make_app(monkeypatch)
+    with flask_app.app_context():
         from sqlalchemy import event
 
         from app.extensions import db
@@ -102,10 +94,8 @@ def app(monkeypatch: pytest.MonkeyPatch):
             conn.exec_driver_sql("BEGIN")
 
         db.create_all()
-        # Replace the model-driven 'users' table with a deliberately
-        # legacy-shaped one lacking birth_date/hire_date/
-        # celebration_opt_out entirely, so both functions' ADD COLUMN
-        # paths are genuinely exercised rather than skipped as no-ops.
+        # Replace the model-driven 'users' table with a legacy-shaped one
+        # lacking birth_date/hire_date/celebration_opt_out entirely.
         db.session.execute(db.text("DROP TABLE users"))
         db.session.execute(db.text("CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(255))"))
         db.session.commit()
@@ -117,50 +107,54 @@ def _cols(db, table_name: str) -> set[str]:
     return {c["name"] for c in inspect(db.engine).get_columns(table_name)}
 
 
-def test_celebration_service_already_safely_adds_missing_columns_on_sqlite(app) -> None:
-    """DUPLICATE_HELPER_ALREADY_SAFE, mechanically proven: on a legacy
-    users table genuinely missing all three columns, this pre-existing,
-    already dialect-branched helper adds them correctly under SQLite."""
+def _no_ddl_listener(db, statements: list[str]):
+    from sqlalchemy import event
+
+    @event.listens_for(db.engine, "before_cursor_execute")
+    def _capture(conn, cursor, statement, parameters, context, executemany):  # noqa: ARG001
+        if statement.lstrip().upper().startswith(("ALTER", "CREATE", "DROP")):
+            statements.append(statement)
+
+    return _capture
+
+
+def test_celebration_service_reports_missing_columns_without_altering(legacy_app) -> None:
+    from sqlalchemy import event
+
     from app.extensions import db
     from app.services.cic.celebration_service import ensure_celebration_schema
 
-    with app.app_context():
-        result = ensure_celebration_schema()
-        assert result["ok"] is True
-        assert set(result["added"]) == {"birth_date", "hire_date", "celebration_opt_out"}
-        cols = _cols(db, "users")
-        assert {"birth_date", "hire_date", "celebration_opt_out"} <= cols
+    with legacy_app.app_context():
+        ddl: list[str] = []
+        listener = _no_ddl_listener(db, ddl)
+        try:
+            result = ensure_celebration_schema()
+        finally:
+            event.remove(db.engine, "before_cursor_execute", listener)
+        assert result["ok"] is False
+        assert result["added"] == []
+        assert all(f"users.{c}" in result["warnings"][0] for c in CELEBRATION_COLUMNS)
+        assert ddl == []
+        assert not CELEBRATION_COLUMNS & _cols(db, "users")
 
 
-def test_celebration_service_is_idempotent_on_second_invocation(app) -> None:
+def test_cic_context_ensure_schema_fails_closed_without_altering(legacy_app) -> None:
+    from app.extensions import db
+    from app.services.cic.cic_context import _cic_v45_ensure_schema
+    from app.services.runtime_schema import RuntimeSchemaMissing
+
+    with legacy_app.app_context():
+        with pytest.raises(RuntimeSchemaMissing) as excinfo:
+            _cic_v45_ensure_schema()
+        assert set(excinfo.value.missing) == {f"users.{c}" for c in CELEBRATION_COLUMNS}
+        assert not CELEBRATION_COLUMNS & _cols(db, "users")
+
+
+def test_both_helpers_accept_a_complete_users_table_repeatedly(app) -> None:
     from app.services.cic.celebration_service import ensure_celebration_schema
-
-    with app.app_context():
-        ensure_celebration_schema()
-        second = ensure_celebration_schema()
-        assert second["ok"] is True
-        assert second["added"] == []  # nothing left to add -- already idempotent by design
-
-
-def test_cic_context_ensure_schema_adds_missing_columns_on_sqlite(app) -> None:
-    """AJ_CONFIRMED_DEFECT closure: on the same legacy users table, this
-    function must now actually add the columns instead of silently
-    swallowing a SQLite syntax error."""
-    from app.extensions import db
     from app.services.cic.cic_context import _cic_v45_ensure_schema
 
     with app.app_context():
-        _cic_v45_ensure_schema()  # must not raise
-        cols = _cols(db, "users")
-        assert {"birth_date", "hire_date", "celebration_opt_out"} <= cols
-
-
-def test_cic_context_ensure_schema_is_idempotent_on_second_invocation(app) -> None:
-    from app.extensions import db
-    from app.services.cic.cic_context import _cic_v45_ensure_schema
-
-    with app.app_context():
-        _cic_v45_ensure_schema()
-        _cic_v45_ensure_schema()  # must not raise a second time (duplicate-column guard)
-        cols = _cols(db, "users")
-        assert {"birth_date", "hire_date", "celebration_opt_out"} <= cols
+        for _ in range(2):
+            assert ensure_celebration_schema() == {"ok": True, "added": [], "warnings": []}
+            _cic_v45_ensure_schema()

@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, Any
 from flask import current_app, flash, request
 from sqlalchemy import inspect, text
 
+from app.services import runtime_schema
+
 if TYPE_CHECKING:
     from flask_sqlalchemy import SQLAlchemy
 
@@ -215,8 +217,8 @@ def _current_user_name() -> str:
     return ""
 
 
-def ensure_phase10_recommendation_table() -> bool:
-    """Tabloyu güvenli oluşturur/tamamlar. Hata olursa rollback yapıp False döner."""
+def provision_phase10_recommendation_table() -> bool:
+    """Create/complete the table (explicit maintenance only: flask runtime-schema provision)."""
     if db is None:
         return False
 
@@ -446,6 +448,73 @@ def ensure_phase10_recommendation_table() -> bool:
             __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: sessiz except/pass yakalandi (app/performance/phase10_development_guidance_ui.py)")
         return False
 
+
+# Owned by Alembic revision 29fee38a97e1, which creates exactly these columns.
+DEVELOPMENT_RECOMMENDATIONS_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.development_recommendations",
+    tables=("performance_development_recommendations",),
+    columns=(
+        ("performance_development_recommendations", "employee_id"),
+        ("performance_development_recommendations", "employee_name"),
+        ("performance_development_recommendations", "period_id"),
+        ("performance_development_recommendations", "period_name"),
+        ("performance_development_recommendations", "recommendation_type"),
+        ("performance_development_recommendations", "development_area"),
+        ("performance_development_recommendations", "priority"),
+        ("performance_development_recommendations", "follow_status"),
+        ("performance_development_recommendations", "follow_frequency"),
+        ("performance_development_recommendations", "visibility_scope"),
+        ("performance_development_recommendations", "publication_status"),
+        ("performance_development_recommendations", "show_on_scorecard"),
+        ("performance_development_recommendations", "is_published"),
+        ("performance_development_recommendations", "approved_by_hr"),
+        ("performance_development_recommendations", "supervisor_approval_required"),
+        ("performance_development_recommendations", "supervisor_approved"),
+        ("performance_development_recommendations", "approval_role"),
+        ("performance_development_recommendations", "approval_flow"),
+        ("performance_development_recommendations", "approver_name"),
+        ("performance_development_recommendations", "approval_note"),
+        ("performance_development_recommendations", "publish_lock"),
+        ("performance_development_recommendations", "publish_lock_reason"),
+        ("performance_development_recommendations", "hr_publish_required"),
+        ("performance_development_recommendations", "hr_publish_approved"),
+        ("performance_development_recommendations", "scorecard_visibility_mode"),
+        ("performance_development_recommendations", "scorecard_detail_level"),
+        ("performance_development_recommendations", "show_in_pdf"),
+        ("performance_development_recommendations", "show_in_scorecard_history"),
+        ("performance_development_recommendations", "employee_notification_required"),
+        ("performance_development_recommendations", "employee_ack_required"),
+        ("performance_development_recommendations", "visibility_reason"),
+        ("performance_development_recommendations", "employee_message"),
+        ("performance_development_recommendations", "owner_name"),
+        ("performance_development_recommendations", "target_date"),
+        ("performance_development_recommendations", "basis_note"),
+        ("performance_development_recommendations", "current_state"),
+        ("performance_development_recommendations", "target_outcome"),
+        ("performance_development_recommendations", "smart_goal"),
+        ("performance_development_recommendations", "action_steps"),
+        ("performance_development_recommendations", "support_needs"),
+        ("performance_development_recommendations", "success_criteria"),
+        ("performance_development_recommendations", "evidence_plan"),
+        ("performance_development_recommendations", "recommendation_text"),
+        ("performance_development_recommendations", "created_by"),
+        ("performance_development_recommendations", "created_at"),
+        ("performance_development_recommendations", "updated_at"),
+    ),
+    provision=provision_phase10_recommendation_table,
+))
+
+
+def ensure_phase10_recommendation_table() -> bool:
+    """Verify the recommendations table and its columns exist; never alters it."""
+    if db is None:
+        return False
+    try:
+        runtime_schema.require(DEVELOPMENT_RECOMMENDATIONS_SCHEMA)
+    except runtime_schema.RuntimeSchemaMissing as exc:
+        current_app.logger.error("Gelişim rehberi tablosu hazır değil; eksik: %s", ", ".join(exc.missing))
+        return False
+    return True
 
 def _derive_publication_status(form: Any, show_on_scorecard: bool, is_published: bool) -> tuple[str, bool]:
     publication_status = _safe(form.get("publication_status"), "draft")

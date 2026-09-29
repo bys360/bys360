@@ -18,7 +18,9 @@ import pytest
 from scripts.quality.bys360_postgres_migration_integrity_gate import (
     ENV_VAR,
     GateFailure,
+    check_runtime_schema,
     compute_migration_graph,
+    compute_orm_gaps,
     main,
     redact,
     validate_url,
@@ -233,10 +235,24 @@ def test_main_full_happy_path_is_pass(monkeypatch, capsys) -> None:
             "scripts.quality.bys360_postgres_migration_integrity_gate.introspect_critical_columns",
             return_value={"performance_president_approvals": [], "performance_periods": []},
         ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.load_orm_columns",
+            return_value={"users": ["id", "email"]},
+        ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.introspect_orm_parity",
+            return_value={},
+        ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.check_runtime_schema",
+            return_value=15,
+        ),
     ):
         exit_code = main([])
     out = capsys.readouterr().out
     assert exit_code == 0
+    assert "POSTGRES15_ORM_PARITY=PASS (checked 1 tables, 2 columns)" in out
+    assert "POSTGRES15_RUNTIME_SCHEMA=PASS (provisioned and verified 15 groups" in out
     assert "POSTGRES15_EMPTY_TO_HEAD=PASS" in out
     assert "POSTGRES15_HEAD_MATCH=PASS" in out
     assert "POSTGRES15_SECOND_UPGRADE=PASS" in out
@@ -506,8 +522,95 @@ def test_main_critical_column_missing_is_blocked(monkeypatch, capsys) -> None:
 def test_critical_columns_list_the_canonical_read_paths() -> None:
     from scripts.quality.bys360_postgres_migration_integrity_gate import CRITICAL_COLUMNS
 
-    assert set(CRITICAL_COLUMNS) == {"performance_president_approvals", "performance_periods", "evaluation_assignments"}
+    assert set(CRITICAL_COLUMNS) == {"performance_president_approvals", "performance_periods", "evaluation_assignments", "users"}
     assert "rule_version" not in CRITICAL_COLUMNS["performance_president_approvals"]
     assert "employee_id" in CRITICAL_COLUMNS["evaluation_assignments"]
+    # Schema/runtime DDL wave 1: columns adopted into Alembic by w1c5a7d2e9b4.
+    assert set(CRITICAL_COLUMNS["users"]) == {"birth_date", "hire_date", "celebration_opt_out"}
+    assert {"evaluation_start_date", "evaluation_end_date", "evaluation_due_days"} <= set(CRITICAL_COLUMNS["performance_periods"])
     for columns in CRITICAL_COLUMNS.values():
         assert len(columns) == len(set(columns))
+
+
+def test_orm_gaps_report_missing_tables_and_columns() -> None:
+    present = {("users", "id"), ("users", "email"), ("performance_periods", "id")}
+    orm = {
+        "users": ["id", "email"],
+        "performance_periods": ["id", "special_scenario_type"],
+        "performance_low_score_processes": ["id"],
+    }
+    assert compute_orm_gaps(present, orm) == {
+        "performance_low_score_processes": ["<table>"],
+        "performance_periods": ["special_scenario_type"],
+    }
+
+
+def test_orm_gaps_are_empty_when_every_orm_column_exists() -> None:
+    present = {("users", "id"), ("users", "email"), ("raw_sql_only_table", "id")}
+    assert compute_orm_gaps(present, {"users": ["id", "email"]}) == {}
+
+
+def test_main_orm_schema_gap_is_blocked(monkeypatch, capsys) -> None:
+    monkeypatch.setenv(ENV_VAR, VALID_URL)
+    gate = "scripts.quality.bys360_postgres_migration_integrity_gate"
+    graph = {"revision_count": 1, "root_count": 1, "roots": [], "head_count": 1, "heads": ["h1"], "cycles": False}
+    with (
+        patch(f"{gate}.check_postgres_major_version", return_value=15),
+        patch(f"{gate}.check_database_is_empty", return_value=None),
+        patch(f"{gate}.compute_migration_graph", return_value=graph),
+        patch(f"{gate}.run_flask_db_upgrade", side_effect=[_completed(0), _completed(0)]),
+        patch(f"{gate}.read_alembic_version", return_value="h1"),
+        patch(f"{gate}.introspect_critical_tables", return_value={"users": True}),
+        patch(f"{gate}.introspect_critical_columns", return_value={"users": []}),
+        patch(f"{gate}.load_orm_columns", return_value={"performance_low_score_processes": ["id"]}),
+        patch(f"{gate}.introspect_orm_parity", return_value={"performance_low_score_processes": ["<table>"]}),
+    ):
+        exit_code = main([])
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "ORM_SCHEMA_MISSING" in out
+    assert "performance_low_score_processes" in out
+
+
+def _cli(returncode: int, *lines: str) -> subprocess.CompletedProcess:
+    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout="".join(line + chr(10) for line in lines), stderr="")
+
+
+GATE = "scripts.quality.bys360_postgres_migration_integrity_gate"
+
+
+def test_runtime_schema_step_counts_verified_groups() -> None:
+    runs = [
+        _cli(0, "performance.a: provisioned t1", "mobile.b: already present"),
+        _cli(0, "performance.a: OK", "mobile.b: OK"),
+        _cli(0, "performance.a: already present", "mobile.b: already present"),
+    ]
+    with patch(f"{GATE}.run_flask_runtime_schema", side_effect=runs):
+        assert check_runtime_schema(VALID_URL) == 2
+
+
+def test_runtime_schema_step_fails_when_provision_fails() -> None:
+    with (
+        patch(f"{GATE}.run_flask_runtime_schema", side_effect=[_cli(1, "performance.a: STILL MISSING t1")]),
+        pytest.raises(GateFailure) as excinfo,
+    ):
+        check_runtime_schema(VALID_URL)
+    assert excinfo.value.code == "RUNTIME_SCHEMA_FAILURE"
+
+
+def test_runtime_schema_step_fails_when_second_provision_changes_something() -> None:
+    runs = [_cli(0, "performance.a: provisioned t1"), _cli(0, "performance.a: OK"), _cli(0, "performance.a: provisioned t1")]
+    with patch(f"{GATE}.run_flask_runtime_schema", side_effect=runs), pytest.raises(GateFailure) as excinfo:
+        check_runtime_schema(VALID_URL)
+    assert excinfo.value.code == "RUNTIME_SCHEMA_NOT_IDEMPOTENT"
+
+
+def test_runtime_schema_timeout_is_a_gate_failure() -> None:
+    from scripts.quality.bys360_postgres_migration_integrity_gate import run_flask_runtime_schema
+
+    with (
+        patch(f"{GATE}.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="flask", timeout=1)),
+        pytest.raises(GateFailure) as excinfo,
+    ):
+        run_flask_runtime_schema(VALID_URL, "provision")
+    assert excinfo.value.code == "RUNTIME_SCHEMA_TIMEOUT"

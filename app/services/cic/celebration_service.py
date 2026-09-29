@@ -8,6 +8,7 @@ from typing import Any
 
 from app.extensions import db
 from app.models import User
+from app.services import runtime_schema
 from app.services.cic.celebration_dates import (
     _cic_v40_bool,
     _cic_v40_mmdd,
@@ -19,6 +20,7 @@ from app.services.cic.celebration_dates import (
     _cic_v40_user_date,
 )
 from app.services.cic.cic_context import (
+    USER_CELEBRATION_COLUMNS,
     _cic_auto_last_run_key,
     _cic_v40_upcoming_special_days,
     _cic_v45_bool,
@@ -136,35 +138,19 @@ def _cic_v40_run_weekend_celebrations(current: _cic_v40_datetime, dry_run: bool 
 
 
 def ensure_celebration_schema() -> dict[str, Any]:
-    """Kullanici tablosunda kutlama motoru icin gerekli tarih alanlarini guvenli sekilde olusturur."""
-    result: dict[str, Any] = {"ok": True, "added": [], "warnings": []}
+    """Report whether the users celebration columns exist; never alters the table.
+
+    The columns are owned by Alembic revision w1c5a7d2e9b4.
+    """
     try:
-        from sqlalchemy import inspect as _sa_inspect, text as _sa_text
-        inspector = _sa_inspect(db.engine)
-        if not inspector.has_table("users"):
-            result["ok"] = False
-            result["warnings"] = ["users tablosu bulunamadı."]
-            return result
-        cols = {c.get("name") for c in inspector.get_columns("users")}
-        dialect = getattr(db.engine.dialect, "name", "")
-        needed = {
-            "birth_date": "DATE",
-            "hire_date": "DATE",
-            "celebration_opt_out": "BOOLEAN DEFAULT FALSE",
+        runtime_schema.require(USER_CELEBRATION_COLUMNS)
+    except runtime_schema.RuntimeSchemaMissing as exc:
+        return {
+            "ok": False,
+            "added": [],
+            "warnings": [f"Eksik şema nesneleri: {', '.join(exc.missing)}. Veritabanı migration'ı çalıştırılmalıdır."],
         }
-        with db.engine.begin() as conn:
-            for col, sql_type in needed.items():
-                if col in cols:
-                    continue
-                if dialect == "postgresql":
-                    conn.execute(_sa_text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {sql_type}"))
-                else:
-                    conn.execute(_sa_text(f"ALTER TABLE users ADD COLUMN {col} {sql_type}"))
-                result.setdefault("added", []).append(col)
-    except Exception as exc:
-        result["ok"] = False
-        result.setdefault("warnings", []).append(str(exc))
-    return result
+    return {"ok": True, "added": [], "warnings": []}
 
 
 def save_celebration_settings(payload: dict[str, Any], actor_user_id: int | None = None) -> None:

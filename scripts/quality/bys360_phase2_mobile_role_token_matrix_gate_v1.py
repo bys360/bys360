@@ -178,6 +178,7 @@ def run_checks(root: Path, write_report: bool = True) -> dict[str, Any]:
     from app import create_app
     from app.extensions import db
     from app.models import User
+    from app.services import runtime_schema
 
     app = create_app()
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
@@ -201,6 +202,7 @@ def run_checks(root: Path, write_report: bool = True) -> dict[str, Any]:
 
     with app.app_context():
         db.create_all()
+        runtime_schema.provision_all()  # raw-SQL tables production already has
 
         personel = _create_user(db, User, role="personel", role_label="Personel", password=password)
         admin = _create_user(db, User, role="admin", role_label="Sistem Yöneticisi", password=password)

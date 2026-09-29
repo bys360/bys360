@@ -37,6 +37,7 @@ or the migration chain itself failed -- see stdout for exactly which.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -99,8 +100,12 @@ CRITICAL_COLUMNS: dict[str, tuple[str, ...]] = {
         "id", "title", "name", "period_type", "scope_type",
         "scope_unit_label", "scope_category_label", "scope_personnel_filter",
         "start_date", "end_date", "is_active", "created_at",
+        # adopted by w1c5a7d2e9b4 (previously runtime-only)
+        "evaluation_start_date", "evaluation_end_date", "evaluation_due_days",
     ),
     "evaluation_assignments": ("id", "period_id", "evaluator_id", "employee_id", "status", "created_at"),
+    # adopted by w1c5a7d2e9b4 (previously runtime-only)
+    "users": ("birth_date", "hire_date", "celebration_opt_out"),
 }
 
 
@@ -323,6 +328,63 @@ def introspect_critical_columns(parts) -> dict[str, list[str]]:
     }
 
 
+# Prints {table: [columns]} for every ORM model; run in a subprocess so the
+# gate process itself never imports the application.
+ORM_COLUMNS_SCRIPT = "\n".join((
+    "import json, logging, warnings",
+    "logging.disable(logging.CRITICAL)",
+    "warnings.simplefilter('ignore')",
+    "from app import create_app",
+    "from app.extensions import db",
+    "create_app()",
+    "print(json.dumps({t.name: [c.name for c in t.columns] for t in db.metadata.tables.values()}))",
+))
+
+
+def load_orm_columns(database_url: str) -> dict[str, list[str]]:
+    env = dict(os.environ)
+    env["DATABASE_URL"] = database_url
+    proc = subprocess.run(
+        [sys.executable, "-c", ORM_COLUMNS_SCRIPT],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if proc.returncode != 0 or not proc.stdout.strip():
+        raise GateFailure("ORM_METADATA_FAILURE", "Could not read ORM metadata: " + proc.stderr)
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+def compute_orm_gaps(present: set[tuple[str, str]], orm_columns: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Return ORM tables the database lacks entirely, and missing columns of tables it has."""
+    tables = {table for table, _ in present}
+    gaps: dict[str, list[str]] = {}
+    for table, columns in sorted(orm_columns.items()):
+        if table not in tables:
+            gaps[table] = ["<table>"]
+            continue
+        missing = [column for column in columns if (table, column) not in present]
+        if missing:
+            gaps[table] = missing
+    return gaps
+
+
+def introspect_orm_parity(parts, orm_columns: dict[str, list[str]]) -> dict[str, list[str]]:
+    conn = _connect(parts)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT table_name, column_name FROM information_schema.columns "
+                "WHERE table_schema = 'public';"
+            )
+            present = {(row[0], row[1]) for row in cur.fetchall()}
+    finally:
+        conn.close()
+    return compute_orm_gaps(present, orm_columns)
+
+
 # ---------------------------------------------------------------------------
 # flask db upgrade -- run via the real CLI, same semantics as any human
 # operator or CI step, not a re-implementation of Alembic's own logic.
@@ -341,6 +403,51 @@ def run_flask_db_upgrade(database_url: str) -> subprocess.CompletedProcess:
         text=True,
         timeout=600,
     )
+
+
+RUNTIME_SCHEMA_TIMEOUT_SECONDS = 300
+RUNTIME_SCHEMA_LINE = re.compile(r"^[a-z0-9_.]+: ")
+
+
+def run_flask_runtime_schema(database_url: str, command: str) -> subprocess.CompletedProcess:
+    """`flask runtime-schema <command>`; a hang (e.g. a lock wait) becomes a gate failure, not a stuck job."""
+    env = dict(os.environ)
+    env["DATABASE_URL"] = database_url
+    env["FLASK_APP"] = "wsgi.py"
+    try:
+        return subprocess.run(
+            [sys.executable, "-m", "flask", "runtime-schema", command],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=RUNTIME_SCHEMA_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise GateFailure(
+            "RUNTIME_SCHEMA_TIMEOUT",
+            f"flask runtime-schema {command} did not finish within {RUNTIME_SCHEMA_TIMEOUT_SECONDS}s",
+        ) from exc
+
+
+def check_runtime_schema(database_url: str) -> int:
+    """Provision the raw-SQL runtime groups, verify them, and require a second provision to change nothing."""
+    for command in ("provision", "check"):
+        result = run_flask_runtime_schema(database_url, command)
+        if result.returncode != 0:
+            raise GateFailure(
+                "RUNTIME_SCHEMA_FAILURE",
+                f"flask runtime-schema {command} failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}",
+            )
+    groups = [line for line in result.stdout.splitlines() if RUNTIME_SCHEMA_LINE.match(line)]
+    again = run_flask_runtime_schema(database_url, "provision")
+    changed = [
+        line for line in again.stdout.splitlines()
+        if RUNTIME_SCHEMA_LINE.match(line) and not line.rstrip().endswith("already present")
+    ]
+    if again.returncode != 0 or changed:
+        raise GateFailure("RUNTIME_SCHEMA_NOT_IDEMPOTENT", f"Second provision changed or failed: {changed!r}")
+    return len(groups)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -432,6 +539,19 @@ def main(argv: list[str] | None = None) -> int:
             )
         checked = sum(len(columns) for columns in CRITICAL_COLUMNS.values())
         print(f"POSTGRES15_COLUMN_INTROSPECTION=PASS (checked {checked} columns)")
+
+        orm_columns = load_orm_columns(raw_url)
+        orm_gaps = introspect_orm_parity(parts, orm_columns)
+        if orm_gaps:
+            raise GateFailure(
+                "ORM_SCHEMA_MISSING",
+                f"ORM table(s)/column(s) missing after full migration: {orm_gaps!r}",
+            )
+        orm_column_count = sum(len(columns) for columns in orm_columns.values())
+        print(f"POSTGRES15_ORM_PARITY=PASS (checked {len(orm_columns)} tables, {orm_column_count} columns)")
+
+        runtime_groups = check_runtime_schema(raw_url)
+        print(f"POSTGRES15_RUNTIME_SCHEMA=PASS (provisioned and verified {runtime_groups} groups, second provision no-op)")
 
     except GateFailure as exc:
         print(f"{PACKAGE}_{exc.code}")

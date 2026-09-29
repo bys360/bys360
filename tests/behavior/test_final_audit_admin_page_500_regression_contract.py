@@ -70,8 +70,10 @@ def _build_app(monkeypatch: pytest.MonkeyPatch, tmp_path):
     )
     with flask_app.app_context():
         from app.extensions import db
+        from app.services import runtime_schema
 
         db.create_all()
+        runtime_schema.provision_all()  # raw-SQL tables production already has
         db.session.commit()
     yield flask_app
 

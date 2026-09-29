@@ -143,10 +143,10 @@ def test_live_ask_route_access_denied_still_denies(app, client):
 
 def test_live_ask_route_knowledge_bank_still_works(app, client):
     from app.extensions import db
-    from app.services.ai_agent.knowledge import create_knowledge_entry, init_knowledge_table
+    from app.services.ai_agent.knowledge import create_knowledge_entry, provision_knowledge_table
 
     with app.app_context():
-        init_knowledge_table()
+        provision_knowledge_table()
         create_knowledge_entry(
             title="AV2 Cutover Test Entry",
             question_patterns="av2 cutover test benzersiz soru kalibi",

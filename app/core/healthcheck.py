@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from typing import Any
@@ -7,6 +8,9 @@ from typing import Any
 from flask import Blueprint, jsonify
 
 health_bp = Blueprint("health", __name__)
+logger = logging.getLogger(__name__)
+# The endpoint is public; dependency errors (hosts, ports, users) stay in the server log.
+UNAVAILABLE = "unavailable"
 
 
 def _db_status() -> tuple[bool, str]:
@@ -18,9 +22,9 @@ def _db_status() -> tuple[bool, str]:
             from extensions import db  # type: ignore
         db.session.execute(text("SELECT 1"))
         return True, "ok"
-    except Exception as exc:  # pragma: no cover - canlı ortam bağımlılığı
-        __import__("logging").getLogger(__name__).exception("BYS360 SAFE V4: sessiz except loglandi: app/core/healthcheck.py:23")
-        return False, f"{type(exc).__name__}: {exc}"
+    except Exception:  # a health probe reports failure instead of raising
+        logger.exception("Health check: database unavailable")
+        return False, UNAVAILABLE
 
 
 def _redis_status() -> tuple[bool | None, str]:
@@ -31,9 +35,9 @@ def _redis_status() -> tuple[bool | None, str]:
         import redis
         client = redis.Redis.from_url(url, socket_connect_timeout=2, socket_timeout=2)
         return bool(client.ping()), "ok"
-    except Exception as exc:  # pragma: no cover - canlı ortam bağımlılığı
-        __import__("logging").getLogger(__name__).exception("BYS360 SAFE V4: sessiz except loglandi: app/core/healthcheck.py:35")
-        return False, f"{type(exc).__name__}: {exc}"
+    except Exception:  # a health probe reports failure instead of raising
+        logger.exception("Health check: redis unavailable")
+        return False, UNAVAILABLE
 
 
 @health_bp.route("/health")

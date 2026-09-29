@@ -8,7 +8,7 @@ from app import db
 from app.models import PerformanceEvaluation, PerformanceEvaluationItem, SupportTicket
 from app.route_support import is_manager_family_user
 
-from .guardrails import AIInputError, AIResourceNotFound
+from .guardrails import AIAccessDenied, AIInputError, AIResourceNotFound
 from .redaction import redact_payload
 
 _REMOVED_MODULE_MESSAGE = (
@@ -25,6 +25,11 @@ def get_performance_evaluation_payload(evaluation_id: int) -> tuple[PerformanceE
     evaluation = db.session.get(PerformanceEvaluation, evaluation_id)
     if evaluation is None:
         raise AIResourceNotFound("Performans değerlendirme kaydı bulunamadı.")
+    # Local import: app.services.ai_decision imports this module at package import time.
+    from app.services.ai_decision.permission_guard import can_view_evaluation
+
+    if not can_view_evaluation(current_user, evaluation):
+        raise AIAccessDenied("Bu performans değerlendirmesine erişim yetkiniz bulunmamaktadır.")
 
     item_rows = []
     item_query = evaluation.items.order_by(  # type: ignore[misc,operator]

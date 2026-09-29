@@ -105,11 +105,11 @@ def test_knowledge_bank_entry_with_script_like_title_is_never_html_escaped_serve
     import uuid
 
     from app.extensions import db
-    from app.services.ai_agent.knowledge import create_knowledge_entry, init_knowledge_table
+    from app.services.ai_agent.knowledge import create_knowledge_entry, provision_knowledge_table
 
     unique_kw = f"av2 xss soru kalibi {uuid.uuid4().hex[:8]}"
     with app.app_context():
-        init_knowledge_table()
+        provision_knowledge_table()
         create_knowledge_entry(
             title=f"AV2 XSS {_XSS_PAYLOAD} Title",
             question_patterns=unique_kw,

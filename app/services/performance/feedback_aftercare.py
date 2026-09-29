@@ -18,6 +18,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
+from app.services import runtime_schema
 
 logger = logging.getLogger(__name__)
 
@@ -199,8 +200,8 @@ def _user_sicil_expr(alias: str) -> str:
     return f"COALESCE({alias}.sicil_no, '')" if "sicil_no" in _columns("users") else "''"
 
 
-def ensure_feedback_aftercare_schema() -> dict[str, Any]:
-    """Görüşme sonrası notlar için gerekli tabloları güvenli biçimde oluşturur."""
+def provision_feedback_aftercare_schema() -> dict[str, Any]:
+    """Create the after-meeting tables (explicit maintenance only: flask runtime-schema provision)."""
     pk = _pk_sql()
     false_default = _bool_default(False)
     ddl = [
@@ -263,7 +264,26 @@ def ensure_feedback_aftercare_schema() -> dict[str, Any]:
     for statement in ddl:
         _execute(statement)
     db.session.commit()
-    return {"ok": True, "tables": ["feedback_meeting_preparations", "feedback_meeting_after_notes", "feedback_meeting_action_plans"]}
+    return {"ok": True, "tables": list(FEEDBACK_AFTERCARE_TABLES)}
+
+
+FEEDBACK_AFTERCARE_TABLES = ("feedback_meeting_preparations", "feedback_meeting_after_notes", "feedback_meeting_action_plans")
+FEEDBACK_AFTERCARE_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.feedback_aftercare",
+    tables=FEEDBACK_AFTERCARE_TABLES,
+    indexes=(
+        ("feedback_meeting_action_plans", "ix_feedback_aftercare_actions_meeting"),
+        ("feedback_meeting_action_plans", "ix_feedback_aftercare_actions_target"),
+        ("feedback_meeting_action_plans", "ix_feedback_aftercare_actions_status"),
+    ),
+    provision=provision_feedback_aftercare_schema,
+))
+
+
+def ensure_feedback_aftercare_schema() -> dict[str, Any]:
+    """Verify the after-meeting tables exist; never creates them (see app.services.runtime_schema)."""
+    runtime_schema.require(FEEDBACK_AFTERCARE_SCHEMA)
+    return {"ok": True, "tables": list(FEEDBACK_AFTERCARE_TABLES)}
 
 
 def _has_existing_core_tables() -> bool:

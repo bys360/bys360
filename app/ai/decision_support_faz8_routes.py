@@ -191,6 +191,11 @@ def ai_decision_faz8_period_scope_summary():
 @main_bp.route("/ai/decision-support/performance/periods/<int:period_id>/scope-check")
 @login_required
 def ai_decision_faz8_single_period_scope_check(period_id: int):
-    period = _single_period(period_id)
     settings = _load_settings()
-    return _run_faz8_json(build_single_period_payload, period, _periods(500), _assignments(period_id=period_id), settings)
+
+    def _build() -> dict[str, Any]:
+        # Inside the runner, so a missing period maps to its LookupError -> 404 answer.
+        period = _single_period(period_id)
+        return build_single_period_payload(period, _periods(500), _assignments(period_id=period_id), settings)
+
+    return _run_faz8_json(_build)

@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.services import runtime_schema
+
 
 def _ag5_get_db():
     try:
@@ -58,7 +60,8 @@ def can_manage_ai_knowledge(user: Any) -> bool:
     return bool(normalized & allowed)
 
 
-def init_knowledge_table() -> None:
+def provision_knowledge_table() -> None:
+    """Create the knowledge table (explicit maintenance only: flask runtime-schema provision)."""
     db = _ag5_get_db()
     text = _ag5_text()
     if db is None or text is None:
@@ -90,6 +93,18 @@ def init_knowledge_table() -> None:
         )
     """))
     db.session.commit()
+
+
+KNOWLEDGE_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="ai_agent.knowledge_entries",
+    tables=("ai_agent_knowledge_entries",),
+    provision=provision_knowledge_table,
+))
+
+
+def init_knowledge_table() -> None:
+    """Verify the knowledge table exists; never creates it (see app.services.runtime_schema)."""
+    runtime_schema.require(KNOWLEDGE_SCHEMA)
 
 
 def list_knowledge_entries(include_inactive: bool = True) -> list[dict[str, Any]]:

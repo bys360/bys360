@@ -8,6 +8,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.models import PerformancePeriod
+from app.services import runtime_schema
 from app.services.performance.assignment_rule_audit import build_assignment_generation_preflight
 from app.services.performance.v2_1_6_category_period_integration import (
     INTEGRATION_TABLE,
@@ -15,6 +16,7 @@ from app.services.performance.v2_1_6_category_period_integration import (
     build_assignment_preintegration,
     ensure_category_period_integration_schema,
     list_integrations,
+    provision_category_period_integration_schema,
 )
 from app.services.performance_service import generate_assignments_for_active_period
 
@@ -73,30 +75,55 @@ def _safe_int(value: Any, default: int = 0) -> int:
         return default
 
 
-def ensure_period_center_assignment_launch_schema() -> dict[str, Any]:
-    """V2.1.8 için entegrasyon tablosuna görev üretim özet alanlarını ekler."""
-    ensure_category_period_integration_schema()
+ASSIGNMENT_LAUNCH_COLUMNS = (
+    "assignment_generation_status",
+    "assignment_generation_summary",
+    "assignment_generation_run_key",
+    "assignment_generation_at",
+)
+
+
+def provision_period_center_assignment_launch_schema() -> dict[str, Any]:
+    """Add the assignment-generation summary columns (explicit maintenance only: flask runtime-schema provision)."""
+    provision_category_period_integration_schema()
     db = _db()
     added: list[str] = []
     dialect = _dialect_name()
-    columns = {
-        "assignment_generation_status": "VARCHAR(80)",
-        "assignment_generation_summary": "TEXT",
-        "assignment_generation_run_key": "VARCHAR(160)",
-        "assignment_generation_at": "TIMESTAMP WITHOUT TIME ZONE" if dialect != "sqlite" else "DATETIME",
-    }
-    for name, sql_type in columns.items():
-        if not _has_column(INTEGRATION_TABLE, name):
-            try:
-                db.session.execute(text(_alter_add_column_sql(INTEGRATION_TABLE, name, sql_type)))
-                added.append(name)
-            except SQLAlchemyError:
-                logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-                db.session.rollback()
-                if not _has_column(INTEGRATION_TABLE, name):
-                    raise
+    columns = dict(zip(ASSIGNMENT_LAUNCH_COLUMNS, (
+        "VARCHAR(80)",
+        "TEXT",
+        "VARCHAR(160)",
+        "TIMESTAMP WITHOUT TIME ZONE" if dialect != "sqlite" else "DATETIME",
+    ), strict=True))
+    # Inspect before any ALTER: on PostgreSQL an uncommitted ALTER locks the table and
+    # _has_column() inspects through another connection, which would wait forever.
+    missing = [name for name in columns if not _has_column(INTEGRATION_TABLE, name)]
+    for name in missing:
+        try:
+            db.session.execute(text(_alter_add_column_sql(INTEGRATION_TABLE, name, columns[name])))
+            added.append(name)
+        except SQLAlchemyError:
+            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
+            db.session.rollback()
+            if not _has_column(INTEGRATION_TABLE, name):
+                raise
     db.session.commit()
     return {"ok": True, "added_columns": added, "dialect": dialect, "rule_version": RULE_VERSION}
+
+
+ASSIGNMENT_LAUNCH_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="performance.period_center_assignment_launch",
+    tables=(INTEGRATION_TABLE,),
+    columns=tuple((INTEGRATION_TABLE, name) for name in ASSIGNMENT_LAUNCH_COLUMNS),
+    provision=provision_period_center_assignment_launch_schema,
+))
+
+
+def ensure_period_center_assignment_launch_schema() -> dict[str, Any]:
+    """Verify the assignment-generation summary columns exist; never alters the table."""
+    ensure_category_period_integration_schema()
+    runtime_schema.require(ASSIGNMENT_LAUNCH_SCHEMA)
+    return {"ok": True, "added_columns": [], "dialect": _dialect_name(), "rule_version": RULE_VERSION}
 
 
 def _integration_for_plan(plan_key: str) -> dict[str, Any] | None:

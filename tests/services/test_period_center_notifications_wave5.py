@@ -109,14 +109,14 @@ def test_integration_for_plan_does_not_swallow_unexpected_runtime_error(
 
 
 # ---------------------------------------------------------------------------
-# ensure_period_center_process_notification_schema
+# provision_period_center_process_notification_schema (maintenance only)
 # ---------------------------------------------------------------------------
 
 
-def test_ensure_schema_success_path_unchanged(
+def test_provision_schema_success_path_unchanged(
     app, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(notifications, "ensure_category_period_integration_schema", lambda: None)
+    monkeypatch.setattr(notifications, "provision_category_period_integration_schema", lambda: None)
     monkeypatch.setattr(notifications, "_has_table", lambda name: True)
     monkeypatch.setattr(notifications, "_has_column", lambda table, column: True)
     monkeypatch.setattr(notifications, "_dialect_name", lambda: "sqlite")
@@ -125,7 +125,7 @@ def test_ensure_schema_success_path_unchanged(
     monkeypatch.setattr(flask_db.session, "commit", lambda: commit_calls.append(True))
 
     with app.app_context():
-        result = notifications.ensure_period_center_process_notification_schema()
+        result = notifications.provision_period_center_process_notification_schema()
 
     assert result == {
         "ok": True,
@@ -136,13 +136,13 @@ def test_ensure_schema_success_path_unchanged(
     assert commit_calls == [True]
 
 
-def test_ensure_schema_dependency_failure_rolls_back_and_reports_missing_table(
+def test_provision_schema_dependency_failure_rolls_back_and_reports_missing_table(
     app, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def raise_error():
         raise SQLAlchemyError("simulated dependency schema failure")
 
-    monkeypatch.setattr(notifications, "ensure_category_period_integration_schema", raise_error)
+    monkeypatch.setattr(notifications, "provision_category_period_integration_schema", raise_error)
     # The dependency schema genuinely failed, so the integration table is
     # still absent -- this must be reported as ok:False, never a fake success.
     monkeypatch.setattr(notifications, "_has_table", lambda name: False)
@@ -156,7 +156,7 @@ def test_ensure_schema_dependency_failure_rolls_back_and_reports_missing_table(
     )
 
     with app.app_context():
-        result = notifications.ensure_period_center_process_notification_schema()
+        result = notifications.provision_period_center_process_notification_schema()
 
     assert result["ok"] is False
     assert result["message"] == "Dönem entegrasyon tablosu bulunamadı."
@@ -164,19 +164,19 @@ def test_ensure_schema_dependency_failure_rolls_back_and_reports_missing_table(
     assert len(log_calls) == 1
 
 
-def test_ensure_schema_does_not_swallow_unexpected_runtime_error(
+def test_provision_schema_does_not_swallow_unexpected_runtime_error(
     app, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def explode():
         raise RuntimeError("unexpected programming failure")
 
-    monkeypatch.setattr(notifications, "ensure_category_period_integration_schema", explode)
+    monkeypatch.setattr(notifications, "provision_category_period_integration_schema", explode)
 
     rollback_calls: list[bool] = []
     monkeypatch.setattr(flask_db.session, "rollback", lambda: rollback_calls.append(True))
 
     with app.app_context(), pytest.raises(RuntimeError):
-        notifications.ensure_period_center_process_notification_schema()
+        notifications.provision_period_center_process_notification_schema()
 
     assert rollback_calls == []
 

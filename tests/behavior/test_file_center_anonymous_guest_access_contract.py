@@ -82,6 +82,12 @@ _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_agent2_filece
 _RUN_ID = uuid.uuid4().hex
 _TMP_STORAGE_ROOT = os.path.join(_TMP_DB_DIR, f"storage_{_RUN_ID}")
 
+
+def _inside_scratch_root(path) -> bool:
+    """Containment check on resolved paths: on Windows the temp dir can appear in 8.3 short form
+    (a user folder such as ABCDEF~1) while the application resolves the long form of the same directory."""
+    return Path(path).resolve().is_relative_to(Path(_TMP_STORAGE_ROOT).resolve())
+
 DEFAULT_FIRST_LOGIN_PASSWORD = "file-center-guest-first-login-test-pw"
 
 _counter = 0
@@ -220,7 +226,7 @@ def _write_physical_file(app, owner_id: int, filename: str, content: bytes) -> s
 
     with app.app_context():
         target_dir = upload_root_for_user(owner_id)
-        assert str(target_dir).startswith(_TMP_STORAGE_ROOT)  # isolation proof
+        assert _inside_scratch_root(target_dir)  # isolation proof
         target_path = target_dir / f"{uuid.uuid4().hex}_{filename}"
         target_path.write_bytes(content)
         return str(target_path)
@@ -753,7 +759,7 @@ def test_upload_empty_password_hash_auto_passes_and_persists_real_file_under_scr
         stored_path = item.storage_path
         assert item.size_bytes == len(content)
 
-    assert stored_path.startswith(_TMP_STORAGE_ROOT)  # filesystem isolation proof
+    assert _inside_scratch_root(stored_path)  # filesystem isolation proof
     with open(stored_path, "rb") as fh:
         assert fh.read() == content
 

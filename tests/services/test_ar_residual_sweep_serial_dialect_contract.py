@@ -75,10 +75,10 @@ def app(monkeypatch: pytest.MonkeyPatch):
 
 def test_meeting_foundation_schema_ids_are_not_null_on_sqlite(app):
     from app.extensions import db
-    from app.services.performance.meeting_development import ensure_meeting_foundation_schema
+    from app.services.performance.meeting_development import provision_meeting_foundation_schema
 
     with app.app_context():
-        ensure_meeting_foundation_schema()
+        provision_meeting_foundation_schema()
         db.session.execute(
             db.text("INSERT INTO performance_employee_categories (category_name) VALUES ('BYS360-AR-CATEGORY')"),
         )
@@ -93,10 +93,10 @@ def test_meeting_foundation_schema_ids_are_not_null_on_sqlite(app):
 
 def test_ai_agent_knowledge_table_ids_are_not_null_on_sqlite(app):
     from app.extensions import db
-    from app.services.ai_agent.knowledge import init_knowledge_table
+    from app.services.ai_agent.knowledge import provision_knowledge_table
 
     with app.app_context():
-        init_knowledge_table()
+        provision_knowledge_table()
         db.session.execute(
             db.text(
                 "INSERT INTO ai_agent_knowledge_entries (title, question_patterns, answer) "

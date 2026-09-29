@@ -9,7 +9,7 @@ from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.route_registry import main_bp
-from app.route_support import safe_db_rollback
+from app.route_support import admin_required, menu_key_required, safe_db_rollback
 from app.services.ai import (
     build_dashboard_brief_response,
     build_hr_leave_brief_response,
@@ -122,8 +122,11 @@ def ai_support_ticket_triage(ticket_id: int):
     return _run_json_service(build_support_ticket_triage_response, ticket_id)
 
 
+# Reviewing AI recommendations is an admin function (same gate as /admin/ai-recommendations).
 @main_bp.route("/ai/recommendations/<int:recommendation_id>/status", methods=["POST"])
 @login_required
+@admin_required
+@menu_key_required("ai_center")
 def ai_recommendation_status(recommendation_id: int):
     def _update_status(rid: int) -> dict[str, Any]:
         status = (_request_value("status") or "").strip().lower()
@@ -139,6 +142,8 @@ def ai_recommendation_status(recommendation_id: int):
 
 @main_bp.route("/ai/recommendations/<int:recommendation_id>/apply", methods=["POST"])
 @login_required
+@admin_required
+@menu_key_required("ai_center")
 def ai_recommendation_apply(recommendation_id: int):
     def _apply(rid: int) -> dict[str, Any]:
         return apply_recommendation(rid, acting_user=current_user)
@@ -148,6 +153,8 @@ def ai_recommendation_apply(recommendation_id: int):
 
 @main_bp.route("/ai/recommendations/bulk-apply", methods=["POST"])
 @login_required
+@admin_required
+@menu_key_required("ai_center")
 def ai_recommendation_bulk_apply():
     def _apply_bulk() -> dict[str, Any]:
         raw_ids = _request_values("recommendation_ids")
@@ -161,6 +168,8 @@ def ai_recommendation_bulk_apply():
 
 @main_bp.route("/ai/recommendations/list")
 @login_required
+@admin_required
+@menu_key_required("ai_center")
 def ai_recommendation_list():
     def _list() -> dict[str, Any]:
         module_type = (_request_value("module_type") or "").strip().lower()

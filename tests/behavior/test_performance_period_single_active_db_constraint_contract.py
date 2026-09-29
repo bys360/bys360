@@ -94,9 +94,11 @@ def test_two_independent_sessions_racing_to_activate_different_periods_the_secon
     app = _make_app(monkeypatch)
     from app.extensions import db
     from app.models.performance_models import PerformancePeriod
+    from app.services import runtime_schema
 
     with app.app_context():
         db.create_all()
+        runtime_schema.provision_all()  # raw-SQL tables production already has
         _apply_single_active_index(db.engine)
 
     # Session A: a normal, successful activation -- commits cleanly.
@@ -190,6 +192,7 @@ def _make_app_with_static_pool(monkeypatch: pytest.MonkeyPatch):
     )
 
     from app.extensions import db
+    from app.services import runtime_schema
 
     with flask_app.app_context():
         from sqlalchemy import event
@@ -203,6 +206,7 @@ def _make_app_with_static_pool(monkeypatch: pytest.MonkeyPatch):
             conn.exec_driver_sql("BEGIN")
 
         db.create_all()
+        runtime_schema.provision_all()  # raw-SQL tables production already has
         _apply_single_active_index(db.engine)
 
     return flask_app

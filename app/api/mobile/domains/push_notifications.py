@@ -5,6 +5,7 @@ from sqlalchemy import text
 from app.api.mobile import mobile_api_bp
 from app.api.mobile.shared import jsonify, request, require_mobile_user
 from app.extensions import db
+from app.services import runtime_schema
 
 
 def _push_text(value, *, limit=500):
@@ -27,7 +28,8 @@ def _is_sqlite() -> bool:
         return False
 
 
-def _ensure_mobile_push_token_table() -> None:
+def provision_mobile_push_token_table() -> None:
+    """Create the push token table (explicit maintenance only: flask runtime-schema provision)."""
     if _is_sqlite():
         db.session.execute(text("""
             CREATE TABLE IF NOT EXISTS mobile_push_tokens (
@@ -70,6 +72,36 @@ def _ensure_mobile_push_token_table() -> None:
         CREATE INDEX IF NOT EXISTS ix_mobile_push_tokens_user_active
         ON mobile_push_tokens (user_id, is_active)
     """))
+    db.session.commit()
+
+
+# Owned by Alembic revision b704bd9d68c0 (same columns and indexes).
+MOBILE_PUSH_TOKENS_SCHEMA = runtime_schema.register(runtime_schema.SchemaGroup(
+    name="mobile.push_tokens",
+    tables=("mobile_push_tokens",),
+    indexes=(
+        ("mobile_push_tokens", "ix_mobile_push_tokens_token"),
+        ("mobile_push_tokens", "ix_mobile_push_tokens_user_active"),
+    ),
+    columns=(
+        ("mobile_push_tokens", "user_id"),
+        ("mobile_push_tokens", "token"),
+        ("mobile_push_tokens", "platform"),
+        ("mobile_push_tokens", "device_id"),
+        ("mobile_push_tokens", "app_version"),
+        ("mobile_push_tokens", "device_label"),
+        ("mobile_push_tokens", "is_active"),
+        ("mobile_push_tokens", "last_seen_at"),
+        ("mobile_push_tokens", "created_at"),
+        ("mobile_push_tokens", "updated_at"),
+    ),
+    provision=provision_mobile_push_token_table,
+))
+
+
+def _ensure_mobile_push_token_table() -> None:
+    """Verify the push token table exists; never creates it."""
+    runtime_schema.require(MOBILE_PUSH_TOKENS_SCHEMA)
 
 
 def _register_push_token_impl(user):

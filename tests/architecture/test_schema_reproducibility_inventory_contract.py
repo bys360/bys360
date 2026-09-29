@@ -4,9 +4,10 @@ Final pre-live audit (2026-09-27): the documented install/restore procedure is
 ``flask db upgrade``, but some active ORM tables are created by no Alembic
 revision (only by historical ``db.create_all()`` / repair runs) or only by
 request-time DDL, and ``performance_low_score_process_events`` is created by a
-migration with a different shape than its model. The PostgreSQL migration gate
-in CI (empty DB -> head -> second upgrade no-op) cannot see this, and the test
-suite builds its schema with ``db.create_all()``.
+migration with a different shape than its model. Migration w2d8e1f4a6c3 closes
+those gaps, and the PostgreSQL migration gate in CI now also fails when an ORM
+table or column is missing after empty -> head; the test suite still builds its
+schema with ``db.create_all()``.
 
 This contract recomputes the read-only inventory
 (scripts/quality/bys360_schema_reproducibility_inventory_v1.py) and compares it
@@ -66,12 +67,12 @@ def test_no_new_table_with_orm_columns_that_no_ddl_creates(current, baseline) ->
     assert new == [], f"ORM columns created by no migration or runtime DDL: {new}"
 
 
-def test_known_low_score_events_shape_conflict_stays_documented(baseline) -> None:
+def test_low_score_events_orm_columns_have_ddl(baseline) -> None:
+    """w2d8e1f4a6c3 adopts the ORM shape of an empty phase-6 events table (the PG gate checks ORM parity)."""
     rows = {row["table"]: row for row in baseline["tables"]}
     events = rows["performance_low_score_process_events"]
     assert events["status"] == "MIGRATION_PRESENT"
-    assert {"process_id", "step_key"} <= set(events["orm_columns_without_any_ddl"])
-    assert events["live_validation_required"] is True
+    assert events["orm_columns_without_any_ddl"] == []
 
 
 def test_baseline_report_is_internally_consistent(baseline) -> None:

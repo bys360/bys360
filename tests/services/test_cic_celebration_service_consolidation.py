@@ -352,49 +352,31 @@ def test_save_celebration_settings_preserves_settings_and_user_dates(
     assert saved[-1][0] == "commit"
 
 
-def test_ensure_celebration_schema_adds_only_missing_columns(
+def test_ensure_celebration_schema_reports_missing_columns_without_altering(
     monkeypatch,
 ) -> None:
-    import sqlalchemy
+    from app.services import runtime_schema
 
-    statements: list[str] = []
+    def _no_write_transaction() -> None:
+        raise AssertionError("ensure_celebration_schema must not open a write transaction")
 
-    class _Connection:
-        def execute(self, statement: object) -> None:
-            statements.append(str(statement))
-
-    class _Begin:
-        def __enter__(self) -> _Connection:
-            return _Connection()
-
-        def __exit__(self, *_args: object) -> None:
-            return None
-
-    engine = SimpleNamespace(
-        dialect=SimpleNamespace(name="sqlite"),
-        begin=lambda: _Begin(),
-    )
+    engine = SimpleNamespace(url="sqlite:///consolidation-unit", begin=_no_write_transaction)
     inspector = SimpleNamespace(
         has_table=lambda name: name == "users",
         get_columns=lambda _name: [{"name": "id"}, {"name": "birth_date"}],
     )
-    monkeypatch.setattr(sqlalchemy, "inspect", lambda _engine: inspector)
-    monkeypatch.setattr(sqlalchemy, "text", lambda value: value)
-    monkeypatch.setattr(
-        celebration_service,
-        "db",
-        SimpleNamespace(engine=engine),
-    )
+    monkeypatch.setattr(runtime_schema, "inspect", lambda _engine: inspector)
+    monkeypatch.setattr(runtime_schema, "db", SimpleNamespace(engine=engine))
+    monkeypatch.setattr(celebration_service, "db", SimpleNamespace(engine=engine))
 
     result = celebration_service.ensure_celebration_schema()
 
-    assert result == {
-        "ok": True,
-        "added": ["hire_date", "celebration_opt_out"],
-        "warnings": [],
-    }
-    assert len(statements) == 2
-    assert all("birth_date" not in statement for statement in statements)
+    assert result["ok"] is False
+    assert result["added"] == []
+    warning = result["warnings"][0]
+    assert "users.hire_date" in warning
+    assert "users.celebration_opt_out" in warning
+    assert "users.birth_date" not in warning
 
 
 def test_excel_import_preview_preserves_match_and_no_write(monkeypatch) -> None:
