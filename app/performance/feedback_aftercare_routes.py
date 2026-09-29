@@ -15,6 +15,7 @@ from app.services.ai.stub_panel_bridge import attach_aftercare_ai_panel
 
 # /BYS360_STUB_AI_V60_AFTERCARE_IMPORT
 from app.services.performance.feedback_aftercare import (
+    action_plan_meeting_id,
     add_action_plan,
     build_full_context,
     get_meeting_aftercare_detail,
@@ -293,12 +294,14 @@ def performance_feedback_aftercare_add_action(meeting_id: int):
 @main_bp.route("/performance/feedback-aftercare/actions/<int:action_id>/update", methods=["POST"], endpoint="performance_feedback_aftercare_update_action")
 @login_required
 def performance_feedback_aftercare_update_action(action_id: int):
-    meeting_id = update_action_plan(action_id, request.form)
+    # Authorize before writing: the same _can_edit_meeting rule as the after-note and add-action routes.
+    meeting_id = action_plan_meeting_id(action_id)
     if not meeting_id:
         flash("Eylem planı bulunamadı.", "warning")
         return redirect(url_for("main.performance_feedback_aftercare"))
     if not _can_edit_meeting(meeting_id):
         flash("Bu eylem planını güncelleme yetkiniz yok.", "danger")
         return redirect(url_for("main.performance_feedback_aftercare"))
+    update_action_plan(action_id, request.form)
     flash("Eylem planı takip bilgisi güncellendi.", "success")
     return redirect(url_for("main.performance_feedback_aftercare_detail", meeting_id=meeting_id))

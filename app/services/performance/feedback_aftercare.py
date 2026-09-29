@@ -599,6 +599,13 @@ def add_action_plan(meeting_id: int, employee_id: int | None, manager_id: int | 
     db.session.commit()
 
 
+def action_plan_meeting_id(action_id: int) -> int | None:
+    """Return the meeting of an action plan without changing it, so callers can authorize first."""
+    ensure_feedback_aftercare_schema()
+    meeting_id = _scalar("SELECT meeting_id FROM feedback_meeting_action_plans WHERE id = :action_id", {"action_id": action_id})
+    return int(meeting_id) if meeting_id else None
+
+
 def update_action_plan(action_id: int, form: Any) -> int | None:
     ensure_feedback_aftercare_schema()
     status = _form_value(form, "status") or "takipte"
