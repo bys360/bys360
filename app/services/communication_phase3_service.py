@@ -612,9 +612,19 @@ def support_queue_snapshot(user: Any, filter_name: str = "all") -> dict[str, Any
     }
 
 
+def _can_access_ticket(ticket: Any, user: Any) -> bool:
+    if is_manager(user):
+        return True
+    user_id = int(getattr(user, "id", 0) or 0)
+    return user_id in {
+        int(getattr(ticket, "created_by_user_id", 0) or 0),
+        int(getattr(ticket, "assigned_to_user_id", 0) or 0),
+    }
+
+
 def support_detail_payload(ticket_id: int, user: Any) -> dict[str, Any]:
     ticket = SupportTicket.query.get_or_404(ticket_id)
-    if not is_manager(user) and int(getattr(ticket, "created_by_user_id", 0) or 0) != int(getattr(user, "id", 0) or 0) and int(getattr(ticket, "assigned_to_user_id", 0) or 0) != int(getattr(user, "id", 0) or 0):
+    if not _can_access_ticket(ticket, user):
         raise CommunicationPhase3Error("Bu talebi görüntüleme yetkiniz yok.")
 
     users = []
@@ -730,6 +740,8 @@ def update_support_status(ticket_id: int, new_status: str, actor_user_id: int, n
 
 def add_support_message(ticket_id: int, actor_user: Any, message: str, is_internal: bool = False) -> Any:
     ticket = SupportTicket.query.get_or_404(ticket_id)
+    if not _can_access_ticket(ticket, actor_user):
+        raise CommunicationPhase3Error("Bu talebe mesaj yazma yetkiniz yok.")
     clean_message = safe_str(message)
     if not clean_message:
         raise CommunicationPhase3Error("Mesaj boş bırakılamaz.")
