@@ -28,6 +28,13 @@ DEFAULT_OUT = REPO / "reports" / "quality" / "BYS360_AUTHORIZATION_MATRIX_V1.jso
 AUTH_DECORATORS = {"login_required", "require_mobile_user", "mobile_login_required", "api_login_required"}
 # Role decorators in app/route_support.py that redirect anonymous users to login first.
 AUTHENTICATING_ROLE_DECORATORS = {"menu_key_required", "_require_role_family", "admin_required", "manager_required"}
+# Views whose first check is a helper that refuses anonymous users; read in the source
+# (tests/security/test_anonymous_route_runtime_contract.py confirms it at runtime).
+AUTHENTICATED_BY_HELPER = {
+    "ai_agent.ag5_knowledge_toggle": "can_manage_ai_knowledge() returns False unless current_user.is_authenticated",
+    "ai_agent.ag5_knowledge_delete": "can_manage_ai_knowledge() returns False unless current_user.is_authenticated",
+}
+_BODY_AUTH_CHECK = re.compile(r"current_user\.is_authenticated|current_user\s*,\s*['\"]is_authenticated['\"]")
 ROLE_DECORATORS = re.compile(
     r"(admin_required|roles?_required|permission_required|menu_key_required|hr_required|president_required|"
     r"manager_required|superadmin_required|require_role|require_permission|require_admin|file_center_admin_required|"
@@ -110,6 +117,13 @@ MANUAL_REVIEW: dict[str, tuple[str, str]] = {
     "main.ai_recommendation_list": ("ROLE_GATED", "FIXED 2026-09-28: admin_required + menu_key_required('ai_center') (was login-only)"),
     "main.ai_recommendation_bulk_apply": ("ROLE_GATED", "FIXED 2026-09-28: admin_required + menu_key_required('ai_center'); service never applies"),
     "health.health_deep": ("PUBLIC_INTENTIONAL", "FIXED 2026-09-28: no longer echoes dependency exception text"),
+    "ai_agent.ai_agent_public_healthz": ("PUBLIC_INTENTIONAL", "anonymous smoke check: status, service, version, mode and bridge flags only; was misread as guarded by the ai_agent before_request"),
+    "main.support_assign": (_OG, "FIXED 2026-09-29: _can_operate_ticket, i.e. the Phase 13B private-ticket unit scope (was the all-tickets permission only; self-assignment exposed private tickets)"),
+    "main.communication_phase3_support_detail": (_OG, "FIXED 2026-09-29: _can_access_ticket on GET and POST: creator, assignee, or a manager within the private-ticket unit scope"),
+    "main.communication_phase3_support_assign": (_OG, "FIXED 2026-09-29: is_manager + _can_access_ticket (private-ticket unit scope)"),
+    "main.communication_phase3_support_status": (_OG, "FIXED 2026-09-29: is_manager + _can_access_ticket (private-ticket unit scope)"),
+    "main.portal_press_news_publish": ("ROLE_GATED", "_portal_press_news_admin_only_allowed: admin roles only"),
+    "main.portal_press_news_archive": ("ROLE_GATED", "_portal_press_news_admin_only_allowed: admin roles only"),
     "main.setup_admin": ("PUBLIC_INTENTIONAL", "404 unless explicitly permitted; redirects once any user exists"),
     "main.communication_phase2_surveys": ("ROLE_GATED", "FIXED 2026-09-28: is_manager() like the module's write actions (was menu 'surveys' only)"),
     "main.communication_phase2_survey_detail": ("ROLE_GATED", "FIXED 2026-09-28: is_manager() like the module's write actions (was menu 'surveys' only)"),
@@ -132,7 +146,7 @@ MANUAL_REVIEW: dict[str, tuple[str, str]] = {
     "main.survey_edit": ("ROLE_GATED", "_survey_manager_allowed"),
     "main.survey_delete": ("ROLE_GATED", "_survey_manager_allowed"),
     "main.support_comment": (_OG, "_can_operate_ticket"),
-    "main.support_status": ("ROLE_GATED", "_can_use_all_support_view"),
+    "main.support_status": (_OG, "FIXED 2026-09-29: _can_operate_ticket, i.e. the Phase 13B private-ticket unit scope (was _can_use_all_support_view only)"),
     "main.portal_post_delete": (_OG, "can_user_delete_post"),
     "main.portal_post_moderate": ("ROLE_GATED", "can_manage_portal"),
     "main.portal_group_detail": (_OG, "is_group_member or can_manage_portal"),
@@ -260,13 +274,13 @@ def build(app) -> dict:
         guards = []
         if admin_guard_paths(rule.rule):
             guards.append("app.admin_path_guard(authenticated + admin family role)")
-        if blueprint in {"ai_agent"}:
-            guards.append("ai_agent_bp.before_request")
+        # The ai_agent blueprint's before_request hooks return early for anonymous users, so
+        # they are not an authentication guard; hierarchy_governance's hook is @login_required.
         if blueprint in {"hierarchy_governance"}:
             guards.append("hierarchy_governance_bp.before_request")
         authenticated = (bool(authn) or bool(guards) or "require_mobile_user" in body
                          or bool(set(decorators) & AUTHENTICATING_ROLE_DECORATORS))
-        if not authenticated and "current_user.is_authenticated" in body:
+        if not authenticated and (_BODY_AUTH_CHECK.search(body) or rule.endpoint in AUTHENTICATED_BY_HELPER):
             authenticated = True
         public_hint = PUBLIC_ENDPOINT_HINTS.search(rule.endpoint) or PUBLIC_ENDPOINT_HINTS.search(rule.rule)
         if rule.endpoint == "static" or (not authenticated and public_hint):
