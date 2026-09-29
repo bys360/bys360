@@ -3,6 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 
+def _can_write_assignment_scores(user: Any, assignment: Any) -> bool:
+    """Web scoring rule (performance_v2_phase3_assignment): only admin or the assignment's evaluator writes."""
+    return getattr(user, 'role', '') == 'admin' or getattr(assignment, 'evaluator_id', None) == getattr(user, 'id', None)
+
+
 def phase3c_mobile_performance_task_score_form_service(user: Any, assignment_id: int, deps: dict[str, Any]):
     EvaluationAssignment = deps['EvaluationAssignment']
     _mobile_perf_safe_get = deps['_mobile_perf_safe_get']
@@ -37,7 +42,7 @@ def phase3c_mobile_performance_task_score_submit_service(user: Any, assignment_i
     validate_general_comment_requirements = deps['validate_general_comment_requirements']
 
     assignment = _mobile_perf_safe_get(EvaluationAssignment, assignment_id)
-    if not assignment or not _v2822_can_view_assignment(user, assignment):
+    if not assignment or not _v2822_can_view_assignment(user, assignment) or not _can_write_assignment_scores(user, assignment):
         return _v2835_json_error('Bu değerlendirme görevine erişim yetkiniz bulunmamaktadır.', 403)
 
     body = request.get_json(silent=True) or {}
@@ -164,7 +169,7 @@ def phase3c_mobile_performance_task_score_action_service(user: Any, assignment_i
     request = deps['request']
 
     assignment = _mobile_perf_safe_get(EvaluationAssignment, assignment_id)
-    if not assignment or not _v2822_can_view_assignment(user, assignment):
+    if not assignment or not _v2822_can_view_assignment(user, assignment) or not _can_write_assignment_scores(user, assignment):
         return _v2835_json_error('Bu değerlendirme görevine erişim yetkiniz bulunmamaktadır.', 403)
     body = request.get_json(silent=True) or {}
     action = str(body.get('action') or '').strip().lower()
