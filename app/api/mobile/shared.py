@@ -437,7 +437,8 @@ def _mobile_survey_detail_payload(survey: Survey, user: User) -> dict[str, Any]:
     completed = _mobile_survey_completed(user, survey)
     active = _survey_is_active(survey)
     questions = _mobile_survey_questions(survey)
-    can_submit = active and (bool(getattr(survey, "allow_multiple_submissions", False)) or not completed) and (_has_global_scope(user) or assignment is not None)
+    # Same assignment requirement as the mobile and web submit; visibility (read) is unchanged.
+    can_submit = active and (bool(getattr(survey, "allow_multiple_submissions", False)) or not completed) and assignment is not None
     return {
         "source": "real_api",
         "can_submit": can_submit,

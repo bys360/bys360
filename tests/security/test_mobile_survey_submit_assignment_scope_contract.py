@@ -1,19 +1,19 @@
-"""Contract lock: survey submit eligibility on the web and mobile, as it stands today.
+"""Contract: mobile survey submit requires a matching assignment, as the web does.
 
-This file locks existing behaviour only. It does not decide the open policy question.
+The web submit (``survey_submit``, POST /surveys/<id>/submit) and take page refuse every
+user, a president or admin included, who has no matching ``SurveyAssignment``
+(``matching_assignment_for_user``): "Bu anketi cevaplama yetkiniz yok.".
 
-- Web (``survey_submit``, POST /surveys/<id>/submit) refuses every user, a president
-  included, who has no matching ``SurveyAssignment`` (``matching_assignment_for_user``):
-  "Bu anketi cevaplama yetkiniz yok.".
-- Mobile (POST /api/mobile/surveys/<id>/submit) accepts ``_has_global_scope(user) or
-  assignment is not None``, and the mobile detail payload advertises the same rule in
-  ``can_submit``. A mobile global role (``admin``, ``baskan``, ``baskan_yardimcisi``)
-  outside the target audience can therefore answer on mobile but not on the web.
+POST /api/mobile/surveys/<id>/submit accepted ``_has_global_scope(user) or assignment``,
+and the mobile detail advertised the same in ``can_submit``. A mobile global role
+(``admin``, ``baskan``, ``ik``, ...) outside the target audience could add a response,
+stored with ``assignment_id=NULL``, that the web refuses to the same user; this skews the
+survey results.
 
-Whether global roles may answer surveys outside their target audience is
-HUMAN_DECISION_REQUIRED (Wave 3, W3-03). Whatever is decided, the mobile ``can_submit``
-flag and the mobile submit outcome must change together; the consistency test below
-enforces that (negative control: requiring an assignment in the submit only makes it fail).
+Rule reused: the web assignment requirement, through the mobile assignment matcher that
+non-global mobile users already pass. The submit and the ``can_submit`` flag change
+together (the consistency test fails if only one does). Mobile read access (list and
+detail visibility) is unchanged.
 """
 from __future__ import annotations
 
@@ -134,6 +134,20 @@ def test_mobile_can_submit_flag_matches_the_mobile_submit_outcome(app, sicil):
     assert response.status_code in (200, 403)
     assert (response.status_code == 200) is advertised
     assert _responses(app, "targeted") == (1 if advertised else 0)
+
+
+@pytest.mark.parametrize("sicil", ["MSS02", "MSS03"])
+def test_unassigned_mobile_global_role_cannot_submit(app, sicil):
+    assert _submit(app, sicil, "targeted").status_code == 403
+    assert _responses(app, "targeted") == 0
+
+
+@pytest.mark.parametrize("sicil", ["MSS02", "MSS03"])
+def test_unassigned_mobile_global_role_is_not_offered_submit(app, sicil):
+    survey_id, _question_id = app.config["_SURVEYS"]["targeted"]
+    detail = app.test_client().get(f"/api/mobile/surveys/{survey_id}", headers=_headers(app, sicil))
+    assert detail.status_code == 200
+    assert (detail.get_json() or {}).get("can_submit") is False
 
 
 def test_unassigned_mobile_global_role_can_read_the_survey(app):
