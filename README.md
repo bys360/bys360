@@ -115,9 +115,14 @@ Bu, ortak kullanım için doğrudan kopyalanıp çalıştırılabilecek bir alt 
 
 ## Doğrulanmış Coverage Durumu (Verified Coverage Snapshot)
 
+Bu tablo, 2026-09-23 production sürümü (`1ea5c5dc…`) üzerinde alınmış tarihli bir coverage
+ölçümüdür. Güncel production sürümü (`a5bd8a38…`, 2026-09-29) için ayrı bir coverage anlık
+görüntüsü bu bölüme işlenmemiştir; güncel production kimliği için aşağıdaki "Mevcut Doğrulanmış
+Canlı Kaynak" bölümüne ve `SOURCE_OF_TRUTH.md`'ye bakın.
+
 | Alan | Değer |
 |---|---|
-| Doğrulanmış production SHA | `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6` |
+| Ölçüm yapılan SHA (2026-09-23 production, tarihsel) | `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6` |
 | GitHub Actions run | `35823128265` (`quality-gate` işi) |
 | CI ölçüm tarihi | 2026-09-23 |
 | Ölçülen combined coverage | 42.1228% |
@@ -191,13 +196,31 @@ kimliği ve branch rolleri için `SOURCE_OF_TRUTH.md` esas kısa referanstır.
 
 ## Mevcut Doğrulanmış Canlı Kaynak (Current Verified Production Source)
 
-**SHA:** `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6`
+| Alan | Değer |
+|---|---|
+| SHA | `a5bd8a389f2a978e2a07bb30d58a622bddea82df` |
+| Production tag | `bys360-prod-2026.09.29-a5bd8a38` |
+| Dağıtım tarihi | 2026-09-29 |
+| Migration head | `w2d8e1f4a6c3` (`v1a2d3e4f5b6` → `w1c5a7d2e9b4` → `w2d8e1f4a6c3`) |
+| GitHub Release | BYS360 Production — 2026-09-29 (a5bd8a38) |
+| Önceki production SHA | `67f2a29dc29c7977dbbf5b16b0629daa630e9ef9` (tag `bys360-prod-2026.09.28-67f2a29d`, migration head `v1a2d3e4f5b6`) |
 
-Bu, en son canlıya alma (deployment) sırasında doğrulanan kaynak kod kimliğidir. İki zorunlu
-CI iş akışının (BYS360 Quality Assurance Gate V1 ve quality-gate) bu tam SHA üzerinde başarıyla
-çalıştığı doğrulanmıştır. Branş koruması tarafından zorunlu kılınan teknik kontrol bağlamı
-(required check context) hâlâ tarihsel/kararlı ad olan `score100-quality-gate`'tir -- yukarıdaki
-"BYS360 Quality Assurance Gate V1" yalnızca insan-okur iş akışı adıdır.
+Bu, en son canlıya alma (deployment) sırasında doğrulanan kaynak kod kimliğidir. Bu SHA, PR #15'in
+merge commit'idir; ağacı, iki zorunlu CI iş akışının (BYS360 Quality Assurance Gate V1 ve
+quality-gate) başarıyla çalıştığı PR #15 head'inin ağacıyla birebir aynıdır (bkz.
+`SOURCE_OF_TRUTH.md` §3).
+
+- **Cutover öncesi kontrollü maintenance:** `flask runtime-schema provision` gerekli 8 eksik
+  kolonu sağladı; ardından salt okuma `flask runtime-schema check` 15/15 OK verdi.
+- **Cutover ve cutover sonrası doğrulama:** deployment exit code 0, migration PASS, schema
+  contract PASS, Dosya Merkezi 19/19, service/process binding PASS, local health, readiness ve
+  public health HTTP 200, smoke PASS, security-critical bulgu 0. `/versionz`:
+  `source_sha = a5bd8a389f2a978e2a07bb30d58a622bddea82df`, `migration_head = w2d8e1f4a6c3`,
+  `schema_error_count = 0`.
+
+Branş koruması tarafından zorunlu kılınan teknik kontrol bağlamı (required check context) hâlâ
+tarihsel/kararlı ad olan `score100-quality-gate`'tir -- yukarıdaki "BYS360 Quality Assurance
+Gate V1" yalnızca insan-okur iş akışı adıdır.
 
 **Varsayılan dal ve production soy hattı (default / production lineage branch):**
 `assistant-v2-full` — repodaki güncel varsayılan (default) daldır; production SHA bu dalın
@@ -207,7 +230,8 @@ adayı taşır (bkz. `SOURCE_OF_TRUTH.md` §1.1).
 **Tarihsel inceleme dalı (`docs/ministry-review-readme`):** Ministry/dış teknik inceleme ve
 dokümantasyon dalıdır; 2026-09-28'e kadar repodaki varsayılan (default) daldı. Tüm commit'leri
 `assistant-v2-full` içinde yer alır; dal silinmemiştir ve korunur. Production dalı değildir;
-production kimliği yukarıdaki tam SHA'dır (immutable production tag ile işaretli).
+production kimliği yukarıdaki tam SHA'dır (yönetişim gereği taşınmaması ve silinmemesi gereken
+production tag ile işaretli).
 
 **`main`:** production kaynak doğruluğu (source of truth) değildir. PR #1 birleştirmesi nedeniyle
 ayrı bir tarihsel/entegrasyon soy hattı (lineage) içerir; production kimliği her zaman yukarıdaki
@@ -217,7 +241,7 @@ tam SHA'dır.
 
 Dış teknik incelemeciler (Ministry review) için:
 
-- **Kaynak kod:** canlıdaki kaynak kodu birebir incelemek için `bys360-prod-2026.09.23-1ea5c5dc`
+- **Kaynak kod:** canlıdaki kaynak kodu birebir incelemek için `bys360-prod-2026.09.29-a5bd8a38`
   tag'ini; güncel uygulama hattını ve bir sonraki adayı incelemek için varsayılan dal olan
   `assistant-v2-full`'u (LICENSE, NOTICE ve kurumsal dokümantasyon bu dalda bulunur) kullanın.
 - **Kaynak kod ve commit geçmişi:** repoyu klonlayıp `git log`, `git blame` ve tam dal/etiket
@@ -231,8 +255,10 @@ Dış teknik incelemeciler (Ministry review) için:
   komutu ve paketle birlikte üretilen manifest/SHA256 dosyaları.
 - **Canlı kaynak anlık görüntüsü (production snapshot):** yukarıdaki "Mevcut Doğrulanmış
   Canlı Kaynak" bölümündeki tam SHA. Doğrulanmış production SHA,
-  `bys360-prod-2026.09.23-1ea5c5dc` adlı annotated production tag ile işaretlenmiştir; tag,
+  `bys360-prod-2026.09.29-a5bd8a38` adlı annotated production tag ile işaretlenmiştir; tag,
   yönetişim gereği taşınmaması ve silinmemesi gereken production kimliği olarak kullanılır.
+  Önceki production tag'leri (`bys360-prod-2026.09.28-67f2a29d`,
+  `bys360-prod-2026.09.23-1ea5c5dc`) tarihçe olarak değiştirilmeden korunur.
 
 ## Doküman Haritası
 
