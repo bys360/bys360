@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-PASSWORD = "MobilePersonnelRoleEsc1!"
+PASSWORD = "MobilePersonnelRoleEscTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "mobile_personnel_role_escalation" / "dbs"
 
 

@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-PASSWORD = "MobileScoreWriteScope1!"
+PASSWORD = "MobileScoreWriteScopeTest1!"
 COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılandı; gelişim alanları not edildi."
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "mobile_score_write_scope" / "dbs"
 

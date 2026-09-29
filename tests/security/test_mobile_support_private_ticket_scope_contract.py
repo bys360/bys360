@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-PASSWORD = "MobileSupportPrivate1!"
+PASSWORD = "MobileSupportPrivateTest1!"
 MARKER = "BYS360-MOBILE-PRIVATE-TICKET-MARKER"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "mobile_support_private_scope" / "dbs"
 

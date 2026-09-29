@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-PASSWORD = "FeedbackAftercareScope1!"
+PASSWORD = "FeedbackAftercareScopeTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "feedback_aftercare_action_scope" / "dbs"
 
 
