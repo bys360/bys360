@@ -242,6 +242,19 @@ def _body_source(node) -> str:
     return "\n".join(ast.unparse(stmt) for stmt in node.body)
 
 
+def _view_location(path: str, line: int) -> str:
+    """Repo-relative "file:line", or a machine-independent label for views outside the repo."""
+    if not path:
+        return ""
+    resolved = Path(path).resolve()
+    if resolved.is_relative_to(REPO):
+        return f"{str(resolved.relative_to(REPO)).replace(chr(92), '/')}:{line}"
+    parts = resolved.parts
+    if "site-packages" in parts:
+        return "site-packages/" + "/".join(parts[parts.index("site-packages") + 1:])
+    return resolved.name
+
+
 def _test_index() -> dict[str, str]:
     return {str(p.relative_to(REPO)).replace("\\", "/"): p.read_text(encoding="utf-8-sig", errors="ignore")
             for p in (REPO / "tests").rglob("*.py")}
@@ -302,19 +315,24 @@ def build(app) -> dict:
         areas = sorted(k for k, rx in PRIORITY_AREAS.items() if rx.search(rule.rule) or rx.search(rule.endpoint))
         rows.append({
             "blueprint": blueprint, "endpoint": rule.endpoint, "url": rule.rule, "methods": methods,
-            "view": f"{str(Path(path).resolve().relative_to(REPO)).replace(chr(92), '/')}:{line}" if path and Path(path).resolve().is_relative_to(REPO) else path,
+            "view": _view_location(path, line),
             "authenticated": authenticated, "decorators": decorators, "app_or_blueprint_guards": guards,
             "role_decorators": role, "inline_role_checks": inline_role, "object_params": object_params,
             "inline_scope_checks": inline_scope, "areas": areas, "test_files": len(test_files),
             "heuristic_classification": heuristic, "classification": classification,
             "manual_review": review[1] if review else None,
         })
+    fixed: dict[str, list[str]] = {}
+    for r in rows:
+        note = r["manual_review"] or ""
+        if note.startswith("FIXED"):
+            fixed.setdefault(note.split(":", 1)[0].removeprefix("FIXED").strip() or "undated", []).append(r["endpoint"])
     summary = {
         "routes": len(rows),
         "by_classification": dict(sorted(Counter(r["classification"] for r in rows).items())),
         "needs_review_by_area": dict(sorted(Counter(a for r in rows if r["classification"] == "NEEDS_REVIEW" for a in r["areas"] or ["other"]).items())),
         "manually_reviewed_routes": sum(1 for r in rows if r["manual_review"]),
-        "fixed_2026_09_28": sorted(r["endpoint"] for r in rows if (r["manual_review"] or "").startswith("FIXED")),
+        "fixed_by_review_date": {day: sorted(endpoints) for day, endpoints in sorted(fixed.items())},
         "routes_with_object_params": sum(1 for r in rows if r["object_params"]),
         "routes_without_test_reference": sum(1 for r in rows if not r["test_files"]),
         "method": "Flask url_map + source AST of each view (decorators, body calls); heuristic, conservative",

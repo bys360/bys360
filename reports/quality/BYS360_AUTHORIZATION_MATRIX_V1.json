@@ -3,39 +3,48 @@
  "summary": {
   "routes": 996,
   "by_classification": {
-   "AUTHENTICATED_ONLY": 182,
-   "NEEDS_REVIEW": 46,
-   "OBJECT_GATED": 152,
-   "PUBLIC_INTENTIONAL": 23,
-   "ROLE_GATED": 593
+   "AUTHENTICATED_ONLY": 181,
+   "NEEDS_REVIEW": 40,
+   "OBJECT_GATED": 157,
+   "PUBLIC_INTENTIONAL": 24,
+   "ROLE_GATED": 594
   },
   "needs_review_by_area": {
-   "other": 26,
+   "other": 20,
    "performance": 1,
    "process_reports": 5,
    "survey": 14
   },
-  "manually_reviewed_routes": 110,
-  "fixed_2026_09_28": [
-   "health.health_deep",
-   "main.ai_performance_evaluation_consistency",
-   "main.ai_performance_evaluation_summary",
-   "main.ai_recommendation_apply",
-   "main.ai_recommendation_bulk_apply",
-   "main.ai_recommendation_list",
-   "main.ai_recommendation_status",
-   "main.communication_phase2_survey_detail",
-   "main.communication_phase2_survey_results",
-   "main.communication_phase2_surveys",
-   "main.hr_attendance_delete",
-   "main.hr_attendance_update_status",
-   "main.hr_delegation_delete",
-   "main.hr_delegation_update_status",
-   "main.hr_leave_delete",
-   "main.hr_leave_update_status"
-  ],
+  "manually_reviewed_routes": 117,
+  "fixed_by_review_date": {
+   "2026-09-28": [
+    "health.health_deep",
+    "main.ai_performance_evaluation_consistency",
+    "main.ai_performance_evaluation_summary",
+    "main.ai_recommendation_apply",
+    "main.ai_recommendation_bulk_apply",
+    "main.ai_recommendation_list",
+    "main.ai_recommendation_status",
+    "main.communication_phase2_survey_detail",
+    "main.communication_phase2_survey_results",
+    "main.communication_phase2_surveys",
+    "main.hr_attendance_delete",
+    "main.hr_attendance_update_status",
+    "main.hr_delegation_delete",
+    "main.hr_delegation_update_status",
+    "main.hr_leave_delete",
+    "main.hr_leave_update_status"
+   ],
+   "2026-09-29": [
+    "main.communication_phase3_support_assign",
+    "main.communication_phase3_support_detail",
+    "main.communication_phase3_support_status",
+    "main.support_assign",
+    "main.support_status"
+   ]
+  },
   "routes_with_object_params": 260,
-  "routes_without_test_reference": 440,
+  "routes_without_test_reference": 431,
   "method": "Flask url_map + source AST of each view (decorators, body calls); heuristic, conservative"
  },
  "routes": [
@@ -3768,9 +3777,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -3795,9 +3802,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -3822,9 +3827,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -3849,9 +3852,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -3876,9 +3877,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -3903,9 +3902,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -3928,9 +3925,7 @@
    "view": "app/ai_agent/routes.py:348",
    "authenticated": true,
    "decorators": [],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -3955,9 +3950,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -3983,9 +3976,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -4010,9 +4001,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -4037,9 +4026,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -4064,9 +4051,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -4087,11 +4072,9 @@
     "GET"
    ],
    "view": "app/ai_agent/routes.py:76",
-   "authenticated": true,
+   "authenticated": false,
    "decorators": [],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -4099,10 +4082,10 @@
    "areas": [
     "ai_knowledge"
    ],
-   "test_files": 0,
-   "heuristic_classification": "AUTHENTICATED_ONLY",
-   "classification": "AUTHENTICATED_ONLY",
-   "manual_review": null
+   "test_files": 1,
+   "heuristic_classification": "PUBLIC_INTENTIONAL",
+   "classification": "PUBLIC_INTENTIONAL",
+   "manual_review": "anonymous smoke check: status, service, version, mode and bridge flags only; was misread as guarded by the ai_agent before_request"
   },
   {
    "blueprint": "ai_agent",
@@ -4115,9 +4098,7 @@
    "view": "app/ai_agent/routes.py:279",
    "authenticated": true,
    "decorators": [],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [
     "can_manage"
@@ -4142,9 +4123,7 @@
    "view": "app/ai_agent/routes.py:332",
    "authenticated": true,
    "decorators": [],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [
     "can_manage"
@@ -4171,9 +4150,7 @@
    "view": "app/ai_agent/routes.py:316",
    "authenticated": true,
    "decorators": [],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [
     "can_manage"
@@ -4202,9 +4179,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -4229,9 +4204,7 @@
    "decorators": [
     "login_required"
    ],
-   "app_or_blueprint_guards": [
-    "ai_agent_bp.before_request"
-   ],
+   "app_or_blueprint_guards": [],
    "role_decorators": [],
    "inline_role_checks": [],
    "object_params": [],
@@ -5045,10 +5018,10 @@
    ],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "NEEDS_REVIEW",
    "classification": "NEEDS_REVIEW",
-   "manual_review": "any user can attach feedback to any AI request log id; returns only the new row id (low impact)"
+   "manual_review": "POLICY QUESTION: any user can attach feedback to any AI request log id; returns only the new row id (low impact). 2026-09-29: a missing log now answers 404 and an oversized type 400 (were 500 / orphan row)"
   },
   {
    "blueprint": "main",
@@ -5977,7 +5950,7 @@
    "areas": [
     "mobile_api"
    ],
-   "test_files": 9,
+   "test_files": 10,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -6331,7 +6304,7 @@
    "areas": [
     "mobile_api"
    ],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -7785,7 +7758,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -8663,7 +8636,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 2,
+   "test_files": 3,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -8675,7 +8648,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/communication/phase3_routes.py:239",
+   "view": "app/communication/phase3_routes.py:241",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8701,7 +8674,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/communication/phase3_routes.py:251",
+   "view": "app/communication/phase3_routes.py:253",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8828,10 +8801,10 @@
    ],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-29: _can_access_ticket on GET and POST: creator, assignee, or a manager within the private-ticket unit scope"
   },
   {
    "blueprint": "main",
@@ -8858,10 +8831,10 @@
    ],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-29: is_manager + _can_access_ticket (private-ticket unit scope)"
   },
   {
    "blueprint": "main",
@@ -8870,7 +8843,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/communication/phase3_routes.py:215",
+   "view": "app/communication/phase3_routes.py:216",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -8888,10 +8861,10 @@
    ],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-29: is_manager + _can_access_ticket (private-ticket unit scope)"
   },
   {
    "blueprint": "main",
@@ -8914,7 +8887,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -11499,7 +11472,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 23,
+   "test_files": 24,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -13348,7 +13321,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 4,
+   "test_files": 5,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -13376,7 +13349,7 @@
    "areas": [
     "file_center"
    ],
-   "test_files": 2,
+   "test_files": 3,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -13404,7 +13377,7 @@
    "areas": [
     "file_center"
    ],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -13425,7 +13398,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 13,
+   "test_files": 14,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -13446,7 +13419,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": "FIXED 2026-09-28: no longer echoes dependency exception text"
@@ -13467,7 +13440,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 4,
+   "test_files": 5,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -13524,7 +13497,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 11,
+   "test_files": 12,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -13925,7 +13898,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 6,
+   "test_files": 7,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -14061,7 +14034,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -14097,7 +14070,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "OBJECT_GATED",
    "classification": "OBJECT_GATED",
    "manual_review": null
@@ -14133,7 +14106,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "OBJECT_GATED",
    "classification": "OBJECT_GATED",
    "manual_review": null
@@ -16474,7 +16447,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -16496,7 +16469,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 125,
+   "test_files": 131,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -16539,7 +16512,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 2,
+   "test_files": 3,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -16562,7 +16535,7 @@
     "scope"
    ],
    "areas": [],
-   "test_files": 2,
+   "test_files": 3,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -17235,7 +17208,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 6,
+   "test_files": 7,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -24773,7 +24746,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -24804,7 +24777,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "OBJECT_GATED",
    "classification": "OBJECT_GATED",
    "manual_review": null
@@ -24832,7 +24805,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -24859,7 +24832,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -24912,7 +24885,7 @@
    "areas": [
     "performance"
    ],
-   "test_files": 0,
+   "test_files": 1,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -26894,7 +26867,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 33,
+   "test_files": 34,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -26928,7 +26901,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 33,
+   "test_files": 34,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -26963,7 +26936,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 33,
+   "test_files": 34,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -26997,7 +26970,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 33,
+   "test_files": 34,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -27031,7 +27004,7 @@
    "areas": [
     "personnel"
    ],
-   "test_files": 33,
+   "test_files": 34,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -27670,8 +27643,8 @@
    "areas": [],
    "test_files": 0,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "ROLE_GATED",
+   "manual_review": "_portal_press_news_admin_only_allowed: admin roles only"
   },
   {
    "blueprint": "main",
@@ -27698,8 +27671,8 @@
    "areas": [],
    "test_files": 0,
    "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
+   "classification": "ROLE_GATED",
+   "manual_review": "_portal_press_news_admin_only_allowed: admin roles only"
   },
   {
    "blueprint": "main",
@@ -27801,7 +27774,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 3,
+   "test_files": 4,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -27822,7 +27795,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 2,
+   "test_files": 3,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -27843,7 +27816,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 3,
+   "test_files": 4,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -28235,7 +28208,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 1,
+   "test_files": 2,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": "404 unless explicitly permitted; redirects once any user exists"
@@ -28247,7 +28220,7 @@
    "methods": [
     "GET"
    ],
-   "view": "C:\\bys360\\project\\.venv\\Lib\\site-packages\\flask\\app.py",
+   "view": "site-packages/flask/app.py",
    "authenticated": false,
    "decorators": [],
    "app_or_blueprint_guards": [],
@@ -28256,7 +28229,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 50,
+   "test_files": 51,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
@@ -28268,7 +28241,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/support/routes.py:431",
+   "view": "app/support/routes.py:423",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28282,7 +28255,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 21,
+   "test_files": 23,
    "heuristic_classification": "ROLE_GATED",
    "classification": "ROLE_GATED",
    "manual_review": null
@@ -28294,7 +28267,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/support/routes.py:956",
+   "view": "app/support/routes.py:948",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28316,7 +28289,7 @@
     "can_view"
    ],
    "areas": [],
-   "test_files": 21,
+   "test_files": 23,
    "heuristic_classification": "OBJECT_GATED",
    "classification": "OBJECT_GATED",
    "manual_review": null
@@ -28328,71 +28301,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/support/routes.py:1070",
-   "authenticated": true,
-   "decorators": [
-    "login_required",
-    "menu_key_required"
-   ],
-   "app_or_blueprint_guards": [],
-   "role_decorators": [
-    "menu_key_required"
-   ],
-   "inline_role_checks": [
-    "_can_use_all_support_view(",
-    "abort(403)"
-   ],
-   "object_params": [
-    "ticket_id"
-   ],
-   "inline_scope_checks": [],
-   "areas": [],
-   "test_files": 21,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "NEEDS_REVIEW",
-   "manual_review": null
-  },
-  {
-   "blueprint": "main",
-   "endpoint": "main.support_attachment_download",
-   "url": "/support/<int:ticket_id>/attachments/<int:attachment_id>",
-   "methods": [
-    "GET"
-   ],
-   "view": "app/support/routes.py:1143",
-   "authenticated": true,
-   "decorators": [
-    "login_required",
-    "menu_key_required"
-   ],
-   "app_or_blueprint_guards": [],
-   "role_decorators": [
-    "menu_key_required"
-   ],
-   "inline_role_checks": [
-    "abort(403)"
-   ],
-   "object_params": [
-    "attachment_id",
-    "ticket_id"
-   ],
-   "inline_scope_checks": [
-    "can_view"
-   ],
-   "areas": [],
-   "test_files": 21,
-   "heuristic_classification": "OBJECT_GATED",
-   "classification": "OBJECT_GATED",
-   "manual_review": null
-  },
-  {
-   "blueprint": "main",
-   "endpoint": "main.support_comment",
-   "url": "/support/<int:ticket_id>/comment",
-   "methods": [
-    "POST"
-   ],
-   "view": "app/support/routes.py:980",
+   "view": "app/support/routes.py:1064",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28413,7 +28322,73 @@
     "_can_operate"
    ],
    "areas": [],
-   "test_files": 21,
+   "test_files": 23,
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-29: _can_operate_ticket, i.e. the Phase 13B private-ticket unit scope (was the all-tickets permission only; self-assignment exposed private tickets)"
+  },
+  {
+   "blueprint": "main",
+   "endpoint": "main.support_attachment_download",
+   "url": "/support/<int:ticket_id>/attachments/<int:attachment_id>",
+   "methods": [
+    "GET"
+   ],
+   "view": "app/support/routes.py:1139",
+   "authenticated": true,
+   "decorators": [
+    "login_required",
+    "menu_key_required"
+   ],
+   "app_or_blueprint_guards": [],
+   "role_decorators": [
+    "menu_key_required"
+   ],
+   "inline_role_checks": [
+    "abort(403)"
+   ],
+   "object_params": [
+    "attachment_id",
+    "ticket_id"
+   ],
+   "inline_scope_checks": [
+    "can_view"
+   ],
+   "areas": [],
+   "test_files": 23,
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
+   "manual_review": null
+  },
+  {
+   "blueprint": "main",
+   "endpoint": "main.support_comment",
+   "url": "/support/<int:ticket_id>/comment",
+   "methods": [
+    "POST"
+   ],
+   "view": "app/support/routes.py:972",
+   "authenticated": true,
+   "decorators": [
+    "login_required",
+    "menu_key_required"
+   ],
+   "app_or_blueprint_guards": [],
+   "role_decorators": [
+    "menu_key_required"
+   ],
+   "inline_role_checks": [
+    "_can_use_all_support_view(",
+    "abort(403)"
+   ],
+   "object_params": [
+    "ticket_id"
+   ],
+   "inline_scope_checks": [
+    "_can_operate"
+   ],
+   "areas": [],
+   "test_files": 23,
    "heuristic_classification": "OBJECT_GATED",
    "classification": "OBJECT_GATED",
    "manual_review": "_can_operate_ticket"
@@ -28425,7 +28400,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/support/routes.py:1107",
+   "view": "app/support/routes.py:1103",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28445,7 +28420,7 @@
     ".filter_by(ticket_id=ticket.id, created_by_user_id=current_user"
    ],
    "areas": [],
-   "test_files": 21,
+   "test_files": 23,
    "heuristic_classification": "OBJECT_GATED",
    "classification": "OBJECT_GATED",
    "manual_review": null
@@ -28457,7 +28432,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/support/routes.py:1021",
+   "view": "app/support/routes.py:1013",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28474,12 +28449,14 @@
    "object_params": [
     "ticket_id"
    ],
-   "inline_scope_checks": [],
+   "inline_scope_checks": [
+    "_can_operate"
+   ],
    "areas": [],
-   "test_files": 21,
-   "heuristic_classification": "NEEDS_REVIEW",
-   "classification": "ROLE_GATED",
-   "manual_review": "_can_use_all_support_view"
+   "test_files": 23,
+   "heuristic_classification": "OBJECT_GATED",
+   "classification": "OBJECT_GATED",
+   "manual_review": "FIXED 2026-09-29: _can_operate_ticket, i.e. the Phase 13B private-ticket unit scope (was _can_use_all_support_view only)"
   },
   {
    "blueprint": "main",
@@ -28488,7 +28465,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/support/routes.py:923",
+   "view": "app/support/routes.py:915",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28517,7 +28494,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/support/routes.py:894",
+   "view": "app/support/routes.py:886",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28547,7 +28524,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/support/routes.py:518",
+   "view": "app/support/routes.py:510",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28577,7 +28554,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/support/routes.py:737",
+   "view": "app/support/routes.py:729",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28610,7 +28587,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/support/routes.py:660",
+   "view": "app/support/routes.py:652",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28642,7 +28619,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/support/routes.py:717",
+   "view": "app/support/routes.py:709",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28675,7 +28652,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/support/routes.py:594",
+   "view": "app/support/routes.py:586",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28705,7 +28682,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/support/routes.py:553",
+   "view": "app/support/routes.py:545",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28735,7 +28712,7 @@
    "methods": [
     "POST"
    ],
-   "view": "app/support/routes.py:1203",
+   "view": "app/support/routes.py:1199",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28765,7 +28742,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/support/routes.py:502",
+   "view": "app/support/routes.py:494",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28794,7 +28771,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/support/routes.py:472",
+   "view": "app/support/routes.py:464",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28823,7 +28800,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/support/routes.py:487",
+   "view": "app/support/routes.py:479",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28852,7 +28829,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/support/routes.py:458",
+   "view": "app/support/routes.py:450",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28881,7 +28858,7 @@
    "methods": [
     "GET"
    ],
-   "view": "app/support/routes.py:868",
+   "view": "app/support/routes.py:860",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28910,7 +28887,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/support/routes.py:780",
+   "view": "app/support/routes.py:772",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -28937,7 +28914,7 @@
     "GET",
     "POST"
    ],
-   "view": "app/support/routes.py:756",
+   "view": "app/support/routes.py:748",
    "authenticated": true,
    "decorators": [
     "login_required",
@@ -29500,7 +29477,7 @@
    "object_params": [],
    "inline_scope_checks": [],
    "areas": [],
-   "test_files": 3,
+   "test_files": 4,
    "heuristic_classification": "PUBLIC_INTENTIONAL",
    "classification": "PUBLIC_INTENTIONAL",
    "manual_review": null
