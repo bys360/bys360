@@ -17,6 +17,7 @@ from app.api.mobile.shared import (
     request,
     require_mobile_user,
 )
+from app.route_support import ADMIN_FAMILY_ROLES, is_admin_family_user, normalize_role_name
 
 
 @mobile_api_bp.get("/personnel/all")
@@ -140,6 +141,9 @@ def _bys360_legacy_mobile_personnel_create(user: User):
             missing.append(label)
     if missing:
         return jsonify({"message": "Zorunlu alanları doldurun: " + ", ".join(missing)}), 400
+    # Web account creation (/personnel/add) is admin_required: only the admin family grants admin-family roles.
+    if normalize_role_name(role) in {normalize_role_name(v) for v in ADMIN_FAMILY_ROLES} and not is_admin_family_user(user):
+        return jsonify({"message": "Bu rolü atama yetkiniz bulunmamaktadır."}), 403
 
     if User.query.filter(User.sicil_no == sicil_no).first():
         return jsonify({"message": "Bu Sicil No ile kayıtlı personel zaten bulunmaktadır."}), 400
