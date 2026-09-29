@@ -359,3 +359,38 @@ There is no migration on this branch, and the migration head is still `w2d8e1f4a
 - **Menu override failure.** It is swallowed silently (`_safe_query_all`); see H7.
 - **Machine-specific matrix path.** The authorization matrix used to emit a machine-specific absolute path. Fixed in
   `e3f83248`.
+
+## 9. Quality results
+
+**Environment:** Linux, Python 3.12.3, run in scratch copies. The CI commands of `.github/workflows/bys360-ci.yml` were
+used unchanged.
+- The pytest steps ran on the code HEAD `e3f83248`. The only later commit adds this document.
+- The fast gates ran on `8bd3f91a`.
+
+### Pytest
+
+| Step | Base `40b93c14` | HEAD `e3f83248` |
+|---|---|---|
+| Step 1: `pytest tests/quality -m ci_safe` | 1200 collected: 985 passed, 0 failed, 133 skipped, 82 deselected | 1200 collected: 985 passed, 0 failed, 133 skipped, 82 deselected |
+| Step 2: long CI list (integration, architecture, security, critical, services, migrations, release, communication, behavior, mobile, performance, …) | 6366 collected: 6358 passed, 0 failed, 8 skipped | 6393 collected: 6385 passed, 0 failed, 8 skipped |
+
+The Step 2 difference is +27 passed, which is exactly the 27 new tests.
+
+### Other gates
+
+| Gate | Result |
+|---|---|
+| Coverage ratchet | PASS. 45.77% at base, 46.09% at HEAD; threshold 27.12%. |
+| `git diff --check` (base..HEAD) | clean |
+| Ruff full select (`app config.py wsgi.py run.py scripts tests`) | All checks passed |
+| Ruff sanity (`E9,F63,F7,F82`) | All checks passed |
+| `compileall` | OK |
+| mypy (`app tests scripts`) | 0 errors |
+| pip-audit (`requirements.txt`, unchanged) | No known vulnerabilities found |
+| Secret/repo gate | ok. 0 findings; 475 warnings (464 at base). The +11 are test password constants in the new tests; this document adds none. |
+| Safe-release audit | ok, 0 findings |
+| Ops audit (CI mode) | 0 syntax errors, 0 print calls, 2083 broad `except` (limit 2300) |
+| Quality9 CI gate | ok, 0 findings |
+| Score100 quality gate (Python part) | PASS |
+| Migration integrity gate | PASS on PostgreSQL **16**, auxiliary only (§7) |
+| PostgreSQL 15 migration integrity gate | Runs in the pull request's CI; not run here |
