@@ -199,6 +199,7 @@ def communication_phase3_support_assign(ticket_id: int):
             assignee_user_id=assignee_user_id,
             actor_user_id=current_user.id,
             note=request.form.get("note") or "",
+            actor_user=current_user,
         )
         flash("Talep ataması güncellendi.", "success")
     except CommunicationPhase3Error as exc:
@@ -223,6 +224,7 @@ def communication_phase3_support_status(ticket_id: int):
             new_status=request.form.get("status") or "open",
             actor_user_id=current_user.id,
             note=request.form.get("note") or "",
+            actor_user=current_user,
         )
         flash("Talep durumu güncellendi.", "success")
     except CommunicationPhase3Error as exc:
