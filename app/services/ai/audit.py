@@ -7,6 +7,7 @@ from flask import current_app
 from app.core.datetime_utils import utc_now
 from app.extensions import db
 from app.models import AIFeedbackLog, AIRecommendation, AIRequestLog, AISummaryCache
+from app.services.ai.guardrails import AIInputError, AIResourceNotFound
 from app.services.ai.redaction import redact_text
 from app.services.ai.schema_guard import ai_schema_ready
 
@@ -144,10 +145,15 @@ def log_ai_feedback(
 ) -> AIFeedbackLog | None:
     if not ai_schema_ready():
         return None
+    clean_type = (feedback_type or "").strip().lower() or "helpful"
+    if len(clean_type) > AIFeedbackLog.__table__.c.feedback_type.type.length:
+        raise AIInputError("Geri bildirim tipi çok uzun.")
+    if db.session.get(AIRequestLog, ai_request_log_id) is None:
+        raise AIResourceNotFound("AI istek kaydı bulunamadı.")
     row = AIFeedbackLog(
         ai_request_log_id=ai_request_log_id,
         user_id=user_id,
-        feedback_type=(feedback_type or "").strip().lower() or "helpful",
+        feedback_type=clean_type,
         feedback_note=(feedback_note or "").strip() or None,
     )
     db.session.add(row)

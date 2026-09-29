@@ -89,7 +89,7 @@ MANUAL_REVIEW: dict[str, tuple[str, str]] = {
     "main.ai_decision_performance_category_groups_for_period": ("NEEDS_REVIEW", "answers 400: AI policy performance/category_group_decision_support is undefined (functional defect)"),
     "main.ai_decision_faz8_single_period_scope_check": ("AUTHENTICATED_ONLY", "aggregate period metadata and counts, no person data; POLICY QUESTION: require AI decision center access like faz3?"),
     "main.ai_support_ticket_triage": (_OG, "get_support_ticket_payload: creator, assignee or manager family"),
-    "main.ai_feedback": ("NEEDS_REVIEW", "any user can attach feedback to any AI request log id; returns only the new row id (low impact)"),
+    "main.ai_feedback": ("NEEDS_REVIEW", "POLICY QUESTION: any user can attach feedback to any AI request log id; returns only the new row id (low impact). 2026-09-29: a missing log now answers 404 and an oversized type 400 (were 500 / orphan row)"),
     "main.announcement_popup_acknowledge": (_OG, "records the current user's own acknowledgement"),
     "main.announcement_popup_dismiss": (_OG, "records the current user's own dismissal"),
     "main.bys360_feedback_success": (_OG, "ticket.created_by_user_id == current_user.id"),
