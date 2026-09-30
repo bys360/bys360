@@ -260,6 +260,13 @@ Dış teknik incelemeciler (Ministry review) için:
   Önceki production tag'leri (`bys360-prod-2026.09.28-67f2a29d`,
   `bys360-prod-2026.09.23-1ea5c5dc`) tarihçe olarak değiştirilmeden korunur.
 
+## Teknik İnceleme
+
+BYS360'ın mimari, güvenlik, test/CI, release, canlı sürüm kimliği, teknik borç ve sürdürülebilirlik durumunun toplu teknik incelemesi:
+
+- [BYS360 Teknik İnceleme — 30.09.2026](docs/technical-review/BYS360_TEKNIK_INCELEME_2026-09-30.md)
+- [PDF Teknik İnceleme Paketi](docs/technical-review/BYS360_Teknik_Inceleme_Paketi_2026-09-30.pdf)
+
 ## Doküman Haritası
 
 - `README.md`: Projeye giriş ve hızlı kurulum
