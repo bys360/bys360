@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+from app.services.support_ticket_access import can_view_private_support_ticket
+
 # ruff: noqa: F821 - mobile bridge routes resolve legacy names from route_globals at registration time.
 
 # BYS360 mobile support/survey read route bridge module.
 # P11-B5 kapsamında destek ve anket GET listeleme endpointleri ayrılmıştır.
 # URL path ve JSON cevap davranışı değiştirilmemelidir.
+
+def _listed_description(ticket, user) -> str:
+    """Phase 13B private-ticket rule, as on the ticket detail: another unit's private body stays hidden."""
+    if int(getattr(ticket, "created_by_user_id", 0) or 0) == int(getattr(user, "id", 0) or 0):
+        return getattr(ticket, "description", "") or ""
+    if not can_view_private_support_ticket(ticket, user):
+        return ""
+    return getattr(ticket, "description", "") or ""
+
 
 def register_mobile_support_survey_read_routes_v1(mobile_bp, route_globals) -> None:
     """Register support/survey read mobile routes on the existing mobile blueprint."""
@@ -32,7 +43,7 @@ def register_mobile_support_survey_read_routes_v1(mobile_bp, route_globals) -> N
             item = _item(
                 getattr(t, "id", ""),
                 getattr(t, "title", "") or "Destek talebi",
-                _clean_mobile_text(getattr(t, "description", "") or "", limit=180),
+                _clean_mobile_text(_listed_description(t, user), limit=180),
                 status_label,
                 _dt_label(getattr(t, "updated_at", None) or getattr(t, "created_at", None)),
                 getattr(t, "ticket_no", "") or _mobile_support_priority_label(priority),

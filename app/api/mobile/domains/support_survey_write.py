@@ -173,7 +173,8 @@ def mobile_survey_submit(user: User, survey_id: int):
     if not survey:
         return jsonify({"message": "Anket bulunamadı."}), 404
     assignment = _mobile_survey_assignment_for_user(user, survey)
-    if not (_has_global_scope(user) or assignment is not None):
+    # Web survey_submit rule (matching_assignment_for_user): every respondent, admin included, needs an assignment.
+    if assignment is None:
         return jsonify({"message": "Bu ankete cevap verme yetkiniz bulunmamaktadır."}), 403
     if not _survey_is_active(survey):
         return jsonify({"message": "Bu anket şu anda cevaplamaya açık değildir."}), 400

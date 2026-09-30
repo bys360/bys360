@@ -51,6 +51,7 @@ from app.services.bys360_notification_bridge import (
     notify_support_ticket_comment,
     notify_support_ticket_created,
 )
+from app.services.support_ticket_access import can_view_private_support_ticket
 
 try:  # SP-1 KPI/Hedef motoru varsa gerçek hedef verisi buradan okunur.
     from app.modules.strategic_performance.models import PerformanceTarget
@@ -210,9 +211,10 @@ def _user_org_unit_id(user: User) -> int | None:
     return None
 
 def _can_mobile_view_ticket(user: User, ticket: SupportTicket) -> bool:
-    if _has_global_scope(user):
+    if int(getattr(ticket, "created_by_user_id", 0) or 0) == int(getattr(user, "id", 0) or 0):
         return True
-    return int(getattr(ticket, "created_by_user_id", 0) or 0) == int(getattr(user, "id", 0) or 0)
+    # Phase 13B private-ticket unit scope, shared with /support/* and Faz 3 (can_view_private_support_ticket).
+    return _has_global_scope(user) and can_view_private_support_ticket(ticket, user)
 
 
 def _can_mobile_reply_ticket(user: User, ticket: SupportTicket) -> bool:
@@ -435,7 +437,8 @@ def _mobile_survey_detail_payload(survey: Survey, user: User) -> dict[str, Any]:
     completed = _mobile_survey_completed(user, survey)
     active = _survey_is_active(survey)
     questions = _mobile_survey_questions(survey)
-    can_submit = active and (bool(getattr(survey, "allow_multiple_submissions", False)) or not completed) and (_has_global_scope(user) or assignment is not None)
+    # Same assignment requirement as the mobile and web submit; visibility (read) is unchanged.
+    can_submit = active and (bool(getattr(survey, "allow_multiple_submissions", False)) or not completed) and assignment is not None
     return {
         "source": "real_api",
         "can_submit": can_submit,
