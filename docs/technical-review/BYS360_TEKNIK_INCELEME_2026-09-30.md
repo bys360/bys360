@@ -23,7 +23,7 @@ Bu belge, BYS360'ın teknik incelemesi için bir giriş noktasıdır. Aşağıda
 - insan kararı gerektiren konular
 - sürdürülebilirlik ve devralma (handover)
 
-> **Önemli:** Bu belge, Bakanlık veya başka bir makam tarafından verilmiş bir onay, sertifikasyon ya da değerlendirme kararı niteliği taşımaz. Teknik inceleme için hazırlanmış bir çalışma belgesidir.
+> **Önemli:** Bu belge, herhangi bir makam tarafından verilmiş bir onay, sertifikasyon ya da değerlendirme kararı niteliği taşımaz. Teknik inceleme için hazırlanmış bir çalışma belgesidir.
 
 ## 2. Sistem Özeti
 
