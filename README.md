@@ -9,6 +9,7 @@ BYS360 — Bütünleşik Yönetim Sistemi 360, proprietary / kurumsal bir yazıl
 - **Kurumsal hak sahibi:** T.C. Kültür ve Turizm Bakanlığı / Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı
 - **Geliştirici:** Havva Gülsen Özden
 - **Eş Geliştirici (Co-developer):** Mustafa Bektaş
+- **Proje iletişimi:** bys360@ktb.gov.tr
 
 Copyright © 2026 T.C. Kültür ve Turizm Bakanlığı Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı. Tüm hakları saklıdır.
 

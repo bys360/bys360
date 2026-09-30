@@ -1,8 +1,10 @@
 # BYS360 Rollback
 
 Audience: an operator who needs to reverse a cutover, running
-`rollback_bys360_candidate.ps1` (exact filename/location as owned by a sibling work stream —
-verify against the actually integrated script before treating this as final).
+[rollback_bys360_candidate.ps1](../../scripts/windows/rollback_bys360_candidate.ps1).
+The maintained script is present in the repository. Review its actual parameters and
+compatibility checks for the chosen source revision; this document is not authorization
+to execute a rollback.
 
 ## The critical distinction: pre-migration vs. post-migration rollback
 

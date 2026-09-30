@@ -1,5 +1,12 @@
 # BYS360 Database Migration — Shadow Rehearsal and Live Migration
 
+Maintained implementation: [prepare_bys360_candidate.ps1](../../scripts/windows/prepare_bys360_candidate.ps1)
+(`Test-CandidateMigrationHead`, `Test-ShadowSchemaContract`) and
+[cutover_bys360_candidate.ps1](../../scripts/windows/cutover_bys360_candidate.ps1).
+These are verified repository paths, not production validation. Current production
+identity is recorded in [SOURCE_OF_TRUTH.md](../../SOURCE_OF_TRUTH.md); dated observations
+and revision values below remain historical evidence.
+
 ## Why shadow rehearsal exists
 
 A real production cutover attempt on this application previously failed **at the live
@@ -8,9 +15,10 @@ migration step itself** — twice, for two different reasons (a PostgreSQL privi
 from a staging directory whose `.env` resolution path didn't match production's). Both
 failures happened safely — the live service was not yet stopped, the live tree not yet
 replaced — precisely because the historical script's design put the shadow rehearsal
-**before** any live-affecting step. See
-`scripts/windows/deploy_bys360_ec4e56b_production_v4.ps1`'s own header (the V3 and V4
-hotfix notes) for the full incident history this design reacts to. The new
+**before** any live-affecting step. The historical account cites
+`scripts/windows/deploy_bys360_ec4e56b_production_v4.ps1`'s V3 and V4 hotfix notes; that
+filename is retained as provenance, but the file is not present in the current repository.
+The maintained
 candidate/cutover model keeps the same principle: prove the migration works, against a real
 copy of production data, under the real application role's real privileges, entirely
 outside the live database, before the live database is ever touched.

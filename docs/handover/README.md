@@ -1,10 +1,12 @@
 # BYS360 Devir ve Operasyon Dokümanları — Index
 
+> **Tarihsel snapshot — 2026-08-24:** Ana devir belgesi ve özellik matrisi, bu tarihteki üretim/devir kaydının dondurulmuş görüntüsüdür. Sonraki tarihli açıklamalar kendi tarihsel bağlamlarıyla korunur. Güncel üretim kimliği için [SOURCE_OF_TRUTH.md](../../SOURCE_OF_TRUTH.md) esas alınır; bu belgelerdeki eski SHA ve kanıtlar güncel üretim beyanı değildir.
+
 ```
-CURRENT CANONICAL HANDOVER:
+FROZEN HISTORICAL HANDOVER SNAPSHOT (2026-08-24):
 BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md
 
-Production SHA:
+Historical Production SHA:
 cb2e57c5d1829ea743c696ae78595a20755f3f07
 ```
 
@@ -12,17 +14,18 @@ Bu klasör, BYS360 projesinin kurulum, canlıya alma, bakım, güvenlik, modül 
 
 ## Okuma Sırası (Yeni Operatör İçin)
 
-1. **`BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md`** — tek kanonik, güncel devir belgesi (single source of truth). Tüm mimari, deployment, DB, backup, CI, güvenlik, Scheduled Task, rollback, disaster-recovery bilgisi burada tek dosyada toplanmıştır (34 bölüm, Dosya Merkezi §34 dahil).
-2. **`BYS360_FEATURE_COVERAGE_MATRIX.md`** — repo-türetilmiş TAM özellik envanteri (38 feature) ve her birinin gerçek devir-kapsam durumu (DOCUMENTED/PARTIAL/UNDOCUMENTED/HISTORICAL/FUTURE). "Bu özellik handover'da unutuldu mu?" sorusunun kanıtlı cevabı için buraya bakın.
-3. Kök dizindeki `DEPLOYMENT.md` ve `BACKUP_RUNBOOK.md` — kanonik ana dosyanın dayandığı, güncel (Ağustos 2026) operasyonel runbook'lar.
-4. Kök dizindeki `README.md`, `CONTRIBUTING.md`, `SECURITY.md` — genel bakış ve katkı kuralları.
+1. **[SOURCE_OF_TRUTH.md](../../SOURCE_OF_TRUTH.md)** — güncel üretim kimliği ve kayıtlı doğrulama kanıtlarının referansı.
+2. **[BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md](BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md)** — 2026-08-24 üretim/devir snapshot'ı; mimari, deployment, DB, backup, CI, güvenlik, Scheduled Task, rollback ve disaster-recovery kayıtları tarihsel bağlamıyla korunur.
+3. **[BYS360_FEATURE_COVERAGE_MATRIX.md](BYS360_FEATURE_COVERAGE_MATRIX.md)** — aynı tarihsel snapshot'ın repo-türetilmiş özellik envanteri (38 feature) ve devir-kapsam sınıflandırması (DOCUMENTED/PARTIAL/UNDOCUMENTED/HISTORICAL/FUTURE).
+4. Kök dizindeki [DEPLOYMENT.md](../../DEPLOYMENT.md) ve [BACKUP_RUNBOOK.md](../../BACKUP_RUNBOOK.md) — tarihsel ana dosyanın dayandığı operasyonel referanslar; snapshot etiketlemesi bu prosedürlerin yeniden doğrulandığı anlamına gelmez.
+5. Kök dizindeki [README.md](../../README.md), [CONTRIBUTING.md](../../CONTRIBUTING.md) ve [SECURITY.md](../../SECURITY.md) — genel bakış ve katkı kuralları.
 
-Aşağıdaki listedeki diğer dosyalar **SUPERSEDED** veya **HISTORICAL**'dir (silinmemiştir, ama artık kanonik kaynak değildir — ayrıntılı gerekçe için kanonik dosyanın §33 "Eski Belgeler" bölümüne bakın):
+Aşağıdaki listedeki dosyalar **SUPERSEDED** veya **HISTORICAL**'dir (silinmemiştir; eski belgelerin tarihsel sınıflandırması için ana devir snapshot'ının §33 "Eski Belgeler" bölümüne bakın):
 
 | Belge | Durum | Tarih |
 |---|---|---|
-| `BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md` | **CURRENT** | 2026-08-24 |
-| `BYS360_FEATURE_COVERAGE_MATRIX.md` | **CURRENT** (companion) | 2026-08-24 |
+| `BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md` | **HISTORICAL / FROZEN SNAPSHOT** | 2026-08-24 |
+| `BYS360_FEATURE_COVERAGE_MATRIX.md` | **HISTORICAL / FROZEN SNAPSHOT** (companion) | 2026-08-24 |
 | `BYS360_DEVIR_PAKETI_V1.md` | SUPERSEDED | 2026-06-24 |
 | `BYS360_KURULUM_REHBERI.md` | SUPERSEDED | 2026-06-24 |
 | `BYS360_CANLIYA_ALMA_REHBERI.md` | SUPERSEDED | 2026-06-24 |
@@ -36,7 +39,7 @@ Aşağıdaki listedeki diğer dosyalar **SUPERSEDED** veya **HISTORICAL**'dir (s
 
 - Temizlik etiketi: `local-clean-ai-traces-complete-20260624`
 - Devir doküman dalı: `handover-docs-v1`
-- Bu etiket/dal referansı bu index güncellemesi sırasında repo içinde bağımsız olarak yeniden doğrulanmamıştır — güncel devir için `BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md`'nin baş kısmındaki `Production Source SHA` kanonik referanstır.
+- Bu etiket/dal referansı bu index güncellemesi sırasında repo içinde bağımsız olarak yeniden doğrulanmamıştır. Ana belgedeki `Production Source SHA`, 2026-08-24 tarihsel snapshot'ına aittir; güncel üretim kimliği için [SOURCE_OF_TRUTH.md](../../SOURCE_OF_TRUTH.md) kullanılır.
 
 ## Devir Notu
 

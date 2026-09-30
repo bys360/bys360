@@ -1,5 +1,9 @@
 # BYS360 Current-State Dokümantasyon Paketi — Dizin
 
+> **Dondurulmuş tarihsel snapshot — 2026-09-02:** Bu dizindeki paket, aşağıdaki tarih ve kaynak kod referanslarıyla sınırlı tarihsel kayıttır. "Yerel HEAD", "bu worktree", "CURRENT" ve mevcut durum ifadeleri o tarihteki bağlamı anlatır. Güncel üretim kimliği için [SOURCE_OF_TRUTH.md](../../SOURCE_OF_TRUTH.md), sonraki teknik değerlendirme için [2026-09-30 teknik incelemesi](../technical-review/BYS360_TEKNIK_INCELEME_2026-09-30.md) kullanılır.
+>
+> Puantaj dahil gelecekteki modüllere ilişkin planlar **tarihsel planlamadır; güncel geliştirme yetkisi değildir**. Projenin mevcut kapanış kapsamı yeni modül, yeni özellik veya kapsam genişlemesi içermez. Aşağıdaki tarihsel kayıt ve kanıtlar korunmuştur.
+
 Doküman Adı: BYS360 Current-State Dokümantasyon Paketi Dizini
 Doküman Türü: İndeks
 Kurum: Çanakkale Savaşları Gelibolu Tarihi Alan Başkanlığı
