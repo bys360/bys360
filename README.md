@@ -146,7 +146,7 @@ Canlı Kaynak" bölümüne ve `SOURCE_OF_TRUTH.md`'ye bakın.
 
 - CI, iki zorunlu kalite işinden oluşur: `.github/workflows/bys360-ci.yml` (`quality-gate`) ve
   `.github/workflows/bys360-score100-quality-gate-v1.yml` (`score100-quality-gate`). Korunan
-  production-kaynak ve Ministry-inceleme dallarını hedefleyen pull request'ler bu iki zorunlu
+  production-kaynak ve teknik inceleme dallarını hedefleyen pull request'ler bu iki zorunlu
   kontrolü otomatik olarak çalıştırır. Daha geniş CI hattı Ruff, mypy, pytest, PostgreSQL
   migration bütünlüğü, coverage ratchet, dependency audit ve projeye özel security/release
   kapılarını kapsar -- ancak bu iki iş akışının HER BİRİ tüm bu araçları ayrı ayrı çalıştırmaz;
@@ -227,19 +227,13 @@ Gate V1" yalnızca insan-okur iş akışı adıdır.
 soyundadır. Dalın ucu, insan kararıyla cutover yapılana kadar production değildir; bir sonraki
 adayı taşır (bkz. `SOURCE_OF_TRUTH.md` §1.1).
 
-**Tarihsel inceleme dalı (`docs/ministry-review-readme`):** Ministry/dış teknik inceleme ve
-dokümantasyon dalıdır; 2026-09-28'e kadar repodaki varsayılan (default) daldı. Tüm commit'leri
-`assistant-v2-full` içinde yer alır; dal silinmemiştir ve korunur. Production dalı değildir;
-production kimliği yukarıdaki tam SHA'dır (yönetişim gereği taşınmaması ve silinmemesi gereken
-production tag ile işaretli).
-
 **`main`:** production kaynak doğruluğu (source of truth) değildir. PR #1 birleştirmesi nedeniyle
 ayrı bir tarihsel/entegrasyon soy hattı (lineage) içerir; production kimliği her zaman yukarıdaki
 tam SHA'dır.
 
 ## İnceleme Rehberi (Review Guidance)
 
-Dış teknik incelemeciler (Ministry review) için:
+Dış teknik incelemeciler için:
 
 - **Kaynak kod:** canlıdaki kaynak kodu birebir incelemek için `bys360-prod-2026.09.29-a5bd8a38`
   tag'ini; güncel uygulama hattını ve bir sonraki adayı incelemek için varsayılan dal olan
@@ -259,6 +253,13 @@ Dış teknik incelemeciler (Ministry review) için:
   yönetişim gereği taşınmaması ve silinmemesi gereken production kimliği olarak kullanılır.
   Önceki production tag'leri (`bys360-prod-2026.09.28-67f2a29d`,
   `bys360-prod-2026.09.23-1ea5c5dc`) tarihçe olarak değiştirilmeden korunur.
+
+## Teknik İnceleme
+
+BYS360'ın mimari, güvenlik, test/CI, release, canlı sürüm kimliği, teknik borç ve sürdürülebilirlik durumunun toplu teknik incelemesi:
+
+- [BYS360 Teknik İnceleme — 30.09.2026](docs/technical-review/BYS360_TEKNIK_INCELEME_2026-09-30.md)
+- [PDF Teknik İnceleme Paketi](docs/technical-review/BYS360_Teknik_Inceleme_Paketi_2026-09-30.pdf)
 
 ## Doküman Haritası
 
