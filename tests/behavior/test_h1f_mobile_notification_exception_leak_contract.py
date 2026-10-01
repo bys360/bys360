@@ -478,6 +478,7 @@ def test_mobile_messaging_write_persists_and_serializes_successfully(app, client
     with app.app_context():
         message = Message.query.filter_by(thread_id=thread_id).one()
         thread = db.session.get(MessageThread, thread_id)
+        assert thread is not None
         participants = MessageThreadParticipant.query.filter_by(thread_id=thread_id).all()
         assert message.sender_user_id == state["sender_id"] and message.body == payload["body"]
         assert {p.user_id for p in participants} == {state["sender_id"], state["recipient_id"]}

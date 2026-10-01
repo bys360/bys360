@@ -137,6 +137,7 @@ def test_write_delegate_reaches_real_domain_implementation_without_facade_export
     assert callable(implementation)
     assert not hasattr(routes, legacy_name)
     user = types.SimpleNamespace(id=1)
+    args: tuple[Any, ...]
     if "thread_row" in delegate_name:
         args = (types.SimpleNamespace(id=1), user)
     elif "send" in delegate_name:
