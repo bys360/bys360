@@ -45,24 +45,10 @@ Fixed in this wave (each covered by a test below):
      which is exactly the kind of technical-detail-in-a-mobile-API-response
      this initiative targets. Removed the "warning" key entirely; the
      existing safe "message" text and the HTTP status codes are untouched.
-     NOTE (found, NOT fixed here -- flagged for the coordinator, out of this
-     agent's editable scope / not a display-layer bug): the three
-     communication-v2 *write* endpoints (send message, create-thread, list
-     users) are wired through a delegate
-     (app/api/mobile/services/communication_service.py) that resolves its
-     legacy handler via ``getattr(app.api.mobile.routes, <name>, None)`` --
-     but that name is never actually bound onto the `routes` module anywhere
-     in the codebase (confirmed empirically: `hasattr(...)` is False after a
-     real app boot). Every call to these three endpoints therefore currently
-     raises RuntimeError before ever reaching the code this wave fixed, and
-     that RuntimeError is caught by BYS360's app-wide error handler and
-     turned into the generic "Sistem Hatasi" 500 page (so it does NOT itself
-     leak -- verified with a real test-client POST below). The fix in this
-     file is still correct/defensive for whenever that separate wiring bug is
-     resolved; tests for finding #3's send/create-thread paths call the
-     module-level legacy function directly (bypassing the broken delegate) to
-     prove the fix at the unit level, and a dedicated test proves the
-     endpoint's current live (broken-but-non-leaking) behavior.
+     Messaging write contracts below exercise the real domain delegates,
+     persistence, response serializers, and safe database-error responses.
+     Direct implementation tests additionally isolate the error sanitization
+     contract. GET detail/users delegates are outside this write repair.
 
   4. app/services/mail_core.py::send_email -- the shared low-level SMTP
      sender used by ~10 different notification-generation call sites across
@@ -188,7 +174,13 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 @pytest.fixture
 def app(monkeypatch):
-    return _make_app(monkeypatch)
+    flask_app = _make_app(monkeypatch)
+    yield flask_app
+    from app.extensions import db
+
+    with flask_app.app_context():
+        db.session.remove()
+        db.engine.dispose()
 
 
 @pytest.fixture
@@ -405,36 +397,235 @@ def test_communication_v2_threads_list_failure_has_no_warning_key_or_sentinel(ap
     assert body["message"] == "Mesajlaşma kayıtları şu anda yüklenemedi. Sunucu logu kontrol edilmelidir."
 
 
-def test_communication_v2_write_endpoints_currently_500_via_error_handler_without_leaking(app, client):
-    """Documents + proves the pre-existing (unrelated) delegate-wiring bug:
-    these write endpoints cannot currently reach the code this wave patched,
-    because the delegate raises RuntimeError first. This is NOT a leak --
-    BYS360's app-wide error handler intercepts it and renders the generic
-    safe error page -- but it means the fix below is verified at the
-    function level (next two tests), not via this HTTP path. Flagged for the
-    coordinator as a DEAD_ORPHANED_PATH finding, out of this agent's scope
-    to fix (service/route wiring, not a display-layer leak)."""
-    user_id = _create_user(app)
-    headers = _auth_headers(app, user_id)
+_MESSAGE_WRITES = [(version, action) for version in ("v1", "v2") for action in ("create", "send")]
 
-    resp = client.post(
-        "/api/mobile/communication/v2/create-thread",
-        json={"participant_user_ids": [user_id], "body": "hi"},
-        headers=headers,
-    )
 
-    assert resp.status_code == 500
-    text = resp.get_data(as_text=True)
-    # The generic BYS360 500 page, not the RuntimeError's own message text.
-    assert "communication legacy handler not found" not in text
-    assert "RuntimeError" not in text
+@pytest.fixture
+def messaging_state(app):
+    from app.core.datetime_utils import utc_now
+    from app.extensions import db
+    from app.models import MessageThread, MessageThreadParticipant
+
+    sender_id = _create_user(app)
+    recipient_id = _create_user(app)
+    with app.app_context():
+        thread = MessageThread(
+            thread_type="direct", subject="Messaging contract", is_active=True,
+            last_message_at=utc_now(), created_by_user_id=sender_id,
+        )
+        db.session.add(thread)
+        db.session.flush()
+        thread_id = thread.id
+        for user_id in (sender_id, recipient_id):
+            db.session.add(MessageThreadParticipant(
+                thread_id=thread_id, user_id=user_id, joined_at=utc_now(), is_archived=True,
+            ))
+        db.session.commit()
+    return {"sender_id": sender_id, "recipient_id": recipient_id, "thread_id": thread_id}
+
+
+def _message_write_request(version, action, state):
+    prefix = "/api/mobile/communication/" + ("messages" if version == "v1" else "v2")
+    if action == "create":
+        return prefix + "/create-thread", {
+            "participant_user_ids": [state["recipient_id"]], "body": "Messaging contract body",
+        }
+    return f"{prefix}/threads/{state['thread_id']}/send", {"body": "Messaging contract body"}
+
+
+def _messaging_snapshot(app):
+    from app.models import Message, MessageThread, MessageThreadParticipant
+
+    with app.app_context():
+        return (
+            [(m.id, m.thread_id, m.sender_user_id, m.body, m.sent_at)
+             for m in Message.query.order_by(Message.id).all()],
+            [(t.id, t.last_message_at) for t in MessageThread.query.order_by(MessageThread.id).all()],
+            [(p.id, p.thread_id, p.user_id, p.last_read_message_id, p.last_read_at, p.is_archived)
+             for p in MessageThreadParticipant.query.order_by(MessageThreadParticipant.id).all()],
+        )
+
+
+def _assert_safe_message_response(response):
+    body = response.get_json()
+    assert isinstance(body, dict) and body.get("message")
+    text = response.get_data(as_text=True)
+    for forbidden in (_SENTINEL, "RuntimeError", "TypeError", "Traceback", "legacy handler not found"):
+        assert forbidden not in text
+    return body
+
+
+@pytest.mark.parametrize(("version", "action"), _MESSAGE_WRITES)
+def test_mobile_messaging_write_persists_and_serializes_successfully(app, client, messaging_state, version, action):
+    from app.extensions import db
+    from app.models import Message, MessageThread, MessageThreadParticipant
+
+    state = messaging_state
+    path, payload = _message_write_request(version, action, state)
+    before = _messaging_snapshot(app)
+    response = client.post(path, json=payload, headers=_auth_headers(app, state["sender_id"]))
+    assert response.status_code == 200
+    body = _assert_safe_message_response(response)
+    expected_keys = {"message", "detail"} if action == "send" else {"message", "thread", "thread_id"}
+    if action == "create" and version == "v2":
+        expected_keys.add("detail")
+    assert set(body) == expected_keys
+    after = _messaging_snapshot(app)
+    assert len(after[0]) == len(before[0]) + 1
+    assert len(after[1]) == len(before[1]) + (action == "create")
+    assert len(after[2]) == len(before[2]) + (2 if action == "create" else 0)
+    thread_id = body["thread_id"] if action == "create" else state["thread_id"]
+    with app.app_context():
+        message = Message.query.filter_by(thread_id=thread_id).one()
+        thread = db.session.get(MessageThread, thread_id)
+        assert thread is not None
+        participants = MessageThreadParticipant.query.filter_by(thread_id=thread_id).all()
+        assert message.sender_user_id == state["sender_id"] and message.body == payload["body"]
+        assert {p.user_id for p in participants} == {state["sender_id"], state["recipient_id"]}
+        assert thread.last_message_at == message.sent_at
+        sender = next(p for p in participants if p.user_id == state["sender_id"])
+        recipient = next(p for p in participants if p.user_id == state["recipient_id"])
+        assert sender.last_read_message_id == message.id and sender.last_read_at == message.sent_at
+        assert recipient.last_read_message_id is None and recipient.last_read_at is None
+        assert sender.is_archived is (action == "send" and version == "v1")
+        if action == "create":
+            assert thread.created_by_user_id == state["sender_id"] and thread.thread_type == "direct"
+            assert body["thread"]["id"] == thread.id
+        if "detail" in body:
+            assert body["detail"]["thread"]["id"] == thread.id
+            assert [m["id"] for m in body["detail"]["messages"]] == [message.id]
+
+
+@pytest.mark.parametrize(("version", "action"), _MESSAGE_WRITES)
+@pytest.mark.parametrize("authorization", [None, "Bearer invalid-token"])
+def test_mobile_messaging_write_rejects_invalid_auth_without_writes(app, client, messaging_state, version, action, authorization):
+    path, payload = _message_write_request(version, action, messaging_state)
+    before = _messaging_snapshot(app)
+    headers = {} if authorization is None else {"Authorization": authorization}
+    response = client.post(path, json=payload, headers=headers)
+    assert response.status_code == 401
+    _assert_safe_message_response(response)
+    assert _messaging_snapshot(app) == before
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_mobile_messaging_send_denies_nonparticipant_without_writes(app, client, messaging_state, version):
+    outsider_id = _create_user(app)
+    path, payload = _message_write_request(version, "send", messaging_state)
+    before = _messaging_snapshot(app)
+    response = client.post(path, json=payload, headers=_auth_headers(app, outsider_id))
+    assert response.status_code == 403
+    _assert_safe_message_response(response)
+    assert _messaging_snapshot(app) == before
+
+
+@pytest.mark.parametrize(("version", "action"), _MESSAGE_WRITES)
+@pytest.mark.parametrize("body", [None, "", "   "])
+def test_mobile_messaging_write_rejects_empty_body_without_writes(app, client, messaging_state, version, action, body):
+    path, payload = _message_write_request(version, action, messaging_state)
+    if body is None:
+        payload.pop("body")
+    else:
+        payload["body"] = body
+    before = _messaging_snapshot(app)
+    response = client.post(path, json=payload, headers=_auth_headers(app, messaging_state["sender_id"]))
+    assert response.status_code == 400
+    _assert_safe_message_response(response)
+    assert _messaging_snapshot(app) == before
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_mobile_messaging_send_rejects_oversized_body_without_writes(app, client, messaging_state, version):
+    path, payload = _message_write_request(version, "send", messaging_state)
+    payload["body"] = "x" * 4001
+    before = _messaging_snapshot(app)
+    response = client.post(path, json=payload, headers=_auth_headers(app, messaging_state["sender_id"]))
+    assert response.status_code == 400
+    assert _messaging_snapshot(app) == before
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+@pytest.mark.parametrize("recipients", [None, [], ["not-an-id"], "self"])
+def test_mobile_messaging_create_rejects_missing_or_invalid_recipients(app, client, messaging_state, version, recipients):
+    path, payload = _message_write_request(version, "create", messaging_state)
+    if recipients is None:
+        payload.pop("participant_user_ids")
+    else:
+        payload["participant_user_ids"] = [messaging_state["sender_id"]] if recipients == "self" else recipients
+    before = _messaging_snapshot(app)
+    response = client.post(path, json=payload, headers=_auth_headers(app, messaging_state["sender_id"]))
+    assert response.status_code == 400
+    _assert_safe_message_response(response)
+    assert _messaging_snapshot(app) == before
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_mobile_messaging_create_preserves_recipient_normalization_and_body_limit(app, client, messaging_state, version):
+    from app.models import Message, MessageThreadParticipant
+
+    state = messaging_state
+    path, payload = _message_write_request(version, "create", state)
+    payload["participant_user_ids"] = [str(state["recipient_id"]), state["recipient_id"], state["sender_id"], "not-an-id"]
+    # Create truncates to 4000; send rejects >4000. Preserve that distinction.
+    payload["body"] = "x" * 4001
+    response = client.post(path, json=payload, headers=_auth_headers(app, state["sender_id"]))
+    assert response.status_code == 200
+    body = _assert_safe_message_response(response)
+    with app.app_context():
+        assert Message.query.filter_by(thread_id=body["thread_id"]).one().body == "x" * 4000
+        participants = MessageThreadParticipant.query.filter_by(thread_id=body["thread_id"]).all()
+        assert len(participants) == 2 and {p.user_id for p in participants} == {state["sender_id"], state["recipient_id"]}
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_mobile_messaging_missing_thread_preserves_authorization_first(app, client, messaging_state, version):
+    state = dict(messaging_state, thread_id=999999)
+    path, payload = _message_write_request(version, "send", state)
+    before = _messaging_snapshot(app)
+    response = client.post(path, json=payload, headers=_auth_headers(app, state["sender_id"]))
+    assert response.status_code == 403
+    _assert_safe_message_response(response)
+    assert _messaging_snapshot(app) == before
+
+
+@pytest.mark.parametrize(("version", "action"), _MESSAGE_WRITES)
+@pytest.mark.parametrize("operation", ["flush", "commit"])
+def test_mobile_messaging_write_database_failure_rolls_back(app, client, messaging_state, version, action, operation):
+    from app.extensions import db
+    from app.models import Message, MessageThread, MessageThreadParticipant
+
+    path, payload = _message_write_request(version, action, messaging_state)
+    headers = _auth_headers(app, messaging_state["sender_id"])
+    before = _messaging_snapshot(app)
+    original_operation = getattr(db.session, operation)
+    original_rollback = db.session.rollback
+    failures = []
+    rollbacks = []
+
+    def fail_message_write(*args, **kwargs):
+        pending = list(db.session.new) + list(db.session.dirty)
+        if any(isinstance(row, (Message, MessageThread, MessageThreadParticipant)) for row in pending):
+            failures.append(operation)
+            raise RuntimeError(_SENTINEL)
+        # Allow the independent http_5xx_response security audit to commit.
+        return original_operation(*args, **kwargs)
+
+    def record_rollback(*args, **kwargs):
+        rollbacks.append(True)
+        return original_rollback(*args, **kwargs)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(db.session, operation, fail_message_write)
+        patch.setattr(db.session, "rollback", record_rollback)
+        response = client.post(path, json=payload, headers=headers)
+    assert response.status_code == 500
+    assert failures == [operation] and rollbacks
+    _assert_safe_message_response(response)
+    assert _messaging_snapshot(app) == before
 
 
 def test_communication_v2_send_message_legacy_function_has_no_warning_key_or_sentinel(app, monkeypatch):
-    """Calls the module-level legacy function directly, bypassing the broken
-    delegate lookup, to prove the fix in
-    app/api/mobile/domains/communication_v2_write.py is correct for when
-    that separate wiring bug is resolved."""
+    """Exercise the implementation's safe error response independently of HTTP wiring."""
     user_id = _create_user(app)
 
     import app.api.mobile.domains.communication_v2_write as write_module
