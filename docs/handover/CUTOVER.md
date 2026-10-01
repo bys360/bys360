@@ -1,9 +1,10 @@
 # BYS360 Cutover
 
-Audience: an operator running `cutover_bys360_candidate.ps1` (exact filename/location as
-owned by a sibling work stream — verify against the actually integrated script before
-treating this as final) on the production host, only after `CANDIDATE_PREPARATION.md`'s
-process has produced a valid `CANDIDATE_READY.json`.
+Audience: an operator using the maintained
+[cutover_bys360_candidate.ps1](../../scripts/windows/cutover_bys360_candidate.ps1), only
+after [CANDIDATE_PREPARATION.md](CANDIDATE_PREPARATION.md)'s process has produced a valid
+`CANDIDATE_READY.json`. Review the script's actual parameters for the chosen source
+revision; this document is not authorization to execute production operations.
 
 ## Why cutover is intentionally short
 
@@ -16,8 +17,9 @@ mechanical: **swap which tree is live, apply the already-rehearsed migration for
 verify the result** — not build, not download, not shadow-test anything. This is the direct
 structural fix for the failure mode that motivated this whole redesign: the historical
 monolithic script stopped the live task and deleted the live tree before fully proving the
-new dependency set was installable at all (see
-`scripts/windows/deploy_bys360_ec4e56b_production_v4.ps1`'s own header for that incident).
+new dependency set was installable at all (the historical account cites
+`scripts/windows/deploy_bys360_ec4e56b_production_v4.ps1`; that filename is retained as
+provenance, but the file is not present in the current repository).
 Keeping cutover short means the live service's downtime window is short too — by design,
 not by accident.
 
@@ -35,13 +37,13 @@ the historical script (`Set-StrictMode -Version Latest`, `$ErrorActionPreference
 every phase wrapped so a failure anywhere stops the run and writes a receipt naming the
 phase/reason, never silently proceeding to a later phase).
 
-## The cutover flow (current procedure)
+## The cutover flow (phase summary)
 
-The following step sequence is the design cutover is built against. **Verify the exact step
-numbering, function names, and log-line text against the actually integrated
-`cutover_bys360_candidate.ps1` before treating this as authoritative** — this document was
-written from the same specification the script's own author worked from, in a parallel,
-isolated worktree, not from the finished script itself.
+The following sequence summarizes the cutover design. The maintained
+[cutover_bys360_candidate.ps1](../../scripts/windows/cutover_bys360_candidate.ps1) defines
+the executable phases, function names, and log messages for the chosen source revision.
+Check those definitions before operational use; this summary does not establish that a
+cutover has been validated on the production host.
 
 1. **Verify receipt** — load and validate `CANDIDATE_READY.json` as described above (the
    hard gate).
@@ -121,7 +123,9 @@ isolated worktree, not from the finished script itself.
 20. **Receipt** — write a success receipt naming the source SHA, package hash, DB revision
     before/after, File Center table count, health-check results, and security-scan result,
     into `C:\bys360\deploy_logs\`, mirroring the historical script's own receipt shape
-    (`$Script:Receipt` in `deploy_bys360_ec4e56b_production_v4.ps1`).
+    (`$Script:Receipt` in `deploy_bys360_ec4e56b_production_v4.ps1`, a historical filename
+    not present in the current repository). The maintained cutover script contains its
+    own `$Script:Receipt` record.
 
 ## When live is actually stopped, and for how long
 

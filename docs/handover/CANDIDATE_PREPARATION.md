@@ -1,9 +1,10 @@
 # BYS360 Candidate Preparation
 
-Audience: an operator running `prepare_bys360_candidate.ps1` (exact filename/location as
-owned by a sibling work stream — verify against the actually integrated script before
-treating this as final) on the production host, after `LIVE_INSTALLATION.md`'s
-prerequisites are satisfied.
+Audience: an operator using the maintained
+[prepare_bys360_candidate.ps1](../../scripts/windows/prepare_bys360_candidate.ps1), after
+[LIVE_INSTALLATION.md](LIVE_INSTALLATION.md)'s prerequisites are satisfied. Review the
+script's actual parameters for the chosen source revision; this document is not
+authorization to execute production operations.
 
 ## Why this phase exists
 
@@ -11,9 +12,10 @@ The deployment model this document describes replaces a single monolithic script
 stopped the live Scheduled Task and deleted the live application tree **before** it had
 fully proven the new dependency set was even installable — a real production run reached
 that far and failed mid-venv-build with the service already down and the old tree already
-gone (see the historical reference script's own header,
-`scripts/windows/deploy_bys360_ec4e56b_production_v4.ps1`, for the exact failure history
-this design reacts to). Candidate preparation's entire purpose is to do **all** of the
+gone (the historical account cites
+`scripts/windows/deploy_bys360_ec4e56b_production_v4.ps1`; that filename is preserved as
+provenance, but the file is not present in the current repository). Candidate preparation's
+entire purpose is to do **all** of the
 risky, slow, failure-prone work — extraction, dependency install, database-migration
 rehearsal, health boot — against a tree that is never live-serving, so that by the time
 cutover touches the live service at all, everything it depends on has already been proven
@@ -53,9 +55,10 @@ pip install --no-index --find-links wheelhouse -r requirements.lock
 - `--no-index` refuses to consult PyPI (or any index) at all.
 - `--find-links wheelhouse` points pip at the pre-built offline wheel bundle
   (`build/wheelhouse/`, produced ahead of time by
-  `scripts/release/build_bys360_wheelhouse.py` — owned by a sibling work stream; not
-  inspected directly here) shipped alongside the release.
-- `requirements.lock` (also owned by that sibling work stream) pins every dependency,
+  [scripts/release/build_bys360_wheelhouse.py](../../scripts/release/build_bys360_wheelhouse.py))
+  shipped alongside the release. `build/wheelhouse/` is generated output, not a tracked
+  repository directory.
+- [requirements.lock](../../requirements.lock) pins every dependency,
   direct and transitive, to an exact version — this is deliberately a stricter artifact than
   the repository's own `requirements.txt` (24 top-level pins as of this writing; the lock
   file is expected to enumerate the full resolved dependency graph).
@@ -70,11 +73,11 @@ something to work around locally on production.
 
 ## `CANDIDATE_READY.json` — what it means and what it binds
 
-Candidate preparation's successful output is a receipt file (name as specified by the
-sibling work stream's script; referred to here by its documented purpose,
-`CANDIDATE_READY.json`) inside the candidate directory. Treat this file as the single
-source of truth for "is this candidate actually safe to cut over to" — cutover is expected
-to refuse to run at all without a valid, matching one (see `CUTOVER.md`). At minimum it
+Candidate preparation's successful output is `CANDIDATE_READY.json` inside the candidate
+directory. The maintained preparation script writes that receipt; the maintained
+[cutover script](../../scripts/windows/cutover_bys360_candidate.ps1) validates it through
+`Assert-ValidCandidateReceipt` before promotion. Treat it as the candidate-readiness record
+(see [CUTOVER.md](CUTOVER.md)). At minimum it
 must bind together:
 
 - **Source SHA** — the exact git commit the candidate was built from, matching the release

@@ -1,7 +1,9 @@
 # BYS360 — Nihai Devir ve Sürdürülebilirlik Ana Dosyası
 
+> **Tarihsel snapshot — 2026-08-24:** Bu belge, o tarihteki üretim/devir kaydının dondurulmuş görüntüsüdür. Sonraki tarihli açıklamalar kendi tarihsel bağlamlarıyla korunur. Aşağıdaki SHA, revizyon, paket, doğrulama ve hazır olma kayıtları güncel üretim beyanı değildir. Güncel üretim kimliği için [SOURCE_OF_TRUTH.md](../../SOURCE_OF_TRUTH.md) esas alınır; tarihsel kanıtlar değiştirilmemiştir.
+
 ```
-Document Status: CANONICAL
+Document Status: HISTORICAL_SNAPSHOT (frozen 2026-08-24)
 Production Source SHA: cb2e57c5d1829ea743c696ae78595a20755f3f07
 Production Package: BYS360_FULL_LIVE_cb2e57c.zip
 Package SHA256: 895dc9d57021a0107682edb06fd2b99e2f6d17d1d7e6db97fcf6edb9274c476c
@@ -47,7 +49,7 @@ Bu ayrım, belgenin geri kalanında tutarlı şekilde korunmuştur.
 
 ---
 
-## 0. Üretim Durumu — Provenance ile
+## 0. Tarihsel Üretim Durumu (2026-08-24) — Provenance ile
 
 **Verification provenance:** Production deployment of `cb2e57c` was completed and validated on 2026-08-24 based on operator-supplied production deployment logs and live user-acceptance evidence. The documentation-generation session itself did not have direct RDP or production access.
 

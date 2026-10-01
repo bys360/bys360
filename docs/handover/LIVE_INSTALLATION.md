@@ -7,34 +7,36 @@ never inside the ZIP itself).
 
 Scope note: this document describes what a fresh production host needs **before** any
 candidate/cutover script is ever run. It does not describe how the candidate/cutover/
-rollback scripts themselves work — see `CANDIDATE_PREPARATION.md`, `CUTOVER.md`, and
-`ROLLBACK.md` for those. Exact script names referenced below
-(`prepare_bys360_candidate.ps1`, `cutover_bys360_candidate.ps1`,
-`rollback_bys360_candidate.ps1`) were being built in parallel by a sibling work stream at
-the time this document was written and were not available for direct inspection here —
-**verify their exact names, parameter lists, and line numbers against the actually
-integrated scripts before treating this as the shipped handover doc.**
+rollback scripts themselves work — see [CANDIDATE_PREPARATION.md](CANDIDATE_PREPARATION.md),
+[CUTOVER.md](CUTOVER.md), and [ROLLBACK.md](ROLLBACK.md) for those. The maintained scripts
+are present in the repository:
+[prepare_bys360_candidate.ps1](../../scripts/windows/prepare_bys360_candidate.ps1),
+[cutover_bys360_candidate.ps1](../../scripts/windows/cutover_bys360_candidate.ps1), and
+[rollback_bys360_candidate.ps1](../../scripts/windows/rollback_bys360_candidate.ps1).
+Use their actual parameter lists and prerequisite checks for the chosen source revision;
+file availability is not production validation or authorization to execute them.
 
 ## 1. Operating system and identity
 
 - Windows Server (the same edition and patch level as the currently-live host). The
-  historical deployment tooling in this repository (`scripts/windows/deploy_bys360_ec4e56b_production_v4.ps1`,
-  kept only as a historical reference — see its file header for why it was retired)
+  historical deployment tooling (`scripts/windows/deploy_bys360_ec4e56b_production_v4.ps1`,
+  a retained historical filename, not a file present in the current repository)
   hard-codes an expected `$env:COMPUTERNAME` of `CATAB-BYS360` and a public hostname of
   `bys360.canakkaletarihialan.gov.tr`. Any new host must be identified explicitly to
   whichever script replaces that identity check; do not assume the same computer name is
   reusable on different hardware.
 - The operator account used to run PowerShell deployment scripts must run **elevated**
   (Administrator). The historical script fails closed (`PRECHECK_FAILED`) if the session is
-  not elevated, and the new prepare/cutover/rollback scripts are expected to keep that same
-  fail-closed check — confirm this against the actual script before running it unelevated.
+  not elevated. The maintained candidate/cutover/rollback scripts contain
+  `Test-HostPrerequisites`; review those checks and the approved target identity before use.
 
 ## 2. Python 3.12 — exact interpreter resolution, no bare `python`/`py` on PATH
 
 Do not rely on a bare `python` or `py` command being on the production host's `PATH`. This
 is not a theoretical concern: a real production cutover attempt on this host failed
-specifically because `python` was not on `PATH` (documented in the V1→V2 hotfix note at the
-top of `deploy_bys360_ec4e56b_production_v4.ps1`). The load-bearing lesson, which the new
+specifically because `python` was not on `PATH` (historically attributed to the V1→V2
+hotfix note in `deploy_bys360_ec4e56b_production_v4.ps1`; that file is not present in the
+current repository). The load-bearing lesson, which the maintained
 candidate/cutover tooling is built to preserve, is:
 
 - Resolve **absolute** interpreter paths once, early, before any mutation of
@@ -139,7 +141,7 @@ is ever recreated, overwritten, or deleted by a candidate build or a cutover.
 | The real `.env` file (production `DATABASE_URL`, `SECRET_KEY`, mail/SMTP credentials, third-party API tokens — see `SECRETS_AND_PERSISTENCE.md`) | `app/`, `migrations/`, `requirements.txt`, `wsgi.py`, `run_server.py`, `config.py`, `DEPLOYMENT.md` (the release builder's own `REQUIRED_PACKAGE_PATH_PREFIXES` gate refuses to accept a package missing any of these) |
 | The production PostgreSQL role credentials (application role, and — only when a candidate is being verified — the interactively-supplied admin role password) | `.env.example` / `.env.docker.example` — templates only, every value blank; **never** a real `.env` (the release builder's `ALLOWED_ENV_TEMPLATE_BASENAMES` allowlist is `{.env.example, .env.docker.example}` — nothing else matching an `.env*` name pattern is ever permitted into a package; there is currently no `.env.production.example` in this repository) |
 | The `instance/` directory's actual runtime contents, if any exist on the current live host | The application source tree itself (Python code, templates, static assets, Alembic migration scripts) |
-| PostgreSQL 15 server + client tools, installed and licensed for this host | The `requirements.lock` + offline wheelhouse bundle used to install dependencies without PyPI network access during candidate preparation (owned by a sibling work stream — see `build/wheelhouse/` and `requirements.lock` at the repository root) |
+| PostgreSQL 15 server + client tools, installed and licensed for this host | [requirements.lock](../../requirements.lock) and the offline wheelhouse bundle built with [build_bys360_wheelhouse.py](../../scripts/release/build_bys360_wheelhouse.py). The generated `build/wheelhouse/` bundle must be supplied with the release; it is not a tracked repository directory. |
 | The Windows Scheduled Task "BYS360 Live Waitress 80" itself (pre-existing; this tooling cuts over an existing task, it does not create one) | — |
 
 ## 7. Confirming this document's own claims

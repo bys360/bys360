@@ -1,7 +1,9 @@
 # BYS360 Feature Coverage Matrix
 
+> **Tarihsel snapshot — 2026-08-24:** Bu matris, aynı tarihli [ana devir belgesinin](BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md) dondurulmuş envanteridir. Özellik sayıları, sınıflandırmalar ve SHA o tarihsel kapsamı anlatır; yeni geliştirme yetkisi veya güncel üretim kapsamı beyanı değildir. Güncel üretim kimliği için [SOURCE_OF_TRUTH.md](../../SOURCE_OF_TRUTH.md) esas alınır.
+
 ```
-Document Status: CANONICAL (companion to BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md)
+Document Status: HISTORICAL_SNAPSHOT (frozen 2026-08-24; companion to BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md)
 Source: REPO-DERIVED — routes, navigation/menu, templates, services, models, Scheduled Tasks
 Production Source SHA: cb2e57c5d1829ea743c696ae78595a20755f3f07
 Generated: 2026-08-24

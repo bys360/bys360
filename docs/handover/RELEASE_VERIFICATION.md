@@ -105,9 +105,8 @@ evidence behind every part of it. It means, specifically and only:
   `docs/handover/`) accurately describes the actually-integrated scripts, verified against
   those scripts directly, not only against the specification they were written from.
 
-A claim of "handover-ready" that skips any of the above — especially the last one, since
-this document set was written from a specification in an isolated worktree without sight of
-the final integrated scripts — is not evidence-backed and should not be made. See the
+A claim of "handover-ready" that skips any of the above — especially direct comparison
+with the maintained scripts — is not evidence-backed and should not be made. See the
 Devredilebilirlik Gate rubric below for how to score readiness category-by-category instead
 of as a single undifferentiated claim.
 
@@ -117,10 +116,12 @@ of as a single undifferentiated claim.
 
 This section defines **how** to score BYS360's deployment-transferability readiness across
 eight independent categories. It intentionally does not contain any actual scores — scoring
-requires evaluating the fully integrated, tested system (this document set was written
-before that integration happened, from a shared specification, without sight of the other
-two work streams' final code). Score this rubric only once integration is complete and each
-claim below can be checked against real, running artifacts.
+requires evaluating the integrated system and its test evidence. The maintained
+[preparation](../../scripts/windows/prepare_bys360_candidate.ps1),
+[cutover](../../scripts/windows/cutover_bys360_candidate.ps1), and
+[rollback](../../scripts/windows/rollback_bys360_candidate.ps1) scripts are present in the
+repository. Their presence alone does not establish readiness; score each claim only
+against the actual source revision, delivered artifacts and verification evidence.
 
 **Any critical category below acceptable production level means: DO NOT DECLARE FINAL FULL
 READY. Do not inflate the existing transferability score. Evidence only — a category is not
