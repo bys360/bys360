@@ -170,7 +170,7 @@ def _bys360_legacy_mobile_b46_communication_thread_detail(thread_id: int, user: 
 
 @mobile_api_bp.post("/communication/messages/threads/<int:thread_id>/send")
 @require_mobile_user
-def mobile_b46_communication_send_message(thread_id: int, user: User):
+def mobile_b46_communication_send_message(user: User, thread_id: int):
     from app.api.mobile.services.communication_service import (
         mobile_b46_communication_send_message_delegate,
     )
