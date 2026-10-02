@@ -1,13 +1,11 @@
 ﻿from __future__ import annotations
 
-import sys
 import types
 from importlib import import_module
 from typing import Any
 
 import pytest
 
-import app.api.mobile as mobile_package
 from app.api.mobile.services import communication_service as svc
 
 DELEGATES = [
@@ -55,22 +53,12 @@ GET_ONLY_DELEGATES = {
     "mobile_b46_communication_thread_detail_delegate",
 }
 WRITE_DELEGATES = [pair for pair in DELEGATES if pair[0] not in GET_ONLY_DELEGATES]
+READ_DELEGATES = [pair for pair in DELEGATES if pair[0] in GET_ONLY_DELEGATES]
 
 
 def _domain_owner(delegate_name: str) -> types.ModuleType:
     version = "v1" if "b46" in delegate_name else "v2"
     return import_module(f"app.api.mobile.domains.communication_{version}_write")
-
-
-def _install_fake_mobile_routes(monkeypatch: pytest.MonkeyPatch, **handlers: Any) -> types.ModuleType:
-    fake_routes = types.ModuleType("app.api.mobile.routes")
-
-    for name, handler in handlers.items():
-        setattr(fake_routes, name, handler)
-
-    monkeypatch.setitem(sys.modules, "app.api.mobile.routes", fake_routes)
-    monkeypatch.setattr(mobile_package, "routes", fake_routes, raising=False)
-    return fake_routes
 
 
 @pytest.mark.parametrize(("delegate_name", "legacy_name"), DELEGATES)
@@ -89,10 +77,7 @@ def test_mobile_communication_delegate_calls_legacy_handler(
             "kwargs": kwargs,
         }
 
-    if delegate_name in GET_ONLY_DELEGATES:
-        _install_fake_mobile_routes(monkeypatch, **{legacy_name: legacy_handler})
-    else:
-        monkeypatch.setattr(_domain_owner(delegate_name), legacy_name, legacy_handler)
+    monkeypatch.setattr(_domain_owner(delegate_name), legacy_name, legacy_handler)
 
     delegate = getattr(svc, delegate_name)
     result = delegate("alpha", 42, mode="mobile")
@@ -111,10 +96,7 @@ def test_mobile_communication_delegate_raises_when_legacy_handler_missing(
     delegate_name: str,
     legacy_name: str,
 ) -> None:
-    if delegate_name in GET_ONLY_DELEGATES:
-        _install_fake_mobile_routes(monkeypatch)
-    else:
-        monkeypatch.delattr(_domain_owner(delegate_name), legacy_name)
+    monkeypatch.delattr(_domain_owner(delegate_name), legacy_name)
 
     delegate = getattr(svc, delegate_name)
 
@@ -164,5 +146,43 @@ def test_write_delegate_rejects_non_callable_implementation(
     legacy_name: str,
 ) -> None:
     monkeypatch.setattr(_domain_owner(delegate_name), legacy_name, None)
+    with pytest.raises(RuntimeError, match=legacy_name):
+        getattr(svc, delegate_name)("unused")
+
+
+@pytest.mark.parametrize(("delegate_name", "legacy_name"), READ_DELEGATES)
+def test_read_delegate_reaches_real_domain_implementation_without_facade_export(
+    delegate_name: str,
+    legacy_name: str,
+) -> None:
+    from app.api.mobile import routes
+
+    implementation = getattr(_domain_owner(delegate_name), legacy_name)
+    assert callable(implementation)
+    assert not hasattr(routes, legacy_name)
+    user = types.SimpleNamespace(id=1)
+    args: tuple[Any, ...] = (1, user) if "b46" in delegate_name else (user, 1)
+    if "users" in delegate_name:
+        args = (user,)
+
+    with pytest.raises(RuntimeError, match="Working outside of") as exc_info:
+        getattr(svc, delegate_name)(*args)
+    frames = []
+    traceback = exc_info.value.__traceback__
+    while traceback is not None:
+        frames.append(traceback.tb_frame.f_code)
+        traceback = traceback.tb_next
+    assert implementation.__code__ in frames
+
+
+@pytest.mark.parametrize(("delegate_name", "legacy_name"), READ_DELEGATES)
+@pytest.mark.parametrize("target", [None, object()])
+def test_read_delegate_rejects_non_callable_implementation(
+    monkeypatch: pytest.MonkeyPatch,
+    delegate_name: str,
+    legacy_name: str,
+    target: Any,
+) -> None:
+    monkeypatch.setattr(_domain_owner(delegate_name), legacy_name, target)
     with pytest.raises(RuntimeError, match=legacy_name):
         getattr(svc, delegate_name)("unused")
