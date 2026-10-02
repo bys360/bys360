@@ -95,6 +95,8 @@ import logging
 import os
 import tempfile
 import uuid
+from importlib import import_module
+from inspect import signature
 from pathlib import Path
 
 import pytest
@@ -621,6 +623,186 @@ def test_mobile_messaging_write_database_failure_rolls_back(app, client, messagi
     assert response.status_code == 500
     assert failures == [operation] and rollbacks
     _assert_safe_message_response(response)
+    assert _messaging_snapshot(app) == before
+
+
+_MESSAGE_READS = {
+    "legacy_list": "/api/mobile/communication/threads",
+    "v1_list": "/api/mobile/communication/messages/threads",
+    "v1_users": "/api/mobile/communication/messages/users",
+    "v1_detail": "/api/mobile/communication/messages/threads/{thread_id}",
+    "v2_list": "/api/mobile/communication/v2/threads",
+    "v2_detail": "/api/mobile/communication/v2/threads/{thread_id}",
+    "v2_users": "/api/mobile/communication/v2/users",
+}
+
+
+@pytest.fixture
+def messaging_read_state(app, messaging_state):
+    from app.core.datetime_utils import utc_now
+    from app.extensions import db
+    from app.models import Message, MessageThreadParticipant
+
+    state = dict(messaging_state, outsider_id=_create_user(app))
+    with app.app_context():
+        for participant in MessageThreadParticipant.query.filter_by(thread_id=state["thread_id"]).all():
+            participant.is_archived = False
+        message = Message(
+            thread_id=state["thread_id"], sender_user_id=state["recipient_id"],
+            body="Read contract message", sent_at=utc_now(),
+        )
+        db.session.add(message)
+        db.session.commit()
+        state["message_id"] = message.id
+    return state
+
+
+@pytest.mark.parametrize("endpoint", _MESSAGE_READS)
+def test_mobile_messaging_read_returns_scoped_serialized_payload(app, client, messaging_read_state, monkeypatch, endpoint):
+    from app.models import MessageThreadParticipant
+
+    state = messaging_read_state
+    calls = []
+    call_user_ids = []
+    if endpoint in {"v1_detail", "v2_detail", "v2_users"}:
+        version = "v1" if endpoint == "v1_detail" else "v2"
+        owner = import_module(f"app.api.mobile.domains.communication_{version}_write")
+        name = {
+            "v1_detail": "_bys360_legacy_mobile_b46_communication_thread_detail",
+            "v2_detail": "_bys360_legacy_mobile_b48_communication_v2_thread_detail",
+            "v2_users": "_bys360_legacy_mobile_b48_communication_v2_users",
+        }[endpoint]
+        implementation = getattr(owner, name)
+
+        def record_owner(*args, **kwargs):
+            calls.append((args, kwargs))
+            user_arg = args[1] if endpoint == "v1_detail" else args[0]
+            call_user_ids.append(user_arg._sa_instance_state.identity[0])
+            return implementation(*args, **kwargs)
+
+        monkeypatch.setattr(owner, name, record_owner)
+        if endpoint == "v1_detail":
+            assert list(signature(owner.mobile_b46_communication_thread_detail).parameters) == ["user", "thread_id"]
+
+    path = _MESSAGE_READS[endpoint].format(thread_id=state["thread_id"])
+    rule_path = _MESSAGE_READS[endpoint].replace("{thread_id}", "<int:thread_id>")
+    assert len([rule for rule in app.url_map.iter_rules() if rule.rule == rule_path and "GET" in rule.methods]) == 1
+    response = client.get(path, headers=_auth_headers(app, state["sender_id"]))
+    assert response.status_code == 200
+    body = response.get_json()
+    assert isinstance(body, dict) and "warning" not in body
+    if endpoint.endswith("detail"):
+        assert body["source"] == ("real_message_thread_detail" if endpoint == "v1_detail" else "real_message_thread_detail_v2")
+        expected_keys = {"source", "thread", "participants", "messages"}
+        if endpoint == "v2_detail":
+            expected_keys.add("items")
+            assert body["items"] == body["messages"]
+        assert set(body) == expected_keys
+        assert body["thread"]["id"] == state["thread_id"]
+        assert {p["user_id"] for p in body["participants"]} == {state["sender_id"], state["recipient_id"]}
+        assert [m["id"] for m in body["messages"]] == [state["message_id"]]
+        assert body["messages"][0]["body"] == "Read contract message"
+        assert body["messages"][0]["is_mine"] is False
+        args, kwargs = calls[0]
+        assert len(calls) == 1 and not kwargs
+        if endpoint == "v1_detail":
+            assert args[0] == state["thread_id"] and call_user_ids == [state["sender_id"]]
+        else:
+            assert call_user_ids == [state["sender_id"]] and args[1] == state["thread_id"]
+        with app.app_context():
+            participants = MessageThreadParticipant.query.filter_by(thread_id=state["thread_id"]).all()
+            sender = next(p for p in participants if p.user_id == state["sender_id"])
+            recipient = next(p for p in participants if p.user_id == state["recipient_id"])
+            assert sender.last_read_message_id == state["message_id"] and sender.last_read_at is not None
+            assert recipient.last_read_message_id is None and recipient.last_read_at is None
+    elif endpoint.endswith("users"):
+        assert body["source"] == ("real_active_users" if endpoint == "v1_users" else "real_active_users_for_messages_v2")
+        assert body["users"] == body["items"]
+        assert {u["id"] for u in body["users"]} == {state["recipient_id"], state["outsider_id"]}
+        if endpoint == "v2_users":
+            assert body["rows"] == body["personnel"] == body["users"]
+            assert len(calls) == 1 and calls[0][0][0].id == state["sender_id"]
+    else:
+        assert len(body["items"]) == 1 and int(body["items"][0]["id"]) == state["thread_id"]
+        if endpoint != "legacy_list":
+            assert body["source"] == ("real_message_threads" if endpoint == "v1_list" else "real_message_threads_v2")
+            assert body["threads"] == body["items"]
+            assert body["threads"][0]["last_message_body"] == "Read contract message"
+            assert body["unread_total"] == 1
+
+
+@pytest.mark.parametrize("endpoint", _MESSAGE_READS)
+@pytest.mark.parametrize("authorization", [None, "Bearer invalid-token"])
+def test_mobile_messaging_read_rejects_invalid_auth_without_state_change(app, client, messaging_read_state, endpoint, authorization):
+    before = _messaging_snapshot(app)
+    headers = {} if authorization is None else {"Authorization": authorization}
+    path = _MESSAGE_READS[endpoint].format(thread_id=messaging_read_state["thread_id"])
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401
+    _assert_safe_message_response(response)
+    assert _messaging_snapshot(app) == before
+
+
+@pytest.mark.parametrize("endpoint", ["v1_detail", "v2_detail"])
+@pytest.mark.parametrize("case", ["nonparticipant", "missing", "invalid_identifier"])
+def test_mobile_messaging_detail_denial_preserves_authorization_first(app, client, messaging_read_state, endpoint, case):
+    state = messaging_read_state
+    user_id = state["outsider_id"] if case == "nonparticipant" else state["sender_id"]
+    thread_id = {"nonparticipant": state["thread_id"], "missing": 999999, "invalid_identifier": "not-an-integer"}[case]
+    before = _messaging_snapshot(app)
+    response = client.get(_MESSAGE_READS[endpoint].format(thread_id=thread_id), headers=_auth_headers(app, user_id))
+    assert response.status_code == (404 if case == "invalid_identifier" else 403)
+    _assert_safe_message_response(response)
+    assert _messaging_snapshot(app) == before
+
+
+@pytest.mark.parametrize("endpoint", ["legacy_list", "v1_list", "v2_list"])
+def test_mobile_messaging_thread_lists_exclude_nonparticipant_threads(app, client, messaging_read_state, endpoint):
+    response = client.get(_MESSAGE_READS[endpoint], headers=_auth_headers(app, messaging_read_state["outsider_id"]))
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["items"] == []
+    assert body["source"] != "real_message_threads_v2_error_safe"
+
+
+@pytest.mark.parametrize("endpoint", ["v1_users", "v2_users"])
+def test_mobile_messaging_recipient_lookup_allows_empty_search_result(app, client, messaging_read_state, endpoint):
+    response = client.get(_MESSAGE_READS[endpoint], query_string={"q": "no-such-disposable-recipient"}, headers=_auth_headers(app, messaging_read_state["sender_id"]))
+    assert response.status_code == 200
+    assert response.get_json()["users"] == []
+
+
+@pytest.mark.parametrize("endpoint", ["v1_detail", "v2_detail"])
+def test_mobile_messaging_detail_commit_failure_preserves_existing_contract(app, client, messaging_read_state, monkeypatch, endpoint):
+    from app.extensions import db
+    from app.models import MessageThreadParticipant
+
+    state = messaging_read_state
+    before = _messaging_snapshot(app)
+    original_commit = db.session.commit
+    original_rollback = db.session.rollback
+    failures = []
+    rollbacks = []
+
+    def fail_read_marker_commit(*args, **kwargs):
+        if any(isinstance(row, MessageThreadParticipant) for row in db.session.dirty):
+            failures.append(True)
+            raise RuntimeError(_SENTINEL)
+        return original_commit(*args, **kwargs)
+
+    def record_rollback(*args, **kwargs):
+        rollbacks.append(True)
+        return original_rollback(*args, **kwargs)
+
+    monkeypatch.setattr(db.session, "commit", fail_read_marker_commit)
+    monkeypatch.setattr(db.session, "rollback", record_rollback)
+    response = client.get(_MESSAGE_READS[endpoint].format(thread_id=state["thread_id"]), headers=_auth_headers(app, state["sender_id"]))
+    assert response.status_code == (500 if endpoint == "v1_detail" else 200)
+    assert failures == [True] and rollbacks
+    if endpoint == "v1_detail":
+        _assert_safe_message_response(response)
+    else:
+        assert response.get_json()["thread"]["id"] == state["thread_id"]
     assert _messaging_snapshot(app) == before
 
 
