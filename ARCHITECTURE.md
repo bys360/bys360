@@ -2,8 +2,12 @@
 
 ## Current Architecture Overview
 
-- Flask/Python tabanlı web uygulaması; route katmanı iş mantığı taşımaz, servis katmanını
-  (`app/services/`) çağırır -- route/servis ayrımı proje genelinde uygulanır.
+- Flask/Python tabanlı web uygulaması, modüler servis katmanlarını (`app/services/`)
+  yaygın olarak kullanır. Route/servis ayrımı mimari yönelimdir ve birçok alanda
+  uygulanır. Bazı alan route'ları ile eski/uyumluluk adaptörleri; doğrulama,
+  yetkilendirme/politika kontrolleri, sorgular, işlem (transaction) sınırları,
+  yanıt oluşturma, orkestrasyon veya uyumluluk delegasyonu sorumluluklarını hâlâ
+  taşır. Bu sınırlar kademeli konsolidasyon kapsamında ele alınır.
 - Kalıcılık: PostgreSQL (production), Alembic tabanlı migration'lar (`migrations/`); local
   geliştirme için SQLite desteklenir.
 - Rol/yetki uygulaması: menü görünürlüğü tek başına yetki değildir, her backend route ayrıca
