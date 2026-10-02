@@ -21,7 +21,8 @@ def register_mobile_performance_read_routes_v1(route_globals) -> None:
                 _metric('Görünürlük', 'Sınırlı', 'Bu alan yetkili yönetici kapsamına göre açılır', 'red', 'lock'),
                 _metric('Veri Güvenliği', 'Aktif', 'Yetkisiz personel veya karne detayı gösterilmez', 'green', 'shield'),
             ], [])
-        return mobile_performance_reports(user)
+        from app.api.mobile.performance_routes import _bys360_legacy_mobile_performance_reports
+        return _bys360_legacy_mobile_performance_reports(user)
 
     @mobile_api_bp.get("/performance/periods")
     @require_mobile_user

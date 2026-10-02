@@ -222,6 +222,7 @@ def mobile_personnel_create(user: User):
 @mobile_api_bp.post("/personnel/add")
 @require_mobile_user
 def mobile_personnel_add_alias(user: User):
-    return mobile_personnel_create(user)
+    from app.api.mobile.services import personnel_service as _bys360_personnel_service
+    return _bys360_personnel_service.mobile_personnel_create(user)
 # BYS360_MOBILE_V2_8_62_PERSONNEL_CREATE_END
 
