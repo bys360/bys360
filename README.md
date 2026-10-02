@@ -20,6 +20,7 @@ Kullanım, çoğaltma, değiştirme ve dağıtım koşulları [`LICENSE`](LICENS
 - Personel Yönetimi
 - Performans Yönetimi
 - İletişim ve Anket Yönetimi
+- Dosya Merkezi
 - Destek / Yardım Merkezi
 - Sistem Ayarları ve Yetkilendirme
 - AI Karar Destek
