@@ -122,7 +122,6 @@ def _assert_once(app, role, auth_calls, create_calls):
 
 
 def _staff_rows(app):
-    from app.extensions import db
     from app.models import User
 
     with app.app_context():
@@ -141,8 +140,9 @@ def test_create_entries_use_same_real_implementation_once(app, auth_calls, creat
     assert data["message"] == "Personel kaydı oluşturuldu. Başlangıç şifresi sistem tarafından otomatik atanmıştır."
     assert data["personnel"]["sicil_no"] == "new-staff"
     assert data["personnel"]["role"] == "personel"
-    from app.api.mobile.domains.personnel_write_all import _bys360_legacy__mobile_created_personnel_row
-    from app.extensions import db
+    from app.api.mobile.domains.personnel_write_all import (
+        _bys360_legacy__mobile_created_personnel_row,
+    )
     from app.models import User
 
     with app.app_context():
