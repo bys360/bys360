@@ -659,7 +659,6 @@ def messaging_read_state(app, messaging_state):
 
 @pytest.mark.parametrize("endpoint", _MESSAGE_READS)
 def test_mobile_messaging_read_returns_scoped_serialized_payload(app, client, messaging_read_state, monkeypatch, endpoint):
-    from app.extensions import db
     from app.models import MessageThreadParticipant
 
     state = messaging_read_state
