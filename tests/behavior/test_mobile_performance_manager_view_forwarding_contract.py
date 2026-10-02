@@ -23,7 +23,7 @@ def app(monkeypatch, tmp_path):
     from app import create_app
     from config import Config
 
-    for name, value in {
+    for config_name, config_value in {
         "APP_ENV": "testing",
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "SQLALCHEMY_ENGINE_OPTIONS": {},
@@ -33,7 +33,7 @@ def app(monkeypatch, tmp_path):
         "UPLOAD_FOLDER": str(tmp_path / "uploads"),
         "REPORT_FOLDER": str(tmp_path / "reports"),
     }.items():
-        monkeypatch.setattr(Config, name, value)
+        monkeypatch.setattr(Config, config_name, config_value)
     flask_app = create_app()
     flask_app.config.update(TESTING=True, PROPAGATE_EXCEPTIONS=False, WTF_CSRF_ENABLED=False)
 
@@ -68,6 +68,7 @@ def _headers(app, role):
 
     with app.app_context():
         user = db.session.get(User, app.config["FORWARDING_USER_IDS"][role])
+        assert user is not None
         return {"Authorization": f"Bearer {_issue_token(user)}"}
 
 
