@@ -45,15 +45,3 @@ __all__ = [
     "is_removed_route_path",
     "is_removed_scope_compat",
 ]
-
-
-# BYS360_A5_P2D4_REMOVED_PORTAL_STATIC_ANCHOR_START
-# Static contract anchor: "portal": True
-# BYS360_A5_P2D4_REMOVED_PORTAL_STATIC_ANCHOR_END
-
-
-# BYS360_A5_P2D4_LIVE_SCOPE_PORTAL_PREFIX_ANCHOR_START
-# Static contract anchor: /portal
-# Portal prefix canl? kapsam/karantina s?zle?mesinde a??k?a izlenir.
-# BYS360_A5_P2D4_LIVE_SCOPE_PORTAL_PREFIX_ANCHOR_END
-

@@ -136,10 +136,3 @@ def get_live_scope_release_notes() -> tuple[str, ...]:
         "Kaldırılan modül izleri route/menu seviyesinde karantinada tutuluyor.",
         "Fiziksel söküm ancak overlay manifest ve dry-run doğrulamasından sonra yapılmalı.",
     )
-
-
-# BYS360_A5_P2D4_LIVE_SCOPE_PORTAL_PREFIX_ANCHOR_START
-# Static contract anchor: /portal
-# Portal prefix canl? kapsam/karantina s?zle?mesinde a??k?a izlenir.
-# BYS360_A5_P2D4_LIVE_SCOPE_PORTAL_PREFIX_ANCHOR_END
-

@@ -45,9 +45,3 @@ def is_removed(name: str | None) -> bool:
 
 def get_removed_modules() -> dict[str, bool]:
     return dict(REMOVED_MODULES)
-
-
-# BYS360_A5_P2D4_REMOVED_PORTAL_STATIC_ANCHOR_START
-# Static contract anchor: "portal": True
-# BYS360_A5_P2D4_REMOVED_PORTAL_STATIC_ANCHOR_END
-
