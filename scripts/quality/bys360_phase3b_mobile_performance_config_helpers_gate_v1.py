@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import re
 from datetime import datetime
@@ -37,6 +38,26 @@ def _defined_functions(text: str) -> set[str]:
     return set(pattern.findall(text))
 
 
+def _config_helper_imports(text: str) -> dict[str, set[str]]:
+    imports: dict[str, set[str]] = {
+        "app.api.mobile.shared": set(),
+        "app.api.mobile.routes": set(),
+    }
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return imports
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.level == 0
+            and node.module is not None
+            and node.module in imports
+        ):
+            imports[node.module].update(alias.name for alias in node.names)
+    return imports
+
+
 def run_checks(root: Path, write_report: bool = True) -> dict[str, Any]:
     route_path = root / ROOT_REL_ROUTE
     service_path = root / ROOT_REL_SERVICE
@@ -51,9 +72,11 @@ def run_checks(root: Path, write_report: bool = True) -> dict[str, Any]:
     helper_removed_from_route = {name: name not in route_functions for name in EXPECTED_HELPERS}
 
     route_import_ok = "from app.api.mobile.services.performance_config_helpers import" in route_text
+    helper_imports = _config_helper_imports(service_text)
+    canonical_item_import_ok = "_item" in helper_imports["app.api.mobile.shared"]
+    facade_item_import_absent = "_item" not in helper_imports["app.api.mobile.routes"]
     service_imports_ok = all(token in service_text for token in [
         "from app.models import PerformancePeriod",
-        "from app.api.mobile.routes import _item",
         "from app.api.mobile.services.performance_base_helpers import _period_name",
         "def _safe_get_period(",
     ])
@@ -73,6 +96,8 @@ def run_checks(root: Path, write_report: bool = True) -> dict[str, Any]:
         "route_line_reduction_ok": len(route_text.splitlines()) < 1624,
         "route_import_ok": route_import_ok,
         "service_imports_ok": service_imports_ok,
+        "canonical_item_import_ok": canonical_item_import_ok,
+        "facade_item_import_absent": facade_item_import_absent,
         "helper_presence": helper_presence,
         "helper_removed_from_route": helper_removed_from_route,
         "expected_helpers": EXPECTED_HELPERS,
@@ -83,6 +108,8 @@ def run_checks(root: Path, write_report: bool = True) -> dict[str, Any]:
         and result["service_exists"]
         and result["route_import_ok"]
         and result["service_imports_ok"]
+        and result["canonical_item_import_ok"]
+        and result["facade_item_import_absent"]
         and result["route_decorator_count"] == 22
         and result["route_line_reduction_ok"]
         and all(helper_presence.values())

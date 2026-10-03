@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.api.mobile.routes import _item
+from app.api.mobile.shared import _item
 from app.api.mobile.services.performance_base_helpers import _period_name
 from app.extensions import db
 from app.models import PerformancePeriod
