@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import re
 from datetime import datetime
@@ -37,6 +38,26 @@ def _defined_functions(text: str) -> set[str]:
     return set(pattern.findall(text))
 
 
+def _query_helper_imports(text: str) -> dict[str, set[str]]:
+    imports: dict[str, set[str]] = {
+        "app.api.mobile.shared": set(),
+        "app.api.mobile.routes": set(),
+    }
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return imports
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.level == 0
+            and node.module is not None
+            and node.module in imports
+        ):
+            imports[node.module].update(alias.name for alias in node.names)
+    return imports
+
+
 def run_checks(root: Path, write_report: bool = True) -> dict[str, Any]:
     route_path = root / ROOT_REL_ROUTE
     service_path = root / ROOT_REL_SERVICE
@@ -51,11 +72,14 @@ def run_checks(root: Path, write_report: bool = True) -> dict[str, Any]:
     helper_removed_from_route = {name: name not in route_functions for name in EXPECTED_HELPERS}
 
     route_import_ok = "from app.api.mobile.services.performance_query_helpers import" in route_text
+    helper_imports = _query_helper_imports(service_text)
+    required_imports = {"_as_int", "_has_global_scope"}
+    canonical_helper_import_ok = required_imports <= helper_imports["app.api.mobile.shared"]
+    facade_helper_import_absent = not required_imports.intersection(helper_imports["app.api.mobile.routes"])
     service_imports_ok = all(token in service_text for token in [
         "from app.models import EvaluationAssignment, PerformanceResultSnapshot, User",
-        "from app.api.mobile.routes import _as_int, _has_global_scope",
         "def _performance_query_rollback_quietly()",
-    ])
+    ]) and canonical_helper_import_ok and facade_helper_import_absent
 
     result: dict[str, Any] = {
         "package": PACKAGE,
@@ -72,6 +96,8 @@ def run_checks(root: Path, write_report: bool = True) -> dict[str, Any]:
         "route_line_reduction_ok": len(route_text.splitlines()) < 1686,
         "route_import_ok": route_import_ok,
         "service_imports_ok": service_imports_ok,
+        "canonical_helper_import_ok": canonical_helper_import_ok,
+        "facade_helper_import_absent": facade_helper_import_absent,
         "helper_presence": helper_presence,
         "helper_removed_from_route": helper_removed_from_route,
         "expected_helpers": EXPECTED_HELPERS,

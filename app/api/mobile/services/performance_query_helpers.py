@@ -6,7 +6,7 @@ from typing import Any
 
 from sqlalchemy import or_
 
-from app.api.mobile.routes import _as_int, _has_global_scope
+from app.api.mobile.shared import _as_int, _has_global_scope
 from app.extensions import db
 from app.models import EvaluationAssignment, PerformanceResultSnapshot, User
 from app.models.performance_models import PerformanceEvaluation, PerformancePeriod
