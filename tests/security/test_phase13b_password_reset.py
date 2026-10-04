@@ -23,11 +23,20 @@ a claimed fix.
 """
 from __future__ import annotations
 
+import sqlite3
 import tempfile
 import uuid
 from pathlib import Path
+from typing import Any
+
+import pytest
+from sqlalchemy import inspect, text
 
 _PHASE13B_TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "audit_tmp" / "phase13b" / "test_dbs"
+
+# Apps built by _make_app during the current test; the autouse fixture below
+# disposes their engines and deletes their SQLite files afterwards.
+_CREATED_APPS: list[tuple[Any, Path]] = []
 
 
 def _make_app(monkeypatch, **config_overrides):
@@ -49,8 +58,16 @@ def _make_app(monkeypatch, **config_overrides):
     monkeypatch.setenv("LOGIN_FORCE_CAPTCHA_FOR_UNKNOWN_USER", "false")
 
     from app import create_app
+    from config import Config
+
+    # Config froze its database URI when config.py was first imported, so the
+    # DATABASE_URL above came too late; pin it so this app uses only its own file.
+    monkeypatch.setattr(Config, "APP_ENV", "testing")
+    monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", "sqlite:///" + db_path.as_posix())
+    monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    _CREATED_APPS.append((app, db_path))
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
     app.config.update(config_overrides)
 
@@ -60,6 +77,23 @@ def _make_app(monkeypatch, **config_overrides):
         db.create_all()
 
     return app
+
+
+def _dispose_created_apps():
+    from app.extensions import db
+
+    while _CREATED_APPS:
+        app, db_path = _CREATED_APPS.pop()
+        with app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        db_path.unlink(missing_ok=True)
+
+
+@pytest.fixture(autouse=True)
+def _dispose_apps_after_each_test():
+    yield
+    _dispose_created_apps()
 
 
 def _clear_request_guard_buckets():
@@ -273,3 +307,43 @@ def test_reset_writes_audit_log_entry(monkeypatch, caplog):
     assert reset_log_records, "expected a password-reset audit log line"
     # identity must be masked, not logged in the clear
     assert not any("p13b.audit@ktb.gov.tr" in r.getMessage() for r in caplog.records)
+
+
+# --- task-owned test database lifecycle ---
+#
+# config.Config.SQLALCHEMY_DATABASE_URI is computed once, when config.py is
+# first imported, so setting DATABASE_URL in _make_app came too late: every app
+# here shared whatever SQLite file Config froze to first (possibly another
+# module's), and no engine was disposed or file deleted afterwards.
+
+_STALE_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "phase13b_password_reset_stale_config"
+
+
+def test_app_uses_only_its_own_disposable_database(monkeypatch):
+    from app.extensions import db
+    from config import Config
+
+    _STALE_DB_ROOT.mkdir(parents=True, exist_ok=True)
+    stale_path = _STALE_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
+    conn = sqlite3.connect(stale_path)
+    conn.execute("CREATE TABLE stale_config_marker (id INTEGER PRIMARY KEY)")
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", "sqlite:///" + stale_path.as_posix())
+
+    try:
+        app = _make_app(monkeypatch)
+        with app.app_context():
+            own_db = Path(db.engine.url.database or "")
+            on_stale_db = inspect(db.engine).has_table("stale_config_marker")
+            users = db.session.execute(text("SELECT COUNT(*) FROM users")).scalar()
+
+        assert own_db.parent == _PHASE13B_TEST_DB_ROOT
+        assert own_db != stale_path
+        assert not on_stale_db
+        assert users == 0
+
+        _dispose_created_apps()
+        assert not own_db.exists()
+    finally:
+        stale_path.unlink(missing_ok=True)
