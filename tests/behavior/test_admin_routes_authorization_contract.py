@@ -92,6 +92,13 @@ def _make_app(monkeypatch, **env_overrides):
     monkeypatch.setattr(Config, "APP_ENV", "testing")
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", "sqlite:///" + db_path.as_posix())
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
+    # Config also froze DEFAULT_FIRST_LOGIN_PASSWORD at first import, and the
+    # app reads it before the environment; pin it to this module's value.
+    monkeypatch.setattr(
+        Config,
+        "DEFAULT_FIRST_LOGIN_PASSWORD",
+        env_overrides.get("DEFAULT_FIRST_LOGIN_PASSWORD", DEFAULT_FIRST_LOGIN_PASSWORD),
+    )
 
     app = create_app()
     app.config.update(
@@ -1012,3 +1019,37 @@ def test_personnel_edit_success_updates_real_row_and_resets_password(app, client
     assert updated.ust_birim == "Genel Müdürlük"
     assert updated.check_password("OriginalPass1!") is False
     assert updated.check_password("BrandNewPass1!") is True
+
+
+# ---------------------------------------------------------------------------
+# isolation from a stale process-global Config.DEFAULT_FIRST_LOGIN_PASSWORD
+# ---------------------------------------------------------------------------
+#
+# config.Config.DEFAULT_FIRST_LOGIN_PASSWORD is computed once, when config.py
+# is first imported, and the app resolves current_app.config before the
+# environment. If an earlier test imported config.py while
+# DEFAULT_FIRST_LOGIN_PASSWORD held another value, setting the environment
+# variable here came too late: created users got that other module's initial
+# password instead of DEFAULT_FIRST_LOGIN_PASSWORD.
+
+
+def test_app_does_not_inherit_a_stale_frozen_default_first_login_password(monkeypatch):
+    from app.extensions import db
+    from config import Config
+
+    monkeypatch.setattr(
+        Config, "DEFAULT_FIRST_LOGIN_PASSWORD", "stale-first-login-value-from-another-module"
+    )
+
+    app = _make_app(monkeypatch)
+    try:
+        configured = app.config["DEFAULT_FIRST_LOGIN_PASSWORD"]
+    finally:
+        with app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+            db_file = db.engine.url.database
+        if db_file:
+            Path(db_file).unlink(missing_ok=True)
+
+    assert configured == DEFAULT_FIRST_LOGIN_PASSWORD
