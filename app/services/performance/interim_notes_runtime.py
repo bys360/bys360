@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 # BYS360_INTERIM_NOTES_RUNTIME_BINDING
 
 TABLE_NAME = "performance_interim_notes"
+INDEXES = {
+    "ix_perf_interim_notes_employee_period": "employee_id, period_id",
+    "ix_perf_interim_notes_employee_user_period": "employee_user_id, period_id",
+}
 
 NOTE_TYPE_LABELS = {
     "olumlu_olay": "Olumlu Olay",
@@ -97,6 +101,20 @@ def _columns(table_name: str) -> set[str]:
         return set()
 
 
+def _schema_complete(columns: dict[str, str]) -> bool:
+    """Salt okuma: tablo, verilen kolonların tümü ve iki indeks zaten varsa True döner."""
+    try:
+        inspector = inspect(db.engine)
+        if not inspector.has_table(TABLE_NAME):
+            return False
+        existing_columns = {col["name"] for col in inspector.get_columns(TABLE_NAME)}
+        existing_indexes = {ix["name"] for ix in inspector.get_indexes(TABLE_NAME)}
+    except Exception:
+        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
+        return False
+    return set(columns) <= existing_columns and set(INDEXES) <= existing_indexes
+
+
 def _safe_add_column(table_name: str, column: str, ddl: str, existing: set[str], warnings: list[str]) -> None:
     if column in existing:
         return
@@ -117,6 +135,45 @@ def ensure_interim_notes_table() -> tuple[bool, list[str]]:
     Buradaki amaç tablo yoksa güvenli temel yapıyı kurmak; varsa mevcut veriye dokunmamaktır.
     """
     warnings: list[str] = []
+    desired_columns = {
+        "period_id": "INTEGER NULL",
+        "employee_id": "INTEGER NULL",
+        "employee_user_id": "INTEGER NULL",
+        "manager_id": "INTEGER NULL",
+        "created_by": "INTEGER NULL",
+        "created_by_id": "INTEGER NULL",
+        "note_type": "VARCHAR(80) NOT NULL DEFAULT 'genel_gozlem'",
+        "title": "VARCHAR(255) NULL",
+        "note_title": "VARCHAR(255) NULL",
+        "note": "TEXT NULL",
+        "note_body": "TEXT NULL",
+        "note_text": "TEXT NULL",
+        "content": "TEXT NULL",
+        "description": "TEXT NULL",
+        "visibility_level": "VARCHAR(80) NULL DEFAULT 'manager_scope'",
+        "visibility_scope": "VARCHAR(80) NULL DEFAULT 'manager_scope'",
+        "remind_in_evaluation": _bool_sql(True) + " NULL",
+        "remind_during_scoring": _bool_sql(True) + " NULL",
+        "include_in_scorecard": _bool_sql(False) + " NULL",
+        "visible_on_scorecard": _bool_sql(False) + " NULL",
+        "is_active": _bool_sql(True) + " NULL",
+        "active": _bool_sql(True) + " NULL",
+        "occurred_at": "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
+        "created_at": "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
+        "updated_at": "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
+    }
+    if _schema_complete(desired_columns):
+        # EC-AUD-016B-1: şema eksiksizse DDL çalıştırılmaz. Mevcut commit sınırı
+        # (bekleyen oturum işini commit etmesi) ayrı bir kararla ele alınana kadar korunur.
+        try:
+            db.session.commit()
+        except Exception as exc:
+            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
+            db.session.rollback()
+            warnings.append(f"Dönem içi not tablosu hazırlanamadı: {exc.__class__.__name__}")
+            return False, warnings
+        return True, warnings
+
     try:
         db.session.execute(text(f"""
             CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
@@ -155,43 +212,13 @@ def ensure_interim_notes_table() -> tuple[bool, list[str]]:
         warnings.append(f"Dönem içi not tablosu hazırlanamadı: {exc.__class__.__name__}")
         return False, warnings
 
-    desired_columns = {
-        "period_id": "INTEGER NULL",
-        "employee_id": "INTEGER NULL",
-        "employee_user_id": "INTEGER NULL",
-        "manager_id": "INTEGER NULL",
-        "created_by": "INTEGER NULL",
-        "created_by_id": "INTEGER NULL",
-        "note_type": "VARCHAR(80) NOT NULL DEFAULT 'genel_gozlem'",
-        "title": "VARCHAR(255) NULL",
-        "note_title": "VARCHAR(255) NULL",
-        "note": "TEXT NULL",
-        "note_body": "TEXT NULL",
-        "note_text": "TEXT NULL",
-        "content": "TEXT NULL",
-        "description": "TEXT NULL",
-        "visibility_level": "VARCHAR(80) NULL DEFAULT 'manager_scope'",
-        "visibility_scope": "VARCHAR(80) NULL DEFAULT 'manager_scope'",
-        "remind_in_evaluation": _bool_sql(True) + " NULL",
-        "remind_during_scoring": _bool_sql(True) + " NULL",
-        "include_in_scorecard": _bool_sql(False) + " NULL",
-        "visible_on_scorecard": _bool_sql(False) + " NULL",
-        "is_active": _bool_sql(True) + " NULL",
-        "active": _bool_sql(True) + " NULL",
-        "occurred_at": "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
-        "created_at": "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
-        "updated_at": "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
-    }
     existing = _columns(TABLE_NAME)
     for column, ddl in desired_columns.items():
         _safe_add_column(TABLE_NAME, column, ddl, existing, warnings)
 
-    for ddl in [
-        f"CREATE INDEX IF NOT EXISTS ix_perf_interim_notes_employee_period ON {TABLE_NAME}(employee_id, period_id)",
-        f"CREATE INDEX IF NOT EXISTS ix_perf_interim_notes_employee_user_period ON {TABLE_NAME}(employee_user_id, period_id)",
-    ]:
+    for index_name, index_columns in INDEXES.items():
         try:
-            db.session.execute(text(ddl))
+            db.session.execute(text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {TABLE_NAME}({index_columns})"))
             db.session.commit()
         except Exception:
             logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
