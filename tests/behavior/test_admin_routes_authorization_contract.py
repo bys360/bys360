@@ -108,14 +108,45 @@ def _make_app(monkeypatch, **env_overrides):
     return app
 
 
+def _dispose_app(flask_app):
+    """Release the app's engine and delete its per-test SQLite file."""
+    from app.extensions import db
+
+    with flask_app.app_context():
+        db.session.remove()
+        db.engine.dispose()
+        db_file = db.engine.url.database
+    if db_file:
+        Path(db_file).unlink(missing_ok=True)
+
+
 @pytest.fixture
 def app(monkeypatch):
-    return _make_app(monkeypatch)
+    flask_app = _make_app(monkeypatch)
+    yield flask_app
+    _dispose_app(flask_app)
 
 
 @pytest.fixture
 def client(app):
     return app.test_client()
+
+
+def test_app_database_file_is_released_and_deleted_after_use(monkeypatch):
+    # Each app here gets its own per-test SQLite file; without an explicit
+    # release step the engine stayed open and the file was never deleted (one
+    # leftover file per test in _TEST_DB_ROOT, undeletable on Windows while open).
+    from app.extensions import db
+
+    flask_app = _make_app(monkeypatch)
+    with flask_app.app_context():
+        db_file = Path(db.engine.url.database or "")
+    assert db_file.parent == _TEST_DB_ROOT
+    assert db_file.exists()
+
+    _dispose_app(flask_app)
+
+    assert not db_file.exists()
 
 
 def _create_user(
