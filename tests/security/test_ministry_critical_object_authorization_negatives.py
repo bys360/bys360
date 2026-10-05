@@ -29,7 +29,7 @@ from types import SimpleNamespace
 
 import pytest
 
-PASSWORD = "MinistryAuthzNegative1!"
+PASSWORD = "MinistryAuthzNegativeTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "ministry_authz_negatives" / "dbs"
 MISSING_ID = 987654
 
