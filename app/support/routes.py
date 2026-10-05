@@ -172,24 +172,29 @@ def _support_help_tables_ready() -> bool:
         return _store_ready_value("help", False)
     return _store_ready_value("help", SUPPORT_HELP_ALLOWED_TABLES.issubset(existing))
 
-def _ensure_support_tables_for_current_db() -> None:
-    bind = db.engine
-    SupportCategory.__table__.create(bind=bind, checkfirst=True)
-    SupportTicket.__table__.create(bind=bind, checkfirst=True)
-    SupportTicketMessage.__table__.create(bind=bind, checkfirst=True)
-    SupportTicketAttachment.__table__.create(bind=bind, checkfirst=True)
-    SupportTicketStatusHistory.__table__.create(bind=bind, checkfirst=True)
-    SupportFeedbackRating.__table__.create(bind=bind, checkfirst=True)
+def _forget_support_ready_cache() -> None:
+    for kind in ("tables", "help"):
+        _SUPPORT_READY_CACHE[f"{kind}_checked_at"] = 0.0
+        _SUPPORT_READY_CACHE[f"{kind}_ready"] = None
 
+# G2: destek tablolarının tek sahibi Alembic a3d8f1c9b6e2 migration'ıdır. İstek kodu
+# tablo oluşturmaz/değiştirmez; yalnız hazır olup olmadığını okur.
+SUPPORT_SCHEMA_MIGRATION_REQUIRED_MESSAGE = (
+    "Destek ve Talep Yönetimi veritabanı tabloları hazır değil. Uygulama ekranları tablo oluşturmaz; "
+    "yetkili teknik ekip veritabanı migration/hazırlık işlemini (flask db upgrade) tamamlamalıdır."
+)
+SUPPORT_HELP_SCHEMA_MIGRATION_REQUIRED_MESSAGE = (
+    "Yardım merkezi yönetim tablosu hazır değil. Uygulama ekranları tablo oluşturmaz; "
+    "yetkili teknik ekip veritabanı migration/hazırlık işlemini (flask db upgrade) tamamlamalıdır."
+)
+
+def _seed_default_support_categories() -> None:
+    """Mevcut şemaya eksik varsayılan kategorileri ekler (yalnız DML)."""
     for name, description, sort_order in DEFAULT_CATEGORY_ROWS:
         exists = SupportCategory.query.filter_by(name=name).first()
         if exists:
             continue
         db.session.add(SupportCategory(name=name, description=description, sort_order=sort_order, is_active=True))
-    db.session.commit()
-
-def _ensure_support_help_tables_for_current_db() -> None:
-    SupportHelpArticle.__table__.create(bind=db.engine, checkfirst=True)
     db.session.commit()
 
 def _support_guard_or_redirect():
@@ -508,13 +513,8 @@ def support_help_article(article_slug: str):
 @menu_key_required("support_index")
 @admin_required
 def support_help_admin():
-    try:
-        if not _support_help_tables_ready():
-            _ensure_support_help_tables_for_current_db()
-    except Exception as exc:
-        logger.exception("BYS360 V6C guarded exception | file=app/support/routes.py | line=515 | exc=%s", exc)
-        safe_db_rollback()
-        flash("Yardım merkezi yönetim tabloları hazırlanamadı.", "danger")
+    if not _support_help_tables_ready():
+        flash(SUPPORT_HELP_SCHEMA_MIGRATION_REQUIRED_MESSAGE, "warning")
     search_query = sanitize_free_text(request.args.get("q"), limit=120)
     status_filter = (request.args.get("status") or "all").strip().lower()
     items: list[SupportHelpArticle] = []
@@ -543,9 +543,10 @@ def support_help_admin():
 @menu_key_required("support_index")
 @admin_required
 def support_help_admin_seed():
+    if not _support_help_tables_ready():
+        flash(SUPPORT_HELP_SCHEMA_MIGRATION_REQUIRED_MESSAGE, "warning")
+        return redirect(url_for("main.support_help_admin"))
     try:
-        if not _support_help_tables_ready():
-            _ensure_support_help_tables_for_current_db()
         inserted = 0
         for payload in default_help_articles_payload():
             exists = SupportHelpArticle.query.filter_by(slug=payload["slug"]).first()
@@ -584,13 +585,8 @@ def support_help_admin_seed():
 @menu_key_required("support_index")
 @admin_required
 def support_help_admin_new():
-    try:
-        if not _support_help_tables_ready():
-            _ensure_support_help_tables_for_current_db()
-    except Exception as exc:
-        logger.exception("BYS360 V6C guarded exception | file=app/support/routes.py | line=589 | exc=%s", exc)
-        safe_db_rollback()
-        flash("Yardım merkezi yönetim tablosu hazırlanamadı.", "danger")
+    if not _support_help_tables_ready():
+        flash(SUPPORT_HELP_SCHEMA_MIGRATION_REQUIRED_MESSAGE, "warning")
         return redirect(url_for("main.support_help_admin"))
 
     if request.method == "POST":
@@ -651,13 +647,8 @@ def support_help_admin_new():
 @admin_required
 def support_help_admin_edit(article_id: int):
     if not _support_help_tables_ready():
-        try:
-            _ensure_support_help_tables_for_current_db()
-        except Exception as exc:
-            logger.exception("BYS360 V6C guarded exception | file=app/support/routes.py | line=653 | exc=%s", exc)
-            safe_db_rollback()
-            flash("Yardım merkezi yönetim tablosu hazırlanamadı.", "danger")
-            return redirect(url_for("main.support_help_admin"))
+        flash(SUPPORT_HELP_SCHEMA_MIGRATION_REQUIRED_MESSAGE, "warning")
+        return redirect(url_for("main.support_help_admin"))
     article = SupportHelpArticle.query.get_or_404(article_id)
     if request.method == "POST":
         try:
@@ -746,18 +737,21 @@ def support_help_admin_delete(article_id: int):
 @menu_key_required("support_index")
 @admin_required
 def support_setup():
+    if request.method == "POST":
+        _forget_support_ready_cache()
     is_ready = _support_tables_ready()
     if request.method == "POST":
-        try:
-            _ensure_support_tables_for_current_db()
-            _ensure_support_help_tables_for_current_db()
-            flash("Destek ve Talep Yönetimi tabloları kuruldu; yardım merkezi yönetim tablosu da hazırlandı.", "success")
-            return redirect(url_for("main.support_index"))
-        except Exception as exc:
-            logger.exception("BYS360 V6C guarded exception | file=app/support/routes.py | line=749 | exc=%s", exc)
-            safe_db_rollback()
-            flash("Destek modülü kurulamadı.", "danger")
-            is_ready = _support_tables_ready()
+        if not (is_ready and _support_help_tables_ready()):
+            flash(SUPPORT_SCHEMA_MIGRATION_REQUIRED_MESSAGE, "warning")
+        else:
+            try:
+                _seed_default_support_categories()
+                flash("Destek ve Talep Yönetimi tabloları hazır; temel kategoriler kontrol edildi.", "success")
+                return redirect(url_for("main.support_index"))
+            except Exception as exc:
+                logger.exception("BYS360 V6C guarded exception | file=app/support/routes.py | line=749 | exc=%s", exc)
+                safe_db_rollback()
+                flash("Destek modülü kurulamadı.", "danger")
     return safe_render(
         "support/setup.html",
         "<h3>Destek modülü kurulum ekranı yüklenemedi.</h3>",
@@ -1197,9 +1191,10 @@ def _sync_seeded_help_articles(*, update_existing: bool = False) -> tuple[int, i
 @menu_key_required("support_index")
 @admin_required
 def support_help_admin_sync():
+    if not _support_help_tables_ready():
+        flash(SUPPORT_HELP_SCHEMA_MIGRATION_REQUIRED_MESSAGE, "warning")
+        return redirect(url_for("main.support_help_admin"))
     try:
-        if not _support_help_tables_ready():
-            _ensure_support_help_tables_for_current_db()
         inserted, updated, skipped = _sync_seeded_help_articles(update_existing=True)
         db.session.commit()
         flash(f"Hazır rehberler eşitlendi. Yeni: {inserted} | Güncellenen: {updated} | Atlanan(manuel): {skipped}", "success")

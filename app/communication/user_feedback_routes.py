@@ -21,7 +21,6 @@ from app.security.upload_security import UploadValidationError
 from app.services.bys360_notification_bridge import notify_user_feedback_created
 from app.support.routes import (
     SUPPORT_MODULE_CHOICES,
-    _ensure_support_tables_for_current_db,
     _store_ticket_attachment,
     _support_tables_ready,
 )
@@ -120,16 +119,15 @@ def _feedback_ticket_no() -> str:
     return f"GBD-{stamp}-{token_hex(3).upper()}"
 
 
-def _ensure_feedback_tables_ready() -> bool:
-    if _support_tables_ready():
-        return True
-    try:
-        _ensure_support_tables_for_current_db()
-        return _support_tables_ready()
-    except Exception:
-        logger.exception("BYS360 V6C guarded exception | file=app/communication/user_feedback_routes.py | line=128")
-        safe_db_rollback()
-        return False
+FEEDBACK_SCHEMA_MIGRATION_REQUIRED_MESSAGE = (
+    "Geri bildirim altyapısı hazır değil: destek tabloları için veritabanı migration/hazırlık işlemi "
+    "tamamlanmalıdır. Kaydınız alınmadı; lütfen sistem yöneticinize bildirin."
+)
+
+
+def _feedback_tables_ready() -> bool:
+    # G2: destek tablolarını Alembic a3d8f1c9b6e2 kurar; bu istek yalnız hazır olup olmadığını okur.
+    return _support_tables_ready()
 
 
 def _category_id_for_feedback(kind: FeedbackKind) -> int | None:
@@ -168,10 +166,10 @@ def bys360_feedback_new():
     Kullanıcıya ham teknik hata gösterilmez; kayıt destek/talep omurgasına bağlanır.
     """
 
-    is_ready = _ensure_feedback_tables_ready()
+    is_ready = _feedback_tables_ready()
     if request.method == "POST":
         if not is_ready:
-            flash("Geri bildirim altyapısı şu anda hazırlanamadı. Lütfen daha sonra yeniden deneyin.", "warning")
+            flash(FEEDBACK_SCHEMA_MIGRATION_REQUIRED_MESSAGE, "warning")
             return redirect(url_for("main.bys360_feedback_new"))
         try:
             kind_key = sanitize_free_text(request.form.get("feedback_kind"), limit=40) or "idea"
