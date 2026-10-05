@@ -17,8 +17,13 @@ tests exercise that real token contract rather than assuming it away.
 from __future__ import annotations
 
 import datetime as dt
+import sqlite3
+import tempfile
+import uuid
+from pathlib import Path
 
 import pytest
+from sqlalchemy import inspect, text
 
 
 def _make_app(monkeypatch):
@@ -38,6 +43,14 @@ def _make_app(monkeypatch):
     monkeypatch.setenv("LOGIN_FORCE_CAPTCHA_FOR_UNKNOWN_USER", "false")
 
     from app import create_app
+    from config import Config
+
+    # Config froze its values when config.py was first imported, possibly by
+    # another test pointing at its own SQLite file; pin them so every app here
+    # gets its own empty in-memory database.
+    monkeypatch.setattr(Config, "APP_ENV", "testing")
+    monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", "sqlite:///:memory:")
+    monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
@@ -52,7 +65,13 @@ def _make_app(monkeypatch):
 
 @pytest.fixture
 def app(monkeypatch):
-    return _make_app(monkeypatch)
+    flask_app = _make_app(monkeypatch)
+    yield flask_app
+    from app.extensions import db
+
+    with flask_app.app_context():
+        db.session.remove()
+        db.engine.dispose()
 
 
 @pytest.fixture
@@ -398,3 +417,50 @@ def test_acknowledge_called_twice_is_idempotent_single_row(app, client):
             .count()
         )
         assert count == 1
+
+
+# --- isolation from a stale process-global Config database URI ---
+#
+# config.Config.SQLALCHEMY_DATABASE_URI is computed once, when config.py is
+# first imported. If an earlier test imported it while DATABASE_URL pointed at
+# its own SQLite file, setting DATABASE_URL here came too late: this module's
+# apps silently used that file, saw announcements left by earlier apps and
+# collided on users.email when run again.
+
+_STALE_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "communication_announcement_stale_config"
+
+
+def test_app_does_not_inherit_a_stale_frozen_config_database_uri(monkeypatch):
+    from app.extensions import db
+    from config import Config
+
+    _STALE_DB_ROOT.mkdir(parents=True, exist_ok=True)
+    stale_path = _STALE_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
+    conn = sqlite3.connect(stale_path)
+    conn.execute("CREATE TABLE stale_config_marker (id INTEGER PRIMARY KEY)")
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", "sqlite:///" + stale_path.as_posix())
+
+    app = _make_app(monkeypatch)
+    counts = {}
+    try:
+        with app.app_context():
+            engine_url = str(db.engine.url)
+            on_stale_db = inspect(db.engine).has_table("stale_config_marker")
+            counts["users"] = db.session.execute(text("SELECT COUNT(*) FROM users")).scalar()
+            counts["announcements"] = db.session.execute(
+                text("SELECT COUNT(*) FROM announcements")
+            ).scalar()
+            counts["announcement_reads"] = db.session.execute(
+                text("SELECT COUNT(*) FROM announcement_reads")
+            ).scalar()
+    finally:
+        with app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        stale_path.unlink(missing_ok=True)
+
+    assert engine_url == "sqlite:///:memory:"
+    assert not on_stale_db
+    assert counts == {"users": 0, "announcements": 0, "announcement_reads": 0}
