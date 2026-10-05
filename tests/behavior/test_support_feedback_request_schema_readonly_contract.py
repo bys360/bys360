@@ -21,7 +21,7 @@ from sqlalchemy import event, inspect
 
 REPO = Path(__file__).resolve().parents[2]
 DDL = re.compile(r"^\s*(CREATE\s+(UNIQUE\s+)?INDEX|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+)", re.I)
-PASSWORD = "SupportFeedbackSchemaG2!"
+PASSWORD = "SupportFeedbackSchemaG2Test!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "support_feedback_schema_g2" / "dbs"
 
 ADMIN_SICIL = "G2SUPADMIN"
