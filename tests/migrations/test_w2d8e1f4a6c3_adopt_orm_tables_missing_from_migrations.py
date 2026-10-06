@@ -60,13 +60,13 @@ def _legacy_database(connection: sa.Connection) -> None:
     connection.execute(sa.text("INSERT INTO performance_periods (id, title) VALUES (7, '2026 Dönemi')"))
 
 
-def test_revision_extends_wave1_and_is_the_single_head():
+def test_revision_extends_wave1_and_precedes_the_interim_notes_adoption():
     module = _module()
     assert module.revision == "w2d8e1f4a6c3"
     assert module.down_revision == "w1c5a7d2e9b4"
     config = Config(str(ROOT / "migrations" / "alembic.ini"))
     config.set_main_option("script_location", str(ROOT / "migrations"))
-    assert ScriptDirectory.from_config(config).get_heads() == ["w2d8e1f4a6c3"]
+    assert ScriptDirectory.from_config(config).get_revision("x1f3a9c5e7b2").down_revision == "w2d8e1f4a6c3"
 
 
 def test_migration_built_database_gains_every_adopted_object():

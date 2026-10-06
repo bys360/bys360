@@ -201,8 +201,14 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, install_interim_notes_schema):
+    flask_app = _make_app(monkeypatch)
+    from app.extensions import db
+
+    with flask_app.app_context():
+        # The table is Alembic-owned (revision x1f3a9c5e7b2); requests no longer create it.
+        install_interim_notes_schema(db.engine)
+    return flask_app
 
 
 @pytest.fixture

@@ -10,10 +10,11 @@ every column it repairs and both indexes already existed.
 Scope of this contract (deliberately narrow):
 
 * complete schema -> zero CREATE / ALTER / DROP statements, same return value;
-* incomplete schema (missing table, column or index) -> the existing
-  create/repair behavior is preserved, not redesigned;
+* incomplete schema (missing table, column or index) -> reported, never repaired:
+  since G3-A the table is owned by Alembic revision x1f3a9c5e7b2 and this helper
+  is a read-only readiness check (it used to create/repair at request time);
 * the helper's existing ``db.session.commit()`` boundary is preserved
-  (characterization only: whether it should stay is a separate decision).
+  (characterization only: whether it should stay is the separate G3-B decision).
 
 Every assertion is made on SQL actually executed against a disposable SQLite
 file, captured with SQLAlchemy's ``before_cursor_execute`` event.
@@ -146,15 +147,15 @@ def _assert_schema_complete() -> None:
     assert set(INDEXES) <= {ix["name"] for ix in inspector.get_indexes(TABLE)}
 
 
-@pytest.mark.parametrize("built_by", ["explicit_ddl", "helper_itself"])
-def test_complete_schema_executes_no_ddl(app, built_by):
-    from app.services.performance.interim_notes_runtime import ensure_interim_notes_table
+@pytest.mark.parametrize("built_by", ["explicit_ddl", "alembic_revision"])
+def test_complete_schema_executes_no_ddl(app, built_by, install_interim_notes_schema):
+    from app.extensions import db
 
     with app.app_context():
         if built_by == "explicit_ddl":
             _create_table()
         else:
-            assert ensure_interim_notes_table() == (True, [])
+            install_interim_notes_schema(db.engine)
         _assert_schema_complete()
 
         result, statements = _ensure_capturing_sql()
@@ -200,45 +201,45 @@ def test_mobile_note_get_on_complete_schema_executes_no_ddl(app, path):
         _assert_schema_complete()
 
 
-# --- incomplete schema: existing behavior must be preserved -----------------
+# --- incomplete schema: reported, never repaired (Alembic owns the table) ----
 
 
-def test_missing_table_is_still_created(app):
+def test_missing_table_is_reported_not_created(app):
     from app.extensions import db
 
     with app.app_context():
         assert not inspect(db.engine).has_table(TABLE)
-        result, statements = _ensure_capturing_sql()
+        (ready, warnings), statements = _ensure_capturing_sql()
 
-        assert any(re.match(rf"CREATE TABLE IF NOT EXISTS {TABLE}\b", s, re.I) for s in statements), statements
-        assert result == (True, [])
-        _assert_schema_complete()
+        assert _ddl(statements) == []
+        assert ready is False and warnings
+        assert not inspect(db.engine).has_table(TABLE)
 
 
-def test_missing_repairable_column_is_still_added(app):
+def test_missing_repairable_column_is_reported_not_added(app):
     from app.extensions import db
 
     with app.app_context():
         _create_table(omit_column="note_text")
-        result, statements = _ensure_capturing_sql()
+        (ready, warnings), statements = _ensure_capturing_sql()
 
-        assert f"ALTER TABLE {TABLE} ADD COLUMN note_text TEXT NULL" in statements, _ddl(statements)
-        assert result == (True, [])
-        assert "note_text" in {c["name"] for c in inspect(db.engine).get_columns(TABLE)}
-        _assert_schema_complete()
+        assert _ddl(statements) == []
+        assert ready is False and warnings
+        assert "note_text" not in {c["name"] for c in inspect(db.engine).get_columns(TABLE)}
 
 
-def test_missing_index_is_still_created(app):
+def test_missing_index_is_reported_not_created(app):
+    from app.extensions import db
+
     with app.app_context():
         _create_table(omit_index="ix_perf_interim_notes_employee_user_period")
-        result, statements = _ensure_capturing_sql()
+        (ready, warnings), statements = _ensure_capturing_sql()
 
-        assert any(
-            re.match(r"CREATE INDEX IF NOT EXISTS ix_perf_interim_notes_employee_user_period\b", s, re.I)
-            for s in statements
-        ), _ddl(statements)
-        assert result == (True, [])
-        _assert_schema_complete()
+        assert _ddl(statements) == []
+        assert ready is False and warnings
+        assert "ix_perf_interim_notes_employee_user_period" not in {
+            ix["name"] for ix in inspect(db.engine).get_indexes(TABLE)
+        }
 
 
 def test_complete_schema_keeps_the_existing_commit_boundary(app):

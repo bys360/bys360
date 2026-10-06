@@ -25,9 +25,10 @@ defaulted to "postgresql" -- meaning _id_sql()/_bool_sql() always took the
 PostgreSQL branch even when actually running on SQLite, so the *reference*
 table (performance_interim_notes, managed by ensure_interim_notes_table())
 had exactly the same permanently-NULL id bug this whole time, despite
-"looking" dialect-branched in a static read. That helper is fixed too, and
-test_ensure_interim_notes_table_id_column_is_not_null_on_sqlite below proves
-it directly.
+"looking" dialect-branched in a static read. That helper was fixed too; since
+G3-A the table is created by Alembic revision x1f3a9c5e7b2 instead, and
+test_interim_notes_table_id_column_is_not_null_on_sqlite below proves the
+same guarantee there.
 """
 from __future__ import annotations
 
@@ -143,12 +144,15 @@ def test_interim_note_id_column_is_not_null_after_insert_on_sqlite(monkeypatch):
     assert ids[0] < ids[1]
 
 
-def test_ensure_interim_notes_table_id_column_is_not_null_on_sqlite(monkeypatch):
+def test_interim_notes_table_id_column_is_not_null_on_sqlite(monkeypatch, install_interim_notes_schema):
+    # Since G3-A the table comes from Alembic revision x1f3a9c5e7b2 (the readiness helper no
+    # longer creates it); the Defect AR guarantee -- a real autoincrement id on SQLite -- holds there.
     app = _make_app(monkeypatch)
     with app.app_context():
         from app.extensions import db
         from app.services.performance.interim_notes_runtime import ensure_interim_notes_table
 
+        install_interim_notes_schema(db.engine)
         ok, warnings = ensure_interim_notes_table()
         assert ok, warnings
 

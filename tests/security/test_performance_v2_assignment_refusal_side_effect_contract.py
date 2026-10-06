@@ -65,7 +65,7 @@ def _make_app(monkeypatch, uri):
 
 
 @pytest.fixture
-def env(monkeypatch):
+def env(monkeypatch, install_interim_notes_schema):
     from app.extensions import db
     from app.models import EvaluationAssignment, PerformancePeriod, User
     from app.services.performance.interim_notes_runtime import ensure_interim_notes_table
@@ -122,7 +122,9 @@ def env(monkeypatch):
             db.session.flush()
             ids[key] = int(assignment.id)
         db.session.commit()
-        # Complete interim-notes schema: the readiness check takes its no-DDL path.
+        # Complete interim-notes schema, built the production way (Alembic revision
+        # x1f3a9c5e7b2); the read-only readiness check then reports it ready.
+        install_interim_notes_schema(db.engine)
         assert ensure_interim_notes_table()[0] is True
         ids["period"] = int(period.id)
     yield SimpleNamespace(app=app, ids=ids)

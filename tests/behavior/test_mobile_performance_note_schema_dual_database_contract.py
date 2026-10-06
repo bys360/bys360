@@ -39,6 +39,12 @@ is deliberately stubbed to a no-op here, isolating exactly the function's
 OWN redundant six-statement block under test -- not a mock of the
 database, a mock of one unrelated collaborator so the code path under
 test runs against real SQL.
+
+G3-A (performance_interim_notes Alembic ownership, revision x1f3a9c5e7b2):
+the six-column retrofit block is removed outright -- the migration provides
+those columns, so this read path must no longer alter the table at all. The
+same legacy-shaped table now proves the opposite contract: zero DDL, columns
+unchanged, the service still answers.
 """
 from __future__ import annotations
 
@@ -154,23 +160,46 @@ def _cols(db) -> set[str]:
     return {c["name"] for c in inspect(db.engine).get_columns("performance_interim_notes")}
 
 
-def test_mobile_scorecard_service_adds_missing_columns_on_sqlite(app) -> None:
-    """AJ_CONFIRMED_DEFECT closure: calling the real, unmocked service
-    function against a legacy table genuinely missing all six columns
-    must actually add them under SQLite, not silently fail."""
+def _call_service_capturing_ddl(app):
+    import re
+
+    from sqlalchemy import event
+
+    from app.extensions import db
+
+    ddl: list[str] = []
+
+    def _capture(conn, cursor, statement, parameters, context, executemany):  # noqa: ARG001
+        if re.match(r"^\s*(CREATE|ALTER|DROP)\b", statement or "", re.I):
+            ddl.append(statement)
+
+    event.listen(db.engine, "before_cursor_execute", _capture)
+    try:
+        result = _call_service(app)
+    finally:
+        event.remove(db.engine, "before_cursor_execute", _capture)
+    return result, ddl
+
+
+LEGACY_COLUMNS = {"id", "period_id", "employee_id", "employee_user_id", "manager_id", "created_by", "created_by_id", "created_at"}
+
+
+def test_mobile_scorecard_service_does_not_add_missing_columns_on_sqlite(app) -> None:
+    """The real, unmocked service against a legacy table missing the six columns adds none of them."""
     from app.extensions import db
 
     with app.app_context():
-        _call_service(app)  # must not raise from the ADD COLUMN block
-        cols = _cols(db)
-        assert {"include_in_scorecard", "is_active", "title", "note", "note_body", "note_type"} <= cols
+        result, ddl = _call_service_capturing_ddl(app)
+        assert result == {}
+        assert ddl == []
+        assert _cols(db) == LEGACY_COLUMNS
 
 
-def test_mobile_scorecard_service_is_idempotent_on_second_invocation(app) -> None:
+def test_mobile_scorecard_service_stays_read_only_on_second_invocation(app) -> None:
     from app.extensions import db
 
     with app.app_context():
-        _call_service(app)
-        _call_service(app)  # must not raise a second time (duplicate-column guard)
-        cols = _cols(db)
-        assert {"include_in_scorecard", "is_active", "title", "note", "note_body", "note_type"} <= cols
+        _call_service_capturing_ddl(app)
+        _, ddl = _call_service_capturing_ddl(app)
+        assert ddl == []
+        assert _cols(db) == LEGACY_COLUMNS

@@ -155,28 +155,13 @@ def ensure_archive_table() -> tuple[bool, list[str]]:
 
 
 def ensure_interim_notes_table() -> tuple[bool, list[str]]:
+    # performance_interim_notes Alembic'e aittir (migrations/versions/x1f3a9c5e7b2);
+    # P2 uygulaması tabloyu oluşturmaz, yalnız varlığını denetler.
     warnings: list[str] = []
     if _has_table(P2_INTERIM_NOTES_TABLE):
         return True, warnings
-    bool_type = "BOOLEAN" if _dialect() != "sqlite" else "INTEGER"
-    try:
-        db.session.execute(text(f"""
-            CREATE TABLE {P2_INTERIM_NOTES_TABLE} (
-                {_id_column_sql()}, employee_user_id INTEGER NOT NULL, period_id INTEGER, note_type VARCHAR(80) NOT NULL,
-                note_title VARCHAR(255), note_body TEXT NOT NULL, visibility_scope VARCHAR(80) DEFAULT 'manager_scope',
-                remind_during_scoring {bool_type} DEFAULT 1, include_in_scorecard {bool_type} DEFAULT 0,
-                created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
-        db.session.commit()
-    except SQLAlchemyError as exc:
-        db.session.rollback()
-        warnings.append(f"Ara dönem not tablosu oluşturulamadı: {exc.__class__.__name__}")
-    except Exception as exc:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)
-        db.session.rollback()
-        warnings.append("Ara dönem not tablosu oluşturulamadı.")
-    return _has_table(P2_INTERIM_NOTES_TABLE), warnings
+    warnings.append("Ara dönem not tablosu bulunamadı; veritabanı migration'ı (flask db upgrade) çalıştırılmalıdır.")
+    return False, warnings
 
 
 def p2_status_checks() -> list[dict[str, Any]]:
