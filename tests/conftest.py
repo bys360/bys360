@@ -112,6 +112,41 @@ def install_interim_notes_schema_fixture():
     return install_interim_notes_schema
 # BYS360_G3A_INTERIM_NOTES_ALEMBIC_SCHEMA_END
 
+# BYS360_DEVELOPMENT_RECOMMENDATIONS_ALEMBIC_SCHEMA_START
+# performance_development_recommendations tek kanonik sözleşmeye sahiptir: Alembic revision
+# 29fee38a97e1'in 47 kolonluk Phase-10 şeması. ORM modeli yoktur; test veritabanları tabloyu
+# migration'ın kendi upgrade() adımıyla alır.
+_DEVELOPMENT_RECOMMENDATIONS_MIGRATION = (
+    Path(__file__).resolve().parents[1]
+    / "migrations"
+    / "versions"
+    / "29fee38a97e1_adopt_performance_development_.py"
+)
+
+
+def install_development_recommendations_schema(engine) -> None:
+    """Run revision 29fee38a97e1's upgrade() against ``engine`` (creates the canonical table)."""
+    import importlib.util
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    spec = importlib.util.spec_from_file_location(
+        "rev_29fee38a97e1_test_install", _DEVELOPMENT_RECOMMENDATIONS_MIGRATION
+    )
+    assert spec is not None and spec.loader is not None
+    module: Any = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with engine.begin() as connection:
+        module.op = Operations(MigrationContext.configure(connection))
+        module.upgrade()
+
+
+@pytest.fixture(name="install_development_recommendations_schema")
+def install_development_recommendations_schema_fixture():
+    return install_development_recommendations_schema
+# BYS360_DEVELOPMENT_RECOMMENDATIONS_ALEMBIC_SCHEMA_END
+
 # BYS360_A5_P2C_TEST_DB_FIX_START
 # Test-only app/client fixtures. Runtime uygulama koduna dokunmaz.
 # Ama?: route smoke testlerinde g?venli, yerel ve bo? SQLite test DB yolu sa?lamak.

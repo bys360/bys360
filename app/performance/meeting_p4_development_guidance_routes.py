@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app.extensions import db
 from app.models import PerformanceEvaluation
+from app.performance.phase10_development_guidance_ui import (
+    build_phase10_meeting_development_context,
+    save_phase10_recommendation_from_request,
+)
 from app.route_registry import main_bp
 from app.route_support import manager_required
 
@@ -16,32 +18,11 @@ from app.services.ai.stub_panel_bridge import attach_development_guidance_ai_pan
 
 # /BYS360_STUB_AI_V60_DEVELOPMENT_IMPORT
 from app.services.performance.meeting_p4_development_guidance import (
-    build_p4_development_guidance_context,
     can_manage_development_guidance,
     run_p4_development_guidance,
-    save_development_recommendation,
 )
 
 logger = logging.getLogger(__name__)
-
-try:
-    from app.performance.phase10_development_guidance_ui import (
-        build_phase10_meeting_development_context,
-        save_phase10_recommendation_from_request,
-    )
-    PHASE10_UI_AVAILABLE = True
-except Exception as exc:  # pragma: no cover - opsiyonel UI yükleme güvenliği
-    logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-    PHASE10_UI_AVAILABLE = False
-    PHASE10_UI_IMPORT_ERROR = exc
-
-    def build_phase10_meeting_development_context() -> dict[str, Any]:
-        context = build_p4_development_guidance_context()
-        context["ui_warning"] = "Gelişim rehberi arayüz bileşeni yüklenemedi; temel rehber görünümü açıldı."
-        return context
-
-    def save_phase10_recommendation_from_request() -> bool:
-        raise RuntimeError(f"Gelişim rehberi kayıt bileşeni yüklenemedi: {PHASE10_UI_IMPORT_ERROR}")
 
 
 @main_bp.route("/performance/meeting-development/faz10", methods=["GET", "POST"], endpoint="performance_meeting_p4_development_guidance")
@@ -85,33 +66,14 @@ def performance_scorecard_development_note_save(evaluation_id: int):
         flash("Gelişim önerisi kaydetme yetkiniz bulunmamaktadır.", "danger")
         return redirect(url_for("main.performance_scorecard_detail", evaluation_id=evaluation.id, period_id=evaluation.period_id or ""))
 
-    recommendation_type = (request.form.get("recommendation_type") or "guidance_note").strip()
-    title = (request.form.get("title") or "").strip()
-    recommendation_text = (request.form.get("recommendation_text") or "").strip()
-    visibility_scope = (request.form.get("visibility_scope") or "authorized_scope").strip()
-    is_required = request.form.get("is_required") == "on"
-
-    if not recommendation_text:
-        flash("Gelişim önerisi veya güçlü yön notu açıklaması zorunludur.", "warning")
-        return redirect(url_for("main.performance_scorecard_detail", evaluation_id=evaluation.id, period_id=evaluation.period_id or ""))
-
-    inserted_id = save_development_recommendation(
-        evaluation=evaluation,
-        created_by=getattr(current_user, "id", None),
-        recommendation_type=recommendation_type,
-        title=title,
-        recommendation_text=recommendation_text,
-        visibility_scope=visibility_scope,
-        is_required=is_required,
-        source="manual_scorecard",
-        status="draft",
+    # Karne üzerinden eski (P4) not kaydı kaldırıldı: tek kanonik yazıcı Gelişim Rehberi ekranıdır.
+    # Eski tür/görünürlük alanlarının kanonik karşılığı olmadığı için içerik dönüştürülmez veya
+    # kaydedilmez; kullanıcıya bu açıkça bildirilir.
+    flash(
+        "Karne üzerinden gelişim notu kaydı kaldırıldı; gönderdiğiniz not kaydedilmedi. "
+        "Gelişim önerilerini Gelişim Rehberi ekranından kaydedebilirsiniz.",
+        "warning",
     )
-    if inserted_id:
-        db.session.commit()
-        flash("Gelişim önerisi / güçlü yön notu karneye bağlandı.", "success")
-    else:
-        db.session.rollback()
-        flash("Gelişim önerisi kaydedilemedi. Lütfen açıklama alanını kontrol edin.", "warning")
-    return redirect(url_for("main.performance_scorecard_detail", evaluation_id=evaluation.id, period_id=evaluation.period_id or ""))
+    return redirect(url_for("main.performance_meeting_p4_development_guidance"))
 
 # BYS360_PHASE11_DEVELOPMENT_GUIDANCE_ROUTE_POST_READY: Gelişim Rehberi kayıt formu GET/POST uyumlu hale getirildi.

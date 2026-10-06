@@ -144,3 +144,29 @@ anlatır. Production kimliği §8'deki gibidir; bu değişiklik insan kararıyla
   şemalarda prova eder.
 - **Bilinmeyen biçim:** migration hiçbir değişiklik yapmadan açık bir hata ile durur; PostgreSQL'de
   upgrade işlemi geri alınır. Karar insan incelemesine bırakılır.
+
+## 10. Aday mühendislik kaydı: `performance_development_recommendations` tek sözleşme (2026-10-06)
+
+Bu bölüm bir production/dağıtım kaydı değildir; `assistant-v2-full` üzerindeki aday değişikliği
+anlatır. Production kimliği §8'deki gibidir.
+
+- **Tek kanonik sözleşme:** Alembic revision `29fee38a97e1` (Phase-10 biçimi, 47 kolon). Mevcut
+  runtime-schema grubu `performance.development_recommendations` aynı 47 kolonu tanımlar ve yalnız
+  `flask runtime-schema provision` ile çalışır. Bu değişiklikte migration yoktur.
+- **Eski P4 istek-anı sahipliği kaldırıldı:** `meeting_p4_development_guidance` artık tabloyu
+  oluşturmaz, değiştirmez (`ALTER TABLE`) ve eski P4 biçiminde (source, title, is_required, status,
+  evaluation_id, employee_user_id, approved_by, approved_at) kayıt eklemez. Karne üzerinden not kaydı
+  (`/performance/scorecard/<id>/development-note`) kayıt yapmadan Gelişim Rehberi ekranına yönlendirir;
+  `faz10/apply` yalnız modül ayarlarını hazırlar.
+- **Karne:** karne detayı ve karne PDF'i aynı kanonik "karnede gösterilmesi güvenli" kümeyi
+  `phase10_development_guidance_ui.fetch_scorecard_safe_recommendations()` üzerinden okur; PDF'te
+  bölüm tek kez ve `</html>` öncesindedir. 70 altı yayın kapısı da aynı okuyucuyu kullanır.
+- **Production için açık kontrol (canlıya geçiş öncesi, salt okuma):** production katalogunun hâli
+  bilinmiyor. Eski P4 aşısı uygulanmışsa tabloda eski kolonların bir kısmı (`title` hariç 7 kolon)
+  veya tamamı bulunabilir. `title VARCHAR(255) NOT NULL` kolonu varsa kanonik Gelişim Rehberi yazıcısı
+  `NotNullViolation (23502)` ile kayıt ekleyemez (tek kullanımlık PostgreSQL 15 provasında doğrulandı).
+  Canlıya geçişten önce `information_schema.columns` üzerinden bu kolonlar ve `title` kolonunun
+  NOT NULL durumu salt okuma ile kontrol edilmeli; bulgu insan kararına bırakılmalıdır. Yıkıcı bir
+  migration yetkilendirilmemiştir.
+- **G3-B açık:** dönem içi not hazırlık yardımcısının commit sınırı değişmedi; karne çıktısı bu
+  commit açıkken ve kapatılmış hâliyle aynıdır.

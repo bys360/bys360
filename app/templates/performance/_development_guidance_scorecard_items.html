@@ -1,0 +1,50 @@
+{# Karne gelişim önerisi kartları — tek kanonik görünüm.
+   Girdi: phase10_development_guidance_ui.fetch_scorecard_safe_recommendations() çıktısı
+   (normalize_recommendation alanları). Karne detayı, karne PDF'i ve karne altı bölümü
+   aynı makroyu kullanır; içerik seviyesi (scorecard_detail_level) kuralı burada uygulanır.
+#}
+{% macro render_scorecard_guidance_items(items) -%}
+<style>
+  .dev-guide-scorecard-box{margin-top:18px;border:1px solid rgba(139,0,0,.14);border-radius:18px;background:rgba(255,255,255,.92);box-shadow:0 10px 24px rgba(20,20,30,.05);overflow:hidden;}
+  .dev-guide-scorecard-head{padding:15px 17px;border-bottom:1px solid rgba(20,20,30,.07);background:linear-gradient(135deg,rgba(139,0,0,.08),rgba(255,255,255,.75));}
+  .dev-guide-scorecard-head h3{margin:0;color:#8B0000;font-size:1.05rem;font-weight:850;}
+  .dev-guide-scorecard-head p{margin:5px 0 0;color:#666b73;font-size:.9rem;}
+  .dev-guide-scorecard-item{padding:15px 17px;border-top:1px solid rgba(20,20,30,.055);}
+  .dev-guide-scorecard-item:first-of-type{border-top:0;}
+  .dev-guide-scorecard-meta{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px;}
+  .dev-guide-scorecard-pill{display:inline-flex;border-radius:999px;padding:5px 9px;background:#f6f3f3;color:#555;font-size:.78rem;font-weight:800;}
+  .dev-guide-scorecard-pill.red{background:rgba(139,0,0,.08);color:#8B0000;}
+  .dev-guide-scorecard-text{color:#3f444b;line-height:1.55;font-size:.94rem;white-space:pre-line;}
+</style>
+{% for item in items %}
+    <div class="dev-guide-scorecard-item">
+      <div class="dev-guide-scorecard-meta">
+        <span class="dev-guide-scorecard-pill red">{{ item.recommendation_type_label }}</span>
+        <span class="dev-guide-scorecard-pill">{{ item.development_area_label }}</span>
+        <span class="dev-guide-scorecard-pill">{{ item.priority_label }}</span>
+        <span class="dev-guide-scorecard-pill">{{ item.scorecard_detail_label }}</span>
+        {% if item.target_date and item.target_date != 'Hedef tarih yok' %}
+          <span class="dev-guide-scorecard-pill">Hedef: {{ item.target_date }}</span>
+        {% endif %}
+      </div>
+
+      {% if item.employee_message %}
+        <div class="dev-guide-scorecard-text"><b>Bilgilendirme:</b> {{ item.employee_message }}</div>
+      {% endif %}
+
+      {% if item.scorecard_detail_level in ['goal_action', 'full_plan'] and item.smart_goal %}
+        <div class="dev-guide-scorecard-text" style="margin-top:7px;"><b>Hedef:</b> {{ item.smart_goal }}</div>
+      {% endif %}
+
+      {% if item.scorecard_detail_level in ['goal_action', 'full_plan'] and item.action_steps %}
+        <div class="dev-guide-scorecard-text" style="margin-top:7px;"><b>Aksiyon:</b> {{ item.action_steps }}</div>
+      {% endif %}
+
+      {% if item.scorecard_detail_level == 'full_plan' and item.success_criteria %}
+        <div class="dev-guide-scorecard-text" style="margin-top:7px;"><b>Başarı ölçütü:</b> {{ item.success_criteria }}</div>
+      {% endif %}
+
+      <div class="dev-guide-scorecard-text" style="margin-top:7px;"><b>Gelişim önerisi:</b> {{ item.recommendation_text }}</div>
+    </div>
+{% endfor %}
+{%- endmacro %}

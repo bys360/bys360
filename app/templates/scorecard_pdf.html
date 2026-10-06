@@ -513,15 +513,8 @@
                 </div>
                 <div class="development-alert"><strong>{{ development_ctx.status_label or 'Rehberlik alanı' }}:</strong> {{ development_ctx.status_detail or 'Gelişim önerileri ve güçlü yön notları karar destek niteliğindedir.' }}</div>
                 {% if development_rows %}
-                <div class="development-list">
-                    {% for item in development_rows %}
-                    <div class="development-card">
-                        <div class="development-meta"><span>{{ item.type_label or item.recommendation_type or 'Gelişim Önerisi' }}</span><span>{{ item.created_display or '-' }}</span></div>
-                        <div class="development-title">{{ item.title or 'Gelişim Önerisi' }}</div>
-                        <div class="development-body">{{ item.recommendation_text or 'Açıklama girilmemiş.' }}</div>
-                    </div>
-                    {% endfor %}
-                </div>
+                {% from "performance/_development_guidance_scorecard_items.html" import render_scorecard_guidance_items %}
+                {{ render_scorecard_guidance_items(development_rows) }}
                 {% endif %}
             </div>
             {% endif %}
@@ -687,7 +680,5 @@
     </script>
 </body>
 </html>
-
-{% include "performance/_development_guidance_scorecard_section.html" ignore missing %}
 
 {# BYS360_PHASE5_5_MOBILE_ACTIONS_GUARD: buton/form aksiyonları mobilde tek sütuna düşer #}
