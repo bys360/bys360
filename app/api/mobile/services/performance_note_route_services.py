@@ -176,36 +176,9 @@ def phase3c_mobile_performance_note_scorecard_v2863a_service(user: Any, deps: di
     except Exception:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
         __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: sessiz except/pass yakalandi (app/api/mobile/performance_routes.py:1699)")
-    from sqlalchemy import inspect as _sql_inspect, text as _sql_text
-    # BYS360 DEFECT AJ: "ADD COLUMN IF NOT EXISTS" is PostgreSQL-only --
-    # SQLite raises sqlite3.OperationalError: near "EXISTS": syntax error
-    # unconditionally (confirmed empirically, identical to Defect AI's
-    # finding in process_engine_phase8_tracking.py), which the broad except
-    # below silently swallowed on every SQLite call. Existence is now
-    # checked first via SQLAlchemy's dialect-neutral inspect(), then a
-    # plain ADD COLUMN (portable to both dialects) runs only when missing.
-    try:
-        _existing_note_cols = (
-            {c["name"] for c in _sql_inspect(db.engine).get_columns('performance_interim_notes')}
-            if _sql_inspect(db.engine).has_table('performance_interim_notes')
-            else set()
-        )
-        _note_columns_needed = {
-            'include_in_scorecard': 'BOOLEAN DEFAULT FALSE',
-            'is_active': 'BOOLEAN DEFAULT TRUE',
-            'title': 'VARCHAR(255) NULL',
-            'note': 'TEXT NULL',
-            'note_body': 'TEXT NULL',
-            'note_type': "VARCHAR(80) NOT NULL DEFAULT 'genel_gozlem'",
-        }
-        for _col_name, _col_ddl in _note_columns_needed.items():
-            if _col_name in _existing_note_cols:
-                continue
-            db.session.execute(_sql_text(f'ALTER TABLE performance_interim_notes ADD COLUMN {_col_name} {_col_ddl}'))
-        db.session.commit()
-    except Exception:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        db.session.rollback()
+    from sqlalchemy import text as _sql_text
+    # performance_interim_notes kolonları Alembic revision x1f3a9c5e7b2 ile sağlanır;
+    # bu okuma yolu tabloya kolon eklemez.
     where = ['COALESCE(is_active, TRUE) = TRUE', 'COALESCE(include_in_scorecard, FALSE) = TRUE']
     params = {'limit': 160}
     if not _has_global_scope(user):

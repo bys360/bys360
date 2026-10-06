@@ -212,6 +212,6 @@ def test_phase5v_revision_extends_the_single_current_head() -> None:
 
     assert module.revision == "5a7c9e1f2b30"
     assert module.down_revision == "bys360_portal_v2121"
-    # w2d8e1f4a6c3 (adopt ORM tables missing from migrations) extends
-    # w1c5a7d2e9b4 and is now the single current head.
-    assert script.get_heads() == ["w2d8e1f4a6c3"]
+    # x1f3a9c5e7b2 (adopt performance_interim_notes into Alembic ownership)
+    # extends w2d8e1f4a6c3 and is now the single current head.
+    assert script.get_heads() == ["x1f3a9c5e7b2"]

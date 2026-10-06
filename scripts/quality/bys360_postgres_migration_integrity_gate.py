@@ -37,11 +37,13 @@ or the migration chain itself failed -- see stdout for exactly which.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
@@ -405,6 +407,253 @@ def run_flask_db_upgrade(database_url: str) -> subprocess.CompletedProcess:
     )
 
 
+# performance_interim_notes is owned by one Alembic revision (G3-A). The gate proves on
+# PostgreSQL 15 that `flask db upgrade` alone creates it in the canonical shape, and
+# rehearses the adoption of every known request-time legacy shape (each in its own
+# schema of this disposable database), the fail-closed refusal of an unknown shape
+# and the transactional rollback of an interrupted adoption.
+INTERIM_NOTES_TABLE = "performance_interim_notes"
+INTERIM_NOTES_OWNER_REVISION = MIGRATIONS_VERSIONS_DIR / "x1f3a9c5e7b2_adopt_performance_interim_notes_into_alembic.py"
+PG_TYPE_BY_FAMILY = {
+    "integer": "integer",
+    "varchar": "character varying",
+    "text": "text",
+    "boolean": "boolean",
+    "timestamp": "timestamp without time zone",
+}
+# PostgreSQL renderings of the historical creators' DDL (rehearsal fixtures).
+_INTERIM_RUNTIME_PG_DDL = f"""
+    CREATE TABLE {INTERIM_NOTES_TABLE} (
+        id SERIAL PRIMARY KEY, period_id INTEGER NULL, employee_id INTEGER NULL, employee_user_id INTEGER NULL,
+        manager_id INTEGER NULL, created_by INTEGER NULL, created_by_id INTEGER NULL,
+        note_type VARCHAR(80) NOT NULL DEFAULT 'genel_gozlem', title VARCHAR(255) NULL, note_title VARCHAR(255) NULL,
+        note TEXT NULL, note_body TEXT NULL, note_text TEXT NULL, content TEXT NULL, description TEXT NULL,
+        visibility_level VARCHAR(80) NOT NULL DEFAULT 'manager_scope', visibility_scope VARCHAR(80) NULL DEFAULT 'manager_scope',
+        remind_in_evaluation BOOLEAN DEFAULT TRUE NULL, remind_during_scoring BOOLEAN DEFAULT TRUE NULL,
+        include_in_scorecard BOOLEAN DEFAULT FALSE NULL, visible_on_scorecard BOOLEAN DEFAULT FALSE NULL,
+        is_active BOOLEAN DEFAULT TRUE NULL, active BOOLEAN DEFAULT TRUE NULL,
+        occurred_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP)"""
+_INTERIM_RUNTIME_PG_INDEXES = (
+    f"CREATE INDEX ix_perf_interim_notes_employee_period ON {INTERIM_NOTES_TABLE}(employee_id, period_id)",
+    f"CREATE INDEX ix_perf_interim_notes_employee_user_period ON {INTERIM_NOTES_TABLE}(employee_user_id, period_id)",
+)
+_INTERIM_MOBILE_PG_DDL = f"""
+    CREATE TABLE {INTERIM_NOTES_TABLE} (
+        id SERIAL PRIMARY KEY, period_id INTEGER NULL, employee_id INTEGER NULL, employee_user_id INTEGER NULL,
+        manager_id INTEGER NULL, created_by INTEGER NULL, created_by_id INTEGER NULL,
+        note_type VARCHAR(80) NOT NULL DEFAULT 'genel_gozlem', title VARCHAR(255) NULL, note TEXT NULL, note_body TEXT NULL,
+        visibility_level VARCHAR(80) NULL DEFAULT 'manager_scope', remind_during_scoring BOOLEAN DEFAULT TRUE,
+        include_in_scorecard BOOLEAN DEFAULT FALSE, is_active BOOLEAN DEFAULT TRUE,
+        occurred_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP)"""
+# The P2 helper's own DDL (BOOLEAN DEFAULT 1) is rejected by PostgreSQL; this is the same
+# structure with valid boolean defaults, the closest shape that could exist there.
+_INTERIM_P2_PG_DDL = f"""
+    CREATE TABLE {INTERIM_NOTES_TABLE} (
+        id SERIAL PRIMARY KEY, employee_user_id INTEGER NOT NULL, period_id INTEGER, note_type VARCHAR(80) NOT NULL,
+        note_title VARCHAR(255), note_body TEXT NOT NULL, visibility_scope VARCHAR(80) DEFAULT 'manager_scope',
+        remind_during_scoring BOOLEAN DEFAULT TRUE, include_in_scorecard BOOLEAN DEFAULT FALSE, created_by INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
+_INTERIM_D1A0_EXTRAS = (
+    f"ALTER TABLE {INTERIM_NOTES_TABLE} ADD COLUMN development_guidance_id INTEGER",
+    f"ALTER TABLE {INTERIM_NOTES_TABLE} ADD COLUMN converted_to_guidance BOOLEAN",
+)
+_INTERIM_SENTINEL = (
+    f"INSERT INTO {INTERIM_NOTES_TABLE} (id, employee_user_id, period_id, note_type, note_body, include_in_scorecard, created_at) "
+    "VALUES (9001, 77, 5, 'basari', 'G3A sentinel: Proje ödülü – korunmalı', TRUE, '2026-01-02 03:04:05')"
+)
+INTERIM_LEGACY_REHEARSALS: dict[str, tuple[tuple[str, ...], str]] = {
+    "CANONICAL_VARIANT": ((_INTERIM_RUNTIME_PG_DDL, *_INTERIM_RUNTIME_PG_INDEXES), "CANONICAL_VARIANT"),
+    "RUNTIME_VARIANT": ((_INTERIM_RUNTIME_PG_DDL,), "RUNTIME_VARIANT"),
+    "MOBILE_VARIANT": ((_INTERIM_MOBILE_PG_DDL,), "MOBILE_VARIANT"),
+    "MOBILE_VARIANT_WITH_D1A0": ((_INTERIM_MOBILE_PG_DDL, *_INTERIM_D1A0_EXTRAS), "MOBILE_VARIANT"),
+    "MEETING_P2_VARIANT": ((_INTERIM_P2_PG_DDL,), "MEETING_P2_VARIANT"),
+    "MEETING_P2_VARIANT_WITH_D1A0": ((_INTERIM_P2_PG_DDL, *_INTERIM_D1A0_EXTRAS), "MEETING_P2_VARIANT"),
+}
+
+
+def load_interim_notes_contract():
+    """The owner revision module (its CANONICAL_COLUMNS/CANONICAL_INDEXES are the contract)."""
+    spec = importlib.util.spec_from_file_location("x1f3a9c5e7b2_gate_contract", INTERIM_NOTES_OWNER_REVISION)
+    if spec is None or spec.loader is None:
+        raise GateFailure("INTERIM_NOTES_CONTRACT_MISSING", f"Cannot load {INTERIM_NOTES_OWNER_REVISION}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def compare_interim_notes_catalog(
+    columns: list[dict], indexes: Mapping[str, tuple[str, ...]], pk_columns: list[str], contract
+) -> list[str]:
+    """Problems between a PostgreSQL catalog snapshot and the canonical contract (empty = exact match)."""
+    problems: list[str] = []
+    by_name = {column["name"]: column for column in columns}
+    expected = {name: (family, length, nullable, default) for name, family, length, nullable, default in contract.CANONICAL_COLUMNS}
+    if set(by_name) != set(expected):
+        problems.append(f"columns differ: missing {sorted(set(expected) - set(by_name))}, extra {sorted(set(by_name) - set(expected))}")
+    for name, (family, length, nullable, default) in expected.items():
+        column = by_name.get(name)
+        if column is None:
+            continue
+        if column["data_type"] != PG_TYPE_BY_FAMILY[family] or (family == "varchar" and column["length"] != length):
+            problems.append(f"{name}: type {column['data_type']}({column['length']}), expected {PG_TYPE_BY_FAMILY[family]}({length})")
+        if (column["is_nullable"] == "YES") is not nullable:
+            problems.append(f"{name}: is_nullable={column['is_nullable']}")
+        token = contract.default_token(column["default"])
+        if token != ("sequence" if name == "id" else default):
+            problems.append(f"{name}: default {column['default']!r}")
+    expected_indexes = dict(contract.CANONICAL_INDEXES)
+    if dict(indexes) != expected_indexes:
+        problems.append(f"indexes {indexes!r}, expected {expected_indexes!r}")
+    if pk_columns != ["id"]:
+        problems.append(f"primary key {pk_columns!r}")
+    return problems
+
+
+def _interim_notes_catalog(parts) -> tuple[list[dict], dict[str, tuple[str, ...]], list[str]]:
+    conn = _connect(parts)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT column_name, data_type, character_maximum_length, is_nullable, column_default "
+                "FROM information_schema.columns WHERE table_schema = 'public' AND table_name = %s "
+                "ORDER BY ordinal_position;",
+                (INTERIM_NOTES_TABLE,),
+            )
+            columns = [dict(zip(("name", "data_type", "length", "is_nullable", "default"), row, strict=True)) for row in cur.fetchall()]
+            cur.execute(
+                "SELECT i.relname, array_agg(a.attname ORDER BY k.ord) FROM pg_index x "
+                "JOIN pg_class i ON i.oid = x.indexrelid JOIN pg_class t ON t.oid = x.indrelid "
+                "JOIN pg_namespace n ON n.oid = t.relnamespace "
+                "CROSS JOIN LATERAL unnest(x.indkey) WITH ORDINALITY AS k(attnum, ord) "
+                "JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum "
+                "WHERE n.nspname = 'public' AND t.relname = %s AND NOT x.indisprimary GROUP BY i.relname;",
+                (INTERIM_NOTES_TABLE,),
+            )
+            indexes = {row[0]: tuple(row[1]) for row in cur.fetchall()}
+            cur.execute(
+                "SELECT kcu.column_name FROM information_schema.table_constraints tc "
+                "JOIN information_schema.key_column_usage kcu ON kcu.constraint_name = tc.constraint_name "
+                "AND kcu.table_schema = tc.table_schema WHERE tc.table_schema = 'public' AND tc.table_name = %s "
+                "AND tc.constraint_type = 'PRIMARY KEY' ORDER BY kcu.ordinal_position;",
+                (INTERIM_NOTES_TABLE,),
+            )
+            pk_columns = [row[0] for row in cur.fetchall()]
+    finally:
+        conn.close()
+    return columns, indexes, pk_columns
+
+
+def introspect_interim_notes_ownership(parts) -> list[str]:
+    """Run right after `flask db upgrade` and before any runtime-schema step."""
+    columns, indexes, pk_columns = _interim_notes_catalog(parts)
+    if not columns:
+        return [f"{INTERIM_NOTES_TABLE} does not exist after flask db upgrade"]
+    return compare_interim_notes_catalog(columns, indexes, pk_columns, load_interim_notes_contract())
+
+
+def rehearse_interim_notes_legacy_adoption(database_url: str) -> dict[str, str]:
+    """Adopt each known legacy shape on PostgreSQL 15 in its own schema; returns {case: outcome}."""
+    import sqlalchemy as sa
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    contract = load_interim_notes_contract()
+    canonical = {name for name, *_ in contract.CANONICAL_COLUMNS}
+    admin = sa.create_engine(database_url)
+    outcomes: dict[str, str] = {}
+    schemas: list[str] = []
+
+    def engine_for(schema: str):
+        admin_conn = admin.connect()
+        admin_conn.execute(sa.text(f"CREATE SCHEMA {schema}"))
+        admin_conn.commit()
+        admin_conn.close()
+        schemas.append(schema)
+        return sa.create_engine(database_url, connect_args={"options": f"-csearch_path={schema}"})
+
+    def snapshot(engine):
+        with engine.connect() as conn:
+            insp = sa.inspect(conn)
+            cols = [c["name"] for c in insp.get_columns(INTERIM_NOTES_TABLE)]
+            idx = sorted(i["name"] for i in insp.get_indexes(INTERIM_NOTES_TABLE))
+            rows = [dict(r) for r in conn.execute(sa.text(f"SELECT * FROM {INTERIM_NOTES_TABLE} ORDER BY id")).mappings()]
+        return cols, idx, rows
+
+    def upgrade(conn, operations=None):
+        contract.op = operations or Operations(MigrationContext.configure(conn))
+        contract.upgrade()
+
+    try:
+        for number, (case, (statements, expected_variant)) in enumerate(INTERIM_LEGACY_REHEARSALS.items()):
+            engine = engine_for(f"g3a_rehearsal_{number}")
+            with engine.begin() as conn:
+                for statement in statements:
+                    conn.execute(sa.text(statement))
+                conn.execute(sa.text(_INTERIM_SENTINEL))
+            with engine.connect() as conn:
+                variant = contract.classify_existing_table(conn).variant
+            if variant != expected_variant:
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", f"{case}: classified {variant}, expected {expected_variant}")
+            _, _, rows_before = snapshot(engine)
+            with engine.begin() as conn:
+                upgrade(conn)
+            cols, idx, rows_after = snapshot(engine)
+            if not canonical <= set(cols) or idx != sorted(name for name, _ in contract.CANONICAL_INDEXES):
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", f"{case}: not canonical after upgrade: columns {cols}, indexes {idx}")
+            if len(rows_after) != len(rows_before) or any(
+                {k: new[k] for k in old} != old for old, new in zip(rows_before, rows_after, strict=True)
+            ):
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", f"{case}: sentinel rows changed: {rows_before} -> {rows_after}")
+            engine.dispose()
+            outcomes[case] = f"{variant} adopted, sentinel preserved"
+
+        engine = engine_for("g3a_rehearsal_unknown")
+        with engine.begin() as conn:
+            conn.execute(sa.text(_INTERIM_RUNTIME_PG_DDL))
+            conn.execute(sa.text(f"ALTER TABLE {INTERIM_NOTES_TABLE} ADD COLUMN personnel_id INTEGER"))
+        before = snapshot(engine)
+        try:
+            with engine.begin() as conn:
+                upgrade(conn)
+        except contract.InterimNotesSchemaNotRecognized:
+            pass
+        else:
+            raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "unknown shape was not refused")
+        if snapshot(engine) != before:
+            raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "unknown shape changed although refused")
+        engine.dispose()
+        outcomes["UNKNOWN_VARIANT"] = "refused, unchanged"
+
+        engine = engine_for("g3a_rehearsal_rollback")
+        with engine.begin() as conn:
+            conn.execute(sa.text(_INTERIM_MOBILE_PG_DDL))
+            conn.execute(sa.text(_INTERIM_SENTINEL))
+        before = snapshot(engine)
+
+        class _FailingOperations(Operations):
+            def create_index(self, *args, **kwargs):  # columns were already added in this transaction
+                raise RuntimeError("injected failure during adoption")
+
+        try:
+            with engine.begin() as conn:
+                upgrade(conn, _FailingOperations(MigrationContext.configure(conn)))
+        except RuntimeError:
+            pass
+        if snapshot(engine) != before:
+            raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "interrupted adoption left a half-adopted table")
+        engine.dispose()
+        outcomes["INTERRUPTED_ADOPTION"] = "rolled back, unchanged"
+    finally:
+        with admin.connect() as conn:
+            for schema in schemas:
+                conn.execute(sa.text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
+            conn.commit()
+        admin.dispose()
+    return outcomes
+
+
 RUNTIME_SCHEMA_TIMEOUT_SECONDS = 300
 RUNTIME_SCHEMA_LINE = re.compile(r"^[a-z0-9_.]+: ")
 
@@ -550,8 +799,19 @@ def main(argv: list[str] | None = None) -> int:
         orm_column_count = sum(len(columns) for columns in orm_columns.values())
         print(f"POSTGRES15_ORM_PARITY=PASS (checked {len(orm_columns)} tables, {orm_column_count} columns)")
 
+        interim_problems = introspect_interim_notes_ownership(parts)
+        if interim_problems:
+            raise GateFailure(
+                "INTERIM_NOTES_CONTRACT_MISMATCH",
+                f"{INTERIM_NOTES_TABLE} after flask db upgrade alone: {'; '.join(interim_problems)}",
+            )
+        print(f"POSTGRES15_INTERIM_NOTES_ALEMBIC_OWNERSHIP=PASS ({INTERIM_NOTES_TABLE} created by flask db upgrade alone, canonical contract)")
+
         runtime_groups = check_runtime_schema(raw_url)
         print(f"POSTGRES15_RUNTIME_SCHEMA=PASS (provisioned and verified {runtime_groups} groups, second provision no-op)")
+
+        rehearsal = rehearse_interim_notes_legacy_adoption(raw_url)
+        print(f"POSTGRES15_INTERIM_NOTES_LEGACY_ADOPTION=PASS ({len(rehearsal)} cases: {', '.join(sorted(rehearsal))})")
 
     except GateFailure as exc:
         print(f"{PACKAGE}_{exc.code}")

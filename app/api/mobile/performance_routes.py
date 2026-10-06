@@ -956,45 +956,14 @@ def _v2853_note_bool(value, default=False):
 
 
 def _v2853_ensure_interim_notes_table():
+    # performance_interim_notes Alembic'e aittir (migrations/versions/x1f3a9c5e7b2);
+    # burada tablo oluşturulmaz, yalnız salt okuma hazırlık denetimi yapılır.
     try:
         from app.services.performance.interim_notes_runtime import ensure_interim_notes_table
-        ensure_interim_notes_table()
-        return True
+        return ensure_interim_notes_table()[0]
     except Exception:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        try:
-            from sqlalchemy import text as _sql_text
-
-            from app.services.performance.interim_notes_runtime import _id_sql
-            # BYS360 DEFECT AR: id artik dialect'e gore uretiliyor (eskiden sabit SERIAL SQLite'ta kalici NULL kaliyordu).
-            db.session.execute(_sql_text(f'''
-                CREATE TABLE IF NOT EXISTS performance_interim_notes (
-                    {_id_sql()},
-                    period_id INTEGER NULL,
-                    employee_id INTEGER NULL,
-                    employee_user_id INTEGER NULL,
-                    manager_id INTEGER NULL,
-                    created_by INTEGER NULL,
-                    created_by_id INTEGER NULL,
-                    note_type VARCHAR(80) NOT NULL DEFAULT 'genel_gozlem',
-                    title VARCHAR(255) NULL,
-                    note TEXT NULL,
-                    note_body TEXT NULL,
-                    visibility_level VARCHAR(80) NULL DEFAULT 'manager_scope',
-                    remind_during_scoring BOOLEAN DEFAULT TRUE,
-                    include_in_scorecard BOOLEAN DEFAULT FALSE,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    occurred_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-                )
-            '''))
-            db.session.commit()
-            return True
-        except Exception:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            db.session.rollback()
-            return False
+        return False
 
 
 def _bys360_legacy__v2853_note_type_label(value):

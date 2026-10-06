@@ -26,10 +26,15 @@ logger = logging.getLogger(__name__)
 # BYS360_INTERIM_NOTES_RUNTIME_BINDING
 
 TABLE_NAME = "performance_interim_notes"
-INDEXES = {
-    "ix_perf_interim_notes_employee_period": "employee_id, period_id",
-    "ix_perf_interim_notes_employee_user_period": "employee_user_id, period_id",
-}
+# Şema sahibi Alembic revision x1f3a9c5e7b2'dir (flask db upgrade). İstek kodu bu tabloyu
+# oluşturmaz, kolon veya indeks eklemez; yalnız hazır olup olmadığını salt okuma ile denetler.
+REQUIRED_COLUMNS = frozenset({
+    "id", "period_id", "employee_id", "employee_user_id", "manager_id", "created_by", "created_by_id",
+    "note_type", "title", "note_title", "note", "note_body", "note_text", "content", "description",
+    "visibility_level", "visibility_scope", "remind_in_evaluation", "remind_during_scoring",
+    "include_in_scorecard", "visible_on_scorecard", "is_active", "active", "occurred_at", "created_at", "updated_at",
+})
+INDEXES = ("ix_perf_interim_notes_employee_period", "ix_perf_interim_notes_employee_user_period")
 
 NOTE_TYPE_LABELS = {
     "olumlu_olay": "Olumlu Olay",
@@ -67,16 +72,6 @@ def _dialect_name() -> str:
         return "postgresql"
 
 
-def _bool_sql(default: bool | None = None) -> str:
-    if _dialect_name() == "sqlite":
-        if default is None:
-            return "INTEGER"
-        return "INTEGER DEFAULT " + ("1" if default else "0")
-    if default is None:
-        return "BOOLEAN"
-    return "BOOLEAN DEFAULT " + ("TRUE" if default else "FALSE")
-
-
 def _id_sql() -> str:
     # BYS360_PHASE10_INTERIM_NOTES_CREATE_TABLE_ID_FIX_V1_1
     # CREATE TABLE kolon tanımında kolon adı zorunludur.
@@ -101,8 +96,8 @@ def _columns(table_name: str) -> set[str]:
         return set()
 
 
-def _schema_complete(columns: dict[str, str]) -> bool:
-    """Salt okuma: tablo, verilen kolonların tümü ve iki indeks zaten varsa True döner."""
+def _schema_ready() -> bool:
+    """Salt okuma: tablo, kanonik kolonlar ve iki indeks migration ile hazırlanmışsa True döner."""
     try:
         inspector = inspect(db.engine)
         if not inspector.has_table(TABLE_NAME):
@@ -112,118 +107,29 @@ def _schema_complete(columns: dict[str, str]) -> bool:
     except Exception:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
         return False
-    return set(columns) <= existing_columns and set(INDEXES) <= existing_indexes
-
-
-def _safe_add_column(table_name: str, column: str, ddl: str, existing: set[str], warnings: list[str]) -> None:
-    if column in existing:
-        return
-    try:
-        db.session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column} {ddl}"))
-        db.session.commit()
-        existing.add(column)
-    except Exception as exc:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        db.session.rollback()
-        warnings.append(f"{column} kolonu eklenemedi: {exc.__class__.__name__}")
+    return existing_columns >= REQUIRED_COLUMNS and existing_indexes >= set(INDEXES)
 
 
 def ensure_interim_notes_table() -> tuple[bool, list[str]]:
-    """Dönem içi not tablosunu idempotent biçimde hazırlar.
+    """Dönem içi not tablosunun hazır olup olmadığını salt okuma ile denetler.
 
-    Yönetim sayfası /performance/interim-notes bu tabloyu kullanır.
-    Buradaki amaç tablo yoksa güvenli temel yapıyı kurmak; varsa mevcut veriye dokunmamaktır.
+    Tablo Alembic revision x1f3a9c5e7b2 ile oluşturulur/benimsenir; bu yardımcı DDL
+    çalıştırmaz. Hazır değilse uyarı döner ve okuyucular boş sonuçla devam eder.
     """
     warnings: list[str] = []
-    desired_columns = {
-        "period_id": "INTEGER NULL",
-        "employee_id": "INTEGER NULL",
-        "employee_user_id": "INTEGER NULL",
-        "manager_id": "INTEGER NULL",
-        "created_by": "INTEGER NULL",
-        "created_by_id": "INTEGER NULL",
-        "note_type": "VARCHAR(80) NOT NULL DEFAULT 'genel_gozlem'",
-        "title": "VARCHAR(255) NULL",
-        "note_title": "VARCHAR(255) NULL",
-        "note": "TEXT NULL",
-        "note_body": "TEXT NULL",
-        "note_text": "TEXT NULL",
-        "content": "TEXT NULL",
-        "description": "TEXT NULL",
-        "visibility_level": "VARCHAR(80) NULL DEFAULT 'manager_scope'",
-        "visibility_scope": "VARCHAR(80) NULL DEFAULT 'manager_scope'",
-        "remind_in_evaluation": _bool_sql(True) + " NULL",
-        "remind_during_scoring": _bool_sql(True) + " NULL",
-        "include_in_scorecard": _bool_sql(False) + " NULL",
-        "visible_on_scorecard": _bool_sql(False) + " NULL",
-        "is_active": _bool_sql(True) + " NULL",
-        "active": _bool_sql(True) + " NULL",
-        "occurred_at": "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
-        "created_at": "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
-        "updated_at": "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
-    }
-    if _schema_complete(desired_columns):
-        # EC-AUD-016B-1: şema eksiksizse DDL çalıştırılmaz. Mevcut commit sınırı
-        # (bekleyen oturum işini commit etmesi) ayrı bir kararla ele alınana kadar korunur.
-        try:
-            db.session.commit()
-        except Exception as exc:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            db.session.rollback()
-            warnings.append(f"Dönem içi not tablosu hazırlanamadı: {exc.__class__.__name__}")
-            return False, warnings
-        return True, warnings
-
+    ready = _schema_ready()
+    if not ready:
+        warnings.append("Dönem içi not tablosu hazır değil; veritabanı migration'ı (flask db upgrade) çalıştırılmalıdır.")
+    # G3-B: çağıranın bekleyen oturum işini commit eden mevcut sınır aynen korunur
+    # (değerlendirme çalışma alanı kaydı buna dayanır); taşınması ayrı bir karardır.
     try:
-        db.session.execute(text(f"""
-            CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
-                {_id_sql()},
-                period_id INTEGER NULL,
-                employee_id INTEGER NULL,
-                employee_user_id INTEGER NULL,
-                manager_id INTEGER NULL,
-                created_by INTEGER NULL,
-                created_by_id INTEGER NULL,
-                note_type VARCHAR(80) NOT NULL DEFAULT 'genel_gozlem',
-                title VARCHAR(255) NULL,
-                note_title VARCHAR(255) NULL,
-                note TEXT NULL,
-                note_body TEXT NULL,
-                note_text TEXT NULL,
-                content TEXT NULL,
-                description TEXT NULL,
-                visibility_level VARCHAR(80) NOT NULL DEFAULT 'manager_scope',
-                visibility_scope VARCHAR(80) NULL DEFAULT 'manager_scope',
-                remind_in_evaluation {_bool_sql(True)} NULL,
-                remind_during_scoring {_bool_sql(True)} NULL,
-                include_in_scorecard {_bool_sql(False)} NULL,
-                visible_on_scorecard {_bool_sql(False)} NULL,
-                is_active {_bool_sql(True)} NULL,
-                active {_bool_sql(True)} NULL,
-                occurred_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
         db.session.commit()
     except Exception as exc:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
         db.session.rollback()
         warnings.append(f"Dönem içi not tablosu hazırlanamadı: {exc.__class__.__name__}")
         return False, warnings
-
-    existing = _columns(TABLE_NAME)
-    for column, ddl in desired_columns.items():
-        _safe_add_column(TABLE_NAME, column, ddl, existing, warnings)
-
-    for index_name, index_columns in INDEXES.items():
-        try:
-            db.session.execute(text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {TABLE_NAME}({index_columns})"))
-            db.session.commit()
-        except Exception:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            db.session.rollback()
-    return _has_table(TABLE_NAME), warnings
+    return ready, warnings
 
 
 def _pick_column(cols: set[str], *names: str) -> str | None:

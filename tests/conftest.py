@@ -9,7 +9,7 @@ from __future__ import annotations
 import contextlib
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -79,6 +79,39 @@ os.environ.setdefault("SCHEDULER_ENABLED", "false")
 # belgeleme amaçlıdır; ayrık bir collection-modifyitems override'ı yoktur.
 # BYS360_QUALITY9_CI_SAFE_SCOPE_DISCIPLINE_END
 
+# BYS360_G3A_INTERIM_NOTES_ALEMBIC_SCHEMA_START
+# performance_interim_notes Alembic'e aittir (migrations/versions/x1f3a9c5e7b2) ve ORM
+# modeli yoktur; db.create_all() onu oluşturmaz, istek kodu da artık oluşturmaz. Test
+# veritabanları tabloyu üretimdeki gibi migration'ın kendi upgrade() adımıyla alır.
+_INTERIM_NOTES_MIGRATION = (
+    Path(__file__).resolve().parents[1]
+    / "migrations"
+    / "versions"
+    / "x1f3a9c5e7b2_adopt_performance_interim_notes_into_alembic.py"
+)
+
+
+def install_interim_notes_schema(engine) -> None:
+    """Run revision x1f3a9c5e7b2's upgrade() against ``engine`` (creates or adopts the table)."""
+    import importlib.util
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    spec = importlib.util.spec_from_file_location("x1f3a9c5e7b2_test_install", _INTERIM_NOTES_MIGRATION)
+    assert spec is not None and spec.loader is not None
+    module: Any = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with engine.begin() as connection:
+        module.op = Operations(MigrationContext.configure(connection))
+        module.upgrade()
+
+
+@pytest.fixture(name="install_interim_notes_schema")
+def install_interim_notes_schema_fixture():
+    return install_interim_notes_schema
+# BYS360_G3A_INTERIM_NOTES_ALEMBIC_SCHEMA_END
+
 # BYS360_A5_P2C_TEST_DB_FIX_START
 # Test-only app/client fixtures. Runtime uygulama koduna dokunmaz.
 # Ama?: route smoke testlerinde g?venli, yerel ve bo? SQLite test DB yolu sa?lamak.
@@ -119,6 +152,8 @@ def app():
             # Baz? statik/contract testlerinde schema gerekmeyebilir.
             # Runtime hatas?n? gizlememek i?in route testleri yine sonucu g?sterecek.
             db.create_all()
+        with app_obj.app_context():
+            install_interim_notes_schema(db.engine)
 
     yield app_obj
 

@@ -118,3 +118,29 @@ Ayrıntı: [BYS360_LIVE_READONLY_VALIDATION_2026-09-28.md](BYS360_LIVE_READONLY_
 - Cutover öncesi kontrollü maintenance: `flask runtime-schema provision` gerekli 8 eksik kolonu sağladı; ardından salt okuma `flask runtime-schema check` 15/15 OK verdi.
 - Cutover ve cutover sonrası doğrulama: migration PASS, schema contract PASS, Dosya Merkezi 19/19. `/versionz`: `migration_head = w2d8e1f4a6c3`, `schema_error_count = 0`.
 - §7'deki "Kalan açıklar" bu production sürümünde de açıktır. Felaket kurtarmada birincil yöntem yedekten geri yüklemedir.
+
+## 9. Aday mühendislik kaydı: `performance_interim_notes` Alembic sahipliği (G3-A, 2026-10-06)
+
+Bu bölüm bir production/dağıtım kaydı değildir; `assistant-v2-full` üzerindeki aday değişikliği
+anlatır. Production kimliği §8'deki gibidir; bu değişiklik insan kararıyla canlıya alınana kadar
+§7'deki `performance_interim_notes` maddesi production için açık kalır.
+
+- **Tek sahip:** Alembic revision `x1f3a9c5e7b2`
+  (`migrations/versions/x1f3a9c5e7b2_adopt_performance_interim_notes_into_alembic.py`,
+  üst revision `w2d8e1f4a6c3`). ORM modeli ve runtime-schema grubu yoktur.
+- **Kanonik şema:** mevcut kodun boş veritabanında oluşturduğu biçim (26 kolon; iki indeks
+  `ix_perf_interim_notes_employee_period`, `ix_perf_interim_notes_employee_user_period`).
+- **İstek anında oluşturma kaldırıldı:** `interim_notes_runtime.ensure_interim_notes_table()`
+  salt okuma hazırlık denetimidir; mobil yedek CREATE TABLE, mobil karne kolon eklemesi ve P2
+  uygulamasının CREATE TABLE'ı kaldırıldı. Yardımcının mevcut commit sınırı (G3-B) korunur.
+- **Temiz kurulum:** `flask db upgrade` tek başına tabloyu oluşturur; ilk HTTP isteğinin şemayı
+  onarması gerekmez. PostgreSQL 15 migration kapısı bunu `POSTGRES15_INTERIM_NOTES_ALEMBIC_OWNERSHIP`
+  adımıyla runtime-schema adımından önce doğrular.
+- **Eski biçimler:** bilinen istek-anı biçimleri (runtime, mobil yedek, P2 ve `d1a0e5c7b934`
+  ek kolonlu hâlleri) yerinde benimsenir: satırlar ve değerler korunur, yalnız eksik kanonik
+  kolonlar ve indeksler eklenir; hiçbir kolon silinmez, daraltılmaz veya NOT NULL yapılmaz.
+  P2 biçiminin kendi DDL'i PostgreSQL'de çalışmaz (`BOOLEAN DEFAULT 1`); bu biçim yalnız
+  SQLite'ta oluşabilir. Kapı adımı `POSTGRES15_INTERIM_NOTES_LEGACY_ADOPTION` bunları ayrı
+  şemalarda prova eder.
+- **Bilinmeyen biçim:** migration hiçbir değişiklik yapmadan açık bir hata ile durur; PostgreSQL'de
+  upgrade işlemi geri alınır. Karar insan incelemesine bırakılır.

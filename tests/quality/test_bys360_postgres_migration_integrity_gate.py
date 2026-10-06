@@ -19,8 +19,10 @@ from scripts.quality.bys360_postgres_migration_integrity_gate import (
     ENV_VAR,
     GateFailure,
     check_runtime_schema,
+    compare_interim_notes_catalog,
     compute_migration_graph,
     compute_orm_gaps,
+    load_interim_notes_contract,
     main,
     redact,
     validate_url,
@@ -244,13 +246,23 @@ def test_main_full_happy_path_is_pass(monkeypatch, capsys) -> None:
             return_value={},
         ),
         patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.introspect_interim_notes_ownership",
+            return_value=[],
+        ),
+        patch(
             "scripts.quality.bys360_postgres_migration_integrity_gate.check_runtime_schema",
             return_value=15,
+        ),
+        patch(
+            "scripts.quality.bys360_postgres_migration_integrity_gate.rehearse_interim_notes_legacy_adoption",
+            return_value={"MOBILE_VARIANT": "MOBILE_VARIANT adopted, sentinel preserved"},
         ),
     ):
         exit_code = main([])
     out = capsys.readouterr().out
     assert exit_code == 0
+    assert "POSTGRES15_INTERIM_NOTES_ALEMBIC_OWNERSHIP=PASS" in out
+    assert "POSTGRES15_INTERIM_NOTES_LEGACY_ADOPTION=PASS (1 cases: MOBILE_VARIANT)" in out
     assert "POSTGRES15_ORM_PARITY=PASS (checked 1 tables, 2 columns)" in out
     assert "POSTGRES15_RUNTIME_SCHEMA=PASS (provisioned and verified 15 groups" in out
     assert "POSTGRES15_EMPTY_TO_HEAD=PASS" in out
@@ -614,3 +626,148 @@ def test_runtime_schema_timeout_is_a_gate_failure() -> None:
     ):
         run_flask_runtime_schema(VALID_URL, "provision")
     assert excinfo.value.code == "RUNTIME_SCHEMA_TIMEOUT"
+
+
+# ---------------------------------------------------------------------------
+# performance_interim_notes Alembic ownership (G3-A)
+# ---------------------------------------------------------------------------
+
+# information_schema.columns of the table as the former request-time helpers created it on
+# PostgreSQL 15.19 (captured from the real helpers against disposable databases).
+RUNTIME_HELPER_PG15_COLUMNS = [
+    ('id', 'integer', None, 'NO', "nextval('performance_interim_notes_id_seq'::regclass)"),
+    ('period_id', 'integer', None, 'YES', None),
+    ('employee_id', 'integer', None, 'YES', None),
+    ('employee_user_id', 'integer', None, 'YES', None),
+    ('manager_id', 'integer', None, 'YES', None),
+    ('created_by', 'integer', None, 'YES', None),
+    ('created_by_id', 'integer', None, 'YES', None),
+    ('note_type', 'character varying', 80, 'NO', "'genel_gozlem'::character varying"),
+    ('title', 'character varying', 255, 'YES', None),
+    ('note_title', 'character varying', 255, 'YES', None),
+    ('note', 'text', None, 'YES', None),
+    ('note_body', 'text', None, 'YES', None),
+    ('note_text', 'text', None, 'YES', None),
+    ('content', 'text', None, 'YES', None),
+    ('description', 'text', None, 'YES', None),
+    ('visibility_level', 'character varying', 80, 'NO', "'manager_scope'::character varying"),
+    ('visibility_scope', 'character varying', 80, 'YES', "'manager_scope'::character varying"),
+    ('remind_in_evaluation', 'boolean', None, 'YES', 'true'),
+    ('remind_during_scoring', 'boolean', None, 'YES', 'true'),
+    ('include_in_scorecard', 'boolean', None, 'YES', 'false'),
+    ('visible_on_scorecard', 'boolean', None, 'YES', 'false'),
+    ('is_active', 'boolean', None, 'YES', 'true'),
+    ('active', 'boolean', None, 'YES', 'true'),
+    ('occurred_at', 'timestamp without time zone', None, 'YES', 'CURRENT_TIMESTAMP'),
+    ('created_at', 'timestamp without time zone', None, 'YES', 'CURRENT_TIMESTAMP'),
+    ('updated_at', 'timestamp without time zone', None, 'YES', 'CURRENT_TIMESTAMP'),
+]
+MOBILE_FALLBACK_PG15_COLUMNS = [
+    ('id', 'integer', None, 'NO', "nextval('performance_interim_notes_id_seq'::regclass)"),
+    ('period_id', 'integer', None, 'YES', None),
+    ('employee_id', 'integer', None, 'YES', None),
+    ('employee_user_id', 'integer', None, 'YES', None),
+    ('manager_id', 'integer', None, 'YES', None),
+    ('created_by', 'integer', None, 'YES', None),
+    ('created_by_id', 'integer', None, 'YES', None),
+    ('note_type', 'character varying', 80, 'NO', "'genel_gozlem'::character varying"),
+    ('title', 'character varying', 255, 'YES', None),
+    ('note', 'text', None, 'YES', None),
+    ('note_body', 'text', None, 'YES', None),
+    ('visibility_level', 'character varying', 80, 'YES', "'manager_scope'::character varying"),
+    ('remind_during_scoring', 'boolean', None, 'YES', 'true'),
+    ('include_in_scorecard', 'boolean', None, 'YES', 'false'),
+    ('is_active', 'boolean', None, 'YES', 'true'),
+    ('occurred_at', 'timestamp without time zone', None, 'YES', 'CURRENT_TIMESTAMP'),
+    ('created_at', 'timestamp without time zone', None, 'YES', 'CURRENT_TIMESTAMP'),
+    ('updated_at', 'timestamp without time zone', None, 'YES', 'CURRENT_TIMESTAMP'),
+]
+CANONICAL_PG15_INDEXES = {
+    "ix_perf_interim_notes_employee_period": ("employee_id", "period_id"),
+    "ix_perf_interim_notes_employee_user_period": ("employee_user_id", "period_id"),
+}
+
+
+def _catalog(rows: list) -> list[dict]:
+    keys = ("name", "data_type", "length", "is_nullable", "default")
+    return [dict(zip(keys, row, strict=True)) for row in rows]
+
+
+def test_interim_notes_contract_equals_the_shape_the_runtime_helper_created_on_pg15() -> None:
+    contract = load_interim_notes_contract()
+    problems = compare_interim_notes_catalog(_catalog(RUNTIME_HELPER_PG15_COLUMNS), CANONICAL_PG15_INDEXES, ["id"], contract)
+    assert problems == []
+
+
+def test_interim_notes_contract_rejects_the_mobile_fallback_shape_and_missing_indexes() -> None:
+    contract = load_interim_notes_contract()
+    problems = compare_interim_notes_catalog(_catalog(MOBILE_FALLBACK_PG15_COLUMNS), {}, ["id"], contract)
+    assert any(p.startswith("columns differ: missing ['active', 'content'") for p in problems)
+    assert any(p.startswith("indexes {}") for p in problems)
+
+
+def test_interim_notes_contract_rejects_type_nullability_default_and_pk_drift() -> None:
+    contract = load_interim_notes_contract()
+    rows = [list(row) for row in RUNTIME_HELPER_PG15_COLUMNS]
+    by_name = {row[0]: row for row in rows}
+    by_name["note_type"][2] = 40
+    by_name["visibility_level"][3] = "YES"
+    by_name["is_active"][4] = "false"
+    problems = compare_interim_notes_catalog(_catalog(rows), CANONICAL_PG15_INDEXES, [], contract)
+    assert any(p.startswith("note_type: type") for p in problems)
+    assert any(p.startswith("visibility_level: is_nullable=YES") for p in problems)
+    assert any(p.startswith("is_active: default") for p in problems)
+    assert any(p.startswith("primary key") for p in problems)
+
+
+def _main_until_interim_steps(monkeypatch, **interim_patches):
+    monkeypatch.setenv(ENV_VAR, VALID_URL)
+    base = "scripts.quality.bys360_postgres_migration_integrity_gate."
+    patches = {
+        "check_postgres_major_version": {"return_value": 15},
+        "check_database_is_empty": {"return_value": None},
+        "compute_migration_graph": {"return_value": {"revision_count": 80, "root_count": 10, "roots": [], "head_count": 1,
+                                                     "heads": ["x1f3a9c5e7b2"], "cycles": False}},
+        "run_flask_db_upgrade": {"side_effect": [_completed(0, "Running upgrade a1 -> a2\n"), _completed(0, "")]},
+        "read_alembic_version": {"return_value": "x1f3a9c5e7b2"},
+        "introspect_critical_tables": {"return_value": {"users": True}},
+        "introspect_critical_columns": {"return_value": {"users": []}},
+        "load_orm_columns": {"return_value": {"users": ["id"]}},
+        "introspect_orm_parity": {"return_value": {}},
+        "check_runtime_schema": {"return_value": 15},
+        **interim_patches,
+    }
+    from contextlib import ExitStack
+
+    with ExitStack() as stack:
+        for name, kwargs in patches.items():
+            stack.enter_context(patch(base + name, **kwargs))
+        return main([])
+
+
+def test_main_interim_notes_contract_mismatch_is_blocked_before_runtime_schema(monkeypatch, capsys) -> None:
+    runtime_schema = patch("scripts.quality.bys360_postgres_migration_integrity_gate.check_runtime_schema")
+    with runtime_schema as runtime_mock:
+        exit_code = _main_until_interim_steps(
+            monkeypatch,
+            introspect_interim_notes_ownership={"return_value": ["performance_interim_notes does not exist after flask db upgrade"]},
+        )
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "BYS360_POSTGRES_MIGRATION_INTEGRITY_GATE_V1_INTERIM_NOTES_CONTRACT_MISMATCH" in out
+    assert "does not exist after flask db upgrade" in out
+    runtime_mock.assert_not_called()
+
+
+def test_main_interim_notes_legacy_adoption_failure_is_blocked(monkeypatch, capsys) -> None:
+    exit_code = _main_until_interim_steps(
+        monkeypatch,
+        introspect_interim_notes_ownership={"return_value": []},
+        rehearse_interim_notes_legacy_adoption={
+            "side_effect": GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "MOBILE_VARIANT: sentinel rows changed")
+        },
+    )
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "BYS360_POSTGRES_MIGRATION_INTEGRITY_GATE_V1_INTERIM_NOTES_LEGACY_ADOPTION_FAILURE" in out
+    assert "BYS360_POSTGRES_MIGRATION_INTEGRITY_GATE_V1_RESULT=PASS" not in out
