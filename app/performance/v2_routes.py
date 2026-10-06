@@ -207,14 +207,17 @@ def performance_v2_phase3_dashboard():
 @main_bp.route('/performans/v2/faz3/assignment/<int:assignment_id>', methods=['GET', 'POST'])
 @login_required
 def performance_v2_phase3_assignment(assignment_id: int):
-    context = build_workspace_context(assignment_id)
-    assignment = context['assignment']
+    # D-1: durum ve sahiplik kontrolleri çalışma alanı bağlamı kurulmadan önce yapılır;
+    # build_workspace_context() değerlendirme kaydı oluşturduğu için reddedilen istek veri yazmamalıdır.
+    assignment = EvaluationAssignment.query.get_or_404(assignment_id)
     if (getattr(assignment, 'status', '') or '').strip().lower() in {'pasif', 'muaf'}:
         flash('Bu görev pasife alındı veya muaf akışa geçtiği için artık işlem açılamaz.', 'warning')
         return redirect(url_for('main.performance_v2_phase3_dashboard'))
     if getattr(current_user, 'role', '') != 'admin' and assignment.evaluator_id != current_user.id:
         flash('Bu değerlendirme görevi size ait değil.', 'danger')
         return redirect(url_for('main.performance_v2_phase3_dashboard'))
+    context = build_workspace_context(assignment_id)
+    assignment = context['assignment']
     if request.method == 'POST':
         action = (request.form.get('action') or 'save').strip().lower()
         try:
