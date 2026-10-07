@@ -170,3 +170,29 @@ anlatır. Production kimliği §8'deki gibidir.
   migration yetkilendirilmemiştir.
 - **G3-B açık:** dönem içi not hazırlık yardımcısının commit sınırı değişmedi; karne çıktısı bu
   commit açıkken ve kapatılmış hâliyle aynıdır.
+
+## 11. Aday mühendislik kaydı: performans değerlendirmesinde işlem sahipliği (G3-B, HD-10 Seçenek A, 2026-10-07)
+
+Bu bölüm bir production/dağıtım kaydı değildir; `assistant-v2-full` üzerindeki aday değişikliği
+anlatır. Production kimliği §8'deki gibidir. §9 ve §10'daki "G3-B commit sınırı korunur / açık"
+notları bu değişiklikle kapanır.
+
+- **GET bir okumadır:** değerlendirme formunu açmak (`/performance/v2/faz3|faz4|faz8/assignment/<id>`
+  ve `/performans` eşleri) `performance_evaluations` satırı oluşturmaz, `level_N_evaluator_id`
+  yeniden damgalamaz, durum veya `updated_at` değiştirmez. Değerlendirme yoksa form, oturuma
+  eklenmeyen geçici bir okuma modeliyle çizilir.
+- **Yazma niyeti açıktır:** kaydet / tamamla / iade / geri çek işlemleri eksik değerlendirmeyi
+  `evaluation_workspace.get_or_create_evaluation_for_write()` ile kendi işlemleri içinde oluşturur
+  ve amiri hizalar; tek commit route'a aittir. Bu işlemlerden önce hata olursa değerlendirme,
+  amir damgası ve taslak alanları birlikte geri alınır. Tamamla işleminde doğrulama uyarısı
+  (`ValueError`) mevcut sözleşmeyle girdileri taslak olarak kaydetmeye devam eder.
+- **Eşzamanlı ilk yazma:** oluşturma `uq_period_employee_evaluation` üzerinde
+  `INSERT ... ON CONFLICT DO NOTHING` ve yeniden okuma ile yapılır (PostgreSQL ve SQLite); işlem
+  bozulmaz, savepoint veya ara commit gerekmez. Migration yoktur.
+- **Hazırlık yardımcısı işlem açısından nötrdür:** `interim_notes_runtime.ensure_interim_notes_table()`
+  yalnız şemayı inceler; commit, rollback, flush veya DDL çalıştırmaz. Dönem içi not okuyucusu
+  `NULLS LAST` sıralamasını tek ve lehçeden bağımsız sorguyla yapar; hata halinde çağıranın işlemini
+  geri almaz ve hatayı boş sonuçla gizlemez.
+- **Değişmeyenler:** D-1 yetki/durum reddi her şeyden önce gelir; mobil not yazımı ve web dönem içi
+  not kaydı kendi commit'lerini korur; personelin yayınlanmış karneyi ilk görüntülemesi
+  `employee_score_viewed_at` alanını karne route'unun kendi commit'iyle kaydetmeye devam eder.

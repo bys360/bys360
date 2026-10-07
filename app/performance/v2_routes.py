@@ -25,7 +25,6 @@ from app.services.ai.dashboard_panels import (
     build_publish_ai_panel,
     build_scorecard_ai_panel,
 )
-from app.services.performance.interim_notes_runtime import build_interim_notes_context
 from app.services.performance.low_score_process_service import (
     build_low_score_period_summary,
     ensure_low_score_processes_for_period,
@@ -207,8 +206,7 @@ def performance_v2_phase3_dashboard():
 @main_bp.route('/performans/v2/faz3/assignment/<int:assignment_id>', methods=['GET', 'POST'])
 @login_required
 def performance_v2_phase3_assignment(assignment_id: int):
-    # D-1: durum ve sahiplik kontrolleri çalışma alanı bağlamı kurulmadan önce yapılır;
-    # build_workspace_context() değerlendirme kaydı oluşturduğu için reddedilen istek veri yazmamalıdır.
+    # D-1: durum ve sahiplik kontrolleri her türlü çalışma alanı/iş işleminden önce yapılır.
     assignment = EvaluationAssignment.query.get_or_404(assignment_id)
     if (getattr(assignment, 'status', '') or '').strip().lower() in {'pasif', 'muaf'}:
         flash('Bu görev pasife alındı veya muaf akışa geçtiği için artık işlem açılamaz.', 'warning')
@@ -216,8 +214,8 @@ def performance_v2_phase3_assignment(assignment_id: int):
     if getattr(current_user, 'role', '') != 'admin' and assignment.evaluator_id != current_user.id:
         flash('Bu değerlendirme görevi size ait değil.', 'danger')
         return redirect(url_for('main.performance_v2_phase3_dashboard'))
-    context = build_workspace_context(assignment_id)
-    assignment = context['assignment']
+    # G3-B: POST iş işlemi değerlendirmeyi kendi işleminde oluşturur/hizalar; işlemin tek
+    # sahibi aşağıdaki commit'tir. Çalışma alanı bağlamı yalnız GET'te ve salt okuma kurulur.
     if request.method == 'POST':
         action = (request.form.get('action') or 'save').strip().lower()
         try:
@@ -251,21 +249,9 @@ def performance_v2_phase3_assignment(assignment_id: int):
                 db.session.rollback()
             flash(str(exc), 'danger')
         return redirect(url_for('main.performance_v2_phase3_assignment', assignment_id=assignment_id))
-    if 'interim_notes_context' not in context or not context.get('interim_notes_context'):
-        context['interim_notes_context'] = build_interim_notes_context(
-            assignment=assignment,
-            evaluation=context.get('evaluation'),
-            viewer=current_user,
-            surface='scoring',
-        )
-
-    # BYS360_INTERIM_NOTES_MANAGER_PAGE_SOURCE_CONTEXT
-    context['interim_notes_context'] = build_interim_notes_context(
-        assignment=assignment,
-        evaluation=context.get('evaluation'),
-        viewer=current_user,
-        surface='scoring',
-    )
+    # BYS360_INTERIM_NOTES_MANAGER_PAGE_SOURCE_CONTEXT: dönem içi notlar bağlamı
+    # build_workspace_context() içinde aynı kaynaktan (görev personeli + dönem) bir kez kurulur.
+    context = build_workspace_context(assignment_id)
     return render_template('performance_v2_phase3_assignment.html', **context)
 
 
