@@ -119,7 +119,7 @@ Bu, ortak kullanım için doğrudan kopyalanıp çalıştırılabilecek bir alt 
 ## Doğrulanmış Coverage Durumu (Verified Coverage Snapshot)
 
 Bu tablo, 2026-09-23 production sürümü (`1ea5c5dc…`) üzerinde alınmış tarihli bir coverage
-ölçümüdür. Güncel production sürümü (`a5bd8a38…`, 2026-09-29) için ayrı bir coverage anlık
+ölçümüdür. Güncel production sürümü (`cdae2795…`, 2026-10-07) için ayrı bir coverage anlık
 görüntüsü bu bölüme işlenmemiştir; güncel production kimliği için aşağıdaki "Mevcut Doğrulanmış
 Canlı Kaynak" bölümüne ve `SOURCE_OF_TRUTH.md`'ye bakın.
 
@@ -178,11 +178,11 @@ Canlı Kaynak" bölümüne ve `SOURCE_OF_TRUTH.md`'ye bakın.
 - **Health/readiness kontrolü**: aday, canlıya alınmadan önce kendi sağlık uç noktası
   (`/healthz`) üzerinden ayağa kalkma testinden geçer; cutover yalnızca bu kontrol
   geçtikten sonra gerçekleşir.
-- **Rollback tasarımı**: her cutover öncesi kod ve veritabanı yedeği alınır; geri dönüş,
-  ayrı bir script (`scripts/windows/rollback_bys360_live_release_v1.ps1`) ile
-  varsayılan olarak önce DRY-RUN (yalnızca plan) modunda çalışır, gerçek uygulama için
-  açık `-Apply` bayrağı gerektirir; `.env`, `instance/`, `logs/`, `uploads/` ve `reports/`
-  her koşulda korunur ve asla üzerine yazılmaz (bkz. `BACKUP_RUNBOOK.md`).
+- **Rollback tasarımı**: cutover öncesinde önceki uygulama ağacı ve fresh PostgreSQL
+  yedeği korunur. Güncel candidate/cutover mimarisindeki
+  `scripts/windows/rollback_bys360_candidate.ps1` uygulama-ağacı geri dönüş yoludur ve
+  otomatik Alembic downgrade çalıştırmaz. Canlı migration veritabanı revizyonunu değiştirmişse
+  veritabanı geri dönüşü ayrı ve insan kontrollü bir karardır (bkz. `BACKUP_RUNBOOK.md`).
 
 Geliştirme sürecinde AI destekli araçlar kullanılmış olabilir; bu, kod kabulünü tek başına
 belirlemez. Her değişiklik repo inceleme akışından, otomatik testlerden, CI kapılarından,
@@ -201,62 +201,64 @@ kimliği ve branch rolleri için `SOURCE_OF_TRUTH.md` esas kısa referanstır.
 
 | Alan | Değer |
 |---|---|
-| SHA | `a5bd8a389f2a978e2a07bb30d58a622bddea82df` |
-| Production tag | `bys360-prod-2026.09.29-a5bd8a38` |
-| Dağıtım tarihi | 2026-09-29 |
-| Migration head | `w2d8e1f4a6c3` (`v1a2d3e4f5b6` → `w1c5a7d2e9b4` → `w2d8e1f4a6c3`) |
-| GitHub Release | BYS360 Production — 2026-09-29 (a5bd8a38) |
-| Önceki production SHA | `67f2a29dc29c7977dbbf5b16b0629daa630e9ef9` (tag `bys360-prod-2026.09.28-67f2a29d`, migration head `v1a2d3e4f5b6`) |
+| SHA | `cdae27953adcbdd8270fe78dcd52351725d3aecd` |
+| Production tag | `bys360-prod-2026.10.07-cdae2795` |
+| Dağıtım tarihi | 2026-10-07 |
+| Migration head | `x1f3a9c5e7b2` (`w2d8e1f4a6c3` → `x1f3a9c5e7b2`) |
+| Release paketi | `BYS360_FULL_cdae2795.zip` — SHA-256 `48d2572b3630e5c33bbf3cd337e9a9cf39f6b33d9d47aa3d7d17a54ec065f339` |
+| Önceki production SHA | `a5bd8a389f2a978e2a07bb30d58a622bddea82df` (tag `bys360-prod-2026.09.29-a5bd8a38`, migration head `w2d8e1f4a6c3`) |
 
-Bu, en son canlıya alma (deployment) sırasında doğrulanan kaynak kod kimliğidir. Bu SHA, PR #15'in
-merge commit'idir; ağacı, iki zorunlu CI iş akışının (BYS360 Quality Assurance Gate V1 ve
-quality-gate) başarıyla çalıştığı PR #15 head'inin ağacıyla birebir aynıdır (bkz.
-`SOURCE_OF_TRUTH.md` §3).
+Bu, 2026-10-07 insan kontrollü production cutover'ında doğrulanan kaynak kod kimliğidir.
+SHA, PR #47 merge commit'idir. Merge ağacı (`723da65df61f40eefefc12c853ae6177ad6dedb9`), iki zorunlu GitHub Actions
+iş akışının başarıyla çalıştığı PR #47 head'i `d529020641f8d4fd7da160b77d2ccab9e586c661` ağacıyla birebir aynıdır.
 
-- **Cutover öncesi kontrollü maintenance:** `flask runtime-schema provision` gerekli 8 eksik
-  kolonu sağladı; ardından salt okuma `flask runtime-schema check` 15/15 OK verdi.
-- **Cutover ve cutover sonrası doğrulama:** deployment exit code 0, migration PASS, schema
-  contract PASS, Dosya Merkezi 19/19, service/process binding PASS, local health, readiness ve
-  public health HTTP 200, smoke PASS, security-critical bulgu 0. `/versionz`:
-  `source_sha = a5bd8a389f2a978e2a07bb30d58a622bddea82df`, `migration_head = w2d8e1f4a6c3`,
-  `schema_error_count = 0`.
+- **PR/CI:** `Run tests` run `37619199191` SUCCESS; `BYS360 Quality Assurance Gate V1`
+  run `37619199193` SUCCESS.
+- **Deterministik FULL release:** iki bağımsız build byte-identical; 2.288 dosya;
+  59 Windows CPython 3.12 wheel; wheelhouse identity
+  `c372cc2512055ef4f48648769bd09ee2e28b194b556a81eb242cdaf7722d4a70`.
+- **Candidate preparation:** fresh backup, disposable shadow PostgreSQL rehearsal ve
+  candidate health PASS.
+- **Cutover:** canlı migration `w2d8e1f4a6c3` → `x1f3a9c5e7b2` PASS; schema contract
+  error count 0; Dosya Merkezi 19/19; service/process binding PASS; local health,
+  release identity, readiness ve public health PASS; smoke PASS; security-critical 0.
+- **`/versionz`:** `source_sha = cdae27953adcbdd8270fe78dcd52351725d3aecd`, `migration_head = x1f3a9c5e7b2`.
+- **Cutover sonrası bağımsız kontrol:** Scheduled Task Running; public `/healthz` HTTP 200.
+- Ayrıntılı sanitised kanıt:
+  `docs/quality/BYS360_PRODUCTION_CUTOVER_2026-10-07.md`.
 
-Branş koruması tarafından zorunlu kılınan teknik kontrol bağlamı (required check context) hâlâ
-tarihsel/kararlı ad olan `score100-quality-gate`'tir -- yukarıdaki "BYS360 Quality Assurance
-Gate V1" yalnızca insan-okur iş akışı adıdır.
+Branş koruması tarafından kullanılan teknik kontrol bağlamları korunur; production kimliği
+branch ucu değil, yukarıdaki exact SHA ve annotated production tag'idir.
 
-**Varsayılan dal ve production soy hattı (default / production lineage branch):**
-`assistant-v2-full` — repodaki güncel varsayılan (default) daldır; production SHA bu dalın
-soyundadır. Dalın ucu, insan kararıyla cutover yapılana kadar production değildir; bir sonraki
-adayı taşır (bkz. `SOURCE_OF_TRUTH.md` §1.1).
+**Varsayılan dal ve production soy hattı:** `assistant-v2-full`. Varsayılan dalın ucu ileride
+dokümantasyon veya yeni aday değişiklikleriyle ilerleyebilir; bu, production kimliğini tek başına
+değiştirmez.
 
-**`main`:** production kaynak doğruluğu (source of truth) değildir. PR #1 birleştirmesi nedeniyle
-ayrı bir tarihsel/entegrasyon soy hattı (lineage) içerir; production kimliği her zaman yukarıdaki
-tam SHA'dır.
-
+**`main`:** production source of truth değildir. Production kimliği her zaman doğrulanmış exact
+SHA ve production tag üzerinden belirlenir.
 ## İnceleme Rehberi (Review Guidance)
 
 Dış teknik incelemeciler için:
 
-- **Kaynak kod:** canlıdaki kaynak kodu birebir incelemek için `bys360-prod-2026.09.29-a5bd8a38`
-  tag'ini; güncel uygulama hattını ve bir sonraki adayı incelemek için varsayılan dal olan
-  `assistant-v2-full`'u (LICENSE, NOTICE ve kurumsal dokümantasyon bu dalda bulunur) kullanın.
-- **Kaynak kod ve commit geçmişi:** repoyu klonlayıp `git log`, `git blame` ve tam dal/etiket
-  listesiyle (`git branch -a`, `git tag`) inceleyin; hiçbir geçmiş yeniden yazılmamıştır
-  (`filter-repo`/force-push kullanılmamıştır).
-- **CI kanıtı:** GitHub "Actions" sekmesinden yukarıdaki iki zorunlu iş akışının geçmiş
-  koşumlarını, hangi tam SHA'yı checkout ettiklerini ve sonuçlarını doğrudan görebilirsiniz.
-- **Testler:** `tests/` dizini; hedefli kalite testleri için `tests/quality`, davranış
-  sözleşmeleri için `tests/behavior`, release paketleme testleri için `tests/release`.
-- **Release/paket kanıtı:** `scripts/release/build_bys360_safe_release.py --verify <zip>`
-  komutu ve paketle birlikte üretilen manifest/SHA256 dosyaları.
-- **Canlı kaynak anlık görüntüsü (production snapshot):** yukarıdaki "Mevcut Doğrulanmış
-  Canlı Kaynak" bölümündeki tam SHA. Doğrulanmış production SHA,
-  `bys360-prod-2026.09.29-a5bd8a38` adlı annotated production tag ile işaretlenmiştir; tag,
-  yönetişim gereği taşınmaması ve silinmemesi gereken production kimliği olarak kullanılır.
-  Önceki production tag'leri (`bys360-prod-2026.09.28-67f2a29d`,
-  `bys360-prod-2026.09.23-1ea5c5dc`) tarihçe olarak değiştirilmeden korunur.
-
+- **Canlı kaynak kodu:** `bys360-prod-2026.10.07-cdae2795` annotated tag'i doğrudan çalışan production commit'i
+  `cdae27953adcbdd8270fe78dcd52351725d3aecd` üzerine bağlıdır.
+- **Güncel geliştirme hattı:** varsayılan `assistant-v2-full` branch'i. Branch ucu production
+  kimliği değildir; `SOURCE_OF_TRUTH.md` esas referanstır.
+- **Kaynak kod ve commit geçmişi:** `git log`, `git blame`, `git branch -a` ve `git tag`
+  ile tam geçmiş incelenebilir; production kimliği exact SHA ile izlenir.
+- **CI kanıtı:** PR #47 head'i `d529020641f8d4fd7da160b77d2ccab9e586c661` için GitHub Actions run
+  `37619199191` ve `37619199193` SUCCESS'tir. Production merge ağacı test edilen head ağacıyla
+  birebir aynıdır.
+- **Testler:** `tests/quality`, `tests/behavior`, `tests/migrations`, `tests/release`,
+  `tests/integration`, `tests/architecture` ve ilgili güvenlik testleri.
+- **Release kanıtı:** canonical builder
+  `scripts/release/build_bys360_safe_release.py`; final FULL ZIP SHA-256
+  `48d2572b3630e5c33bbf3cd337e9a9cf39f6b33d9d47aa3d7d17a54ec065f339`.
+- **Production cutover kanıtı:**
+  `docs/quality/BYS360_PRODUCTION_CUTOVER_2026-10-07.md`.
+- **Tarihsel production tag'leri:** `bys360-prod-2026.09.29-a5bd8a38`,
+  `bys360-prod-2026.09.28-67f2a29d` ve `bys360-prod-2026.09.23-1ea5c5dc`
+  değiştirilmeden tarihçe olarak korunur.
 ## Teknik İnceleme
 
 BYS360'ın mimari, güvenlik, test/CI, release, canlı sürüm kimliği, teknik borç ve sürdürülebilirlik durumunun toplu teknik incelemesi:

@@ -1,5 +1,39 @@
 # BYS360 STATUS.md
 
+## 2026-10-07 — Verified Production Cutover
+
+- **Release:**
+  - Deployed SHA: `cdae27953adcbdd8270fe78dcd52351725d3aecd`, annotated tag `bys360-prod-2026.10.07-cdae2795`.
+  - Previous production SHA: `a5bd8a389f2a978e2a07bb30d58a622bddea82df`.
+  - Alembic: `w2d8e1f4a6c3` → `x1f3a9c5e7b2`.
+  - Final FULL package: `BYS360_FULL_cdae2795.zip`.
+  - Package SHA-256: `48d2572b3630e5c33bbf3cd337e9a9cf39f6b33d9d47aa3d7d17a54ec065f339`.
+  - Deterministic builds: byte-identical; 2.288 packaged files.
+  - Offline wheelhouse: 59 Windows CPython 3.12 wheels; identity `c372cc2512055ef4f48648769bd09ee2e28b194b556a81eb242cdaf7722d4a70`.
+- **Pre-cutover:**
+  - Candidate preparation PASS.
+  - Fresh disposable PostgreSQL shadow rehearsal PASS.
+  - Candidate health PASS.
+- **Production cutover:**
+  - Live migration PASS.
+  - Schema contract PASS (`SCHEMA_CONTRACT_ERROR_COUNT=0`).
+  - File Center 19/19.
+  - Service/process binding PASS.
+  - Local health 200.
+  - Release identity PASS.
+  - Readiness PASS.
+  - Public health 200.
+  - Smoke PASS (`ROUTE_COUNT=996`).
+  - Post-deploy security critical findings: 0.
+- **Independent post-cutover recheck:**
+  - Scheduled Task Running.
+  - Public `/healthz` HTTP 200.
+- **Rollback:** not required. Previous application tree and fresh pre-cutover PostgreSQL backup
+  were preserved. Because this release advances the DB revision, an app-only rollback is not
+  presented as a complete DB rollback; database recovery remains a separate human-controlled action.
+- **Details:** `docs/quality/BYS360_PRODUCTION_CUTOVER_2026-10-07.md`;
+  canonical production identity: `SOURCE_OF_TRUTH.md`.
+
 ## 2026-09-28 — Verified Production Cutover
 
 - **Release:**
