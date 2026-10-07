@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import logging
 
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
 from app.core.datetime_utils import utc_now
 from app.extensions import db
 from app.models import (
@@ -52,18 +55,79 @@ def _load_assignment(assignment_id: int):
     return EvaluationAssignment.query.get_or_404(assignment_id)
 
 
-def _ensure_evaluation(assignment):
-    evaluation = PerformanceEvaluation.query.filter_by(period_id=assignment.period_id, employee_id=assignment.employee_id).first()
+# BYS360_G3B_TRANSACTION_OWNERSHIP (HD-10 Seçenek A)
+# Formu GET ile açmak bir okumadır: değerlendirme satırı, amir yeniden damgası, durum veya
+# updated_at yazılmaz. Değerlendirme yalnız görev üretim yaşam döngüsünde ya da açık bir iş
+# işleminde (kaydet / tamamla / iade / geri çek) oluşur; o işlemin route commit'i sahibidir.
+
+
+def _find_evaluation(assignment):
+    return PerformanceEvaluation.query.filter_by(period_id=assignment.period_id, employee_id=assignment.employee_id).first()
+
+
+def _scalar_column_default(column):
+    value = column.default.arg
+    try:
+        return column.type.python_type(value)
+    except (NotImplementedError, TypeError, ValueError):
+        return value
+
+
+def _evaluation_read_model(assignment):
+    """GET çalışma alanı için mevcut değerlendirme veya oturuma eklenmeyen geçici okuma modeli.
+
+    Eksik değerlendirme için alan varsayılanları, kalıcı satırın veritabanından okunduğu
+    haliyle doldurulur; nesne oturuma eklenmez, flush edilmez ve hiçbir şey yazılmaz.
+    """
+    evaluation = _find_evaluation(assignment)
+    if evaluation is not None:
+        return evaluation
+    read_model = PerformanceEvaluation(period_id=assignment.period_id, employee_id=assignment.employee_id)
+    for prop in PerformanceEvaluation.__mapper__.column_attrs:
+        column = prop.columns[0]
+        if column.default is not None and column.default.is_scalar and getattr(read_model, prop.key) is None:
+            setattr(read_model, prop.key, _scalar_column_default(column))
+    return read_model
+
+
+def _create_evaluation_for_write(assignment):
+    """Eksik değerlendirmeyi çağıranın işleminde ekler; eşzamanlı ilk yazmaya dayanıklıdır.
+
+    uq_period_employee_evaluation çakışmasında ekleme yapılmaz (ON CONFLICT DO NOTHING) ve
+    kazanan satır okunur: işlem bozulmaz, savepoint veya commit gerekmez.
+    """
+    values = {"period_id": assignment.period_id, "employee_id": assignment.employee_id}
+    conflict_columns = ["period_id", "employee_id"]
+    if db.session.get_bind().dialect.name == "sqlite":
+        db.session.execute(
+            sqlite_insert(PerformanceEvaluation.__table__).values(**values).on_conflict_do_nothing(index_elements=conflict_columns)
+        )
+    else:
+        db.session.execute(
+            postgresql_insert(PerformanceEvaluation.__table__).values(**values).on_conflict_do_nothing(index_elements=conflict_columns)
+        )
+    evaluation = _find_evaluation(assignment)
     if evaluation is None:
-        evaluation = PerformanceEvaluation(period_id=assignment.period_id, employee_id=assignment.employee_id)
-        db.session.add(evaluation)
-        db.session.flush()
-    if assignment.manager_level == 1:
-        evaluation.level_1_evaluator_id = assignment.evaluator_id
-    elif assignment.manager_level == 2:
-        evaluation.level_2_evaluator_id = assignment.evaluator_id
-    elif assignment.manager_level == 3:
-        evaluation.level_3_evaluator_id = assignment.evaluator_id
+        raise RuntimeError("Değerlendirme kaydı oluşturulamadı.")
+    return evaluation
+
+
+def _align_evaluator_for_write(evaluation, assignment):
+    if assignment.manager_level in (1, 2, 3):
+        setattr(evaluation, f'level_{assignment.manager_level}_evaluator_id', assignment.evaluator_id)
+
+
+def get_or_create_evaluation_for_write(assignment):
+    """Yazma niyeti: değerlendirmeyi bulur/oluşturur ve görevin amirini hizalar.
+
+    Yalnız iş işlemleri çağırır; çağıranın işleminde çalışır, commit/rollback yapmaz.
+    Oluşturma, amir hizalaması ve taslak değişiklikleri route'un tek commit'iyle birlikte
+    kalıcılaşır; hata halinde birlikte geri alınır.
+    """
+    evaluation = _find_evaluation(assignment)
+    if evaluation is None:
+        evaluation = _create_evaluation_for_write(assignment)
+    _align_evaluator_for_write(evaluation, assignment)
     return evaluation
 
 
@@ -212,10 +276,7 @@ def _score_visual(score):
 def _build_panel_criteria_cards(evaluation, criteria, *, level: int, is_comment_only: bool, is_current: bool):
     if not evaluation or is_comment_only:
         return []
-    items = {
-        item.criteria_id: item
-        for item in PerformanceEvaluationItem.query.filter_by(evaluation_id=evaluation.id, manager_level=level).all()
-    }
+    items = _level_items(evaluation, level)
     cards = []
     for criterion in criteria:
         item = items.get(criterion.id)
@@ -398,16 +459,24 @@ def _attach_row_side_cards(criteria_rows, manager_side_panels):
     return enriched_rows
 
 
+def _level_items(evaluation, level: int):
+    # Kaydedilmemiş okuma modelinin kalemi yoktur; evaluation_id IS NULL sorgulanmaz.
+    if getattr(evaluation, 'id', None) is None:
+        return {}
+    return {
+        item.criteria_id: item
+        for item in PerformanceEvaluationItem.query.filter_by(evaluation_id=evaluation.id, manager_level=level).all()
+    }
+
+
 def build_workspace_context(assignment_id: int):
+    """GET çalışma alanı: yalnız okur; ekleme, flush, commit veya amir damgası yapmaz."""
     assignment = _load_assignment(assignment_id)
-    evaluation = _ensure_evaluation(assignment)
+    evaluation = _evaluation_read_model(assignment)
     employee = assignment.employee
     period = assignment.period
     criteria = _criteria_list()
-    existing_items = {
-        item.criteria_id: item
-        for item in PerformanceEvaluationItem.query.filter_by(evaluation_id=evaluation.id, manager_level=assignment.manager_level).all()
-    }
+    existing_items = _level_items(evaluation, assignment.manager_level)
     criteria_rows = []
     for criterion in criteria:
         item = existing_items.get(criterion.id)
@@ -478,7 +547,7 @@ def save_assignment_draft(assignment_id: int, form_data):
     assignment = _load_assignment(assignment_id)
     ensure_scoring_window_open(assignment.period)
     _ensure_not_published_to_employee(assignment, 'Personele yayınlanmış değerlendirme değiştirilemez.')
-    evaluation = _ensure_evaluation(assignment)
+    evaluation = get_or_create_evaluation_for_write(assignment)
     _resolved_chain, _existing_assignments, _actionable_levels, current_level_payload = _assignment_chain_context(assignment)
     score_enabled = bool(getattr(current_level_payload, 'score_enabled', True)) if current_level_payload else True
     items = _upsert_items(
@@ -560,7 +629,7 @@ def return_assignment_to_previous_level(assignment_id: int, note: str | None = N
     if not note_text:
         raise ValueError('İade notu zorunludur.')
     _ensure_not_published_to_employee(assignment, 'Personele yayınlanmış değerlendirme iade edilemez.')
-    evaluation = _ensure_evaluation(assignment)
+    evaluation = get_or_create_evaluation_for_write(assignment)
     target = EvaluationAssignment.query.filter_by(
         period_id=assignment.period_id,
         employee_id=assignment.employee_id,
@@ -582,7 +651,7 @@ def return_assignment_to_previous_level(assignment_id: int, note: str | None = N
 def withdraw_assignment_submission(assignment_id: int):
     assignment = _load_assignment(assignment_id)
     _ensure_not_published_to_employee(assignment, 'Personele yayınlanmış değerlendirme geri çekilemez.')
-    evaluation = _ensure_evaluation(assignment)
+    evaluation = get_or_create_evaluation_for_write(assignment)
     level = assignment.manager_level
     assignment.status = 'taslak'
     assignment.completed_at = None

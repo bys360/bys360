@@ -330,11 +330,18 @@ def test_kpi_target_progress_commit_failure_returns_safe_message_no_class_name(a
 # ===========================================================================
 
 
-def test_in_period_note_create_db_failure_returns_safe_message_no_class_name(app, client, monkeypatch, caplog):
+def test_in_period_note_create_db_failure_returns_safe_message_no_class_name(
+    app, client, monkeypatch, caplog, install_interim_notes_schema
+):
     user_id = _create_user(app)
     headers = _auth_headers(app, user_id)
 
     from app.extensions import db
+
+    # Canonical schema (Alembic revision x1f3a9c5e7b2), so the INSERT succeeds and the
+    # injected failure is the note's own business commit.
+    with app.app_context():
+        install_interim_notes_schema(db.engine)
 
     def _raise_on_commit():
         raise Exception(_SENTINEL)

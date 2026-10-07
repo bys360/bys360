@@ -13,8 +13,8 @@ Scope of this contract (deliberately narrow):
 * incomplete schema (missing table, column or index) -> reported, never repaired:
   since G3-A the table is owned by Alembic revision x1f3a9c5e7b2 and this helper
   is a read-only readiness check (it used to create/repair at request time);
-* the helper's existing ``db.session.commit()`` boundary is preserved
-  (characterization only: whether it should stay is the separate G3-B decision).
+* the helper is transaction-neutral (G3-B, HD-10 Option A): it never commits,
+  rolls back or flushes the caller's session.
 
 Every assertion is made on SQL actually executed against a disposable SQLite
 file, captured with SQLAlchemy's ``before_cursor_execute`` event.
@@ -242,8 +242,8 @@ def test_missing_index_is_reported_not_created(app):
         }
 
 
-def test_complete_schema_keeps_the_existing_commit_boundary(app):
-    """Characterization, not approval: the helper still commits pending session work."""
+def test_complete_schema_readiness_is_transaction_neutral(app):
+    """G3-B: the helper leaves the caller's uncommitted work uncommitted."""
     from app.extensions import db
     from app.services.performance.interim_notes_runtime import ensure_interim_notes_table
 
@@ -257,4 +257,4 @@ def test_complete_schema_keeps_the_existing_commit_boundary(app):
         persisted = db.session.execute(
             text(f"SELECT COUNT(*) FROM {TABLE} WHERE note = 'pending-before-ensure'")
         ).scalar()
-    assert persisted == 1
+    assert persisted == 0

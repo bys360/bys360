@@ -6,8 +6,8 @@
   repair it; they keep their existing read-only error contract.
 * The former creators (runtime readiness helper, mobile fallback, mobile
   note-scorecard column retrofit, P2 apply helper) can no longer create anything.
-* The readiness helper's existing commit boundary is unchanged: pending session
-  work is still committed (G3-B owns that boundary; this slice does not move it).
+* The readiness helper is transaction-neutral (G3-B, HD-10 Option A): it never
+  commits, rolls back or flushes the caller's pending session work.
 """
 
 from __future__ import annotations
@@ -383,19 +383,19 @@ def test_p2_apply_helper_cannot_create_the_table(make_env):
 
 
 @pytest.mark.parametrize("schema", ["canonical", "absent"])
-def test_readiness_helper_still_commits_pending_session_work(make_env, schema):
-    """Unchanged G3-B boundary: callers' pending work is committed by the helper, as before."""
+def test_readiness_helper_never_commits_pending_session_work(make_env, schema):
+    """G3-B boundary: the caller owns its transaction; the readiness check leaves pending work pending."""
     from app.extensions import db
     from app.models import PerformanceEvaluation
     from app.services.performance.interim_notes_runtime import ensure_interim_notes_table
 
     env = make_env(schema)
     with env.app.app_context():
-        db.session.add(
-            PerformanceEvaluation(period_id=env.ids["period"], employee_id=env.ids["admin"])
-        )
+        pending = PerformanceEvaluation(period_id=env.ids["period"], employee_id=env.ids["admin"])
+        db.session.add(pending)
         ensure_interim_notes_table()
-        db.session.rollback()  # nothing left to roll back if the helper committed
+        assert pending in db.session.new
+        db.session.rollback()  # discards the caller's pending work: the helper committed nothing
         persisted = PerformanceEvaluation.query.filter_by(employee_id=env.ids["admin"]).count()
         db.session.remove()
-    assert persisted == 1
+    assert persisted == 0

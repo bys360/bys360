@@ -13,7 +13,6 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import inspect, text
-from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
 from app.models import EvaluationAssignment, PerformanceEvaluation
@@ -115,20 +114,13 @@ def ensure_interim_notes_table() -> tuple[bool, list[str]]:
 
     Tablo Alembic revision x1f3a9c5e7b2 ile oluşturulur/benimsenir; bu yardımcı DDL
     çalıştırmaz. Hazır değilse uyarı döner ve okuyucular boş sonuçla devam eder.
+    İşlem sınırına dokunmaz: commit, rollback veya flush yapmaz; çağıranın bekleyen
+    oturum işi çağıranın kendi iş işlemine aittir (G3-B, HD-10 Seçenek A).
     """
     warnings: list[str] = []
     ready = _schema_ready()
     if not ready:
         warnings.append("Dönem içi not tablosu hazır değil; veritabanı migration'ı (flask db upgrade) çalıştırılmalıdır.")
-    # G3-B: çağıranın bekleyen oturum işini commit eden mevcut sınır aynen korunur
-    # (değerlendirme çalışma alanı kaydı buna dayanır); taşınması ayrı bir karardır.
-    try:
-        db.session.commit()
-    except Exception as exc:
-        logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-        db.session.rollback()
-        warnings.append(f"Dönem içi not tablosu hazırlanamadı: {exc.__class__.__name__}")
-        return False, warnings
     return ready, warnings
 
 
@@ -231,23 +223,16 @@ def _fetch_notes_from_manager_page(
         where.append(f"COALESCE({active_col}, TRUE) = TRUE")
 
     order_col = occurred_col or "id"
+    # NULLS LAST, her lehçede aynı tek sorguyla: boş tarihli kayıtlar en sona. Hata halinde
+    # çağıranın işlemi geri alınmaz ve hata boş sonuçla gizlenmez; işlemin sahibi çağırandır.
     sql = text(f"""
         SELECT {', '.join(select_cols)}
         FROM {TABLE_NAME}
         WHERE {' AND '.join(where)}
-        ORDER BY {order_col} DESC NULLS LAST, id DESC
+        ORDER BY CASE WHEN {order_col} IS NULL THEN 1 ELSE 0 END, {order_col} DESC, id DESC
         LIMIT :limit
     """)
-    try:
-        rows = db.session.execute(sql, params).mappings().all()
-    except SQLAlchemyError:
-        db.session.rollback()
-        try:
-            rows = db.session.execute(text(str(sql).replace(" DESC NULLS LAST", " DESC")), params).mappings().all()
-        except Exception:
-            logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
-            db.session.rollback()
-            return []
+    rows = db.session.execute(sql, params).mappings().all()
     return [_row_to_note(row) for row in rows]
 
 
