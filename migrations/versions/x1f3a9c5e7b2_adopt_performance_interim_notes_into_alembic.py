@@ -24,12 +24,21 @@ did so, each leaving its own shape behind:
 Revision ``d1a0e5c7b934`` additionally adds ``development_guidance_id`` and
 ``converted_to_guidance`` when the table already existed; no code uses them.
 
+HISTORICAL_PRODUCTION_30_VARIANT is the exact PostgreSQL catalog signature
+reported by the failed shadow rehearsal. It retains an older, stricter base,
+assignment/evaluation links and historical indexes, plus additive runtime and
+d1a0 columns. Adoption is strictly read-only: all 30 columns and 13 indexes
+(including the primary-key index) must match, and no DDL or data rewrite occurs.
+The mobile writer validates the reflected note_type length before inserting.
+
 Canonical contract: the RUNTIME shape -- the one the current code creates on an
 empty database -- as the CREATE TABLE definition gives it (the ALTER retrofit's
 nullable ``visibility_level`` is accepted on adopted tables, never converted).
 Every column is read or written by a live request path. Columns that only an
 inactive AI decision query names (``personnel_id``, ``evaluation_id``, ``category``,
-``summary``) are deliberately not added: no helper ever created them, and adding
+``summary``) are deliberately not added to the canonical table. The historical
+production table already has evaluation_id, which is preserved; the other
+missing AI-query columns are never synthesized. Adding
 them would let that query return every note of a period to its caller.
 
 Upgrade:
@@ -101,6 +110,56 @@ KNOWN_LEGACY_EXTRA_COLUMNS = {
     "converted_to_guidance": "boolean",
 }
 
+# Independent from CANONICAL_COLUMNS: same-looking aliases have different
+# defaults/nullability and readers give them different precedence. Never merge.
+HISTORICAL_PRODUCTION_COLUMNS = (
+    ("id", "integer", False, "sequence"),
+    ("period_id", "integer", True, None),
+    ("employee_id", "integer", False, None),
+    ("manager_id", "integer", True, None),
+    ("note_type", "character varying(40)", False, "general"),
+    ("title", "character varying(255)", False, None),
+    ("note", "text", False, None),
+    ("visibility_level", "character varying(40)", False, "manager_scope"),
+    ("remind_in_evaluation", "boolean", False, "true"),
+    ("include_in_scorecard", "boolean", False, "false"),
+    ("occurred_at", "timestamp without time zone", True, "current_timestamp"),
+    ("created_at", "timestamp without time zone", True, "current_timestamp"),
+    ("updated_at", "timestamp without time zone", True, "current_timestamp"),
+    ("assignment_id", "integer", True, None),
+    ("evaluation_id", "integer", True, None),
+    ("note_text", "text", False, ""),
+    ("visible_on_scorecard", "boolean", False, "false"),
+    ("is_active", "boolean", False, "true"),
+    ("created_by_id", "integer", True, None),
+    ("employee_user_id", "integer", True, None),
+    ("created_by", "integer", True, None),
+    ("note_title", "character varying(255)", True, None),
+    ("note_body", "text", True, None),
+    ("visibility_scope", "character varying(80)", True, "manager_scope"),
+    ("remind_during_scoring", "boolean", True, "false"),
+    ("content", "text", True, None),
+    ("description", "text", True, None),
+    ("active", "boolean", True, "true"),
+    ("development_guidance_id", "integer", True, None),
+    ("converted_to_guidance", "boolean", True, None),
+)
+HISTORICAL_PRODUCTION_INDEXES = (
+    ("idx_perf_interim_notes_assignment", ("assignment_id",)),
+    ("idx_perf_interim_notes_employee_period", ("employee_id", "period_id")),
+    ("idx_perf_interim_notes_evaluation", ("evaluation_id",)),
+    ("ix_bys360_fast_performance_interim_notes_created_at", ("created_at",)),
+    ("ix_bys360_fast_performance_interim_notes_period_id", ("period_id",)),
+    ("ix_bys360_fast_performance_interim_notes_updated_at", ("updated_at",)),
+    ("ix_perf_interim_notes_created_by", ("created_by_id",)),
+    ("ix_perf_interim_notes_employee", ("employee_id",)),
+    ("ix_perf_interim_notes_employee_period", ("employee_id", "period_id")),
+    ("ix_perf_interim_notes_employee_user_period", ("employee_user_id", "period_id")),
+    ("ix_perf_interim_notes_manager", ("manager_id",)),
+    ("ix_perf_interim_notes_type", ("note_type",)),
+    ("performance_interim_notes_pkey", ("id",)),
+)
+
 MOBILE_BASE_COLUMNS = frozenset(
     {
         "id",
@@ -145,7 +204,8 @@ KNOWN_VARIANTS = (
     "RUNTIME_VARIANT",
     "MOBILE_VARIANT",
     "MEETING_P2_VARIANT",
-    "(any of them optionally with development_guidance_id/converted_to_guidance from d1a0e5c7b934)",
+    "HISTORICAL_PRODUCTION_30_VARIANT (PostgreSQL only, exact catalog, no optional fields)",
+    "(non-historical variants optionally with development_guidance_id/converted_to_guidance from d1a0e5c7b934)",
 )
 
 _SPEC = {
@@ -216,6 +276,99 @@ def _safe_list(call) -> list:
         return []
 
 
+def historical_production_catalog(bind: sa.engine.Connection) -> dict:
+    """Read the full PG catalog, including indexes/constraints reflection omits."""
+    params = {"table": TABLE_NAME}
+    columns = list(bind.execute(sa.text("""
+        SELECT a.attname AS name, format_type(a.atttypid, a.atttypmod) AS type,
+               NOT a.attnotnull AS nullable, pg_get_expr(d.adbin, d.adrelid) AS default,
+               a.attidentity AS identity, a.attgenerated AS generated
+        FROM pg_attribute a LEFT JOIN pg_attrdef d
+          ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+        WHERE a.attrelid = to_regclass(:table) AND a.attnum > 0 AND NOT a.attisdropped
+        ORDER BY a.attnum
+    """), params).mappings())
+    constraints = list(bind.execute(sa.text("""
+        SELECT conname AS name, contype AS kind, condeferrable AS deferrable,
+               condeferred AS deferred, convalidated AS validated,
+               pg_get_constraintdef(oid) AS definition
+        FROM pg_constraint WHERE conrelid = to_regclass(:table) ORDER BY conname
+    """), params).mappings())
+    indexes = list(bind.execute(sa.text("""
+        SELECT c.relname AS name, i.indisunique AS unique, i.indisprimary AS primary,
+               i.indisvalid AS valid, i.indisready AS ready, am.amname AS method,
+               pg_get_expr(i.indpred, i.indrelid) AS predicate,
+               pg_get_expr(i.indexprs, i.indrelid) AS expressions,
+               i.indnatts - i.indnkeyatts AS included, i.indoption::text AS options,
+               i.indcollation::text AS collations, i.indnullsnotdistinct AS nulls_not_distinct,
+               c.reloptions AS storage_options,
+               ARRAY(SELECT a.attname FROM unnest(i.indkey) WITH ORDINALITY k(num, ord)
+                     LEFT JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.num
+                     ORDER BY k.ord) AS columns,
+               ARRAY(SELECT o.opcdefault FROM unnest(i.indclass) WITH ORDINALITY k(num, ord)
+                     JOIN pg_opclass o ON o.oid = k.num ORDER BY k.ord) AS default_opclasses,
+               ARRAY(SELECT i.indcollation[k.ord::integer - 1] = a.attcollation
+                     FROM unnest(i.indkey) WITH ORDINALITY k(num, ord)
+                     JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.num
+                     ORDER BY k.ord) AS default_collations
+        FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+        JOIN pg_am am ON am.oid = c.relam
+        WHERE i.indrelid = to_regclass(:table) ORDER BY c.relname
+    """), params).mappings())
+    owned_default = bind.execute(sa.text("""
+        SELECT 'nextval(' || quote_literal(pg_get_serial_sequence(:table, 'id')::regclass::text)
+               || '::regclass)'
+    """), params).scalar()
+    return {"columns": columns, "constraints": constraints, "indexes": indexes,
+            "owned_id_default": owned_default}
+
+
+def historical_production_problems(catalog: dict) -> list[str]:
+    """Exact contract; no fallback to a legacy subset after a mismatch."""
+    problems = []
+    columns = {c["name"]: c for c in catalog["columns"]}
+    expected_names = {name for name, *_ in HISTORICAL_PRODUCTION_COLUMNS}
+    if set(columns) != expected_names:
+        problems.append("historical production column names differ")
+    if [c["name"] for c in catalog["columns"]] != [c[0] for c in HISTORICAL_PRODUCTION_COLUMNS]:
+        problems.append("historical production column order differs")
+    for name, type_sql, nullable, default in HISTORICAL_PRODUCTION_COLUMNS:
+        column = columns.get(name)
+        if column is None:
+            continue
+        if (column["type"], column["nullable"], default_token(column["default"])) != (
+            type_sql, nullable, default
+        ) or column["identity"] or column["generated"]:
+            problems.append(f"historical production {name}: type/nullability/default differs")
+        if name == "id" and (not catalog["owned_id_default"] or
+                              column["default"] != catalog["owned_id_default"]):
+            problems.append("historical production id: default is not its owned serial sequence")
+    if [dict(c) for c in catalog["constraints"]] != [{
+        "name": "performance_interim_notes_pkey", "kind": "p", "deferrable": False,
+        "deferred": False, "validated": True, "definition": "PRIMARY KEY (id)",
+    }]:
+        problems.append("historical production constraints differ")
+    expected_indexes = dict(HISTORICAL_PRODUCTION_INDEXES)
+    if {i["name"] for i in catalog["indexes"]} != set(expected_indexes):
+        problems.append("historical production index names differ")
+    for index in catalog["indexes"]:
+        name = index["name"]
+        cols = expected_indexes.get(name)
+        if cols is None:
+            continue
+        is_pk = name == "performance_interim_notes_pkey"
+        if (tuple(index["columns"]) != cols or index["unique"] != is_pk or
+            index["primary"] != is_pk or not index["valid"] or not index["ready"] or
+            index["method"] != "btree" or index["predicate"] is not None or
+            index["expressions"] is not None or index["included"] != 0 or
+            index["options"] != " ".join("0" for _ in cols) or
+            index["default_collations"] != [True] * len(cols) or
+            index["default_opclasses"] != [True] * len(cols) or
+            index["nulls_not_distinct"] or index["storage_options"] is not None):
+            problems.append(f"historical production index {name}: definition differs")
+    return problems
+
+
 def classify_existing_table(bind: sa.engine.Connection) -> InterimNotesShape:
     """Fingerprint the existing table; raise InterimNotesSchemaNotRecognized for anything unknown. Read-only."""
     inspector = sa.inspect(bind)
@@ -223,6 +376,19 @@ def classify_existing_table(bind: sa.engine.Connection) -> InterimNotesShape:
     columns = {column["name"]: column for column in inspector.get_columns(TABLE_NAME)}
     indexes = inspector.get_indexes(TABLE_NAME)
     problems: list[str] = []
+
+    if ({"assignment_id", "evaluation_id"} & set(columns) or
+        getattr(columns.get("note_type", {}).get("type"), "length", None) == 40):
+        if dialect != "postgresql":
+            problems = ["historical production requires PostgreSQL catalog validation"]
+        else:
+            problems = historical_production_problems(historical_production_catalog(bind))
+        if problems:
+            raise InterimNotesSchemaNotRecognized(
+                f"{TABLE_NAME} has an unrecognised structure: {'; '.join(problems)}. "
+                "Exact HISTORICAL_PRODUCTION_30_VARIANT required; no schema change was made."
+            )
+        return InterimNotesShape("HISTORICAL_PRODUCTION_30_VARIANT", (), ())
 
     unknown = sorted(set(columns) - set(_SPEC) - set(KNOWN_LEGACY_EXTRA_COLUMNS))
     if unknown:

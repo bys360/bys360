@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import inspect
+
 from app.models import EvaluationAssignment
 
 
@@ -123,11 +125,24 @@ def phase3c_mobile_performance_create_in_period_note_v2853_service(user: Any, de
             has_relationship = False
         if not has_relationship:
             return jsonify({'message': 'Bu personel için not oluşturma yetkiniz bulunmamaktadır.'}), 403
-    note_type = str(payload.get('note_type') or 'genel_gozlem').strip()[:80] or 'genel_gozlem'
-    title = str(payload.get('title') or _v2853_note_type_label(note_type)).strip()[:255]
-    remind = _v2853_note_bool(payload.get('remind_during_scoring'), True)
-    include = _v2853_note_bool(payload.get('include_in_scorecard'), False)
+    note_type = str(payload.get('note_type') or 'genel_gozlem').strip() or 'genel_gozlem'
+    # Historical production keeps VARCHAR(40); canonical installs use VARCHAR(80).
+    # Inspect only. Reject an oversized historical value before INSERT, preserving
+    # both the submitted value and all existing data (no truncation/schema repair).
     try:
+        note_type_column = next(
+            (c for c in inspect(db.session.connection()).get_columns('performance_interim_notes')
+             if c['name'] == 'note_type'), None
+        )
+        note_type_limit = getattr(note_type_column['type'], 'length', None) if note_type_column else None
+        if note_type_limit not in {40, 80}:
+            return jsonify({'message': 'Dönem içi not şeması hazır değil.'}), 503
+        if note_type_limit == 40 and len(note_type) > note_type_limit:
+            return jsonify({'message': 'Not türü en fazla 40 karakter olabilir.'}), 400
+        note_type = note_type[:80]  # retain the existing canonical/mobile contract
+        title = str(payload.get('title') or _v2853_note_type_label(note_type)).strip()[:255]
+        remind = _v2853_note_bool(payload.get('remind_during_scoring'), True)
+        include = _v2853_note_bool(payload.get('include_in_scorecard'), False)
         db.session.execute(_sql_text('''
             INSERT INTO performance_interim_notes
             (period_id, employee_id, employee_user_id, manager_id, created_by, created_by_id, note_type, title, note, note_body,
