@@ -472,6 +472,233 @@ INTERIM_LEGACY_REHEARSALS: dict[str, tuple[tuple[str, ...], str]] = {
     "MEETING_P2_VARIANT_WITH_D1A0": ((_INTERIM_P2_PG_DDL, *_INTERIM_D1A0_EXTRAS), "MEETING_P2_VARIANT"),
 }
 
+# Independently transcribed read-only production evidence, never production rows.
+# Do not generate this fixture from the migration's expected metadata: the gate
+# must detect a mistaken adoption contract, not merely agree with itself.
+HISTORICAL_PRODUCTION_PG_DDL = """
+CREATE TABLE performance_interim_notes (
+ id SERIAL PRIMARY KEY, period_id INTEGER, employee_id INTEGER NOT NULL, manager_id INTEGER,
+ note_type VARCHAR(40) NOT NULL DEFAULT 'general', title VARCHAR(255) NOT NULL,
+ note TEXT NOT NULL, visibility_level VARCHAR(40) NOT NULL DEFAULT 'manager_scope',
+ remind_in_evaluation BOOLEAN NOT NULL DEFAULT TRUE,
+ include_in_scorecard BOOLEAN NOT NULL DEFAULT FALSE,
+ occurred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, assignment_id INTEGER, evaluation_id INTEGER,
+ note_text TEXT NOT NULL DEFAULT '', visible_on_scorecard BOOLEAN NOT NULL DEFAULT FALSE,
+ is_active BOOLEAN NOT NULL DEFAULT TRUE, created_by_id INTEGER, employee_user_id INTEGER,
+ created_by INTEGER, note_title VARCHAR(255), note_body TEXT,
+ visibility_scope VARCHAR(80) DEFAULT 'manager_scope', remind_during_scoring BOOLEAN DEFAULT FALSE,
+ content TEXT, description TEXT, active BOOLEAN DEFAULT TRUE,
+ development_guidance_id INTEGER, converted_to_guidance BOOLEAN
+)"""
+HISTORICAL_PRODUCTION_PG_INDEXES = {
+    "idx_perf_interim_notes_assignment": "assignment_id",
+    "idx_perf_interim_notes_employee_period": "employee_id, period_id",
+    "idx_perf_interim_notes_evaluation": "evaluation_id",
+    "ix_bys360_fast_performance_interim_notes_created_at": "created_at",
+    "ix_bys360_fast_performance_interim_notes_period_id": "period_id",
+    "ix_bys360_fast_performance_interim_notes_updated_at": "updated_at",
+    "ix_perf_interim_notes_created_by": "created_by_id",
+    "ix_perf_interim_notes_employee": "employee_id",
+    "ix_perf_interim_notes_employee_period": "employee_id, period_id",
+    "ix_perf_interim_notes_employee_user_period": "employee_user_id, period_id",
+    "ix_perf_interim_notes_manager": "manager_id",
+    "ix_perf_interim_notes_type": "note_type",
+}
+HISTORICAL_PRODUCTION_SENTINELS = """
+INSERT INTO performance_interim_notes VALUES
+ (9001, 5, 77, 19, 'general', 'Primary title', 'Primary note', 'manager_scope', TRUE, TRUE,
+ '2026-01-01 01:02:03', '2026-02-02 02:03:04', '2026-03-03 03:04:05',
+ 301, 401, 'Independent note_text – korunmalı', FALSE, TRUE, 20, 88, 21,
+ 'Independent note_title', 'Independent note_body', 'independent_scope', FALSE,
+ 'Independent content', 'Independent description', FALSE, 501, TRUE),
+ (9002, NULL, 78, NULL, 'success', 'Second title', 'Second note', 'manager_scope', FALSE, FALSE,
+ NULL, NULL, NULL, NULL, NULL, '', TRUE, FALSE, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL)
+"""
+HISTORICAL_PRODUCTION_NEGATIVES = {
+    "extra_column": "ADD COLUMN unknown_extra INTEGER",
+    "missing_column": "DROP COLUMN description",
+    "wrong_varchar_length": "ALTER COLUMN note_type TYPE VARCHAR(80)",
+    "wrong_type": "ALTER COLUMN manager_id TYPE TEXT",
+    "wrong_integer_width": "ALTER COLUMN manager_id TYPE BIGINT",
+    "wrong_timestamp_timezone": "ALTER COLUMN occurred_at TYPE TIMESTAMPTZ",
+    "wrong_nullability": "ALTER COLUMN employee_id DROP NOT NULL",
+    "wrong_default": "ALTER COLUMN remind_during_scoring SET DEFAULT TRUE",
+    "unexpected_constraint": "ADD CONSTRAINT unexpected_check CHECK (employee_id > 0)",
+    "unexpected_unique_constraint": "ADD CONSTRAINT unexpected_unique UNIQUE (title)",
+    "partial_hybrid": "DROP COLUMN development_guidance_id",
+    "renamed_pk": "RENAME CONSTRAINT performance_interim_notes_pkey TO different_pkey",
+    "wrong_id_default": "ALTER COLUMN id SET DEFAULT 123",
+}
+
+
+def rehearse_historical_production_adoption(contract, engine_for) -> dict[str, str]:
+    """Exact w2 -> repository head using Alembic's executor, plus catalog/data proof."""
+    import sqlalchemy as sa
+    from alembic.config import Config
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from alembic.script import ScriptDirectory
+
+    outcomes: dict[str, str] = {}
+
+    def fixture(engine):
+        with engine.begin() as conn:
+            conn.execute(sa.text(HISTORICAL_PRODUCTION_PG_DDL))
+            for name, columns in HISTORICAL_PRODUCTION_PG_INDEXES.items():
+                conn.execute(sa.text(f"CREATE INDEX {name} ON {INTERIM_NOTES_TABLE} ({columns})"))
+            conn.execute(sa.text(HISTORICAL_PRODUCTION_SENTINELS))
+
+    def snapshot(engine):
+        with engine.connect() as conn:
+            return (contract.historical_production_catalog(conn),
+                    [dict(r) for r in conn.execute(sa.text(
+                        f"SELECT * FROM {INTERIM_NOTES_TABLE} ORDER BY id"
+                    )).mappings()])
+
+    engine = engine_for("drift_historical_positive")
+    try:
+        fixture(engine)
+        before = snapshot(engine)
+        with engine.connect() as conn:
+            if contract.classify_existing_table(conn).variant != "HISTORICAL_PRODUCTION_30_VARIANT":
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "historical classification differs")
+        config = Config(str(REPO_ROOT / "alembic.ini"))
+        config.set_main_option("script_location", str(REPO_ROOT / "migrations"))
+        script = ScriptDirectory.from_config(config)
+        with engine.begin() as conn:
+            context = MigrationContext.configure(conn, opts={
+                "fn": lambda heads, ctx: script._upgrade_revs("head", heads),
+            })
+            context.stamp(script, "w2d8e1f4a6c3")
+            if context.get_current_revision() != "w2d8e1f4a6c3":
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "incorrect historical starting revision")
+            statements: list[str] = []
+
+            def record_statement(conn, cursor, statement, parameters, ctx, executemany):
+                statements.append(statement.strip())
+
+            sa.event.listen(conn, "before_cursor_execute", record_statement)
+            try:
+                with Operations.context(context):
+                    context.run_migrations()
+            finally:
+                sa.event.remove(conn, "before_cursor_execute", record_statement)
+            adoption_mutations = [s for s in statements if re.match(r"^(CREATE|ALTER|DROP|INSERT|UPDATE|DELETE)\b", s, re.I)
+                                  and not re.match(r"^UPDATE alembic_version\b", s, re.I)]
+            if adoption_mutations:
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "historical adoption executed DDL/DML")
+            if context.get_current_revision() != script.get_current_head():
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "historical Alembic head differs")
+        if snapshot(engine) != before:
+            raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "historical catalog or synthetic rows changed")
+        with engine.begin() as conn:
+            contract.op = Operations(MigrationContext.configure(conn))
+            contract.upgrade()
+            contract.downgrade()
+        if snapshot(engine) != before:
+            raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "historical repeat/downgrade changed data")
+        outcomes["HISTORICAL_PRODUCTION_30_VARIANT"] = "w2 -> head; exact catalog and every row value preserved"
+        rehearse_historical_runtime(engine, "drift_historical_positive")
+        outcomes["HISTORICAL_RUNTIME"] = "real reader precedence preserved; mobile 40 accepted, 41 refused without writes"
+    finally:
+        engine.dispose()
+
+    mutations = {
+        **{name: f"ALTER TABLE {INTERIM_NOTES_TABLE} {ddl}"
+           for name, ddl in HISTORICAL_PRODUCTION_NEGATIVES.items()},
+        "unexpected_index": f"CREATE INDEX unexpected_index ON {INTERIM_NOTES_TABLE} (title)",
+        "missing_index": "DROP INDEX ix_perf_interim_notes_manager",
+        "partial_index": ("DROP INDEX ix_perf_interim_notes_type; CREATE INDEX ix_perf_interim_notes_type "
+                          f"ON {INTERIM_NOTES_TABLE} (note_type) WHERE is_active"),
+        "descending_index": ("DROP INDEX ix_perf_interim_notes_manager; CREATE INDEX ix_perf_interim_notes_manager "
+                             f"ON {INTERIM_NOTES_TABLE} (manager_id DESC)"),
+        "included_column_index": ("DROP INDEX ix_perf_interim_notes_manager; CREATE INDEX ix_perf_interim_notes_manager "
+                                  f"ON {INTERIM_NOTES_TABLE} (manager_id) INCLUDE (title)"),
+    }
+    for number, (case, mutation) in enumerate(mutations.items()):
+        engine = engine_for(f"drift_negative_{number}")
+        try:
+            fixture(engine)
+            with engine.begin() as conn:
+                for statement in mutation.split(";"):
+                    conn.execute(sa.text(statement))
+            before = snapshot(engine)
+            try:
+                with engine.begin() as conn:
+                    contract.op = Operations(MigrationContext.configure(conn))
+                    contract.upgrade()
+            except contract.InterimNotesSchemaNotRecognized:
+                pass
+            else:
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", f"historical {case} was accepted")
+            if snapshot(engine) != before:
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", f"historical {case} changed despite refusal")
+            outcomes[f"HISTORICAL_REJECT_{case}"] = "refused before mutation; catalog/rows unchanged"
+        finally:
+            engine.dispose()
+    return outcomes
+
+
+def rehearse_historical_runtime(engine, schema: str) -> None:
+    """Execute real read/create services on the disposable PG fixture only."""
+    import logging
+    from types import SimpleNamespace
+
+    import sqlalchemy as sa
+    from flask import Flask, jsonify
+
+    from app.api.mobile.services.performance_note_route_services import (
+        phase3c_mobile_performance_create_in_period_note_v2853_service,
+    )
+    from app.extensions import db
+    from app.services.performance.interim_notes_runtime import (
+        _fetch_notes_from_manager_page,
+        ensure_interim_notes_table,
+    )
+
+    flask_app = Flask(__name__)
+    flask_app.config.update(
+        TESTING=True, SQLALCHEMY_DATABASE_URI=engine.url,
+        SQLALCHEMY_ENGINE_OPTIONS={"connect_args": {"options": f"-csearch_path={schema}"}},
+    )
+    db.init_app(flask_app)
+    with flask_app.app_context():
+        try:
+            def rows():
+                return [dict(r) for r in db.session.execute(sa.text(
+                    f"SELECT * FROM {INTERIM_NOTES_TABLE} ORDER BY id"
+                )).mappings()]
+
+            before = rows()
+            notes = _fetch_notes_from_manager_page(employee_id=77, period_id=5, scorecard_marked_only=True)
+            if len(notes) != 1 or notes[0]["body"] != "Independent note_body":
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "historical reader precedence changed")
+            if _fetch_notes_from_manager_page(employee_id=88, period_id=5):
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "historical employee alias was merged")
+            deps = {
+                "_has_global_scope": lambda user: False,
+                "_v2853_ensure_interim_notes_table": ensure_interim_notes_table,
+                "_v2853_note_bool": lambda value, default: default if value is None else bool(value),
+                "_v2853_note_type_label": lambda value: value,
+                "db": db, "jsonify": jsonify, "logger": logging.getLogger(__name__),
+            }
+            with flask_app.test_request_context("/", method="POST", json={"note": "Synthetic mobile", "note_type": "ş" * 41}):
+                rejected = phase3c_mobile_performance_create_in_period_note_v2853_service(SimpleNamespace(id=77), deps)
+            if rejected[1] != 400 or rows() != before:
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "oversized historical mobile write was not safely refused")
+            with flask_app.test_request_context("/", method="POST", json={"note": "Synthetic mobile", "note_type": "ş" * 40}):
+                accepted = phase3c_mobile_performance_create_in_period_note_v2853_service(SimpleNamespace(id=77), deps)
+            after = rows()
+            new = [r for r in after if r["id"] not in {9001, 9002}]
+            if (accepted.status_code != 200 or len(new) != 1 or new[0]["note_type"] != "ş" * 40 or
+                new[0]["note_text"] != "" or [r for r in after if r["id"] in {9001, 9002}] != before):
+                raise GateFailure("INTERIM_NOTES_LEGACY_ADOPTION_FAILURE", "historical mobile boundary or existing values changed")
+        finally:
+            db.session.remove()
+            db.engine.dispose()
+
 
 def load_interim_notes_contract():
     """The owner revision module (its CANONICAL_COLUMNS/CANONICAL_INDEXES are the contract)."""
@@ -586,6 +813,7 @@ def rehearse_interim_notes_legacy_adoption(database_url: str) -> dict[str, str]:
         contract.upgrade()
 
     try:
+        outcomes.update(rehearse_historical_production_adoption(contract, engine_for))
         for number, (case, (statements, expected_variant)) in enumerate(INTERIM_LEGACY_REHEARSALS.items()):
             engine = engine_for(f"g3a_rehearsal_{number}")
             with engine.begin() as conn:
