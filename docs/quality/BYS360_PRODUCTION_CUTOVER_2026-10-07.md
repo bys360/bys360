@@ -1,6 +1,6 @@
 # BYS360 Production Cutover — 2026-10-07
 
-**Type:** sanitized repository evidence record.  
+**Type:** sanitized repository evidence record.
 **Scope:** human-controlled production cutover from `a5bd8a38…` to `cdae2795…`.
 
 This record contains technical results only. It intentionally contains no credentials,
