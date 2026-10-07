@@ -772,29 +772,32 @@ def _fetch_recommendations(limit: int = 120) -> list[dict[str, Any]]:
         return []
 
 
-def get_scorecard_development_guidance(employee_id: Any = None, period_id: Any = None, limit: int = 10) -> list[dict[str, Any]]:
-    """Karne altında sadece personele görünmesi güvenli kayıtları döndürür."""
-    if db is None or not ensure_phase10_recommendation_table():
+_SCORECARD_SAFE_CLAUSES = (
+    "show_on_scorecard = :true_value",
+    "is_published = :true_value",
+    "publish_lock = :false_value",
+    "(supervisor_approval_required = :false_value OR supervisor_approved = :true_value)",
+    "(hr_publish_required = :false_value OR hr_publish_approved = :true_value)",
+    "scorecard_visibility_mode IN ('after_publish', 'after_ack')",
+    "employee_id = :employee_id",
+)
+
+
+def fetch_scorecard_safe_recommendations(employee_id: Any, period_id: Any = None, limit: int = 10) -> list[dict[str, Any]]:
+    """Karnede gösterilmesi güvenli kanonik gelişim önerileri (tek kaynak).
+
+    Karne detayı, karne PDF'i ve 70 altı yayın kapısı aynı kümeyi buradan okur: karneye
+    gösterilecek, yayınlanmış, kilitsiz, onayları tamamlanmış ve yayın sonrası görünür
+    kayıtlar; aynı personel, aynı dönem ya da döneme bağlı olmayan kayıtlar. Personel
+    belirtilmezse hiçbir kayıt döndürülmez (başka personelin önerisi sızmaz).
+    """
+    if db is None or employee_id in (None, "", "None") or not ensure_phase10_recommendation_table():
         return []
-
-    clauses = [
-        "show_on_scorecard = :true_value",
-        "is_published = :true_value",
-        "publish_lock = :false_value",
-        "(supervisor_approval_required = :false_value OR supervisor_approved = :true_value)",
-        "(hr_publish_required = :false_value OR hr_publish_approved = :true_value)",
-        "scorecard_visibility_mode IN ('after_publish', 'after_ack')",
-    ]
-    params = {"true_value": True, "false_value": False, "limit": limit}
-
-    if employee_id not in (None, "", "None"):
-        clauses.append("employee_id = :employee_id")
-        params["employee_id"] = employee_id
-
+    clauses = list(_SCORECARD_SAFE_CLAUSES)
+    params: dict[str, Any] = {"true_value": True, "false_value": False, "employee_id": employee_id, "limit": limit}
     if period_id not in (None, "", "None"):
         clauses.append("(period_id = :period_id OR period_id IS NULL)")
         params["period_id"] = period_id
-
     sql = text(f"""
         SELECT *
         FROM performance_development_recommendations
@@ -802,14 +805,18 @@ def get_scorecard_development_guidance(employee_id: Any = None, period_id: Any =
         ORDER BY updated_at DESC, created_at DESC, id DESC
         LIMIT :limit
     """)
+    rows = db.session.execute(sql, params).all()
+    return [normalize_recommendation(dict(r._mapping)) for r in rows]
 
-    try:
-        rows = db.session.execute(sql, params).all()
-        return [normalize_recommendation(dict(r._mapping)) for r in rows]
-    except Exception as exc:
-        _rollback_safely()
-        current_app.logger.warning("Karne gelişim rehberi okunamadı: %s", exc)
-        return []
+
+def has_scorecard_safe_recommendation(employee_id: Any, period_id: Any = None) -> bool:
+    """70 altı yayın kapısı: karnede gösterilebilir en az bir kanonik öneri var mı?"""
+    return bool(fetch_scorecard_safe_recommendations(employee_id, period_id, limit=1))
+
+
+def get_scorecard_development_guidance(employee_id: Any = None, period_id: Any = None, limit: int = 10) -> list[dict[str, Any]]:
+    """Karne altında sadece personele görünmesi güvenli kayıtları döndürür."""
+    return fetch_scorecard_safe_recommendations(employee_id, period_id, limit)
 
 
 def _concat_name_expr(cols: set[str]) -> str:

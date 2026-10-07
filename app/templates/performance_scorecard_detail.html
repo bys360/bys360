@@ -114,6 +114,7 @@ page-performance-scorecard-detail{% endblock %}
 {% endblock %}
 
 {% block content %}
+{% from "performance/_development_guidance_scorecard_items.html" import render_scorecard_guidance_items %}
 {# BYS360_AI_DECISION_FAZ7_HISTORICAL_ARCHIVE_PANEL_INCLUDE #}
 {% include "ai_decision/_faz7_historical_archive_panel.html" ignore missing %}
 
@@ -219,11 +220,7 @@ page-performance-scorecard-detail{% endblock %}
         <div class="phase5-employee-section-head"><div><div class="phase5-employee-section-title">Gelişim Önerisi</div><div class="phase5-employee-section-sub">Karne sonucuna bağlı rehberlik ve gelişim notları.</div></div></div>
         <div class="phase5-employee-section-body">
             {% if development_rows %}
-            <div class="phase5-development-grid">
-                {% for item in development_rows %}
-                <article class="phase5-development-card"><div class="phase5-development-title">{{ item.title or item.type_label or 'Gelişim Önerisi' }}</div><div class="phase5-development-text">{{ item.recommendation_text or 'Açıklama girilmemiş.' }}</div></article>
-                {% endfor %}
-            </div>
+            {{ render_scorecard_guidance_items(development_rows) }}
             {% else %}
             <div class="phase5-employee-empty">Bu karne için yayınlanmış gelişim önerisi bulunmuyor.</div>
             {% endif %}
@@ -350,19 +347,7 @@ page-performance-scorecard-detail{% endblock %}
         <div class="scorecard-development-alert"><strong>Rehber notu:</strong> {{ development_ctx.status_detail or 'Gelişim önerileri ve güçlü yön notları karar destek niteliğindedir.' }}</div>
         {% endif %}
         {% if development_rows %}
-        <div class="scorecard-development-grid">
-            {% for item in development_rows %}
-            <article class="scorecard-development-card">
-                <div class="scorecard-development-card-top">
-                    <span class="scorecard-development-type"><i class="fa-regular fa-bookmark"></i> {{ item.type_label or item.recommendation_type or 'Gelişim Önerisi' }}</span>
-                    <span><i class="fa-regular fa-clock"></i> {{ item.created_display or '-' }}</span>
-                </div>
-                <h4 class="scorecard-development-title">{{ item.title or 'Gelişim Önerisi' }}</h4>
-                <div class="scorecard-development-body">{{ item.recommendation_text or 'Açıklama girilmemiş.' }}</div>
-                <div class="scorecard-development-foot"><i class="fa-solid fa-user-check"></i> {{ 'Zorunlu gelişim önerisi' if item.is_required else 'Rehber / güçlü yön notu' }}</div>
-            </article>
-            {% endfor %}
-        </div>
+        {{ render_scorecard_guidance_items(development_rows) }}
         {% else %}
         <div class="note-box">Henüz bu karneye bağlanmış gelişim önerisi veya güçlü yön notu bulunmuyor.</div>
         {% endif %}
@@ -371,18 +356,8 @@ page-performance-scorecard-detail{% endblock %}
             <div class="scorecard-development-guide-item"><strong>{{ card.title }}</strong><span>{{ card.text }}</span></div>
             {% endfor %}
         </div>
-        {% if development_ctx.can_add_note %}
-        <form class="scorecard-development-form" method="post" action="{{ url_for('main.performance_scorecard_development_note_save', evaluation_id=evaluation.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="scorecard-development-form-row">
-                <div><label class="meta-label">Not türü</label><select name="recommendation_type">{% for type_item in development_ctx.recommendation_types or [] %}<option value="{{ type_item.value }}" {% if type_item.value == development_ctx.default_type %}selected{% endif %}>{{ type_item.label }}</option>{% endfor %}</select></div>
-                <div><label class="meta-label">Kimler Görebilir</label><select name="visibility_scope">{% for visibility_option in development_ctx.visibility_options or [] %}<option value="{{ visibility_option.value }}">{{ visibility_option.label }}</option>{% endfor %}</select></div>
-            </div>
-            <div><label class="meta-label">Başlık</label><input type="text" name="title" value="{{ development_ctx.default_title or '' }}" placeholder="Kısa başlık"></div>
-            <div><label class="meta-label">Gelişim önerisi / güçlü yön notu</label><textarea name="recommendation_text" placeholder="Somut, sade ve yönlendirici not yazınız. Bu alan karar değil, gelişim rehberidir."></textarea></div>
-            <label class="scorecard-development-check"><input type="checkbox" name="is_required" {% if development_ctx.default_required %}checked{% endif %}> Bu kayıt yayın öncesi zorunlu gelişim önerisi olarak işaretlensin</label>
-            <div class="action-row"><button class="btn-soft primary" type="submit"><i class="fa-solid fa-seedling"></i> Gelişim Notunu Kaydet</button></div>
-        </form>
+        {% if development_ctx.can_manage_guidance %}
+        <div class="action-row"><a class="btn-soft primary" href="{{ url_for('main.performance_meeting_p4_development_guidance') }}"><i class="fa-solid fa-seedling"></i> Gelişim Rehberi ekranında yönet</a></div>
         {% endif %}
     </div>
     {% endif %}

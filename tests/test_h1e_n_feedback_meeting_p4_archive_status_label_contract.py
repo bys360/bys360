@@ -27,7 +27,9 @@ evaluates to `raw` itself).
     (_recommendation_rows_for_evaluation and
     build_p4_development_guidance_context), both feeding a
     `row["type_label"]` field rendered to a manager/employee reviewing
-    development recommendations.
+    development recommendations. (Both sites were later retired together
+    with the legacy P4 recommendation contract; the scorecard now renders
+    the canonical Phase-10 normalizer's label, which the test below pins.)
   - app/services/performance/phase7_scorecard_archive_center.py's
     phase7_status_label() had `STATUS_LABELS.get(text, text or "Arşiv
     Durumu Belirtilmedi")`, feeding the scorecard archive center's
@@ -79,22 +81,21 @@ def test_phase7_status_label_never_leaks_raw() -> None:
     assert phase7_status_label("future_archive_status_v9") != "future_archive_status_v9"
 
 
-def test_meeting_p4_recommendation_rows_never_leak_raw_type() -> None:
-    from app.services.performance import meeting_p4_development_guidance as mod
+def test_scorecard_recommendation_rows_never_leak_raw_type() -> None:
+    # The scorecard's development recommendations now come only from the canonical
+    # Phase-10 contract (the legacy P4 type vocabulary is retired); its normalizer
+    # owns the type label shown to managers and employees.
+    from app.performance.phase10_development_guidance_ui import (
+        TYPE_LABELS,
+        normalize_recommendation,
+    )
 
-    class _FakeRow(dict):
-        pass
+    unknown = normalize_recommendation({"recommendation_type": "future_recommendation_type_v9"})
+    assert unknown["recommendation_type_label"] == "Gelişim Planı"
+    assert unknown["recommendation_type_label"] != "future_recommendation_type_v9"
 
-    row = _FakeRow(recommendation_type="future_recommendation_type_v9", visibility_scope="", status="")
-    # Exercise the exact same P4_TYPE_LABELS.get(...) expression the
-    # production code now uses, against the real dict it imports.
-    label = mod.P4_TYPE_LABELS.get(row["recommendation_type"], "Gelişim Önerisi")
-    assert label == "Gelişim Önerisi"
-    assert label != "future_recommendation_type_v9"
-
-    known_key = next(iter(mod.P4_TYPE_LABELS), None)
-    if known_key:
-        assert mod.P4_TYPE_LABELS.get(known_key, "Gelişim Önerisi") == mod.P4_TYPE_LABELS[known_key]
+    for known_key, known_label in TYPE_LABELS.items():
+        assert normalize_recommendation({"recommendation_type": known_key})["recommendation_type_label"] == known_label
 
 
 def test_notify_feedback_meeting_updated_notification_title_never_leaks_raw_status(monkeypatch) -> None:
