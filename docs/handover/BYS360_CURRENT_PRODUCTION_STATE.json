@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
-  "document_status": "CANONICAL",
+  "document_status": "HISTORICAL_FROZEN",
+  "superseded_by": "SOURCE_OF_TRUTH.md",
   "handover_document": "docs/handover/BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md",
   "last_validated": "2026-08-24",
   "source_sha": "cb2e57c5d1829ea743c696ae78595a20755f3f07",
