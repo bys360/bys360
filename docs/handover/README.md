@@ -1,6 +1,6 @@
 # BYS360 Devir ve Operasyon Dokümanları — Index
 
-> **Tarihsel snapshot — 2026-08-24:** Ana devir belgesi ve özellik matrisi, bu tarihteki üretim/devir kaydının dondurulmuş görüntüsüdür. Sonraki tarihli açıklamalar kendi tarihsel bağlamlarıyla korunur. Güncel üretim kimliği için [SOURCE_OF_TRUTH.md](../../SOURCE_OF_TRUTH.md) esas alınır; bu belgelerdeki eski SHA ve kanıtlar güncel üretim beyanı değildir.
+> **Tarihsel snapshot — 2026-08-24:** Ana devir belgesi, özellik matrisi ve `BYS360_CURRENT_PRODUCTION_STATE.json`, bu tarihteki üretim/devir kaydının dondurulmuş görüntüsüdür. Sonraki tarihli açıklamalar kendi tarihsel bağlamlarıyla korunur. Güncel üretim kimliği için [SOURCE_OF_TRUTH.md](../../SOURCE_OF_TRUTH.md) esas alınır; bu belgelerdeki eski SHA ve kanıtlar güncel üretim beyanı değildir.
 
 ```
 FROZEN HISTORICAL HANDOVER SNAPSHOT (2026-08-24):
@@ -11,6 +11,12 @@ cb2e57c5d1829ea743c696ae78595a20755f3f07
 ```
 
 Bu klasör, BYS360 projesinin kurulum, canlıya alma, bakım, güvenlik, modül envanteri ve süreklilik planı dokümanlarını içerir.
+
+[BYS360_CURRENT_PRODUCTION_STATE.json](BYS360_CURRENT_PRODUCTION_STATE.json), adında
+`CURRENT` geçmesine rağmen **2026-08-24 frozen historical snapshot**'ıdır.
+`document_status: HISTORICAL_FROZEN` tüm tarihsel içeriği sınıflandırır;
+`superseded_by: SOURCE_OF_TRUTH.md` repository kökündeki güncel üretim referansına işaret eder.
+Eski SHA, tarihler, sayılar, score ve evidence alanları tarihsel kayıt olarak korunur.
 
 ## Okuma Sırası (Yeni Operatör İçin)
 
@@ -26,6 +32,7 @@ Aşağıdaki listedeki dosyalar **SUPERSEDED** veya **HISTORICAL**'dir (silinmem
 |---|---|---|
 | `BYS360_FINAL_HANDOVER_AND_SUSTAINABILITY.md` | **HISTORICAL / FROZEN SNAPSHOT** | 2026-08-24 |
 | `BYS360_FEATURE_COVERAGE_MATRIX.md` | **HISTORICAL / FROZEN SNAPSHOT** (companion) | 2026-08-24 |
+| `BYS360_CURRENT_PRODUCTION_STATE.json` | **HISTORICAL_FROZEN** (dosya adındaki CURRENT güncel üretim anlamına gelmez) | 2026-08-24 |
 | `BYS360_DEVIR_PAKETI_V1.md` | SUPERSEDED | 2026-06-24 |
 | `BYS360_KURULUM_REHBERI.md` | SUPERSEDED | 2026-06-24 |
 | `BYS360_CANLIYA_ALMA_REHBERI.md` | SUPERSEDED | 2026-06-24 |

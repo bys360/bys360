@@ -220,15 +220,40 @@ paketin geçerli olduğu anlamına gelmez -- her release bu komutla doğrulanmal
 
 Canlıya alma sonrası 5xx, beyaz sayfa, migration hatası veya yetki bozulması görülürse:
 
-Kanonik kod geri dönüş yolu
+Güncel candidate/cutover modelinin kanonik **app-tree rollback** yolu
+[rollback_bys360_candidate.ps1](scripts/windows/rollback_bys360_candidate.ps1)'dir;
+[BACKUP_RUNBOOK.md §6](BACKUP_RUNBOOK.md#6-restore-özeti) aynı sözleşmeyi açıklar.
+Yetkili insanın geri dönüş/kesinti kararından önce şu girdiler ve kod–DB uyumluluğu incelenir:
+
+- Zorunlu `-PreviousDir`, izin verilen previous alanındaki önceki uygulama ağacını seçer.
+  Bu ağaç uygulama işaretçilerini, `.venv\Scripts\python.exe` ve `.env` dosyasını taşımalıdır;
+  receipt eşleşmesi için `CANDIDATE_READY.json` içindeki kaynak SHA da okunabilir olmalıdır.
+  Yalnız filtreli kod yedeği bu sözleşmeyi karşılamaz.
+- Zorunlu `-ActiveDeploymentReceiptPath`, başarılı cutover'ın `DEPLOYMENT_RECEIPT.txt`
+  dosyasını seçer. `DEPLOY_EXIT_CODE=0`, mevcut uygulamanın SHA'sı ile `CANDIDATE_SOURCE_SHA`,
+  seçilen önceki ağacın SHA'sı ile `PREVIOUS_SOURCE_SHA` ve tam dizini ile `PREVIOUS_DIR`
+  eşleşmelidir. Eksik veya uyuşmayan receipt, servis durdurulmadan/dizin taşınmadan reddedilir;
+  script kendiliğinden başka bir previous dizini seçmez.
+- Bilinen mevcut DB revision'ı önceki ağacın migration head'i ile aynıysa pre-migration
+  app-tree yolu kullanılabilir. Revision eşleşmiyorsa veya eşleşme doğrulanamıyorsa
+  (migration ilerlemiş ya da revision/head bilinmiyor olabilir) açık
+  `-PostMigrationAppTreeCompatible` insan beyanı gerekir. Bu bayrak uyumluluk kanıtı üretmez;
+  önceki uygulamanın mevcut DB ile çalışabildiği ayrıca değerlendirilmelidir.
+
+Bu scriptte DRY-RUN veya `-Apply` modu yoktur; ön koşullar sağlandığında gerçek rollback
+akışını yürütür. Mevcut uygulama ağacını quarantine alanına taşır, seçilen önceki ağacı
+kopyalar, mevcut `.env` ve `instance` içeriğini korur; storage alanlarına dokunmaz.
+Servisi yeniden başlatır ve healthcheck yapar. Başarılı cutover receipt'i olmayan kısmi
+cutover hatalarında bu yolun çalışacağı varsayılmaz; ayrı insan kontrollü recovery kararı gerekir.
+
+**DB restore ve migration recovery ayrı, insan kontrollü işlemlerdir.** App-tree rollback
+DB restore etmez ve otomatik Alembic downgrade çalıştırmaz. Sonrasında `/login`, `/healthz`,
+performans ana ekranı ve mesaj/anket ekranları kontrol edilir.
+
 [rollback_bys360_live_release_v1.ps1](scripts/windows/rollback_bys360_live_release_v1.ps1)
-ile [BACKUP_RUNBOOK.md §6](BACKUP_RUNBOOK.md#6-restore-özeti)'daki prosedürdür. Önce
-varsayılan DRY-RUN planı ve yedek doğrulaması incelenir; gerçek uygulama yalnız yetkili
-insan onayı ve açık `-Apply` ile yapılır. Görev durdurma/başlatma ve filtreli kod kopyalama
-bu script tarafından yönetilir; korunan runtime/configuration yolları eski kod yedeğiyle
-üzerine yazılmaz. Gerekirse DB yedeğinin restore edilmesi ayrı, insan kontrollü bir
-operasyondur; kod rollback scripti bunu yapmaz. Sonrasında `/login`, `/healthz`, performans
-ana ekranı ve mesaj/anket ekranları kontrol edilir.
+repository'de **legacy / pre-candidate** filtreli kod geri dönüş yolu olarak korunur;
+varsayılan DRY-RUN ve `-Apply` sözleşmesi yalnız bu eski yola aittir. Güncel candidate
+rollback ile karıştırılmamalıdır; ayrıntıları BACKUP_RUNBOOK.md §6'daki legacy bölümündedir.
 
 ## Git Geçmişi ve Kaynak Teslim Notu
 

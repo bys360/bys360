@@ -1,5 +1,13 @@
 # BYS360 STATUS.md
 
+## 2026-10-08 — Post-cutover documentation consistency
+
+- Docs-only cleanup: rollback/runbook ve historical handover sınıflandırması tutarlı hale getirildi.
+- Production source SHA değişmedi: `cdae27953adcbdd8270fe78dcd52351725d3aecd`.
+- Production tag değişmedi: `bys360-prod-2026.10.07-cdae2795`.
+- DB migration head değişmedi: `x1f3a9c5e7b2`.
+- Deployment yapılmadı.
+
 ## 2026-10-07 — Verified Production Cutover
 
 - **Release:**

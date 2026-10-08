@@ -30,7 +30,7 @@ robocopy "C:\bys360\project" "$BackupRoot\project" /E /XD .git .venv __pycache__
 ```
 
 Bu yalnız kod yedeğidir. Dizin/uzantı dışlamaları
-[bakımı sürdürülen rollback scriptinin](scripts/windows/rollback_bys360_live_release_v1.ps1)
+[legacy / pre-candidate rollback scriptinin](scripts/windows/rollback_bys360_live_release_v1.ps1)
 koruma listesini izler: `.git`, `.venv`, `__pycache__`, `logs`, `instance`, `reports`,
 `dist_secure` ve `uploads` adlı dizinler (iç içe `app\static\uploads` dahil), ayrıca
 `.pyc`, `.log`, `.sqlite`, `.sqlite3`, `.db` dosyaları kod yedeğine alınmaz.
@@ -38,6 +38,8 @@ koruma listesini izler: `.git`, `.venv`, `__pycache__`, `logs`, `instance`, `rep
 [güvenli release sözleşmesine](scripts/release/build_bys360_safe_release.py) dayanır;
 bu kod-yedeği örneği `.env.*` şablonlarını da dışarıda bırakır. Korunan runtime/configuration
 içeriği sıradan kod yedeği değildir; `.env` güvenli kanalda ayrı saklanır.
+Bu filtreli kod yedeği, güncel candidate rollback'in ihtiyaç duyduğu `.venv` ve `.env`
+içeren önceki uygulama ağacı (`PreviousDir`) yerine kullanılamaz; §6'daki yollar ayrıdır.
 
 ## 4. PostgreSQL yedeği
 
@@ -71,11 +73,43 @@ SQLite dosyası release paketine konulmaz.
 
 ## 6. Restore özeti
 
-### Kod geri dönüşü
+### Güncel candidate/cutover app-tree rollback
 
-Kanonik kod geri dönüş yolu (TD-036)
+Güncel kanonik yol
+[scripts\windows\rollback_bys360_candidate.ps1](scripts/windows/rollback_bys360_candidate.ps1)
+ile [DEPLOYMENT.md §9](DEPLOYMENT.md#9-rollback)'daki app-tree sözleşmesidir.
+İki zorunlu girdi vardır: `-PreviousDir` ve `-ActiveDeploymentReceiptPath`.
+`PreviousDir`, izin verilen previous alanındaki önceki uygulama ağacıdır; uygulama
+işaretçileri, `.venv\Scripts\python.exe`, `.env` ve receipt ile eşleşen kaynak SHA'yı
+okuyabilmek için `CANDIDATE_READY.json` gerekir. §3'teki kod yedeği bu tam ağaç değildir.
+
+Receipt dosyasının adı `DEPLOYMENT_RECEIPT.txt` olmalıdır. Başarılı cutover kaydında
+`DEPLOY_EXIT_CODE=0` olmalı; `CANDIDATE_SOURCE_SHA` mevcut uygulama SHA'sına,
+`PREVIOUS_SOURCE_SHA` seçilen önceki uygulama SHA'sına ve `PREVIOUS_DIR` seçilen dizine
+bağlanmalıdır. Eksik/uyuşmayan receipt, servis durdurulmadan ve dizin taşınmadan reddedilir.
+Otomatik latest/başka previous dizini seçimi yoktur. Başarılı receipt bulunmayan kısmi
+cutover hatası için ayrı insan kontrollü recovery değerlendirmesi gerekir.
+
+Bilinen DB revision'ı önceki ağacın migration head'i ile aynıysa pre-migration app-tree
+rollback mümkündür. Revision eşleşmiyorsa veya eşleşme doğrulanamıyorsa (migration
+ilerlemiş ya da revision/head bilinmiyor olabilir) insanın mevcut DB ile
+önceki uygulamanın uyumluluğunu değerlendirmesi ve açık `-PostMigrationAppTreeCompatible`
+beyanı gerekir; script bu uyumluluğu kendi başına kanıtlamaz.
+
+Scriptte DRY-RUN veya `-Apply` modu yoktur. Yetkili insanın geri dönüş/kesinti onayı ve
+ön koşulların incelenmesinden sonra gerçek işlem yapılır: mevcut ağaç quarantine alanına
+taşınır, önceki ağaç kopyalanır ve mevcut `.env` ile `instance` korunur. Storage alanları
+ve DB yedekleri değiştirilmez; servis başlatma ve healthcheck adımları uygulanır.
+Bu yalnız app-tree rollback'tir; DB restore etmez, otomatik Alembic downgrade çalıştırmaz.
+DB migration ilerlediyse database recovery kararı ve gerekiyorsa aşağıdaki PostgreSQL
+restore işlemi ayrı, insan kontrollü süreçlerdir.
+
+### Legacy / pre-candidate filtreli kod geri dönüşü
+
+Eski TD-036 kod geri dönüş yolu
 [scripts\windows\rollback_bys360_live_release_v1.ps1](scripts/windows/rollback_bys360_live_release_v1.ps1)
-ile aşağıdaki akıştır. Script varsayılan olarak **DRY-RUN** çalışır: planı basar ve VERIFY
+ile aşağıdaki legacy akıştır; güncel candidate/cutover rollback yolu değildir.
+Bu eski script varsayılan olarak **DRY-RUN** çalışır: planı basar ve VERIFY
 ön koşullarını denetler; dosya kopyalamaz, görev durdurup/başlatmaz, HTTP isteği yapmaz.
 `BackupRoot` altında geçerli, boş olmayan `project` yedeği ve `run_server.py`, `config.py`,
 `app\` işaretçileri bulunmalıdır. Örnekler doğrulanmış uygulama kaynak kökünden çalıştırılır.
