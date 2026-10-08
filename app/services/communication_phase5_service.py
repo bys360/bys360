@@ -6,7 +6,7 @@ from typing import Any
 
 from app.core.datetime_utils import utc_now
 from app.extensions import db
-from app.models import Notification, SupportTicket, Survey, SurveyAssignment, User
+from app.models import Notification, SupportTicket, Survey, User
 from app.models.communication_phase3_models import CommunicationSupportSlaPolicy
 from app.models.communication_phase5_models import (
     CommunicationAutomationLog,
@@ -18,6 +18,7 @@ from app.models.communication_phase5_models import (
 )
 from app.models.support_models import SupportTicketStatusHistory
 from app.services.communication_gate_status_labels import gate_status_label
+from app.services.surveys.listing import get_assigned_surveys_for_user
 
 MANAGER_ROLES = {
     "admin",
@@ -145,15 +146,20 @@ def update_notification_preferences(user: Any, form: Any) -> CommunicationNotifi
 
 
 def _notification_counts(user_id: int) -> dict[str, int]:
-    query = Notification.query.filter_by(user_id=user_id, is_hidden=False)
+    query = Notification.query.filter_by(user_id=user_id)
     total = query.count()
     unread = query.filter_by(is_read=False).count()
     return {"total": total, "unread": unread}
 
 
+def _pending_survey_count(user: Any) -> int:
+    # Same "Açık" count the web /surveys list shows for this user.
+    return sum(1 for row in get_assigned_surveys_for_user(user) if row["state"]["key"] == "active")
+
+
 def create_digest_job(user: Any, digest_type: str = "daily") -> CommunicationDigestJob:
     counts = _notification_counts(user.id)
-    survey_pending = SurveyAssignment.query.filter_by(user_id=user.id).filter(SurveyAssignment.status.in_(["assigned", "atandi", "started", "basladi"])).count()
+    survey_pending = _pending_survey_count(user)
     ticket_open = SupportTicket.query.filter_by(created_by_user_id=user.id).filter(SupportTicket.status.in_(list(OPEN_TICKET_STATUSES))).count()
     label = f"{digest_type.title()} özeti - {date.today().isoformat()}"
     payload = {
