@@ -3,70 +3,70 @@
 Bu belge tek bir soruya kısa ve doğrulanabilir cevap verir: **Bugün hangi branch ve hangi
 exact commit SHA production gerçeğidir?**
 
-Son doğrulama: 2026-09-29 (production cutover'ı 2026-09-29'da yapıldı ve doğrulandı; önceki production kimlikleri §7'de tarihçe olarak korunur).
+Son doğrulama: 2026-10-07 (production cutover'ı 2026-10-07'de insan operatör tarafından yürütüldü ve doğrulandı; önceki production kimlikleri §7'de tarihçe olarak korunur).
 
 ## 1. Current Production Identity
 
 | Alan | Değer | Kanıt |
 |---|---|---|
-| Verified production SHA | `a5bd8a389f2a978e2a07bb30d58a622bddea82df` | Yönetişim gereği değişmez (immutable) production kimliği olarak kabul edilen annotated tag `bys360-prod-2026.09.29-a5bd8a38` ile işaretlidir (bkz. §6). Bu commit, `assistant-v2-full` üzerindeki PR #15 merge commit'idir. Ağacı (`a09f1b80ced7d5c587b596fdb3218b44a4caa5b2`), GitHub Actions run `36528716263` ve `36528716201` ile test edilen PR #15 head'inin ağacıyla birebir aynıdır (bkz. §3). |
-| Production tag | `bys360-prod-2026.09.29-a5bd8a38` | Annotated tag. Tag nesnesi doğrudan production SHA'sını işaret eder (bkz. §6). GitHub Release: "BYS360 Production — 2026-09-29 (a5bd8a38)". |
-| Production lineage branch | `assistant-v2-full` | Production SHA bu branch'tedir. **Branch ucu production kimliği değildir**; uç, sonraki değişikliklerle ilerleyebilir (bkz. §1.1). |
-| Deployment date | 2026-09-29 | İnsan operatör tarafından yürütülen cutover kaydı. |
-| Production migration head | `w2d8e1f4a6c3` | Bu SHA'daki Alembic migration grafiğinin tek head'i (79 revizyon). Canlı veritabanı revizyonu cutover öncesinde `v1a2d3e4f5b6`, sonrasında `w2d8e1f4a6c3`'tür (yol: `v1a2d3e4f5b6` → `w1c5a7d2e9b4` → `w2d8e1f4a6c3`). |
-| Previous production SHA | `67f2a29dc29c7977dbbf5b16b0629daa630e9ef9` | Tag `bys360-prod-2026.09.28-67f2a29d`; migration head `v1a2d3e4f5b6` (bkz. §7). |
+| Verified production SHA | `cdae27953adcbdd8270fe78dcd52351725d3aecd` | 2026-10-07 cutover'ında `/versionz`, process binding ve exact-SHA release zinciriyle doğrulandı. Annotated tag `bys360-prod-2026.10.07-cdae2795` doğrudan bu commit'i işaret eder. |
+| Production tag | `bys360-prod-2026.10.07-cdae2795` | Annotated tag object `aa7b77ca21fe0a10ab9fd7f9cc5104743b4d1311`; peeled target `cdae27953adcbdd8270fe78dcd52351725d3aecd`. |
+| Production lineage branch | `assistant-v2-full` | Production SHA bu branch soyundadır. Branch ucu production kimliği değildir. |
+| Deployment date | 2026-10-07 | İnsan operatör tarafından yürütülen production cutover. |
+| Production migration head | `x1f3a9c5e7b2` | Canlı DB cutover öncesinde `w2d8e1f4a6c3`, sonrasında `x1f3a9c5e7b2`. |
+| Release package | `BYS360_FULL_cdae2795.zip` | SHA-256 `48d2572b3630e5c33bbf3cd337e9a9cf39f6b33d9d47aa3d7d17a54ec065f339`; iki bağımsız build byte-identical. |
+| Previous production SHA | `a5bd8a389f2a978e2a07bb30d58a622bddea82df` | Tag `bys360-prod-2026.09.29-a5bd8a38`; migration head `w2d8e1f4a6c3`. |
 
-**Production source of truth, herhangi bir branch'in ucu değil, doğrulanmış exact commit SHA'dır.**
-Bu SHA, BYS360 yönetişiminde taşınmaması ve silinmemesi gereken annotated production tag ile
-işaretlidir. Yeni bir SHA doğrulanıp insan kararıyla canlıya alınana ve bu belge güncellenene kadar
-production kimliği yukarıdaki SHA'dır.
+**Production source of truth herhangi bir branch'in ucu değil, doğrulanmış exact commit SHA'dır.**
+Production tag'i bir dokümantasyon commit'ine değil doğrudan çalışan kaynak commit'ine bağlıdır.
 
-Cutover öncesi kontrollü maintenance (2026-09-29 cutover'ı için):
-- `flask runtime-schema provision` gerekli 8 eksik kolonu sağladı.
-- Ardından salt okuma `flask runtime-schema check`: 15/15 OK.
+### 1.1 2026-10-07 Candidate ve Cutover Kanıtı
 
-Cutover ve cutover sonrası doğrulama (2026-09-29):
-- İnsan kontrollü cutover başarıyla tamamlandı (deployment exit code 0).
-- Migration: PASS (`v1a2d3e4f5b6` → `w1c5a7d2e9b4` → `w2d8e1f4a6c3`).
-- Schema contract: PASS. Dosya Merkezi tabloları: 19/19. Service/process binding: PASS.
-- `/versionz`: `source_sha = a5bd8a389f2a978e2a07bb30d58a622bddea82df`,
-  `migration_head = w2d8e1f4a6c3`, `schema_error_count = 0`.
-- Local health: HTTP 200. Readiness: HTTP 200. Public health: HTTP 200.
-- Smoke kontrolleri: PASS. Security-critical bulgu: 0.
-- Ayrıntı: GitHub Release "BYS360 Production — 2026-09-29 (a5bd8a38)" (tag `bys360-prod-2026.09.29-a5bd8a38`).
+- PR #47: `fix: adopt exact historical production interim-notes schema`.
+- Test edilen PR head: `d529020641f8d4fd7da160b77d2ccab9e586c661`.
+- Merge commit: `cdae27953adcbdd8270fe78dcd52351725d3aecd`.
+- Test edilen head ağacı ve merge ağacı birebir aynı: `723da65df61f40eefefc12c853ae6177ad6dedb9`.
+- GitHub Actions:
+  - `Run tests`, run `37619199191`: SUCCESS.
+  - `BYS360 Quality Assurance Gate V1`, run `37619199193`: SUCCESS.
+- Final FULL ZIP SHA-256: `48d2572b3630e5c33bbf3cd337e9a9cf39f6b33d9d47aa3d7d17a54ec065f339`.
+- Wheelhouse: 59 Windows CPython 3.12 wheel; identity
+  `c372cc2512055ef4f48648769bd09ee2e28b194b556a81eb242cdaf7722d4a70`.
+- Candidate preparation: PASS.
+- Fresh disposable shadow PostgreSQL migration rehearsal: PASS.
+- Candidate health: PASS.
+- Canlı migration: `w2d8e1f4a6c3` → `x1f3a9c5e7b2` PASS.
+- Live schema contract: PASS, error count 0.
+- Dosya Merkezi: 19/19.
+- Service/process binding: PASS.
+- Local health: HTTP 200.
+- Release identity: PASS.
+- Readiness: PASS.
+- Public health: HTTP 200.
+- Smoke: PASS.
+- Post-deploy security critical: 0.
+- Cutover sonrası bağımsız kontrol: Scheduled Task Running; public `/healthz` HTTP 200.
+- Rollback gerekmedi; önceki application tree ve fresh pre-cutover PostgreSQL backup korundu.
 
-Önceki cutover doğrulaması (2026-09-28, tarihsel; production `67f2a29d…`):
-- İnsan kontrollü cutover başarıyla tamamlandı (`DEPLOY_EXIT_CODE = 0`).
-- Cutover sonrasında loopback `/versionz`, çalışan kaynak SHA'nın `67f2a29d…` olduğunu bağımsız olarak doğruladı (release identity PASS).
-- `/readyz`: `ready`, `schema_error_count = 0`. Public `/healthz`: 200.
-- Dosya Merkezi tabloları: 19/19. Canlı schema-contract kontrolü: PASS.
-- Production veritabanı revizyonu cutover öncesinde ve sonrasında `v1a2d3e4f5b6`'dır; migration revizyonu değişmedi.
-- Ayrıntı: [docs/quality/BYS360_PRODUCTION_CUTOVER_2026-09-28.md](docs/quality/BYS360_PRODUCTION_CUTOVER_2026-09-28.md).
+Ayrıntılı sanitised kanıt:
+[docs/quality/BYS360_PRODUCTION_CUTOVER_2026-10-07.md](docs/quality/BYS360_PRODUCTION_CUTOVER_2026-10-07.md).
 
-### 1.1 Candidate Status (2026-09-29)
+### 1.2 Candidate Status (2026-10-07)
 
-Production kaydının alındığı noktada (`assistant-v2-full` ucu production SHA'sı ile aynı commit),
-canlıya alınmamış ayrı bir uygulama kodu adayı yoktur.
+Production cutover tamamlandıktan sonra uygulama kodu açısından ayrı, henüz canlıya alınmamış bir
+aday kaydı bu belgede tanımlanmamıştır. Bu production kaydını güncelleyen dokümantasyon commit'i
+production SHA'yı değiştirmez.
 
-`assistant-v2-full`'a daha sonra merge edilen yalnız dokümantasyon değişiklikleri production
-kimliğini değiştirmez. Production kimliği her zaman §1'deki, yönetişim gereği taşınmaması ve
-silinmemesi gereken production tag ve exact SHA'dır; varsayılan branch ucunun ileride aldığı değer
-değildir. Yeni bir uygulama adayı oluştuğunda bu
-bölüm tarihli bir anlık görüntü olarak yeniden doldurulur.
+Scratch/clean-room PostgreSQL kurulumunda mevcut iki aşamalı model sürer:
 
-Bilinen şema sınırlaması
-([docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md](docs/quality/BYS360_SCHEMA_RECOVERY_LIMITATION.md)):
-2026-09-28 production sürümüne (`v1a2d3e4f5b6`) kadar boş veritabanında `flask db upgrade` her
-ORM tablosunu üretmiyordu. Güncel production sürümünde (`w2d8e1f4a6c3`) sıfırdan kurulum iki ayrı
-adımdır:
-- `flask db upgrade`, boş bir PostgreSQL 15 veritabanında 164 ORM tablosunu ve 2061 ORM kolonunu
-  üretir. ORM tablolarını üreten adım budur.
-- `flask runtime-schema provision`, Alembic/ORM migration kapsamı dışında kalan 15 runtime-schema
-  grubunu kontrollü bir maintenance komutu olarak sağlar.
+- `flask db upgrade` Alembic'in sahip olduğu şemayı kurar.
+- `flask runtime-schema provision` migration/ORM kapsamı dışındaki kontrollü runtime-schema
+  gruplarını sağlar.
 
-Bu iki adımlı kurulum scratch/clean-room PostgreSQL 15 doğrulamasından geçti. Felaket kurtarmada
-birincil yöntem hâlâ onaylı PostgreSQL yedeğini restore etmektir.
-
+2026-10-07 migration'ı, production'da gözlenen exact historical
+`performance_interim_notes` kataloğunu fail-closed biçimde tanır. Tanınan production varyantında
+tablo DDL/DML veya alias normalizasyonu yapmadan Alembic ownership/revision ilerletilir.
+Felaket kurtarmada birincil yöntem hâlâ onaylı PostgreSQL backup restore prosedürüdür.
 ## 2. Repository Branch Roles
 
 | Branch | Rol |
@@ -81,72 +81,73 @@ force push engellidir; değişiklik yalnız pull request ile ve `quality-gate` i
 
 ## 3. Verified Quality Evidence
 
-Current production (`a5bd8a38…`). Production commit'inin ağacı, aşağıdaki run'ların test ettiği
-PR #15 head'i `5a2c254980275839d133c3796b14ca42b36de13d` ile aynıdır. Run'lar 2026-09-29'da
-`pull_request` olayıyla çalıştı.
+Current production (`cdae2795…`) PR #47 merge commit'idir. Merge tree `723da65df61f40eefefc12c853ae6177ad6dedb9`,
+test edilen PR head `d529020641f8d4fd7da160b77d2ccab9e586c661` tree'siyle birebir aynıdır.
 
 | Kontrol | Sonuç |
 |---|---|
-| `quality-gate` (run `36528716263`, job `109277338643`) | PASS |
+| `Run tests` / `quality-gate` — run `37619199191` | PASS |
+| `BYS360 Quality Assurance Gate V1` / `score100-quality-gate` — run `37619199193` | PASS |
+| PostgreSQL 15 historical production schema adoption rehearsal | PASS |
+| Unknown/partial schema fail-closed regression | PASS |
+| Mobile `note_type` 40/80 boundary regression | PASS |
+| Ruff / mypy / compile / dependency checks | PASS |
+| Release/security regression | PASS |
+| Deterministic FULL release | PASS — two byte-identical builds |
+| Final ZIP SHA-256 | `48d2572b3630e5c33bbf3cd337e9a9cf39f6b33d9d47aa3d7d17a54ec065f339` |
+
+PR #47 yerel doğrulama kaydında migration/behavior regression paketi 323 test PASS ve
+release/security paketi 126 test PASS olarak raporlanmıştır. Windows'ta symlink capability
+bulunmadığı için önceden mevcut tek symlink-capability testi environment skip olarak kalmıştır;
+PostgreSQL migration rehearsal skip edilmemiştir.
+
+### 3.1 Önceki production kanıtı (tarihsel, `a5bd8a38…`)
+
+2026-09-29 production commit'i `a5bd8a389f2a978e2a07bb30d58a622bddea82df` idi.
+
+| Kontrol | Sonuç |
+|---|---|
+| `quality-gate` run `36528716263` | PASS |
 | Secret/repository gate, safe release audit | PASS |
-| Ruff (full-select ve syntax/import sanity), compile | PASS |
-| Quality, integration ve architecture testleri | PASS |
-| PostgreSQL 15 migration integrity (kritik kolon, ORM parity ve runtime-schema adımları dahil) | PASS |
+| Ruff, compile, quality/integration/architecture tests | PASS |
+| PostgreSQL 15 migration integrity | PASS |
 | Coverage ratchet | PASS |
-| mypy (service layer) | PASS |
-| Operations audit, Quality 9 CI contract | PASS |
+| mypy | PASS |
 | Dependency vulnerability audit | PASS |
-| `score100-quality-gate` (run `36528716201`) | PASS |
+| `score100-quality-gate` run `36528716201` | PASS |
 
-Adım sonuçları GitHub Actions'ın herkese açık API'sinden doğrulanabilir.
-
-### 3.1 Önceki production kanıtı (tarihsel, `67f2a29d…`)
-
-Production commit'inin ağacı, aşağıdaki run'ların test ettiği PR #13 head'i
-`1cdd75f54324de20bdfed1faeb2e2d53a8bf0cb4` ile aynıdır. Run'lar 2026-09-28'de `pull_request`
-olayıyla çalıştı.
+### 3.2 Önceki production kanıtı (tarihsel, `67f2a29d…`)
 
 | Kontrol | Sonuç |
 |---|---|
-| `quality-gate` (run `36395443907`, job `108840616146`) | PASS |
-| Secret/repository gate, safe release audit | PASS |
-| Ruff (full-select ve syntax/import sanity), compile | PASS |
-| Quality, integration ve architecture testleri | PASS |
-| PostgreSQL 15 migration integrity (kritik kolon kontrolü dahil) | PASS |
+| `quality-gate` run `36395443907` | PASS |
+| PostgreSQL 15 migration integrity | PASS |
 | Coverage ratchet | PASS |
-| mypy (service layer) | PASS |
-| Operations audit, Quality 9 CI contract | PASS |
-| Dependency vulnerability audit | PASS |
-| `score100-quality-gate` (run `36395443908`) | PASS |
+| Ruff / mypy / dependency / secret gates | PASS |
+| `score100-quality-gate` run `36395443908` | PASS |
 
-Adım sonuçları GitHub Actions'ın herkese açık API'sinden doğrulanabilir.
+### 3.3 Önceki production kanıtı (tarihsel, `1ea5c5dc…`)
 
-### 3.2 Önceki production kanıtı (tarihsel, `1ea5c5dc…`)
-
-GitHub Actions run `35823128265`, `quality-gate` işi, 2026-09-23, SHA `1ea5c5dc…`:
+GitHub Actions run `35823128265`, 2026-09-23:
 
 | Kontrol | Sonuç |
 |---|---|
-| quality-gate (iş) | PASS |
-| Ruff (full-select ve syntax/import sanity) | PASS |
+| quality-gate | PASS |
+| Ruff | PASS |
 | mypy | PASS |
 | PostgreSQL 15 migration integrity | PASS |
 | Coverage ratchet | PASS |
 | Dependency vulnerability audit | PASS |
 | Secret/repository gate | PASS |
 
-Adım sonuçları GitHub Actions'ın herkese açık API'sinden doğrulanabilir. İş akışında hata
-maskeleyen yapı (`continue-on-error` vb.) yoktur.
-
 | Coverage değeri | Anlam |
 |---|---|
-| Ölçülen combined coverage: **42.1228%** | GitHub Actions run `35823128265` quality-gate job logunda (job `107059056728`) doğrulanmış CI measurement; bu SHA üzerinde ölçülen anlık değerdir. |
-| Kayıtlı ratchet baseline: **27.62%** | `reports/quality/coverage_baseline.json` içindeki regression floor. |
-| Etkin eşik: **27.12%** | Baseline eksi 0.50 puan tolerans. Coverage ratchet adımının PASS olması, ölçümün bu eşiğin üzerinde olduğunu mekanik olarak kanıtlar. |
+| Ölçülen combined coverage: **42.1228%** | 2026-09-23 tarihli doğrulanmış CI snapshot'ı. |
+| Kayıtlı ratchet baseline: **27.62%** | Regression floor; current measurement değildir. |
+| Etkin eşik: **27.12%** | Baseline eksi 0.50 puan tolerans. |
 
-42.1228% yeni baseline, garanti edilen minimum, coverage hedefi veya `fail_under` değeri
-değildir. Baseline otomatik yükseltilmez; yükseltme ayrı, insan tarafından incelenen bir işlemdir.
-
+42.1228% current production coverage iddiası değildir; tarihli snapshot'tır. Baseline otomatik
+yükseltilmez.
 ## 4. Release and Rollback Identity
 
 - **Exact SHA:** canlıya alınan paket, üretildiği tam commit SHA'sı ile tanımlanır.
@@ -157,8 +158,7 @@ değildir. Baseline otomatik yükseltilmez; yükseltme ayrı, insan tarafından 
 - **Aday hazırlığı ve shadow veritabanı provası:** paket, canlı servise dokunulmadan ayrı bir aday
   dizinine açılır; migration atılabilir bir shadow veritabanında prova edilir.
 - **İnsan kontrollü cutover:** canlıya geçiş insan operatör tarafından yürütülür.
-- **Rollback:** cutover öncesi kod yedeği ve veritabanı yedeği alınır; kod geri dönüş script'i
-  varsayılan olarak DRY-RUN (yalnız plan) modunda çalışır.
+- **Rollback:** cutover tooling önceki application tree'yi ve fresh DB backup'ını korur. `scripts/windows/rollback_bys360_candidate.ps1` app-tree-only geri dönüş yoludur ve otomatik Alembic downgrade çalıştırmaz; canlı migration DB revizyonunu değiştirmişse veritabanı recovery kararı ayrı ve insan kontrollüdür.
 
 Ayrıntılar: [DEPLOYMENT.md](DEPLOYMENT.md), [BACKUP_RUNBOOK.md](BACKUP_RUNBOOK.md),
 [SECURITY.md](SECURITY.md), [docs/handover/CANDIDATE_PREPARATION.md](docs/handover/CANDIDATE_PREPARATION.md).
@@ -186,39 +186,36 @@ production cutover yapıldığında bu belge güncellenir.
 
 | Alan | Değer |
 |---|---|
-| Production tag | `bys360-prod-2026.09.29-a5bd8a38` |
+| Production tag | `bys360-prod-2026.10.07-cdae2795` |
 | Tag type | annotated |
-| Tag object SHA | `4a9db6862e87ec6ea1f7bbb610d4e80e1a980584` |
-| Target production SHA | `a5bd8a389f2a978e2a07bb30d58a622bddea82df` |
+| Tag object SHA | `aa7b77ca21fe0a10ab9fd7f9cc5104743b4d1311` |
+| Target production SHA | `cdae27953adcbdd8270fe78dcd52351725d3aecd` |
 
-Amaç: BYS360'ın 2026-09-29 doğrulanmış production kimliğini, kurumsal inceleme ve teknik devir
-için sabit bir Git referansı olarak işaretlemek.
+Amaç: BYS360'ın 2026-10-07 doğrulanmış production kimliğini kurumsal inceleme ve teknik devir
+için sabit Git referansı olarak işaretlemektir.
 
-Tag object SHA, tag nesnesinin kendisidir; tag'in işaret ettiği commit (peeled target) yukarıdaki
-production SHA'dır. Tag, bir branch adına veya sonraki bir dokümantasyon commit'ine değil,
-doğrudan production SHA'sına bağlıdır. Tag mesajı dağıtım tarihini, kaynak SHA'yı ve migration
-head'ini kaydeder.
+Tag bir branch adına veya sonraki dokümantasyon commit'ine değil, doğrudan production SHA'sına
+bağlıdır. Production tag'leri BYS360 yönetişiminde immutable production identity olarak kabul
+edilir; taşınmamalı ve silinmemelidir.
 
-Production tag'leri BYS360 yönetişiminde immutable production identity olarak kabul edilir;
-taşınmamalı ve silinmemelidir. Önceki tag'ler değiştirilmeden korunur:
+Önceki production tag'leri değiştirilmeden korunur:
 
-- `bys360-prod-2026.09.28-67f2a29d` (tag nesnesi `572d5de0bd6f5a527c340c4a558c35e43b2317bc` →
-  `67f2a29dc29c7977dbbf5b16b0629daa630e9ef9`). Tag mesajı dağıtım tarihini, migration head'ini,
-  CI run'larını ve release paketinin SHA-256 değerini kaydeder.
-- `bys360-prod-2026.09.23-1ea5c5dc` (tag nesnesi `1c6d9859efe856191f2f60245008ab6eb90f638c` →
-  `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6`).
+- `bys360-prod-2026.09.29-a5bd8a38` — `a5bd8a389f2a978e2a07bb30d58a622bddea82df`.
+- `bys360-prod-2026.09.28-67f2a29d` — `67f2a29dc29c7977dbbf5b16b0629daa630e9ef9`.
+- `bys360-prod-2026.09.23-1ea5c5dc` — `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6`.
 
-Şu anda ayrı bir GitHub tag koruma kuralı (tag ruleset) doğrulanmadığından, GitHub'ın tag
-güncelleme veya silme işlemlerini teknik olarak engellediği iddia edilmez.
+Ayrı bir GitHub tag ruleset'i doğrulanmadığından tag güncelleme/silme işlemlerinin GitHub
+tarafından teknik olarak engellendiği iddia edilmez.
 
 ## 7. Production History
 
 | Dağıtım tarihi | Production SHA | Tag | Durum |
 |---|---|---|---|
-| 2026-09-29 | `a5bd8a389f2a978e2a07bb30d58a622bddea82df` | `bys360-prod-2026.09.29-a5bd8a38` | **Güncel production** |
-| 2026-09-28 | `67f2a29dc29c7977dbbf5b16b0629daa630e9ef9` | `bys360-prod-2026.09.28-67f2a29d` | Önceki production (tarihçe). Cutover kaydı: [docs/quality/BYS360_PRODUCTION_CUTOVER_2026-09-28.md](docs/quality/BYS360_PRODUCTION_CUTOVER_2026-09-28.md). |
-| 2026-09-23 | `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6` | `bys360-prod-2026.09.23-1ea5c5dc` | Önceki production (tarihçe). Cutover öncesindeki canlı salt okuma doğrulaması bu sürümü anlatır: [docs/quality/BYS360_LIVE_READONLY_VALIDATION_2026-09-28.md](docs/quality/BYS360_LIVE_READONLY_VALIDATION_2026-09-28.md). |
+| 2026-10-07 | `cdae27953adcbdd8270fe78dcd52351725d3aecd` | `bys360-prod-2026.10.07-cdae2795` | **Güncel production**. Cutover kaydı: [docs/quality/BYS360_PRODUCTION_CUTOVER_2026-10-07.md](docs/quality/BYS360_PRODUCTION_CUTOVER_2026-10-07.md). |
+| 2026-09-29 | `a5bd8a389f2a978e2a07bb30d58a622bddea82df` | `bys360-prod-2026.09.29-a5bd8a38` | Önceki production (tarihçe), migration head `w2d8e1f4a6c3`. |
+| 2026-09-28 | `67f2a29dc29c7977dbbf5b16b0629daa630e9ef9` | `bys360-prod-2026.09.28-67f2a29d` | Önceki production. Cutover kaydı: [docs/quality/BYS360_PRODUCTION_CUTOVER_2026-09-28.md](docs/quality/BYS360_PRODUCTION_CUTOVER_2026-09-28.md). |
+| 2026-09-23 | `1ea5c5dcf6161104dc8adb04a982cba0eba8e8e6` | `bys360-prod-2026.09.23-1ea5c5dc` | Önceki production (tarihçe). |
 
-2026-09-23 ve 2026-09-28 sürümlerinin migration head'i `v1a2d3e4f5b6`'dır; 2026-09-28 cutover'ı
-veritabanı revizyonunu değiştirmedi. 2026-09-29 cutover'ı veritabanı revizyonunu
-`v1a2d3e4f5b6` → `w1c5a7d2e9b4` → `w2d8e1f4a6c3` yoluyla `w2d8e1f4a6c3`'e yükseltti.
+2026-09-29 cutover'ı DB revision'ı `v1a2d3e4f5b6` → `w1c5a7d2e9b4` →
+`w2d8e1f4a6c3` yoluyla yükseltti. 2026-10-07 cutover'ı `w2d8e1f4a6c3` →
+`x1f3a9c5e7b2` migration'ını başarıyla tamamladı.
