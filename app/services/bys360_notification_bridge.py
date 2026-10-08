@@ -433,7 +433,8 @@ def _portal_audience_user_ids(post: Any, *, limit: int = 160) -> list[int]:
             rows = PortalPostAudience.query.filter_by(post_id=post.id, audience_type="user").limit(limit).all()
             ids.extend([v for v in (_safe_int(getattr(row, "audience_value", None)) for row in rows) if v])
         elif scope == "group" and _safe_int(getattr(post, "group_id", None)):
-            rows = PortalGroupMember.query.filter_by(group_id=post.group_id, is_active=True).limit(limit).all()
+            # Same membership rule as portal_service.is_group_member (who can see the post).
+            rows = PortalGroupMember.query.filter_by(group_id=post.group_id, status="active").limit(limit).all()
             ids.extend([v for v in (_safe_int(getattr(row, "user_id", None)) for row in rows) if v])
         elif scope == "role" and _text(getattr(post, "target_role_name", ""), limit=80):
             role = _text(getattr(post, "target_role_name", ""), limit=80).lower()
