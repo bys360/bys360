@@ -7,13 +7,18 @@ and /communication/faz3/support/* both apply it (Wave 2, fixes 2 and 3).
 
 GET /api/mobile/support/tickets/<id> and POST /api/mobile/support/tickets/<id>/reply only
 checked ``_can_mobile_view_ticket`` (creator or any mobile global role), which never read
-``is_private``. A mobile global role outside the admin family (``ik``,
-``performans_yetkilisi``, ...) of another unit could read the body, the messages and the
-internal notes of a private ticket, and answer it, although the web refuses the same user.
+``is_private``. A mobile global role outside the admin family (``sistem_yoneticisi``, and
+before B1-F1 also ``ik`` and ``performans_yetkilisi``) of another unit could read the body,
+the messages and the internal notes of a private ticket, and answer it, although the web
+refuses the same user.
 
 Rule reused: ``can_view_private_support_ticket`` on top of the mobile global scope. The
 creator, the admin family and same-unit global roles keep access; tickets that are not
 private are unaffected; the mobile list is unchanged (private titles in lists are H3).
+
+B1-F1 (approved least-privilege policy, 2026-10-09): ``ik`` and ``performans_yetkilisi`` are no
+longer mobile global roles, so they reach only their own tickets. The global-role cases below
+use ``sistem_yoneticisi``, which is still a mobile global role outside the admin family.
 """
 from __future__ import annotations
 
@@ -58,11 +63,12 @@ def app(monkeypatch):
         users = {}
         for sicil, role, birim in (
             ("MSP01", "personel", "Birim-A"),
-            ("MSP02", "ik", "Birim-B"),
-            ("MSP03", "ik", "Birim-A"),
+            ("MSP02", "sistem_yoneticisi", "Birim-B"),
+            ("MSP03", "sistem_yoneticisi", "Birim-A"),
             ("MSP04", "admin", "Birim-C"),
             ("MSP05", "personel", "Birim-A"),
             ("MSP06", "performans_yetkilisi", "Birim-B"),
+            ("MSP07", "ik", "Birim-A"),
         ):
             user = User(sicil_no=sicil, email=f"{sicil.lower()}@example.gov.tr", ad="Support", soyad=sicil, role=role,
                         birim=birim, is_active=True, must_change_password=False, must_set_security_question=False)
@@ -124,14 +130,14 @@ def test_web_hides_the_private_ticket_from_an_other_unit_global_role(app):
     assert MARKER.encode() not in page.data
 
 
-@pytest.mark.parametrize("sicil", ["MSP02", "MSP06"])
+@pytest.mark.parametrize("sicil", ["MSP02", "MSP06", "MSP07"])
 def test_other_unit_mobile_global_role_cannot_read_a_private_ticket(app, sicil):
     response = _detail(app, sicil, "private")
     assert response.status_code == 403
     assert MARKER.encode() not in response.data
 
 
-@pytest.mark.parametrize("sicil", ["MSP02", "MSP06"])
+@pytest.mark.parametrize("sicil", ["MSP02", "MSP06", "MSP07"])
 def test_other_unit_mobile_global_role_cannot_reply_to_a_private_ticket(app, sicil):
     assert _reply(app, sicil, "private").status_code == 403
     assert _message_count(app, "private") == 0
@@ -166,7 +172,7 @@ def _list_body(app, sicil):
     return response.get_data(as_text=True)
 
 
-@pytest.mark.parametrize("sicil", ["MSP02", "MSP06"])
+@pytest.mark.parametrize("sicil", ["MSP02"])
 def test_other_unit_mobile_global_role_list_omits_the_private_ticket_body(app, sicil):
     # The list showed a 180-character description snippet of every ticket. The private-ticket
     # rule hides the body on the detail; the title stays listed (human decision H3).
@@ -178,3 +184,18 @@ def test_other_unit_mobile_global_role_list_omits_the_private_ticket_body(app, s
 @pytest.mark.parametrize("sicil", ["MSP03", "MSP04"])
 def test_same_unit_global_role_and_admin_list_keeps_the_private_ticket_body(app, sicil):
     assert _list_body(app, sicil).count(MARKER) == 2
+
+
+@pytest.mark.parametrize("sicil", ["MSP06", "MSP07"])
+def test_b1f1_ik_and_performans_yetkilisi_reach_only_their_own_tickets(app, sicil):
+    # B1-F1: no longer mobile global roles. Same-unit (MSP07) and other-unit (MSP06) users are
+    # refused other people's private AND public tickets, and the list shows none of them.
+    for key in ("private", "public"):
+        response = _detail(app, sicil, key)
+        assert response.status_code == 403
+        assert MARKER.encode() not in response.data
+        assert _reply(app, sicil, key).status_code == 403
+        assert _message_count(app, key) == 0
+    body = _list_body(app, sicil)
+    assert "Talep MSP-T1" not in body and "Talep MSP-T2" not in body
+    assert MARKER not in body

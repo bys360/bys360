@@ -1,10 +1,12 @@
 """Contract: a mobile personnel creator outside the admin family cannot grant an admin-family role.
 
-POST /api/mobile/personnel/create (and its /personnel/add alias) lets HR roles such as ``ik``
-create staff on mobile (tests/behavior/test_mobile_personnel_create_authorization_contract.py
-pins who may create). The new account's ``role`` was taken from the request body unchecked, so
-an ``ik`` user could create an ``admin`` account, whose first-login password is the configured
-default: a vertical privilege escalation.
+POST /api/mobile/personnel/create (and its /personnel/add alias) lets creator roles outside the
+admin family (``sistem_yoneticisi``, ``system_admin``; before B1-F1 also ``ik`` and
+``personel_yonetimi``) create staff on mobile
+(tests/behavior/test_mobile_personnel_create_authorization_contract.py pins who may create).
+The new account's ``role`` was taken from the request body unchecked, so such a creator could
+create an ``admin`` account, whose first-login password is the configured default: a vertical
+privilege escalation.
 
 Rule reused: the web account-creation route ``/personnel/add`` (app/admin/routes.py) is
 ``admin_required`` (route_support.ADMIN_FAMILY_ROLES), so on the web only admin-family users
@@ -14,6 +16,10 @@ non-admin-family roles HR may grant is a human decision and is not changed here.
 The admin aliases super_admin, system_admin, sistem_yoneticisi, administrator and president get the
 same treatment: the code grants them admin-level access (routes_president_scorecard_v2.py,
 feedback_aftercare_phase7.py, account_communication_helpers.py required_roles).
+
+B1-F1 (approved least-privilege policy, 2026-10-09): personnel write is a separate permission;
+``ik`` no longer creates accounts on mobile at all (the web never allowed it). The non-admin-family
+creator below is therefore ``sistem_yoneticisi``, and ``ik`` is pinned as refused.
 """
 from __future__ import annotations
 
@@ -53,7 +59,8 @@ def app(monkeypatch):
     with flask_app.app_context():
         db.create_all()
         ids = {}
-        for sicil, role in (("MPR01", "ik"), ("MPR02", "admin"), ("MPR03", "personel")):
+        for sicil, role in (("MPR01", "sistem_yoneticisi"), ("MPR02", "admin"), ("MPR03", "personel"),
+                            ("MPR04", "ik")):
             user = User(sicil_no=sicil, email=f"{sicil.lower()}@example.gov.tr", ad="Role", soyad=sicil, role=role,
                         birim="Birim A", is_active=True, must_change_password=False, must_set_security_question=False)
             user.set_password(PASSWORD)
@@ -112,5 +119,12 @@ def test_admin_creator_can_still_grant_an_admin_family_role(app):
 
 def test_non_creator_role_is_still_refused(app):
     response, sicil = _create(app, "MPR03", "personel")
+    assert response.status_code == 403
+    assert _created_role(app, sicil) is None
+
+
+@pytest.mark.parametrize("role", ["personel", "admin"])
+def test_b1f1_ik_can_no_longer_create_accounts_on_mobile(app, role):
+    response, sicil = _create(app, "MPR04", role)
     assert response.status_code == 403
     assert _created_role(app, sicil) is None
