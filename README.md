@@ -184,10 +184,14 @@ Canlı Kaynak" bölümüne ve `SOURCE_OF_TRUTH.md`'ye bakın.
   otomatik Alembic downgrade çalıştırmaz. Canlı migration veritabanı revizyonunu değiştirmişse
   veritabanı geri dönüşü ayrı ve insan kontrollü bir karardır (bkz. `BACKUP_RUNBOOK.md`).
 
-Geliştirme sürecinde AI destekli araçlar kullanılmış olabilir; bu, kod kabulünü tek başına
-belirlemez. Her değişiklik repo inceleme akışından, otomatik testlerden, CI kapılarından,
-exact-SHA release doğrulamasından ve açık, insan tarafından yürütülen canlıya alma
-adımlarından geçer.
+BYS360 geliştirme sürecinde AI destekli geliştirme araçları kullanılmaktadır. İlke:
+AI önerir; testler ve CI kapıları doğrulama kanıtı üretir; değişikliği insan inceler ve
+kabul eder; production kararını ve canlıya almayı insan yürütür. AI kullanımı kod kabulünü
+tek başına belirlemez: her değişiklik repo inceleme akışından, otomatik testlerden, CI
+kapılarından, exact-SHA release doğrulamasından ve açık, insan tarafından yürütülen canlıya
+alma adımlarından geçer. Proje şu anda tek geliştirici tarafından yürütülür ve bağımsız ikinci
+bir insan onayı zorunlu değildir; bu sınırlama ve AI desteğinin commit izlenebilirliği
+(`Co-Authored-By`) `AI_USAGE_POLICY.md` içinde açıkça belirtilmiştir.
 
 AI destekli çalışma `AGENTS.md` ile yönetilir. Repo, açık insan talimatı olmadan otonom
 production, veritabanı, migration, secret, push/deploy ve geçmiş yeniden yazma işlemlerini
