@@ -263,7 +263,7 @@ jobs:
       - name: BYS360 operations audit
         run: |
           mkdir -p reports/quality
-          python scripts/quality/bys360_ops_audit.py --mode ci --source-paths app config.py wsgi.py run.py --report reports/quality/BYS360_OPS_AUDIT_CI.md --max-print 0 --max-broad-except 2300
+          python scripts/quality/bys360_ops_audit.py --mode ci --source-paths app config.py wsgi.py run.py --report reports/quality/BYS360_OPS_AUDIT_CI.md --max-print 0 --max-broad-except 2064
 
       - name: BYS360 Quality 9 CI contract gate
         run: python scripts/quality/bys360_quality9_ci_gate.py --root .
