@@ -225,7 +225,8 @@ def _bys360_legacy_mobile_b46_communication_create_thread(user: User):
         except Exception:
             __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: except bloğu loglandı (app/api/mobile/routes.py:1782)")
             continue
-        if value != user.id and value not in participant_ids:
+        # Unknown user ids are dropped, as in the v2 create-thread (participant FK -> users.id).
+        if value != user.id and value not in participant_ids and db.session.get(User, value):
             participant_ids.append(value)
     if not participant_ids:
         return jsonify({"message": "Konuşma başlatmak için en az bir alıcı seçilmelidir."}), 400
