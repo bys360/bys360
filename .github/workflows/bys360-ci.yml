@@ -2,7 +2,7 @@ name: Run tests
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main, master, develop, assistant-v2-full ]
   pull_request:
     branches: [ main, master, develop, assistant-v2-full, docs/ministry-review-readme ]
   workflow_dispatch:
