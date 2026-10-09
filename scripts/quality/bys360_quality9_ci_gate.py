@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 QUALITY9_MAX_APP_PRINT = 0
-DEFAULT_QUALITY9_MAX_APP_BROAD_EXCEPT = 2300
+DEFAULT_QUALITY9_MAX_APP_BROAD_EXCEPT = 2064
 TARGET_KEYWORDS = ("auth", "session", "permission", "security")
 SKIP_DIRS = {
     ".git", ".venv", "venv", "env", "__pycache__", "backups", "backup",
