@@ -18,8 +18,10 @@ same treatment: the code grants them admin-level access (routes_president_scorec
 feedback_aftercare_phase7.py, account_communication_helpers.py required_roles).
 
 B1-F1 (approved least-privilege policy, 2026-10-09): personnel write is a separate permission;
-``ik`` no longer creates accounts on mobile at all (the web never allowed it). The non-admin-family
-creator below is therefore ``sistem_yoneticisi``, and ``ik`` is pinned as refused.
+``ik`` no longer creates accounts on mobile at all (the web never allowed it), and under decision 2
+neither does the technical ``sistem_yoneticisi`` role. Only ``admin`` creates on mobile now, so no
+creator outside the admin family remains; the role guard stays as defence in depth and the former
+non-admin-family creators are pinned as refused.
 """
 from __future__ import annotations
 
@@ -105,8 +107,15 @@ def test_hr_creator_cannot_grant_an_admin_family_role(app, role):
     assert _created_role(app, sicil) is None
 
 
-def test_hr_creator_keeps_creating_staff(app):
+def test_b1f1_technical_role_no_longer_creates_staff(app):
+    # Decision 2 (HUMAN_POLICY_APPROVED, 2026-10-09): sistem_yoneticisi is a technical role.
     response, sicil = _create(app, "MPR01", "personel")
+    assert response.status_code == 403
+    assert _created_role(app, sicil) is None
+
+
+def test_admin_creator_keeps_creating_staff(app):
+    response, sicil = _create(app, "MPR02", "personel")
     assert response.status_code == 201
     assert _created_role(app, sicil) == "personel"
 
