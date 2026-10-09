@@ -105,12 +105,30 @@ from app.main_handlers.account_visibility_helpers import (
     url_for,
     utc_now,
 )
+from app.route_support import normalize_role_name
 from app.services.assistant_role_matrix_service import (
     build_assistant_role_matrix,
     reset_assistant_role_matrix_defaults,
     save_assistant_role_matrix_from_form,
 )
-from app.services.personnel_read_grant import PERSONNEL_READ_ALL_KEY, PERSONNEL_READ_ALL_MENU_ITEM
+from app.services.personnel_read_grant import (
+    PERSONNEL_READ_ALL_KEY,
+    PERSONNEL_READ_ALL_MENU_ITEM,
+    has_personnel_read_all_grant,
+)
+
+# B1-F1: only an admin may assign or remove the personnel_read_all grant (and never on their
+# own account); the rest of the admin family keeps the other /settings functions.
+_PERSONNEL_READ_GRANT_ADMIN_ROLES = {"admin"}
+
+
+def _can_change_personnel_read_grant(actor, target) -> bool:
+    actor_id = getattr(actor, "id", None)
+    return bool(
+        actor_id is not None
+        and getattr(target, "id", None) != actor_id
+        and normalize_role_name(getattr(actor, "role", "")) in _PERSONNEL_READ_GRANT_ADMIN_ROLES
+    )
 
 
 # BYS360_PERSONNEL_FEATURE_MATRIX_V1_4_HELPER_DEDUP_AND_FULL_SAVE
@@ -343,6 +361,8 @@ def settings_page():
         settings_archives=settings_archives,
         selected_archive_key=selected_archive_key,
         settings_ui_panel_context=settings_ui_panel_context,
+        personnel_read_all_granted=has_personnel_read_all_grant(selected_user) if selected_user else False,
+        personnel_read_all_editable=_can_change_personnel_read_grant(current_user, selected_user) if selected_user else False,
     )
 
 
@@ -731,15 +751,17 @@ def _handle_user_scoped_profile_action(form_action, flat_menu_items, all_menu_ke
             flash(f"{selected_user.ad} {selected_user.soyad} için personel bazlı rol matrisi temizlendi. Kaldırılan sekme kaydı: {deleted}", "success")
         else:
             actor_id = getattr(current_user, "id", None)
-            # B1-F1: only an explicit per-user save by another admin may change personnel_read_all.
-            if selected_user.id == actor_id and PERSONNEL_READ_ALL_KEY in visible_keys:
-                flash("Kurum geneli personel rehberi okuma yetkisi kişinin kendisine verilemez; başka bir yetkili yönetici atamalıdır.", "warning")
+            # B1-F1: only an explicit per-user save by an admin for ANOTHER user may change
+            # personnel_read_all; every other save leaves the existing grant as it is.
+            grant_change_allowed = form_action == "save_user_visibility" and _can_change_personnel_read_grant(current_user, selected_user)
+            if not grant_change_allowed and PERSONNEL_READ_ALL_KEY in visible_keys and not has_personnel_read_all_grant(selected_user):
+                flash("Kurum geneli personel rehberi okuma yetkisi değiştirilmedi: bu yetkiyi yalnız admin rolü, başka bir personel için atayabilir veya kaldırabilir.", "warning")
             result = save_user_menu_overrides(
                 selected_user,
                 flat_menu_items,
                 visible_keys,
                 updated_by_user_id=actor_id,
-                allow_personnel_read_grant_change=(form_action == "save_user_visibility" and selected_user.id != actor_id),
+                allow_personnel_read_grant_change=grant_change_allowed,
             )
             flash(
                 f"{selected_user.ad} {selected_user.soyad} için kişi bazlı sekme ayarları kaydedildi. Bu personelin menüsü artık ekrandaki işaretlere göre çalışır. Kaydedilen sekme: {result['override_count']}",

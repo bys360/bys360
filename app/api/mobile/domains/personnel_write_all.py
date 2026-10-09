@@ -7,8 +7,8 @@ from app.api.mobile.shared import (
     Any,
     IntegrityError,
     User,
+    _authorization_role_key,
     _full_name,
-    _role_key,
     current_app,
     db,
     get_default_first_login_password,
@@ -34,12 +34,12 @@ def mobile_personnel_all(user: User):
 
 # BYS360_MOBILE_V2_8_62_PERSONNEL_CREATE_BEGIN
 # B1-F1/B1-F4 (approved least-privilege policy, 2026-10-09): personnel write needs a
-# separate permission; ik and personel_yonetimi (and their label spellings) no longer
-# create accounts on mobile automatically. The web never allowed them (admin_required).
+# separate permission; ik and personel_yonetimi no longer create accounts on mobile
+# automatically. Decision 2: sistem_yoneticisi / system_admin (technical roles) do not
+# write personal data by role either. The web never allowed any of them (/personnel/add
+# is admin_required), so mobile now matches the web for these roles.
 _PERSONNEL_CREATE_ROLES = {
     "admin",
-    "sistem_yoneticisi",
-    "system_admin",
 }
 
 
@@ -49,14 +49,10 @@ _PERSONNEL_CREATE_ROLES = {
 # ("admin", "personel_yonetimi", "personel yönetimi yetkilisi"), bu yüzden
 # alt dize hâlleri hiçbir meşru değeri ek olarak kapsamıyordu, yalnızca
 # "birim_admin_full" gibi ilgisiz roller için yanlışlıkla personel oluşturma
-# yetkisi açıyordu. B1-F1 (2026-10-09): ik / personel_yonetimi artık kümede değil.
+# yetkisi açıyordu. B1-F1 (2026-10-09): ik / personel_yonetimi / sistem_yoneticisi artık
+# kümede değil; karar 3 gereği role_label (görünen rol adı) yetki vermez.
 def _can_mobile_create_personnel(user: User) -> bool:
-    role = _role_key(user)
-    label = ((getattr(user, "role_label", "") or "").strip().lower())
-    return bool(
-        role in _PERSONNEL_CREATE_ROLES
-        or label in _PERSONNEL_CREATE_ROLES
-    )
+    return _authorization_role_key(user) in _PERSONNEL_CREATE_ROLES
 
 
 def _mobile_clean_text(value: Any) -> str:

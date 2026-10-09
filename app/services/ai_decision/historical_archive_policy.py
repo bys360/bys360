@@ -123,10 +123,13 @@ def build_archive_policy(settings: Mapping[str, Any] | None = None) -> ArchivePo
     )
 
 
+# B1-F1 (approved least-privilege policy, 2026-10-09): performans_yetkilisi and the HR
+# roles (ik, insan_kaynaklari) no longer read any user's archived result by role name, and
+# (decision 2) neither do the technical sistem_yoneticisi roles. Like /performance/archive,
+# everyone else sees only their own history here.
 DETAIL_ALLOWED_ROLES = {
-    "admin", "sistem_yoneticisi", "sistem yöneticisi", "super_admin",
+    "admin", "super_admin",
     "baskan", "başkan", "ust_yonetim", "üst yönetim",
-    "performans_yetkilisi", "ik", "insan_kaynaklari", "insan kaynakları",
 }
 
 

@@ -1087,11 +1087,11 @@
                                 <div class="menu-icon"><i class="fa-solid fa-address-book"></i></div>
                                 <div class="menu-text">
                                     <strong>Kurum Geneli Personel Rehberi Okuma (personnel.read.all)</strong>
-                                    <span>Yalnız merkezi İK için. Yalnız personel rehberini okur; performans, özlük belgesi ve personel ekleme/düzenleme/silme yetkisi vermez. Kişinin kendisine verilemez; her değişiklik ayar geçmişine yazılır.</span>
+                                    <span>Yalnız merkezi İK için. Yalnız personel rehberini okur; performans, özlük belgesi ve personel ekleme/düzenleme/silme yetkisi vermez. Yalnız admin rolü atayabilir; kişinin kendisine verilemez; her değişiklik ayar geçmişine yazılır. Tümünü Aç/Kapat, grup ve hazır profil düğmeleri bu yetkiyi değiştirmez.</span>
                                 </div>
                             </div>
                             <span class="switch">
-                                <input type="checkbox" name="menu_personnel_read_all" {% if selected_rule_map.get('personnel_read_all', False) %}checked{% endif %}>
+                                <input type="checkbox" name="menu_personnel_read_all" {% if personnel_read_all_granted %}checked{% endif %} {% if not personnel_read_all_editable %}disabled{% endif %}>
                                 <span class="slider"></span>
                             </span>
                         </label>

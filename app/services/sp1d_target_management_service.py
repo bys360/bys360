@@ -70,11 +70,18 @@ def _role_name(current_user: Any) -> str:
     return str(role).lower()
 
 
+# B1-F1 decision 2: technical administration roles do not see every KPI target by role.
+_TECHNICAL_ADMIN_ROLES = {"sistem_yoneticisi", "sistem_yöneticisi", "system_admin", "admin_sistem_yoneticisi"}
+
+
 def _is_global_role(current_user: Any) -> bool:
     role = _role_name(current_user)
-    # B1-F1 (approved least-privilege policy, 2026-10-09): "performans" and "ik" removed;
-    # performans_yetkilisi and ik see/edit only their own or their unit's KPI targets.
-    return any(item in role for item in ["admin", "sistem", "başkan", "baskan"])
+    # B1-F1 (approved least-privilege policy, 2026-10-09): "performans", "ik" and "sistem"
+    # removed; performans_yetkilisi, ik and the technical roles see/edit only their own or
+    # their unit's KPI targets.
+    if role in _TECHNICAL_ADMIN_ROLES:
+        return False
+    return any(item in role for item in ["admin", "başkan", "baskan"])
 
 
 def _dict_rows(rows: Iterable[Any]) -> list[dict[str, Any]]:

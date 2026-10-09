@@ -42,12 +42,10 @@ except Exception:  # pragma: no cover - overlay sırası bozulursa güvenli dar 
 # B1-F1 (approved least-privilege policy, 2026-10-09): performans_yetkilisi,
 # personel_yonetimi and ik (with their spellings) no longer manage or view the whole
 # archive by role name; without another scope they see only their own history.
+# Decision 2: the technical roles (system_admin, sistem_yoneticisi) neither.
 MANUAL_ENTRY_ROLES = {
     "admin",
     "super_admin",
-    "system_admin",
-    "sistem_yoneticisi",
-    "sistem_yöneticisi",
     "baskan",
     "başkan",
     "baskan_yardimcisi",
