@@ -459,7 +459,10 @@ def save_user_menu_overrides_handler(
     snapshot_user_override_state_func: Callable[[int | None], dict[str, bool]],
     build_base_rule_map_for_user_func: Callable[[Any, list[dict[str, Any]]], dict[str, Any]],
     create_settings_change_log_func: Callable[..., object],
+    preserved_menu_keys: Iterable[str] = (),
 ) -> dict[str, int]:
+    # preserved_menu_keys: rows this save must neither write nor prune (B1-F1 grant key).
+    preserved = {str(key).strip() for key in preserved_menu_keys or () if str(key).strip()}
     flat_menu_items = [
         item for item in _bys360_pf_v14_dedupe_menu_items(flat_menu_items)
         if not is_removed_menu_key_func(item.get("key"))
@@ -473,6 +476,8 @@ def save_user_menu_overrides_handler(
     changed = 0
     keep_keys = set(all_menu_keys)
     for menu_key in all_menu_keys:
+        if menu_key in preserved:
+            continue
         desired = menu_key in visible_keys
         row = existing.get(menu_key)
         if row is None:
@@ -489,10 +494,13 @@ def save_user_menu_overrides_handler(
                 row.source_type = "user_override"
                 changed += 1
     for menu_key, row in existing.items():
-        if menu_key not in keep_keys:
+        if menu_key not in keep_keys and menu_key not in preserved:
             db_session.delete(row)
             changed += 1
-    new_state = {menu_key: (menu_key in visible_keys) for menu_key in all_menu_keys}
+    new_state = {menu_key: (menu_key in visible_keys) for menu_key in all_menu_keys if menu_key not in preserved}
+    for menu_key in preserved:
+        if menu_key in existing:
+            new_state[menu_key] = bool(existing[menu_key].is_visible)
     create_settings_change_log_func(
         actor_user_id=updated_by_user_id,
         change_scope="user_menu_overrides",

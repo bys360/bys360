@@ -83,7 +83,10 @@ for _module_name, _registrar_name in (
 
 def _bys360_legacy_mobile_personnel_all(user: User):
     """Mobil /personnel/all davranışını koruyan kısa legacy facade."""
-    global_scope = _has_global_scope(user)
+    from app.services.personnel_read_grant import has_personnel_read_all_grant
+
+    # B1-F1: institution-wide only for the global roles or an explicit personnel_read_all grant.
+    global_scope = _has_global_scope(user) or has_personnel_read_all_grant(user)
 
     def _arg_int(*names: str, default: int = 0) -> int:
         for name in names:

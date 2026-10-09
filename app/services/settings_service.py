@@ -19,6 +19,7 @@ from app.models import (
     UnitMenuProfile,
     UserMenuPermission,
 )
+from app.services.personnel_read_grant import PERSONNEL_READ_ALL_KEY, without_personnel_read_all
 from app.services.settings.catalog import MODULE_SETTING_DEFINITIONS, SYSTEM_SETTING_DEFINITIONS
 from app.services.settings.change_logs import (
     create_settings_change_log as _create_settings_change_log,
@@ -215,7 +216,7 @@ def build_role_default_rule_map(role_name: str, flat_menu_items: list[dict[str, 
     )
 
 def build_base_rule_map_for_user(user, flat_menu_items: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    return _build_base_rule_map_for_user_handler(
+    context = _build_base_rule_map_for_user_handler(
         user=user,
         flat_menu_items=flat_menu_items,
         flatten_menu_definitions_func=flatten_menu_definitions,
@@ -224,6 +225,12 @@ def build_base_rule_map_for_user(user, flat_menu_items: list[dict[str, Any]] | N
         filter_live_menu_rows_func=_filter_live_menu_rows,
         safe_rollback_func=_safe_rollback,
     )
+    # B1-F1: the personnel_read_all grant comes only from the user's own override row.
+    for map_name in ("base_rule_map", "role_rule_map"):
+        if PERSONNEL_READ_ALL_KEY in context[map_name]:
+            context[map_name][PERSONNEL_READ_ALL_KEY] = False
+    context["unit_rows"] = [row for row in context["unit_rows"] if getattr(row, "menu_key", None) != PERSONNEL_READ_ALL_KEY]
+    return context
 
 def build_effective_user_menu_context(user, flat_menu_items: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     return _build_effective_user_menu_context_handler(
@@ -237,10 +244,11 @@ def build_effective_user_menu_context(user, flat_menu_items: list[dict[str, Any]
     )
 
 def save_role_menu_defaults(role_name: str, all_menu_keys: list[str], visible_keys: set[str], *, updated_by_user_id: int | None = None) -> int:
+    # B1-F1: the personnel_read_all grant is per-user only; role defaults never store it.
     return _save_role_menu_defaults_handler(
         role_name=role_name,
-        all_menu_keys=all_menu_keys,
-        visible_keys=visible_keys,
+        all_menu_keys=without_personnel_read_all(all_menu_keys),
+        visible_keys=set(without_personnel_read_all(visible_keys)),
         updated_by_user_id=updated_by_user_id,
         role_menu_default_model=RoleMenuDefault,
         db_session=db.session,
@@ -252,10 +260,11 @@ def save_role_menu_defaults(role_name: str, all_menu_keys: list[str], visible_ke
     )
 
 def save_unit_menu_profile(unit_name: str, all_menu_keys: list[str], visible_keys: set[str], *, updated_by_user_id: int | None = None) -> int:
+    # B1-F1: the personnel_read_all grant is per-user only; unit profiles never store it.
     return _save_unit_menu_profile_handler(
         unit_name=unit_name,
-        all_menu_keys=all_menu_keys,
-        visible_keys=visible_keys,
+        all_menu_keys=without_personnel_read_all(all_menu_keys),
+        visible_keys=set(without_personnel_read_all(visible_keys)),
         updated_by_user_id=updated_by_user_id,
         unit_menu_profile_model=UnitMenuProfile,
         db_session=db.session,
@@ -266,8 +275,23 @@ def save_unit_menu_profile(unit_name: str, all_menu_keys: list[str], visible_key
         create_settings_change_log_func=_create_settings_change_log,
     )
 
-def save_user_menu_overrides(user, flat_menu_items: list[dict[str, Any]], visible_keys: set[str], *, updated_by_user_id: int | None = None) -> dict[str, int]:
+def save_user_menu_overrides(
+    user,
+    flat_menu_items: list[dict[str, Any]],
+    visible_keys: set[str],
+    *,
+    updated_by_user_id: int | None = None,
+    allow_personnel_read_grant_change: bool = False,
+) -> dict[str, int]:
+    # B1-F1: personnel_read_all changes only on the explicit per-user save by ANOTHER user;
+    # every other caller (template import, archive apply) leaves the existing row untouched.
+    grant_change_allowed = bool(
+        allow_personnel_read_grant_change
+        and updated_by_user_id is not None
+        and updated_by_user_id != getattr(user, "id", None)
+    )
     return _save_user_menu_overrides_handler(
+        preserved_menu_keys=() if grant_change_allowed else (PERSONNEL_READ_ALL_KEY,),
         user=user,
         flat_menu_items=flat_menu_items,
         visible_keys=visible_keys,

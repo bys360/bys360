@@ -110,6 +110,7 @@ from app.services.assistant_role_matrix_service import (
     reset_assistant_role_matrix_defaults,
     save_assistant_role_matrix_from_form,
 )
+from app.services.personnel_read_grant import PERSONNEL_READ_ALL_KEY, PERSONNEL_READ_ALL_MENU_ITEM
 
 
 # BYS360_PERSONNEL_FEATURE_MATRIX_V1_4_HELPER_DEDUP_AND_FULL_SAVE
@@ -164,6 +165,10 @@ def settings_page():
         _clean_item["key"] = _menu_key
         _deduped_flat_menu_items.append(_clean_item)
     flat_menu_items = _deduped_flat_menu_items
+    # B1-F1: the personnel_read_all grant is selectable only in the per-user matrix
+    # (rendered separately in settings.html, not in a bulk-toggle menu group).
+    if PERSONNEL_READ_ALL_KEY not in _seen_menu_keys:
+        flat_menu_items.append(dict(PERSONNEL_READ_ALL_MENU_ITEM))
     all_menu_keys = [item["key"] for item in flat_menu_items]
     users = (
         User.query
@@ -725,7 +730,17 @@ def _handle_user_scoped_profile_action(form_action, flat_menu_items, all_menu_ke
             deleted = clear_user_menu_overrides(selected_user.id, updated_by_user_id=getattr(current_user, "id", None))
             flash(f"{selected_user.ad} {selected_user.soyad} için personel bazlı rol matrisi temizlendi. Kaldırılan sekme kaydı: {deleted}", "success")
         else:
-            result = save_user_menu_overrides(selected_user, flat_menu_items, visible_keys, updated_by_user_id=getattr(current_user, "id", None))
+            actor_id = getattr(current_user, "id", None)
+            # B1-F1: only an explicit per-user save by another admin may change personnel_read_all.
+            if selected_user.id == actor_id and PERSONNEL_READ_ALL_KEY in visible_keys:
+                flash("Kurum geneli personel rehberi okuma yetkisi kişinin kendisine verilemez; başka bir yetkili yönetici atamalıdır.", "warning")
+            result = save_user_menu_overrides(
+                selected_user,
+                flat_menu_items,
+                visible_keys,
+                updated_by_user_id=actor_id,
+                allow_personnel_read_grant_change=(form_action == "save_user_visibility" and selected_user.id != actor_id),
+            )
             flash(
                 f"{selected_user.ad} {selected_user.soyad} için kişi bazlı sekme ayarları kaydedildi. Bu personelin menüsü artık ekrandaki işaretlere göre çalışır. Kaydedilen sekme: {result['override_count']}",
                 "success",
