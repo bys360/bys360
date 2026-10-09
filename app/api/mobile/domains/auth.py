@@ -36,8 +36,12 @@ def mobile_refresh():
     return delegate_mobile_refresh(_bys360_legacy_mobile_refresh)
 
 def _bys360_legacy_mobile_refresh():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        data = {}
     refresh_token = data.get("refresh_token") or data.get("refreshToken")
+    if not isinstance(refresh_token, str):
+        refresh_token = None  # malformed token: same 401 as a missing one
     return mobile_refresh_response(refresh_token, _load_refresh_token_user, _issue_token, _issue_refresh_token, _full_name)
 
 

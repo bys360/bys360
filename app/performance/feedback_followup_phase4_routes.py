@@ -84,6 +84,9 @@ def performance_feedback_followup_quick_update(action_id: int):
     if not action:
         flash("Eylem planı bulunamadı veya bu kayda erişim yetkiniz yok.", "danger")
         return redirect(url_for("main.performance_feedback_followup"))
-    update_followup_action(action_id, request.form)
-    flash("Eylem planı takip bilgisi güncellendi.", "success")
+    # update_followup_action returns None only when the update failed and was rolled back.
+    if update_followup_action(action_id, request.form) is None:
+        flash("Eylem planı takip bilgisi kaydedilemedi. Lütfen tekrar deneyin.", "danger")
+    else:
+        flash("Eylem planı takip bilgisi güncellendi.", "success")
     return redirect(url_for("main.performance_feedback_followup"))
