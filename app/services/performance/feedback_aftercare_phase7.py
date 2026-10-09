@@ -117,12 +117,14 @@ def can_manage_aftercare(role: str | None, is_admin: bool = False, is_superuser:
 
 def _user_label_expr(alias: str) -> str:
     cols = _columns("users")
+    # users has no username column in any model or migration; reference it only if present.
+    username = f"{alias}.username, " if "username" in cols else ""
     if {"first_name", "last_name"}.issubset(cols):
-        return f"COALESCE(NULLIF(TRIM(CONCAT({alias}.first_name, ' ', {alias}.last_name)), ''), {alias}.username, {alias}.email, CAST({alias}.id AS TEXT))"
+        return f"COALESCE(NULLIF(TRIM(CONCAT({alias}.first_name, ' ', {alias}.last_name)), ''), {username}{alias}.email, CAST({alias}.id AS TEXT))"
     if "full_name" in cols:
-        return f"COALESCE({alias}.full_name, {alias}.username, {alias}.email, CAST({alias}.id AS TEXT))"
+        return f"COALESCE({alias}.full_name, {username}{alias}.email, CAST({alias}.id AS TEXT))"
     if "name" in cols:
-        return f"COALESCE({alias}.name, {alias}.username, {alias}.email, CAST({alias}.id AS TEXT))"
+        return f"COALESCE({alias}.name, {username}{alias}.email, CAST({alias}.id AS TEXT))"
     if "username" in cols:
         return f"COALESCE({alias}.username, {alias}.email, CAST({alias}.id AS TEXT))"
     return f"CAST({alias}.id AS TEXT)"

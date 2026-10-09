@@ -377,7 +377,8 @@ def aftercare_rows(employee_id: int | None = None, period_id: int | None = None,
         return []
     employee_name = _name_expr("u", ucols) if ucols else "'Personel'"
     manager_name = _name_expr("mngr", ucols) if ucols and manager_col else "''"
-    period_title = f"p.{_first(pcols, ['title','name','period_name'])}" if pcols and _first(pcols, ["title", "name", "period_name"]) else "''"
+    # performance_periods p is joined only when feedback_meetings has a period column.
+    period_title = f"p.{_first(pcols, ['title','name','period_name'])}" if pcols and per_col and _first(pcols, ["title", "name", "period_name"]) else "''"
     meeting_date = _first(cols, ["meeting_date", "scheduled_date", "created_at"])
     status_col = _first(cols, ["status", "meeting_status", "state"])
     note_col = _first(cols, ["note", "description"])
