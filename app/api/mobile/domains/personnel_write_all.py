@@ -33,15 +33,13 @@ def mobile_personnel_all(user: User):
     return _bys360_personnel_service.mobile_personnel_all(user)
 
 # BYS360_MOBILE_V2_8_62_PERSONNEL_CREATE_BEGIN
+# B1-F1/B1-F4 (approved least-privilege policy, 2026-10-09): personnel write needs a
+# separate permission; ik and personel_yonetimi (and their label spellings) no longer
+# create accounts on mobile automatically. The web never allowed them (admin_required).
 _PERSONNEL_CREATE_ROLES = {
     "admin",
     "sistem_yoneticisi",
     "system_admin",
-    "personel_yonetimi",
-    "personel yönetimi yetkilisi",
-    "ik",
-    "insan kaynaklari",
-    "insan kaynakları",
 }
 
 
@@ -51,7 +49,7 @@ _PERSONNEL_CREATE_ROLES = {
 # ("admin", "personel_yonetimi", "personel yönetimi yetkilisi"), bu yüzden
 # alt dize hâlleri hiçbir meşru değeri ek olarak kapsamıyordu, yalnızca
 # "birim_admin_full" gibi ilgisiz roller için yanlışlıkla personel oluşturma
-# yetkisi açıyordu. role == "ik" / label == "ik" zaten tam eşleşme.
+# yetkisi açıyordu. B1-F1 (2026-10-09): ik / personel_yonetimi artık kümede değil.
 def _can_mobile_create_personnel(user: User) -> bool:
     role = _role_key(user)
     label = ((getattr(user, "role_label", "") or "").strip().lower())

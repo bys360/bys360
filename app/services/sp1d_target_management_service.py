@@ -72,7 +72,9 @@ def _role_name(current_user: Any) -> str:
 
 def _is_global_role(current_user: Any) -> bool:
     role = _role_name(current_user)
-    return any(item in role for item in ["admin", "sistem", "başkan", "baskan", "performans", "ik"])
+    # B1-F1 (approved least-privilege policy, 2026-10-09): "performans" and "ik" removed;
+    # performans_yetkilisi and ik see/edit only their own or their unit's KPI targets.
+    return any(item in role for item in ["admin", "sistem", "başkan", "baskan"])
 
 
 def _dict_rows(rows: Iterable[Any]) -> list[dict[str, Any]]:

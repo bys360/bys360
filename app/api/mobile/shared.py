@@ -71,6 +71,10 @@ _TOKEN_SALT = "bys360-mobile-api-v1"
 _REFRESH_TOKEN_SALT = "bys360-mobile-refresh-v1"
 _MOBILE_ACCESS_MAX_AGE_SECONDS = 60 * 60 * 24
 _MOBILE_REFRESH_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+# B1-F1 (approved least-privilege policy, 2026-10-09): ik, personel_yonetimi and
+# performans_yetkilisi are not institution-wide roles. They fall to the scoped
+# branches (self / evaluator / owner); institution-wide personnel reads need the
+# explicit personnel_read_all grant (app/services/personnel_read_grant.py).
 _GLOBAL_ROLES = {
     "admin",
     "sistem_yoneticisi",
@@ -80,9 +84,6 @@ _GLOBAL_ROLES = {
     "baskanlik",
     "başkan_yardımcısı",
     "baskan_yardimcisi",
-    "personel_yonetimi",
-    "ik",
-    "performans_yetkilisi",
 }
 
 

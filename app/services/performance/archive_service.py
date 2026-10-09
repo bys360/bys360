@@ -39,6 +39,9 @@ except Exception:  # pragma: no cover - overlay sırası bozulursa güvenli dar 
             return set()
 
 
+# B1-F1 (approved least-privilege policy, 2026-10-09): performans_yetkilisi,
+# personel_yonetimi and ik (with their spellings) no longer manage or view the whole
+# archive by role name; without another scope they see only their own history.
 MANUAL_ENTRY_ROLES = {
     "admin",
     "super_admin",
@@ -49,12 +52,6 @@ MANUAL_ENTRY_ROLES = {
     "başkan",
     "baskan_yardimcisi",
     "başkan_yardımcısı",
-    "performans_yetkilisi",
-    "personel_yonetimi",
-    "personel_yönetimi",
-    "ik",
-    "insan_kaynaklari",
-    "insan_kaynakları",
 }
 
 GENERAL_VIEW_ROLES = MANUAL_ENTRY_ROLES | {
