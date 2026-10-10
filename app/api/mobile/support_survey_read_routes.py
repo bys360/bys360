@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from app.services.support_ticket_access import can_view_private_support_ticket
+from app.services.support_ticket_access import (
+    can_view_all_support_tickets,
+    can_view_private_support_ticket,
+)
 
 # ruff: noqa: F821 - mobile bridge routes resolve legacy names from route_globals at registration time.
 
@@ -30,7 +33,7 @@ def register_mobile_support_survey_read_routes_v1(mobile_bp, route_globals) -> N
     @require_mobile_user
     def mobile_support_tickets(user: User):
         q_base = SupportTicket.query.order_by(SupportTicket.created_at.desc())
-        if not _has_global_scope(user):
+        if not can_view_all_support_tickets(user):  # K5: same rule as /support/all
             q_base = q_base.filter(SupportTicket.created_by_user_id == user.id)
 
         rows = q_base.limit(80).all()
