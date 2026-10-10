@@ -168,7 +168,13 @@ def role_key(user=None) -> str:
 # DÜZENLEME dahil) veriyordu. Artık yalnızca gerçek rol/unvan alanları
 # (username/email/department/unit HARİÇ) tek tek normalize edilip bu
 # kümelerle TAM eşleştiriliyor.
-_ROLE_IDENTITY_ATTRS = ("role", "role_key", "role_name", "role_label", "title", "position", "job_title")
+#
+# F07a / D3 (onaylı politika, 2026-10-09): role_label, title, position ve
+# job_title görünen ad/unvan alanlarıdır; tek başına yetki veremez. Örn.
+# role="personel" ve role_label="Sistem Yöneticisi" olan bir kullanıcı tam
+# Dosya Merkezi admini (başkasının özel dosyasını indirme/silme/paylaşma)
+# oluyordu. Rol kimliği artık yalnız saklanan rol alanlarıdır.
+_ROLE_IDENTITY_ATTRS = ("role", "role_key", "role_name")
 
 
 def _user_role_values(user=None) -> set[str]:
