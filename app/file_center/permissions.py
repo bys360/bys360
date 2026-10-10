@@ -355,6 +355,32 @@ def is_file_center_admin(user=None) -> bool:
     return _permission(user, "can_manage_admin", default=_admin_like_text(user))
 
 
+# F07b (onaylı politikalar: D2 2026-10-09, F07b-Q1 ve F07b-Q2 2026-10-10): başka
+# kullanıcının dosyasını indirmek, misafir bağlantısıyla paylaşmak veya silmek
+# yalnız saklanan rolü "admin" olan ve Dosya Merkezi admin iznine sahip kullanıcıya
+# açıktır. Teknik roller (sistem_yoneticisi, system_admin) ve dosya_merkezi_yetkilisi
+# Dosya Merkezi'ni yönetir (panel, bakım, kota, güvenlik, ayarlar, rol matrisi,
+# bağlantı iptali) ama başkasının dosya içeriğine otomatik erişmez. role_label,
+# unvan veya role_key/role_name gibi diğer alanlar bu kararı vermez.
+_OTHER_USERS_FILES_ROLE = "admin"
+
+
+def _is_verified_file_center_admin(user) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if _normalize(getattr(user, "role", "")) != _OTHER_USERS_FILES_ROLE:
+        return False
+    return is_file_center_admin(user)
+
+
+def can_read_other_users_files(user=None) -> bool:
+    return _is_verified_file_center_admin(user or current_user)
+
+
+def can_delete_other_users_files(user=None) -> bool:
+    return _is_verified_file_center_admin(user or current_user)
+
+
 def is_file_center_manager(user=None) -> bool:
     user = user or current_user
     if is_file_center_admin(user):
