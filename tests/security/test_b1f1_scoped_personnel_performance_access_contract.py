@@ -85,7 +85,7 @@ from types import SimpleNamespace
 
 import pytest
 
-PASSWORD = "B1F1ScopedAccessContract1!"
+PASSWORD = "B1F1ScopedAccessTest1!"
 GRANT_KEY = "personnel_read_all"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "b1f1_contract"
 
@@ -1375,7 +1375,9 @@ def _seed_evaluations(env):
 
     with env.app.app_context():
         for key, category, score in (("other", "Teknik", 55.0), ("evaluatee", "Idari", 95.0), ("personel", "Yonetim", 80.0)):
-            db.session.get(User, env.ids[key]).personnel_category = category
+            user = db.session.get(User, env.ids[key])
+            assert user is not None
+            user.personnel_category = category
             db.session.add(PerformanceEvaluation(period_id=env.period, employee_id=env.ids[key], final_total_100=score))
         db.session.commit()
 

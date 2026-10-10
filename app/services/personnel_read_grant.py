@@ -22,6 +22,8 @@ import logging
 from collections.abc import Iterable
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
+
 logger = logging.getLogger(__name__)
 
 PERSONNEL_READ_ALL_KEY = "personnel_read_all"
@@ -55,12 +57,13 @@ def has_personnel_read_all_grant(user: Any) -> bool:
             source_type="user_override",
         ).first()
         return row is not None
-    except Exception:
+    except SQLAlchemyError:
+        # Fail closed on a database error; any other error propagates (no fail-open path).
         logger.exception("BYS360 personnel_read_all grant lookup failed; denying (fail closed).")
-        try:
-            from app.extensions import db
+        from app.extensions import db
 
+        try:
             db.session.rollback()
-        except Exception:
+        except SQLAlchemyError:
             logger.exception("BYS360 personnel_read_all grant lookup rollback failed.")
         return False
