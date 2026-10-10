@@ -355,6 +355,22 @@ def is_file_center_admin(user=None) -> bool:
     return _permission(user, "can_manage_admin", default=_admin_like_text(user))
 
 
+# F07b / D2 (onaylı politika, 2026-10-09): teknik roller (sistem_yoneticisi,
+# system_admin) Dosya Merkezi'ni yönetir (panel, bakım, kota, güvenlik, ayarlar,
+# rol matrisi, silme, bağlantı iptali) ama başka kullanıcının dosya içeriğini
+# indiremez veya misafir bağlantısıyla dışarı paylaşamaz.
+_TECHNICAL_ROLE_VALUES = frozenset(_normalize(role) for role in ("sistem_yoneticisi", "system_admin"))
+
+
+def can_read_other_users_files(user=None) -> bool:
+    user = user or current_user
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if _user_role_values(user) & _TECHNICAL_ROLE_VALUES:
+        return False
+    return is_file_center_admin(user)
+
+
 def is_file_center_manager(user=None) -> bool:
     user = user or current_user
     if is_file_center_admin(user):

@@ -25,6 +25,7 @@ from app.file_center.permissions import (
     can_manage_file_center_admin,
     can_manage_file_center_quota_policy,
     can_manage_file_center_settings,
+    can_read_other_users_files,
     can_use_chunk_upload,
     can_use_file_center,
     menu_context,
@@ -131,6 +132,11 @@ def _enabled_or_message():
 
 def _can_manage_file(item: FileStorageItem) -> bool:
     return bool(current_user.is_authenticated and (item.owner_user_id == current_user.id or is_admin_like(current_user)))
+
+
+def _can_read_file(item: FileStorageItem) -> bool:
+    # F07b / D2: içerik (indirme, misafir bağlantısı) teknik rollere kapalı; bkz. can_read_other_users_files.
+    return bool(current_user.is_authenticated and (item.owner_user_id == current_user.id or can_read_other_users_files(current_user)))
 
 
 def _can_manage_request(row: FileRequest) -> bool:
@@ -246,7 +252,7 @@ def file_center_download(file_id: int):
     if not _enabled_or_message():
         return redirect(url_for("main.home"))
     item = FileStorageItem.query.get_or_404(file_id)
-    if not _can_manage_file(item):
+    if not _can_read_file(item):
         return _access_denied_response()
     try:
         ok, security_message = can_download_file(item)
@@ -298,7 +304,7 @@ def file_center_create_guest_link(file_id: int):
     if not can_create_guest_links(current_user):
         return _access_denied_response()
     item = FileStorageItem.query.get_or_404(file_id)
-    if not _can_manage_file(item):
+    if not _can_read_file(item):
         return _access_denied_response()
     password = (request.form.get("password") or "").strip()
     if len(password) < 6:
