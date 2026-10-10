@@ -171,7 +171,7 @@ def communication_phase1_survey_center():
 @login_required
 @menu_key_required("support_index")
 def communication_phase1_support_center():
-    payload = support_center_snapshot()
+    payload = support_center_snapshot(current_user)  # K5: viewer-scoped rows
     return safe_render("communication/phase1_support_center.html", payload=payload)
 
 

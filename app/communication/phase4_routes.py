@@ -82,7 +82,7 @@ def communication_phase4_dashboard_view():
     if not is_manager(current_user):
         flash("Bu ekran yönetici görünümü için tasarlanmıştır.", "warning")
     days = _read_days(30)
-    payload = executive_summary_snapshot(days)
+    payload = executive_summary_snapshot(days, viewer=current_user)  # K5: viewer-scoped ticket rows
     return safe_render("communication/phase4_dashboard.html", payload=payload)
 
 
@@ -91,7 +91,7 @@ def communication_phase4_dashboard_view():
 @menu_key_required("reports")
 def communication_phase4_reports_view():
     days = _read_days(30)
-    payload = executive_summary_snapshot(days)
+    payload = executive_summary_snapshot(days, viewer=current_user)  # K5: viewer-scoped ticket rows
     history = report_history_snapshot(25)
     return safe_render("communication/phase4_reports.html", payload=payload, history=history)
 
@@ -152,7 +152,7 @@ def communication_phase4_survey_analytics():
 @menu_key_required("support_all")
 def communication_phase4_support_analytics():
     days = _read_days(180)
-    payload = support_analytics_snapshot(days)
+    payload = support_analytics_snapshot(days, viewer=current_user)  # K5: viewer-scoped ticket rows
     return safe_render("communication/phase4_support_analytics.html", payload=payload)
 
 

@@ -48,7 +48,7 @@ def communication_phase5_dashboard_view():
         "automation": automation_center_snapshot(),
         "health": health_snapshot(),
         "retention": retention_snapshot(),
-        "support_ops": support_operations_snapshot(),
+        "support_ops": support_operations_snapshot(viewer=current_user),  # K5: viewer-scoped rows
     }
     return safe_render("communication/phase5_dashboard.html", payload=payload)
 
@@ -96,7 +96,7 @@ def communication_phase5_create_digest():
 @login_required
 @menu_key_required("support_all")
 def communication_phase5_support_operations():
-    payload = support_operations_snapshot()
+    payload = support_operations_snapshot(viewer=current_user)  # K5: viewer-scoped rows
     return safe_render("communication/phase5_support_operations.html", payload=payload)
 
 
@@ -106,7 +106,7 @@ def communication_phase5_support_operations():
 def communication_phase5_escalations():
     if not is_manager(current_user):
         flash("Bu ekran yönetici kullanımına yöneliktir.", "warning")
-    payload = escalation_snapshot()
+    payload = escalation_snapshot(viewer=current_user)  # K5: viewer-scoped rows
     return safe_render("communication/phase5_escalation_center.html", payload=payload)
 
 

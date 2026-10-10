@@ -43,6 +43,7 @@ from app.services.bys360_notification_bridge import (
 from app.services.support_ticket_access import (
     can_view_all_support_tickets,
     can_view_support_ticket,
+    support_ticket_visibility_clause,
 )
 from app.support.help_center_content import (
     HELP_CATEGORIES,
@@ -356,7 +357,8 @@ def _build_recent_support_streams(limit: int = 6) -> dict:
     return {
         "my_recent_tickets": my_base.order_by(*base_order).limit(limit).all(),
         "assigned_recent_tickets": assigned_base.order_by(*base_order).limit(limit).all() if assigned_view else [],
-        "all_recent_tickets": SupportTicket.query.order_by(*base_order).limit(limit).all() if manager_mode else [],
+        # K5: out-of-scope (other units' private) tickets never reach the stream, not even their title.
+        "all_recent_tickets": SupportTicket.query.filter(support_ticket_visibility_clause(current_user)).order_by(*base_order).limit(limit).all() if manager_mode else [],
     }
 
 def _build_dashboard_context() -> dict:
@@ -365,14 +367,16 @@ def _build_dashboard_context() -> dict:
     assigned_base = SupportTicket.query.filter_by(assigned_to_user_id=current_user.id)
     manager_mode = _can_use_all_support_view()
     assigned_view = _can_use_assigned_support_view()
+    # K5: the all-view counters count only tickets inside the viewer's scope.
+    scoped = SupportTicket.query.filter(support_ticket_visibility_clause(current_user))
 
     counts = {
         "my_total": my_base.count(),
         "my_open": my_base.filter(SupportTicket.status.in_(open_statuses)).count(),
         "assigned_total": assigned_base.count() if assigned_view else 0,
-        "critical_open": SupportTicket.query.filter(SupportTicket.priority == "critical", SupportTicket.status.in_(open_statuses)).count() if manager_mode else my_base.filter(SupportTicket.priority == "critical", SupportTicket.status.in_(open_statuses)).count(),
-        "resolved_total": SupportTicket.query.filter(SupportTicket.status == "resolved").count() if manager_mode else my_base.filter(SupportTicket.status == "resolved").count(),
-        "all_total": SupportTicket.query.count() if manager_mode else my_base.count(),
+        "critical_open": scoped.filter(SupportTicket.priority == "critical", SupportTicket.status.in_(open_statuses)).count() if manager_mode else my_base.filter(SupportTicket.priority == "critical", SupportTicket.status.in_(open_statuses)).count(),
+        "resolved_total": scoped.filter(SupportTicket.status == "resolved").count() if manager_mode else my_base.filter(SupportTicket.status == "resolved").count(),
+        "all_total": scoped.count() if manager_mode else my_base.count(),
     }
 
     streams = _build_recent_support_streams(limit=6)
@@ -901,7 +905,7 @@ def support_all():
         return guard
     search = sanitize_free_text(request.args.get("q"), limit=120)
     status_filter = _normalize_choice(request.args.get("status"), set(_status_map().keys()), "")
-    query = SupportTicket.query
+    query = SupportTicket.query.filter(support_ticket_visibility_clause(current_user))  # K5: scoped list
     query = _apply_support_search_filter(query, search, include_requester=True)
     if status_filter:
         query = query.filter(SupportTicket.status == status_filter)

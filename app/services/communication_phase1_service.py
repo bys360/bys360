@@ -22,6 +22,7 @@ from app.models.communication_phase1_models import (
 )
 from app.services.communication_phase2_service import SURVEY_STATUS_LABELS, SURVEY_TYPE_LABELS
 from app.services.role_display import ROLE_DISPLAY_LABELS, UNKNOWN_ROLE_DISPLAY_LABEL
+from app.services.support_ticket_access import support_ticket_visibility_clause
 
 MANAGER_ROLES = {
     "admin",
@@ -275,14 +276,16 @@ def bulletin_dashboard_snapshot(limit: int = 8) -> dict[str, Any]:
 
 def communication_phase1_dashboard(user: Any) -> dict[str, Any]:
     survey_rows = Survey.query.order_by(Survey.created_at.desc()).limit(6).all()
-    support_rows = SupportTicket.query.order_by(SupportTicket.created_at.desc()).limit(6).all()
+    # K5: the dashboard lists and counts only the tickets inside the viewer's scope.
+    visible_support = SupportTicket.query.filter(support_ticket_visibility_clause(user))
+    support_rows = visible_support.order_by(SupportTicket.created_at.desc()).limit(6).all()
     bulletin_data = bulletin_dashboard_snapshot(limit=6)
 
     my_unread_notifications = 0
     if user and getattr(user, "id", None):
         my_unread_notifications = Notification.query.filter_by(user_id=user.id, is_read=False).count()
 
-    open_support_count = SupportTicket.query.filter(SupportTicket.status.in_(sorted(SUPPORT_OPEN_STATUSES))).count()
+    open_support_count = visible_support.filter(SupportTicket.status.in_(sorted(SUPPORT_OPEN_STATUSES))).count()
     active_surveys_count = Survey.query.filter(Survey.status.in_(["published", "active"])).count()
 
     return {
@@ -332,8 +335,10 @@ def survey_center_snapshot() -> dict[str, Any]:
     }
 
 
-def support_center_snapshot() -> dict[str, Any]:
-    tickets = SupportTicket.query.order_by(SupportTicket.created_at.desc()).all()
+def support_center_snapshot(viewer: Any) -> dict[str, Any]:
+    # K5: rows and counters cover only the tickets inside the viewer's scope.
+    tickets = (SupportTicket.query.filter(support_ticket_visibility_clause(viewer))
+               .order_by(SupportTicket.created_at.desc()).all())
     rows: list[dict[str, Any]] = []
 
     for ticket in tickets:

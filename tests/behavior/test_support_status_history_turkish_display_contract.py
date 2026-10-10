@@ -153,7 +153,8 @@ def test_phase5_support_operations_recent_history_shows_turkish_labels(app, clie
     from app.extensions import db
     from app.models import SupportTicket, SupportTicketStatusHistory
 
-    user_id = _create_user(app, sicil_no="sup_admin_ops")
+    # K5-Q1: the Faz 5 support screens need the explicit per-person support_all grant.
+    user_id = _create_user(app, sicil_no="sup_admin_ops", menu_keys=("support_index", "support", "support_all"))
     with app.app_context():
         ticket = SupportTicket(
             ticket_no="DTY-TEST-0002",
