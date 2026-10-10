@@ -101,8 +101,11 @@ def bys360_profile_photo_file(filename: str):
     if not safe_name:
         abort(404)
 
-    roots = []
-    static_profile_dir = (Path(current_app.root_path) / "static" / "uploads" / "profile_photos").resolve()
+    from app.security.private_uploads import legacy_static_upload_path, private_upload_path
+
+    # B2-F06: yeni fotoğraflar static dışındaki özel depoda; eski konumlar geri dönüş olarak okunur.
+    roots = [private_upload_path("profile_photos").resolve()]
+    static_profile_dir = legacy_static_upload_path("profile_photos").resolve()
     roots.append(static_profile_dir)
 
     configured_upload_root = current_app.config.get("UPLOAD_FOLDER") or os.getenv("UPLOAD_FOLDER")

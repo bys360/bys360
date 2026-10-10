@@ -7,14 +7,14 @@ from flask import current_app
 from werkzeug.utils import secure_filename
 
 from app.core.datetime_utils import utc_now
+from app.security.private_uploads import locate_upload, private_upload_dir, private_upload_path
 
 PROFILE_PHOTO_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 
 def profile_photo_upload_dir() -> str:
-    upload_dir = os.path.join(current_app.root_path, "static", "uploads", "profile_photos")
-    os.makedirs(upload_dir, exist_ok=True)
-    return upload_dir
+    """Yeni profil fotoğrafları için yazma klasörü (B2-F06: static dışındaki özel depo)."""
+    return str(private_upload_dir("profile_photos"))
 
 
 def is_allowed_profile_photo(filename: str) -> bool:
@@ -29,11 +29,15 @@ def delete_profile_photo_file(relative_path: str | None) -> None:
         return
 
     try:
+        private_copy = locate_upload(os.path.basename(relative_path.replace("\\", "/")), (private_upload_path("profile_photos"),))
+        if private_copy is not None:
+            os.remove(os.path.join(private_copy[0], private_copy[1]))
         abs_path = os.path.join(current_app.root_path, "static", relative_path.replace("/", os.sep))
         if os.path.isfile(abs_path):
             os.remove(abs_path)
-    except Exception:
-        current_app.logger.exception("Profil fotoğrafı silinirken hata oluştu.")
+    except Exception as exc:
+        # B2-F06: OSError metni dosya yolunu ve indirme anahtarı olan adı taşır; yalnız türü yazılır.
+        current_app.logger.warning("Profil fotoğrafı silinirken hata oluştu (%s).", type(exc).__name__)
 
 
 def save_profile_photo(file_storage, user) -> str:

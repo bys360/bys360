@@ -585,6 +585,8 @@ class Config:
     UPLOAD_STRICT_MIME_VALIDATION = str_to_bool(os.getenv('UPLOAD_STRICT_MIME_VALIDATION'), True)
 
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', os.path.join(BASE_DIR, 'app', 'static', 'uploads'))
+    # B2-F06: kişisel/kurumsal yüklemeler static klasörü dışında saklanır ve yalnız yetkili route'larla sunulur.
+    PRIVATE_UPLOAD_FOLDER = os.getenv('PRIVATE_UPLOAD_FOLDER', os.path.join(BASE_DIR, 'instance', 'private_uploads'))
     REPORT_FOLDER = os.getenv('REPORT_FOLDER', os.path.join(BASE_DIR, 'reports'))
     LOG_FOLDER = os.getenv('LOG_FOLDER', os.path.join(BASE_DIR, 'logs'))
     PDF_EXPORT_MAX_ROWS_INLINE = _coerce_positive_int(os.getenv('PDF_EXPORT_MAX_ROWS_INLINE'), 250)

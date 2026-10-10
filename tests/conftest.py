@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import contextlib
 import os
+import shutil
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -32,6 +34,18 @@ os.environ.setdefault("CSP_REPORT_ONLY", "true")
 os.environ.setdefault("WTF_CSRF_ENABLED", "false")
 os.environ.setdefault("MAIL_SUPPRESS_SEND", "true")
 os.environ.setdefault("SCHEDULER_ENABLED", "false")
+
+# BYS360_B2F06_PRIVATE_UPLOAD_TEST_ROOT: özel yüklemeler (mesaj/destek/portal/İK/profil
+# fotoğrafı) varsayılan olarak <proje>/instance/private_uploads altına yazılır. Testler
+# gerçek instance klasörüne dosya bırakmasın diye süreç başına geçici bir kök kullanılır
+# (klasör yalnızca bir test dosya yazdığında oluşturulur ve oturum sonunda silinir).
+_PRIVATE_UPLOAD_TEST_ROOT = Path(tempfile.gettempdir()) / f"bys360_pytest_private_uploads_{os.getpid()}"
+os.environ["PRIVATE_UPLOAD_FOLDER"] = str(_PRIVATE_UPLOAD_TEST_ROOT)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """B2-F06: süreç başına geçici özel yükleme kökünü test oturumu bitince temizler."""
+    shutil.rmtree(_PRIVATE_UPLOAD_TEST_ROOT, ignore_errors=True)
 
 # BYS360_PHASE5_PYTEST_TEMP_CONTRACT_START
 # Tam pytest paketi (özellikle tests/quality -m ci_safe ve tests/critical)

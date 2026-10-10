@@ -11,7 +11,7 @@ from app.models.communication_phase1_models import (
     CommunicationBulletinReceipt,
 )
 from app.services.communication_phase1_service import resolve_bulletin_target_users
-from app.services.message_service import message_upload_dir
+from app.services.message_service import message_attachment_search_dirs
 
 logger = logging.getLogger(__name__)
 
@@ -147,9 +147,9 @@ def resolve_message_attachment_download(attachment: MessageAttachment | None) ->
     if Path(stored_filename).name != stored_filename or "/" in stored_filename or "\\" in stored_filename:
         raise CommunicationServiceError("Dosya adı güvenli değil.")
 
-    upload_dir = message_upload_dir().resolve()
-    candidate = (upload_dir / stored_filename).resolve()
-    if upload_dir not in candidate.parents or not candidate.exists() or not candidate.is_file():
-        raise CommunicationServiceError("Dosya sunucuda bulunamadı.")
-
-    return upload_dir, candidate.name
+    for base in message_attachment_search_dirs():
+        upload_dir = base.resolve()
+        candidate = (upload_dir / stored_filename).resolve()
+        if upload_dir in candidate.parents and candidate.is_file():
+            return upload_dir, candidate.name
+    raise CommunicationServiceError("Dosya sunucuda bulunamadı.")

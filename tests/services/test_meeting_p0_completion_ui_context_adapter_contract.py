@@ -638,7 +638,12 @@ def test_fixture_context_values_are_genuinely_in_response_body(p0_response_body)
 # new, additive route (POST /ai-agent/api/v2/ask) raised the count 995->996
 # -- mechanically re-verified against a fresh app.url_map, unrelated to
 # this wave.
-EXPECTED_URL_MAP_TOTAL = 996
+#
+# FORWARD-COMPATIBILITY FOLLOW-UP (BYS360 B2-F06 private uploads): one new,
+# additive route (GET /portal/attachments/<int:attachment_id>) raised the
+# count 996->997 -- mechanically re-verified against a fresh app.url_map,
+# unrelated to this wave.
+EXPECTED_URL_MAP_TOTAL = 997
 
 
 def test_url_map_route_count_is_unchanged(p0_ui_env) -> None:

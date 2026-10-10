@@ -15,12 +15,13 @@ else:
     pymupdf = _pymupdf
 from pathlib import Path
 
-from flask import abort, current_app
+from flask import abort
 from sqlalchemy import extract, or_
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
 from app.models import PublicationIssue
+from app.security.private_uploads import private_upload_root
 
 PUBLICATION_TYPE_LABELS = {
     "bulletin": "Kurumsal Bülten",
@@ -66,10 +67,9 @@ def _extract_pdf_page_count(abs_path: str | None) -> int | None:
 
 
 def _storage_root() -> Path:
-    configured = current_app.config.get("UPLOAD_FOLDER")
-    if configured:
-        return Path(configured).expanduser()
-    return Path(current_app.root_path).parent / "uploads"
+    # B2-F06: yayınlar static dışındaki özel depoya yazılır; kayıtlar mutlak
+    # storage_path tuttuğu için eski UPLOAD_FOLDER konumundaki dosyalar okunmaya devam eder.
+    return private_upload_root()
 
 
 def _next_sort_order() -> int:

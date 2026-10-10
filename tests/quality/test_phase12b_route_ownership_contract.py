@@ -49,36 +49,43 @@ class _StrategicConflict(TypedDict):
 # strategic_performance.* index shifted by the same +11 too. Mechanically
 # re-verified against a fresh app.url_map, not hand-computed. Endpoint names
 # and winner/shadowed relationships are unchanged.
+#
+# FORWARD-COMPATIBILITY FOLLOW-UP (BYS360 B2-F06 private uploads): one new,
+# additive GET route (/portal/attachments/<int:attachment_id>, endpoint
+# main.portal_attachment_file, app/portal/routes.py) registers on main_bp at
+# index 774, before every route below, so every index shifted by exactly +1.
+# Mechanically re-verified against a fresh app.url_map; endpoint names and
+# winner/shadowed relationships are unchanged.
 STRATEGIC_CONFLICTS: dict[str, _StrategicConflict] = {
     "/performans/stratejik/kpi-dashboard": {
         "methods": {"GET"},
         "winner": "main.sp1_kpi_dashboard_tr",
         "shadowed": "strategic_performance.kpi_dashboard",
-        "indexes": (808, 888),
+        "indexes": (809, 889),
     },
     "/performans/stratejik/hedefler": {
         "methods": {"GET"},
         "winner": "main.sp1_kpi_targets_tr",
         "shadowed": "strategic_performance.target_list",
-        "indexes": (810, 890),
+        "indexes": (811, 891),
     },
     "/performans/stratejik/yetkinlik-kutuphanesi": {
         "methods": {"GET"},
         "winner": "main.sp1_competency_library_tr",
         "shadowed": "strategic_performance.competency_library",
-        "indexes": (816, 889),
+        "indexes": (817, 890),
     },
     "/performans/stratejik/oz-degerlendirme": {
         "methods": {"GET", "POST"},
         "winner": "main.sp1_self_review_tr",
         "shadowed": "strategic_performance.self_review",
-        "indexes": (818, 893),
+        "indexes": (819, 894),
     },
     "/performans/stratejik/ai-kpi-analiz": {
         "methods": {"GET"},
         "winner": "main.sp1_ai_kpi_analysis_tr",
         "shadowed": "strategic_performance.ai_kpi_analysis",
-        "indexes": (820, 894),
+        "indexes": (821, 895),
     },
 }
 
@@ -269,17 +276,23 @@ def test_strategic_menu_endpoints_resolve_to_shadowed_names_but_main_wins(app):
 # the pwa.manifest_webmanifest index shifted 916 -> 917 (main.bys360_pwa_
 # manifest's index is unaffected, since it registers before ai_agent_bp).
 # Mechanically re-verified against a fresh app.url_map, not hand-computed.
+#
+# FORWARD-COMPATIBILITY FOLLOW-UP (BYS360 B2-F06 private uploads): the new
+# GET /portal/attachments/<int:attachment_id> (main.portal_attachment_file)
+# is a genuinely new path and endpoint registered on main_bp before both
+# manifest rules: counts 996/972/891 -> 997/973/892 and the manifest indexes
+# 822/917 -> 823/918. Mechanically re-verified against a fresh app.url_map.
 def test_manifest_winner_and_route_snapshot_are_deterministic_across_factories(
     fresh_runtime_snapshot,
 ):
-    expected_snapshot = [996, 972, 891]
+    expected_snapshot = [997, 973, 892]
 
     for runtime in fresh_runtime_snapshot.values():
         assert runtime["counts"] == expected_snapshot
         entries = runtime["entries"]["/manifest.webmanifest"]
         assert [(entry["index"], entry["endpoint"]) for entry in entries] == [
-            (822, "main.bys360_pwa_manifest"),
-            (917, "pwa.manifest_webmanifest"),
+            (823, "main.bys360_pwa_manifest"),
+            (918, "pwa.manifest_webmanifest"),
         ]
         assert (
             runtime["winners"]["/manifest.webmanifest|GET"]
@@ -527,9 +540,13 @@ def test_performance_blueprint_symbol_is_orphaned_but_package_is_live(app):
 # counts rose 995->996 (see the shared rationale above); the new POST
 # /ai-agent/api/v2/ask route is a newly-registered, non-conflicting path,
 # so the known conflict set (8 entries) is unchanged.
+#
+# FORWARD-COMPATIBILITY FOLLOW-UP (BYS360 B2-F06 private uploads): counts rose
+# 996->997 for the new GET /portal/attachments/<int:attachment_id> route, a
+# newly-registered, non-conflicting path, so the known conflict set is unchanged.
 def test_phase12a_route_and_conflict_totals_remain_unchanged(fresh_runtime_snapshot):
     runtime = fresh_runtime_snapshot["first"]
-    assert runtime["counts"] == [996, 972, 891]
+    assert runtime["counts"] == [997, 973, 892]
     conflicts = set(runtime["conflicts"])
     assert len(conflicts) == 8
     assert set(STRATEGIC_CONFLICTS) <= conflicts
