@@ -40,7 +40,10 @@ from app.services.bys360_notification_bridge import (
     notify_support_ticket_rating,
     notify_support_ticket_status_changed,
 )
-from app.services.support_ticket_access import can_view_private_support_ticket
+from app.services.support_ticket_access import (
+    can_view_all_support_tickets,
+    can_view_support_ticket,
+)
 from app.support.help_center_content import (
     HELP_CATEGORIES,
     HELP_ROLES,
@@ -235,10 +238,6 @@ def _default_support_category_id(ticket_type: str | None) -> int | None:
 def _status_map() -> dict[str, str]:
     return {key: label for key, label in SUPPORT_STATUS_CHOICES}
 
-def _is_ticket_assignee(ticket: SupportTicket) -> bool:
-    return int(getattr(ticket, "assigned_to_user_id", 0) or 0) == int(getattr(current_user, "id", 0) or 0)
-
-
 def _can_use_assigned_support_view() -> bool:
     """Bana Atananlar ekranı kişi bazlı menü izniyle de açılabilir.
 
@@ -253,15 +252,15 @@ def _can_use_assigned_support_view() -> bool:
     return bool(is_manager_family_user(current_user) or can_access_menu(current_user, "support_assigned"))
 
 def _can_use_all_support_view() -> bool:
-    """Tüm Talepler ekranı kişi bazlı menü izniyle de açılabilir.
+    """Tüm Talepler görünümü yalnız support_all iznine bağlıdır (K5, 2026-10-10).
 
-    Ayarlar/Rol Matrisi üzerinden bir personele support_all görünürlüğü verildiyse
-    backend route da aynı kararı kabul eder. Bu izin verilmemişse normal personel
-    kurum geneli talep verisini göremez.
+    İzin Ayarlar'da (rol matrisi, birim profili, kişi bazlı görünürlük) verilir veya
+    kaldırılır; mobil API aynı kuralı uygular. Rol adı kısayolu yoktur: Ayarlar'da
+    support_all kaldırılmış bir yönetici de kurum geneli talep verisini göremez.
     """
     if not current_user.is_authenticated:
         return False
-    return bool(is_manager_family_user(current_user) or can_access_menu(current_user, "support_all"))
+    return can_view_all_support_tickets(current_user)
 
 
 # BYS360_P13B_NEW1_FIX: _can_use_all_support_view() manager ailesine kurum
@@ -269,31 +268,19 @@ def _can_use_all_support_view() -> bool:
 # confirmed - baska birimin yoneticisi, "sadece yetkili kullanicilar gorsun"
 # etiketli gizli bir bileti okuyabiliyordu). Talep sahibi/atanan/admin ailesi
 # disinda, gizli bir bilet artik yalnizca talebin birim anlik goruntusuyle
-# ayni birimdeki yoneticilere acilir.
-def _can_view_private_scope(ticket: SupportTicket) -> bool:
-    return can_view_private_support_ticket(ticket, current_user)
-
-
+# ayni birimdeki yoneticilere acilir (can_view_private_support_ticket, K5 ile
+# can_view_support_ticket icinde).
 def _can_view_ticket(ticket: SupportTicket) -> bool:
+    # K5: talep sahibi, atanan kişi veya gizli talep kuralı içinde support_all (mobil ile aynı kural).
     if not current_user.is_authenticated:
         return False
-    current_id = int(getattr(current_user, "id", 0) or 0)
-    if int(ticket.created_by_user_id or 0) == current_id or _is_ticket_assignee(ticket):
-        return True
-    if not _can_use_all_support_view():
-        return False
-    return _can_view_private_scope(ticket)
+    return can_view_support_ticket(ticket, current_user)
 
 
 def _can_operate_ticket(ticket: SupportTicket) -> bool:
     if not current_user.is_authenticated:
         return False
-    current_id = int(getattr(current_user, "id", 0) or 0)
-    if int(ticket.created_by_user_id or 0) == current_id or _is_ticket_assignee(ticket):
-        return True
-    if not _can_use_all_support_view():
-        return False
-    return _can_view_private_scope(ticket)
+    return can_view_support_ticket(ticket, current_user)
 
 def _normalize_choice(value: str | None, allowed: set[str], default: str) -> str:
     normalized = (value or "").strip().lower()
@@ -896,7 +883,7 @@ def support_assigned():
         page_text="Üzerinizde işlem bekleyen kayıtları bu listeden yönetin.",
         current_view_key="support_assigned",
         search_query=search,
-        is_manager_view=is_manager_family_user(current_user),
+        is_manager_view=_can_use_all_support_view(),
         can_assigned_view=True,
         show_all_stream=False,
         **list_context,
