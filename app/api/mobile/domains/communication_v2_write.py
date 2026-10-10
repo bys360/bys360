@@ -31,10 +31,13 @@ def _b48_now():
 
 
 def _b48_user_row(u: User, current_user_id: int | None = None):
+    # R06 (approved policy, 2026-10-10): the recipient picker and the participant lists carry the
+    # name and the unit only. The sicil and title keys stay for client compatibility but are empty,
+    # so they are neither shown nor searchable (the picker searches this row's values).
     full_name = _full_name(u)
-    registry = _b48_txt(getattr(u, "sicil_no", None) or getattr(u, "registry_no", None) or getattr(u, "sicil", None))
+    registry = ""
     unit = _b48_txt(getattr(u, "birim", None) or getattr(u, "unit_name", None) or getattr(u, "organization_unit_name", None))
-    title = _b48_txt(getattr(u, "unvan", None) or getattr(u, "title", None) or getattr(u, "title_name", None))
+    title = ""
     return {
         "id": getattr(u, "id", None),
         "user_id": getattr(u, "id", None),

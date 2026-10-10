@@ -50,7 +50,7 @@ def _b46_participants(thread_id: int):
             "user_id": getattr(u, "id", None) or getattr(p, "user_id", None),
             "display_name": _b46_user_label(u),
             "name": _b46_user_label(u),
-            "registry_no": _b46_txt(getattr(u, "sicil_no", None) or getattr(u, "registry_no", None)),
+            "registry_no": "",  # R06: participants carry no sicil (key kept for client compatibility)
             "unit_name": _b46_txt(getattr(u, "birim", None) or getattr(u, "unit_name", None)),
             "is_muted": bool(getattr(p, "is_muted", False)),
             "is_pinned": bool(getattr(p, "is_pinned", False)),
