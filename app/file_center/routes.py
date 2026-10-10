@@ -22,6 +22,7 @@ from app.file_center.maintenance_service import (
 from app.file_center.permissions import (
     can_create_guest_links,
     can_create_guest_upload_requests,
+    can_delete_other_users_files,
     can_manage_file_center_admin,
     can_manage_file_center_quota_policy,
     can_manage_file_center_settings,
@@ -135,8 +136,13 @@ def _can_manage_file(item: FileStorageItem) -> bool:
 
 
 def _can_read_file(item: FileStorageItem) -> bool:
-    # F07b / D2: içerik (indirme, misafir bağlantısı) teknik rollere kapalı; bkz. can_read_other_users_files.
+    # F07b: başkasının dosyasını indirme ve misafir bağlantısı yalnız doğrulanmış admin; bkz. can_read_other_users_files.
     return bool(current_user.is_authenticated and (item.owner_user_id == current_user.id or can_read_other_users_files(current_user)))
+
+
+def _can_delete_file(item: FileStorageItem) -> bool:
+    # F07b-Q2: başkasının dosyasını silme yalnız doğrulanmış admin; silme denetim kaydına yazılır (soft_delete_file).
+    return bool(current_user.is_authenticated and (item.owner_user_id == current_user.id or can_delete_other_users_files(current_user)))
 
 
 def _can_manage_request(row: FileRequest) -> bool:
@@ -280,7 +286,7 @@ def file_center_delete(file_id: int):
     if not _enabled_or_message():
         return redirect(url_for("main.home"))
     item = FileStorageItem.query.get_or_404(file_id)
-    if not _can_manage_file(item):
+    if not _can_delete_file(item):
         return _access_denied_response()
     try:
         soft_delete_file(item, int(current_user.id))
