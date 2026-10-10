@@ -1415,5 +1415,85 @@ def test_guard_r07_only_the_grant_paths_reference_the_grant_key():
         "app/main_handlers/account_settings_helpers.py",
         "app/main_handlers/account_visibility_helpers.py",
         "app/services/personnel_read_grant.py",
+        "app/services/settings/rollback_handler.py",
         "app/services/settings_service.py",
     ], constant_files
+
+
+# --------------------------------------------------------------------------------------
+# Final review: D2 must not break technical functions (F01, F02); only an admin removes the
+# grant, also through reset and rollback (F04)
+# --------------------------------------------------------------------------------------
+
+_HEALTH_PATHS = tuple(f"/ai/decision-support/faz{n}/health" for n in (3, 4, 5, 6))
+
+
+@pytest.mark.parametrize("who", ["sysadm", "sysadm_en"])
+def test_positive_d2_technical_roles_keep_ai_decision_health_checks(env, who):
+    client = _web(env, who)
+    for path in _HEALTH_PATHS:
+        response = client.get(path)
+        assert response.status_code == 200, (who, path, response.status_code)
+        assert (response.get_json() or {}).get("ok") is True
+    # The centre's data pages stay closed: health access is not centre access.
+    _seed_evaluations(env)
+    groups = client.get("/ai/decision-support/performance/visible-category-groups")
+    assert groups.status_code == 403
+    assert client.get("/ai/decision-support/performance/scorecard-ui/summary").status_code == 403
+
+
+@pytest.mark.parametrize("who", ["personel", "ik", "label_sysadm"])
+def test_guard_ai_decision_health_checks_stay_closed_to_other_roles(env, who):
+    client = _web(env, who)
+    for path in _HEALTH_PATHS:
+        assert client.get(path).status_code == 403, (who, path)
+
+
+@pytest.mark.parametrize("who", ["sysadm", "sysadm_en"])
+def test_positive_d2_technical_roles_keep_mobile_settings_counters(env, who):
+    response = _mget(env, who, "/api/mobile/settings/summary")
+    assert response.status_code == 200
+    titles = {metric["title"] for metric in response.get_json()["metrics"]}
+    assert {"Rol Profili", "Modül Ayarı", "Sistem Ayarı"} <= titles
+    assert _leaked(_text(response), *_others(who)) == []
+
+
+@pytest.mark.parametrize("who", ["label_sysadm", "personel"])
+def test_guard_mobile_settings_counters_stay_restricted_for_other_roles(env, who):
+    metrics = {metric["title"]: metric["value"] for metric in _mget(env, who, "/api/mobile/settings/summary").get_json()["metrics"]}
+    assert "Rol Profili" not in metrics
+    assert metrics.get("Erişim") == "Sınırlı"
+
+
+@pytest.mark.parametrize("actor", ["baskan", "mali_musavir"])
+def test_guard_f04_non_admin_reset_keeps_the_grant(env, actor):
+    _grant_via_settings(env, "holder")
+    assert _has_active_grant_row(env, "holder")
+    response = _settings(env, actor, {"form_action": "reset_user_overrides", "user_id": str(env.ids["holder"])})
+    assert response.status_code == 302
+    assert any(log.action == "clear" for log in _change_logs(env, "holder")), "the reset must have run"
+    assert _has_active_grant_row(env, "holder"), "only an admin may remove the grant"
+    _assert_institution_wide(env, "holder", "/api/mobile/personnel/list")
+
+
+def test_guard_f04_admin_reset_of_another_user_removes_the_grant(env):
+    client = _web(env, "admin")
+    _grant_via_settings(env, "holder", client=client)
+    assert _has_active_grant_row(env, "holder")
+    _settings(env, "admin", {"form_action": "reset_user_overrides", "user_id": str(env.ids["holder"])}, client=client)
+    assert _grant_row(env, "holder") is None
+    _assert_self_only(env, "holder", "/api/mobile/personnel/list")
+
+
+@pytest.mark.parametrize("actor", ["baskan", "admin"])
+def test_guard_f04_settings_rollback_never_touches_the_grant(env, actor):
+    _grant_via_settings(env, "holder")
+    grant_log = [log for log in _change_logs(env, "holder") if log.new_state.get(GRANT_KEY) is True][-1]
+    response = _settings(
+        env,
+        actor,
+        {"form_action": "rollback_settings_change_entry", "change_log_id": str(grant_log.id), "keep_user_id": str(env.ids["holder"])},
+    )
+    assert response.status_code == 302
+    assert any(log.action == "rollback" for log in _change_logs(env, "holder")), "rollback must have run"
+    assert _has_active_grant_row(env, "holder"), "a menu rollback neither restores nor removes the grant"
