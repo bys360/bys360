@@ -217,19 +217,37 @@ def _ticket_owner_snapshot(ticket: Any) -> str:
     return snapshot or "-"
 
 
-def support_operations_snapshot(limit: int = 200) -> dict[str, Any]:
+_ALL_TICKETS = object()
+
+
+def _visible_tickets(viewer: Any):
+    """K5: a rendered view passes its viewer; only institution-wide counts (no row data:
+    health_snapshot, Faz 8/9 gates) read every ticket."""
+    query = SupportTicket.query
+    if viewer is not _ALL_TICKETS:
+        from app.services.support_ticket_access import support_ticket_visibility_clause
+
+        query = query.filter(support_ticket_visibility_clause(viewer))
+    return query
+
+
+def support_operations_snapshot(limit: int = 200, *, viewer: Any = _ALL_TICKETS) -> dict[str, Any]:
     from app.support.routes import SUPPORT_STATUS_CHOICES
 
     status_labels = dict(SUPPORT_STATUS_CHOICES)
     now = _now()
-    tickets = SupportTicket.query.order_by(SupportTicket.created_at.desc()).limit(limit).all()
+    tickets = _visible_tickets(viewer).order_by(SupportTicket.created_at.desc()).limit(limit).all()
     open_rows = []
     priority_counts: Counter[str] = Counter()
     status_counts: Counter[str] = Counter()
     assignee_counter: dict[tuple[int | None, str], int] = defaultdict(int)
     stale_rows = []
     unassigned_rows = []
-    recent_history = SupportTicketStatusHistory.query.order_by(SupportTicketStatusHistory.created_at.desc()).limit(30).all()
+    history_query = SupportTicketStatusHistory.query
+    if viewer is not _ALL_TICKETS:  # K5: no status or note of a ticket outside the viewer's scope
+        history_query = history_query.filter(
+            SupportTicketStatusHistory.ticket_id.in_(_visible_tickets(viewer).with_entities(SupportTicket.id)))
+    recent_history = history_query.order_by(SupportTicketStatusHistory.created_at.desc()).limit(30).all()
     policies = _sla_map()
 
     for row in tickets:
@@ -343,10 +361,10 @@ def automation_center_snapshot() -> dict[str, Any]:
     }
 
 
-def escalation_snapshot() -> dict[str, Any]:
+def escalation_snapshot(*, viewer: Any = _ALL_TICKETS) -> dict[str, Any]:
     rules = CommunicationEscalationRule.query.order_by(CommunicationEscalationRule.priority.asc(), CommunicationEscalationRule.threshold_hours.asc()).all()
     policies = _sla_map()
-    tickets = SupportTicket.query.order_by(SupportTicket.created_at.desc()).limit(300).all()
+    tickets = _visible_tickets(viewer).order_by(SupportTicket.created_at.desc()).limit(300).all()
     breaches = []
     nearing = []
     now = _now()

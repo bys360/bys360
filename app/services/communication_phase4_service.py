@@ -171,9 +171,18 @@ def _load_surveys(days: int = 90):
     return query.order_by(Survey.created_at.desc()).all()
 
 
-def _load_tickets(days: int = 90):
+_ALL_TICKETS = object()
+
+
+def _load_tickets(days: int = 90, viewer: Any = _ALL_TICKETS):
+    """K5: a rendered or exported view passes its viewer; only institution-wide counts (no row
+    data, refresh_daily_metrics) read every ticket."""
     start, _ = _period_range(days)
     query = SupportTicket.query
+    if viewer is not _ALL_TICKETS:
+        from app.services.support_ticket_access import support_ticket_visibility_clause
+
+        query = query.filter(support_ticket_visibility_clause(viewer))
     if hasattr(SupportTicket, "created_at"):
         query = query.filter(SupportTicket.created_at >= start)
     return query.order_by(SupportTicket.created_at.desc()).all()
@@ -246,11 +255,11 @@ def _score_band_label(rate: float) -> str:
     return "0-24"
 
 
-def executive_summary_snapshot(days: int = 30) -> dict[str, Any]:
+def executive_summary_snapshot(days: int = 30, *, viewer: Any = _ALL_TICKETS) -> dict[str, Any]:
     clean_days = sanitize_days(days)
     bulletins = _load_bulletins(clean_days)
     surveys = _load_surveys(max(clean_days, 90))
-    tickets = _load_tickets(max(clean_days, 90))
+    tickets = _load_tickets(max(clean_days, 90), viewer=viewer)
 
     unread_notifications = 0
     critical_unread = 0
@@ -461,9 +470,9 @@ def survey_analytics_snapshot(days: int = 180) -> dict[str, Any]:
     }
 
 
-def support_analytics_snapshot(days: int = 180) -> dict[str, Any]:
+def support_analytics_snapshot(days: int = 180, *, viewer: Any = _ALL_TICKETS) -> dict[str, Any]:
     clean_days = sanitize_days(days, default=180, minimum=30, maximum=365)
-    rows = _load_tickets(clean_days)
+    rows = _load_tickets(clean_days, viewer=viewer)
     policy_map = _sla_policy_map()
     status_counter: Counter[str] = Counter()
     priority_counter: Counter[str] = Counter()
@@ -576,9 +585,10 @@ def report_history_snapshot(limit: int = 25) -> dict[str, Any]:
 
 def create_executive_report(actor_user: Any, report_type: str = "weekly_summary", days: int = 30) -> CommunicationExecutiveReport:
     clean_days = sanitize_days(days)
-    payload = executive_summary_snapshot(clean_days)
+    # K5: the stored report carries only the ticket rows inside its author's scope.
+    payload = executive_summary_snapshot(clean_days, viewer=actor_user)
     survey_payload = survey_analytics_snapshot(max(clean_days, 30))
-    support_payload = support_analytics_snapshot(max(clean_days, 30))
+    support_payload = support_analytics_snapshot(max(clean_days, 30), viewer=actor_user)
     today = _now().date().isoformat()
     title = f"İletişim ve Anket Yönetimi {REPORT_TYPE_LABELS.get(report_type, 'Bilinmiyor')} Raporu"
     summary_text = (
@@ -712,7 +722,7 @@ def export_rows_csv(actor_user: Any, export_type: str, days: int = 180) -> tuple
         rows = payload["rows"]
         headers = ["id", "title", "type", "status", "assignments", "responses", "completed", "completion_rate", "avg_submit_minutes", "anonymous"]
     elif export_type == "support_analytics":
-        payload = support_analytics_snapshot(clean_days)
+        payload = support_analytics_snapshot(clean_days, viewer=actor_user)  # K5: scoped export
         rows = payload["rows"]
         headers = ["id", "title", "status", "priority", "age_days", "assigned_to", "first_response_due", "resolution_due", "created_at"]
     elif export_type == "executive_reports":

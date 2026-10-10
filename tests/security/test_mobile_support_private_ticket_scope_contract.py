@@ -14,7 +14,7 @@ refuses the same user.
 
 Rule reused: ``can_view_private_support_ticket`` on top of the mobile global scope. The
 creator, the admin family and same-unit global roles keep access; tickets that are not
-private are unaffected; the mobile list is unchanged (private titles in lists are H3).
+private are unaffected; the mobile list rule is below (K5 metadata rule).
 
 B1-F1 (approved least-privilege policy, 2026-10-09): ``ik`` and ``performans_yetkilisi`` are no
 longer mobile global roles, and under decision 2 neither is the technical ``sistem_yoneticisi``
@@ -24,7 +24,11 @@ is still a mobile global role outside the admin family.
 K5 (approved policy, 2026-10-10): the mobile all-tickets view is the web rule, the ``support_all``
 permission (``can_view_all_support_tickets``), not a role list. ``baskanlik`` has no ``support_all``
 role default, so MSP02 and MSP03 hold an explicit per-user ``support_all`` grant here; the
-private-ticket cases are unchanged.
+private-ticket cases are unchanged. K5-Q1 (2026-10-10): no role default grants ``support_all``, so
+the admin MSP04 holds an explicit grant too.
+
+K5 metadata rule (approved 2026-10-10): tickets outside the viewer's scope leak no metadata, so the
+mobile list no longer shows an other-unit private ticket's title or number (supersedes H3 here).
 """
 from __future__ import annotations
 
@@ -83,7 +87,7 @@ def app(monkeypatch):
             db.session.add(user)
             users[sicil] = user
         db.session.flush()
-        for sicil in ("MSP02", "MSP03"):  # K5: explicit support_all, as assigned in Settings
+        for sicil in ("MSP02", "MSP03", "MSP04"):  # K5/K5-Q1: explicit support_all, as assigned in Settings
             db.session.add(UserMenuPermission(user_id=users[sicil].id, menu_key="support_all", is_visible=True,
                                               source_type="user_override"))
 
@@ -185,9 +189,12 @@ def _list_body(app, sicil):
 @pytest.mark.parametrize("sicil", ["MSP02"])
 def test_other_unit_mobile_global_role_list_omits_the_private_ticket_body(app, sicil):
     # The list showed a 180-character description snippet of every ticket. The private-ticket
-    # rule hides the body on the detail; the title stays listed (human decision H3).
+    # rule hides the body on the detail. K5 metadata rule (2026-10-10, supersedes H3 for tickets
+    # outside the viewer's scope): the list omits the out-of-scope private ticket entirely, its
+    # title and number included; the public ticket stays listed.
     body = _list_body(app, sicil)
-    assert "Talep MSP-T1" in body
+    assert "Talep MSP-T1" not in body and "MSP-T1" not in body
+    assert "Talep MSP-T2" in body
     assert body.count(MARKER) == 1
 
 

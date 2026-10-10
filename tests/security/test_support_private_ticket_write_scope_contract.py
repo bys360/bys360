@@ -4,6 +4,9 @@ GET /support/<id> hides a private ticket from managers outside the ticket's unit
 (_can_view_private_scope). POST /support/<id>/status and /support/<id>/assign only
 checked the all-tickets permission, so such a manager could close a private ticket
 of another unit, or assign it to themselves and then read it as its assignee.
+
+K5-Q1 (approved policy, 2026-10-10): ``support_all`` is an explicit per-person grant, never a role
+default; the managers and the admin below hold it, as an admin assigns it in Settings.
 """
 from __future__ import annotations
 
@@ -39,7 +42,7 @@ def app(monkeypatch):
     flask_app = create_app()
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
-    from app.models import SupportTicket, User
+    from app.models import SupportTicket, User, UserMenuPermission
     from app.services import runtime_schema
 
     with flask_app.app_context():
@@ -58,6 +61,9 @@ def app(monkeypatch):
             db.session.add(user)
             users[sicil] = user
         db.session.flush()
+        for sicil in ("SPW02", "SPW03", "SPW04"):  # K5-Q1: explicit support_all, as assigned in Settings
+            db.session.add(UserMenuPermission(user_id=users[sicil].id, menu_key="support_all", is_visible=True,
+                                              source_type="user_override"))
 
         def _ticket(no, private):
             ticket = SupportTicket(ticket_no=no, title=f"Talep {no}", description=MARKER, ticket_type="other",

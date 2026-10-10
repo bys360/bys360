@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.route_support import can_access_menu, is_admin_family_user
+from sqlalchemy import false, or_, true
 
-SUPPORT_ALL_MENU_KEY = "support_all"
+from app.route_support import is_admin_family_user
+from app.services.personnel_read_grant import has_support_all_grant
 
 
 def can_view_private_support_ticket(ticket: Any, user: Any) -> bool:
@@ -27,11 +28,37 @@ def can_view_private_support_ticket(ticket: Any, user: Any) -> bool:
 def can_view_all_support_tickets(user: Any) -> bool:
     """K5 (approved policy, 2026-10-10): the institution-wide support view is ``support_all``.
 
-    The permission as Settings resolves it (role matrix, unit profile, per-user override), the
-    same rule for /support/* and /api/mobile/support/*. No role-name shortcut: the technical
-    roles, ``role_label`` and the title grant nothing on their own.
+    K5-Q1: only the user's own explicit grant counts (``has_support_all_grant``); no role
+    default, unit profile, role name, ``role_label`` or title. K5-Q3: the same rule for
+    /support/*, /communication/faz3/support/* and /api/mobile/support/*.
     """
-    return can_access_menu(user, SUPPORT_ALL_MENU_KEY)
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    return has_support_all_grant(user)
+
+
+def support_ticket_visibility_clause(user: Any) -> Any:
+    """K5 (2026-10-10): the SQL form of ``can_view_support_ticket`` for every list and counter.
+
+    Own tickets (created or assigned), or with ``support_all`` every ticket inside the Phase 13B
+    private-ticket unit rule. Out-of-scope tickets are filtered in the query, so not even their
+    title, number, status, requester or assignee reaches a list, a counter, an export or a report.
+    """
+    from app.models import SupportTicket
+
+    user_id = int(getattr(user, "id", 0) or 0)
+    if not user_id or not getattr(user, "is_authenticated", False):
+        return false()
+    own = or_(SupportTicket.created_by_user_id == user_id, SupportTicket.assigned_to_user_id == user_id)
+    if not can_view_all_support_tickets(user):
+        return own
+    if is_admin_family_user(user):
+        return true()
+    units = sorted({str(value) for value in (getattr(user, "birim", None), getattr(user, "ust_birim", None)) if value})
+    in_scope = [own, SupportTicket.is_private.is_(False), SupportTicket.is_private.is_(None)]
+    if units:
+        in_scope.append(SupportTicket.unit_name_snapshot.in_(units))
+    return or_(*in_scope)
 
 
 def can_view_support_ticket(ticket: Any, user: Any) -> bool:
