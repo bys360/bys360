@@ -20,6 +20,11 @@ B1-F1 (approved least-privilege policy, 2026-10-09): ``ik`` and ``performans_yet
 longer mobile global roles, and under decision 2 neither is the technical ``sistem_yoneticisi``
 role, so they reach only their own tickets. The global-role cases below use ``baskanlik``, which
 is still a mobile global role outside the admin family.
+
+K5 (approved policy, 2026-10-10): the mobile all-tickets view is the web rule, the ``support_all``
+permission (``can_view_all_support_tickets``), not a role list. ``baskanlik`` has no ``support_all``
+role default, so MSP02 and MSP03 hold an explicit per-user ``support_all`` grant here; the
+private-ticket cases are unchanged.
 """
 from __future__ import annotations
 
@@ -55,7 +60,7 @@ def app(monkeypatch):
     flask_app = create_app()
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
-    from app.models import SupportTicket, User
+    from app.models import SupportTicket, User, UserMenuPermission
     from app.services import runtime_schema
 
     with flask_app.app_context():
@@ -78,6 +83,9 @@ def app(monkeypatch):
             db.session.add(user)
             users[sicil] = user
         db.session.flush()
+        for sicil in ("MSP02", "MSP03"):  # K5: explicit support_all, as assigned in Settings
+            db.session.add(UserMenuPermission(user_id=users[sicil].id, menu_key="support_all", is_visible=True,
+                                              source_type="user_override"))
 
         def _ticket(no, private):
             ticket = SupportTicket(ticket_no=no, title=f"Talep {no}", description=MARKER, ticket_type="other",
