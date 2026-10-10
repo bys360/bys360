@@ -16,6 +16,11 @@ answered 200 with an empty list:
      feedback_meetings has a period column, which it does not.
 
 Real Flask app, real test client and login, file-backed SQLite only.
+
+#57 policy (HUMAN_POLICY_APPROVED, 2026-10-10): the picker offers a manager only the requests that
+name it as a manager, and a meeting reaches only its parties. The admin below is therefore the
+requests' level-1 manager and the meeting's manager; ``tests/security/test_p57_feedback_meeting_
+privacy_contract.py`` covers the users who are neither.
 """
 from __future__ import annotations
 
@@ -80,11 +85,12 @@ def aftercare_app(monkeypatch: pytest.MonkeyPatch):
             ids[sicil] = int(user.id)
         admin_id, employee_id = ids["FAL000001"], ids["FAL000002"]
         request_sql = text(
-            "INSERT INTO feedback_requests (evaluation_id, period_id, employee_id, reason, status, requested_at) "
-            "VALUES (1, 1, :employee_id, :reason, 'bekliyor', CURRENT_TIMESTAMP) RETURNING id"
+            "INSERT INTO feedback_requests (evaluation_id, period_id, employee_id, level_1_manager_id, reason, status, "
+            "requested_at) VALUES (1, 1, :employee_id, :manager_id, :reason, 'bekliyor', CURRENT_TIMESTAMP) RETURNING id"
         )
-        open_request_id = db.session.execute(request_sql, {"employee_id": employee_id, "reason": "Açık talep"}).scalar_one()
-        met_request_id = db.session.execute(request_sql, {"employee_id": employee_id, "reason": "Görüşülen talep"}).scalar_one()
+        request_params = {"employee_id": employee_id, "manager_id": admin_id}
+        open_request_id = db.session.execute(request_sql, {**request_params, "reason": "Açık talep"}).scalar_one()
+        met_request_id = db.session.execute(request_sql, {**request_params, "reason": "Görüşülen talep"}).scalar_one()
         meeting_id = db.session.execute(text(
             "INSERT INTO feedback_meetings (feedback_request_id, employee_id, manager_id, meeting_date, meeting_start, "
             "meeting_end, meeting_type, note, status, created_at) "
@@ -144,7 +150,7 @@ def test_aftercare_rows_returns_the_meeting(aftercare_app):
 
     ids = aftercare_app.config["_IDS"]
     with aftercare_app.app_context():
-        rows = aftercare_rows()
+        rows = aftercare_rows(viewer_id=ids["admin"])  # the admin is the meeting's manager
 
     assert [row["meeting_id"] for row in rows] == [ids["meeting"]]
     assert rows[0]["employee_id"] == ids["employee"]

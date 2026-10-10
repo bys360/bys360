@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import inspect, text
 
 from app.extensions import db
+from app.services.performance.feedback_meeting_access import duty_report_where, is_duty_manager_of
 
 logger = logging.getLogger(__name__)
 
@@ -103,13 +104,15 @@ def _period_label_expr(alias: str) -> str:
     return f"CAST({alias}.id AS TEXT)"
 
 
-def list_person_options(limit: int = 1500) -> list[dict[str, Any]]:
+def list_person_options(current_user_id: int | None, limit: int = 1500) -> list[dict[str, Any]]:
     if not _has_table("users"):
         return []
     cols = _columns("users")
     label = _user_label_expr("u")
     sicil = "COALESCE(CAST(u.sicil_no AS TEXT), '')" if "sicil_no" in cols else "''"
-    where: list[str] = []
+    # #57: the picker offers only the user's own hierarchy reports (level 1-3), never the institution.
+    duty_where, duty_params = duty_report_where("u", current_user_id)
+    where: list[str] = [duty_where]
     if "is_active" in cols:
         where.append("COALESCE(u.is_active, TRUE) = TRUE")
     elif "active" in cols:
@@ -126,7 +129,7 @@ def list_person_options(limit: int = 1500) -> list[dict[str, Any]]:
         ORDER BY label ASC
         LIMIT :limit
     """
-    return _rows(sql, {"limit": int(limit or 1500)})
+    return _rows(sql, {"limit": int(limit or 1500), **duty_params})
 
 
 def list_period_options(limit: int = 200) -> list[dict[str, Any]]:
@@ -269,6 +272,8 @@ def create_person_period_meeting(
     period_id = int(_form_value(form, "period_id") or "0")
     if employee_id <= 0:
         raise ValueError("Personel seçilmelidir.")
+    if not is_duty_manager_of(current_user_id, employee_id):  # #57: duty relation, not the role alone
+        raise ValueError("Bu personel için görüşme oluşturma yetkiniz yok.")
     if period_id <= 0:
         raise ValueError("Performans dönemi seçilmelidir.")
     meeting_date = _form_value(form, "meeting_date") or date.today().isoformat()
@@ -389,7 +394,7 @@ def build_phase7_1_context(
     is_superuser: bool = False,
 ) -> dict[str, Any]:
     return {
-        "person_options": list_person_options(),
+        "person_options": list_person_options(current_user_id) if can_create_person_period_meeting(current_user_role, is_admin=is_admin, is_superuser=is_superuser) else [],
         "period_options": list_period_options(),
         "can_create_person_period_meeting": can_create_person_period_meeting(current_user_role, is_admin=is_admin, is_superuser=is_superuser),
         "meeting_period_map": build_meeting_period_map(),

@@ -12,6 +12,10 @@ from typing import Any
 from sqlalchemy import inspect, text
 
 from app.extensions import db
+from app.services.performance.feedback_meeting_access import (
+    is_request_manager,
+    request_manager_where,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +163,11 @@ def list_open_feedback_requests(
     if not can_manage_aftercare(current_user_role, is_admin=is_admin, is_superuser=is_superuser):
         where.append("fr.employee_id = :current_user_id")
         params["current_user_id"] = current_user_id or 0
+    else:
+        # #57: a manager role is offered only the requests that name it as a manager (duty relation).
+        duty_where, duty_params = request_manager_where("fr", current_user_id)
+        where.append(duty_where)
+        params.update(duty_params)
     sql = f"""
         SELECT
             fr.id,
@@ -213,6 +222,8 @@ def create_meeting_from_feedback_request(
     request_row = _feedback_request_context(feedback_request_id)
     if not request_row:
         raise ValueError("Seçilen geri bildirim talebi bulunamadı.")
+    if not is_request_manager(request_row, current_user_id):  # #57: duty relation, not the role alone
+        raise ValueError("Bu geri bildirim talebi için görüşme oluşturma yetkiniz yok.")
     meeting_date = _form_value(form, "meeting_date") or date.today().isoformat()
     meeting_start = _form_value(form, "meeting_start") or "09:00"
     meeting_end = _form_value(form, "meeting_end") or "10:00"

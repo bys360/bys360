@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import inspect, text
 
 from app.extensions import db
+from app.services.performance.feedback_meeting_access import meeting_party_where
 from app.services.performance.history import humanize_workflow_status
 
 logger = logging.getLogger(__name__)
@@ -361,7 +362,7 @@ def interim_note_rows(employee_id: int | None = None, period_id: int | None = No
     return sorted(out, key=lambda r: str(r.get("created_at") or ""), reverse=True)[:limit]
 
 
-def aftercare_rows(employee_id: int | None = None, period_id: int | None = None, people: list[dict[str, Any]] | None = None, limit: int = 50) -> list[dict[str, Any]]:
+def aftercare_rows(employee_id: int | None = None, period_id: int | None = None, people: list[dict[str, Any]] | None = None, limit: int = 50, *, viewer_id: int | None = None) -> list[dict[str, Any]]:
     people = people or []
     if not (_has_table("feedback_meetings") and _has_table("users")):
         return []
@@ -410,8 +411,10 @@ def aftercare_rows(employee_id: int | None = None, period_id: int | None = None,
         "COALESCE(act.action_count, 0) AS action_count" if _has_table("feedback_meeting_action_plans") else "0 AS action_count",
         "COALESCE(act.open_action_count, 0) AS open_action_count" if _has_table("feedback_meeting_action_plans") else "0 AS open_action_count",
     ]
-    where: list[str] = []
-    params: dict[str, Any] = {"limit": int(limit)}
+    # #57: a meeting reaches only its parties (employee, manager); no viewer, no rows.
+    party_where, party_params = meeting_party_where("f", viewer_id)
+    where: list[str] = [party_where]
+    params: dict[str, Any] = {"limit": int(limit), **party_params}
     if employee_id:
         where.append(f"f.{emp_col}=:employee_id")
         params["employee_id"] = int(employee_id)
@@ -447,7 +450,7 @@ def aftercare_rows(employee_id: int | None = None, period_id: int | None = None,
     return rows
 
 
-def action_rows(employee_id: int | None = None, period_id: int | None = None, people: list[dict[str, Any]] | None = None, limit: int = 80) -> list[dict[str, Any]]:
+def action_rows(employee_id: int | None = None, period_id: int | None = None, people: list[dict[str, Any]] | None = None, limit: int = 80, *, viewer_id: int | None = None) -> list[dict[str, Any]]:
     people = people or []
     if not (_has_table("feedback_meeting_action_plans") and _has_table("feedback_meetings")):
         return []
@@ -473,8 +476,10 @@ def action_rows(employee_id: int | None = None, period_id: int | None = None, pe
         "a.follow_up_note AS follow_up_note" if "follow_up_note" in acols else "'' AS follow_up_note",
         "a.result_summary AS result_summary" if "result_summary" in acols else "'' AS result_summary",
     ]
-    where: list[str] = []
-    params: dict[str, Any] = {"limit": int(limit)}
+    # #57: action plans belong to their meeting and reach only the meeting's parties.
+    party_where, party_params = meeting_party_where("m", viewer_id)
+    where: list[str] = [party_where]
+    params: dict[str, Any] = {"limit": int(limit), **party_params}
     if employee_id and emp_filter_expr != "NULL":
         where.append(f"{emp_filter_expr}=:employee_id")
         params["employee_id"] = int(employee_id)
@@ -583,8 +588,8 @@ def build_integration_context(*, current_user_id: int | None, current_user_role:
         employee_id = int(current_user_id)
     scorecards = scorecard_rows(employee_id=employee_id, period_id=period_id, people=people)
     notes = interim_note_rows(employee_id=employee_id, period_id=period_id, people=people)
-    meetings = aftercare_rows(employee_id=employee_id, period_id=period_id, people=people)
-    actions = action_rows(employee_id=employee_id, period_id=period_id, people=people)
+    meetings = aftercare_rows(employee_id=employee_id, period_id=period_id, people=people, viewer_id=current_user_id)
+    actions = action_rows(employee_id=employee_id, period_id=period_id, people=people, viewer_id=current_user_id)
     return {
         "access_denied": False,
         "people": people,
