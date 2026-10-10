@@ -139,7 +139,8 @@ def _norm(value: Any) -> str:
 def _role_value(user_or_role: Any) -> str:
     if isinstance(user_or_role, str):
         return user_or_role
-    for attr in ("role", "role_key", "role_name", "role_label"):
+    # B1-F1 decision 3: role_label (display text) never decides visibility.
+    for attr in ("role", "role_key", "role_name"):
         value = getattr(user_or_role, attr, None)
         if value:
             return str(value)

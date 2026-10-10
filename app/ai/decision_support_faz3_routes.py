@@ -17,6 +17,7 @@ from app.services.ai_decision.category_visibility_integration import (
 from app.services.ai_decision.permission_guard import (
     AIDecisionPermissionDenied,
     assert_center_access,
+    assert_health_access,
     build_ai_decision_visibility_context,
     build_evaluation_visibility_payload,
 )
@@ -64,7 +65,7 @@ def _run_faz3_json(builder: ResponseBuilder, *args: Any, commit: bool = False) -
 @login_required
 def ai_decision_faz3_health():
     def _health() -> dict[str, Any]:
-        scope = assert_center_access(current_user)
+        scope = assert_health_access(current_user)
         return {
             "ok": True,
             "phase": "Faz 3",

@@ -71,18 +71,19 @@ _TOKEN_SALT = "bys360-mobile-api-v1"
 _REFRESH_TOKEN_SALT = "bys360-mobile-refresh-v1"
 _MOBILE_ACCESS_MAX_AGE_SECONDS = 60 * 60 * 24
 _MOBILE_REFRESH_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+# B1-F1 (approved least-privilege policy, 2026-10-09): ik, personel_yonetimi and
+# performans_yetkilisi are not institution-wide roles. They fall to the scoped
+# branches (self / evaluator / owner); institution-wide personnel reads need the
+# explicit personnel_read_all grant (app/services/personnel_read_grant.py).
+# Decision 2: sistem_yoneticisi / system_admin are technical roles; technical
+# administration does not open everyone's personal or performance data.
 _GLOBAL_ROLES = {
     "admin",
-    "sistem_yoneticisi",
-    "system_admin",
     "başkan",
     "baskan",
     "baskanlik",
     "başkan_yardımcısı",
     "baskan_yardimcisi",
-    "personel_yonetimi",
-    "ik",
-    "performans_yetkilisi",
 }
 
 
@@ -92,13 +93,21 @@ def _serializer() -> URLSafeTimedSerializer:
 
 
 def _role_key(user: User) -> str:
-    return ((getattr(user, "role", "") or getattr(user, "role_label", "") or "").strip().lower())
+    # B1-F1 decision 3: no role_label fallback (display text never stands in for the role).
+    return ((getattr(user, "role", "") or "").strip().lower())
+
+
+# Decision 2: technical roles keep technical, non-personal summaries (e.g. settings counters).
+_TECHNICAL_ROLES = {"sistem_yoneticisi", "system_admin"}
+
+
+def _authorization_role_key(user: User) -> str:
+    # B1-F1 decision 3: authorization reads the stored role only; role_label is display text.
+    return ((getattr(user, "role", "") or "").strip().lower())
 
 
 def _has_global_scope(user: User) -> bool:
-    role = _role_key(user)
-    label = ((getattr(user, "role_label", "") or "").strip().lower())
-    return role in _GLOBAL_ROLES or label in _GLOBAL_ROLES
+    return _authorization_role_key(user) in _GLOBAL_ROLES
 
 
 def _full_name(user: User | None) -> str:
@@ -706,6 +715,8 @@ __all__ = [
     "_GLOBAL_ROLES",
     "_serializer",
     "_role_key",
+    "_authorization_role_key",
+    "_TECHNICAL_ROLES",
     "_has_global_scope",
     "_full_name",
     "_safe_count",

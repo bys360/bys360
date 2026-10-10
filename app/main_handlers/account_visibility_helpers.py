@@ -79,6 +79,7 @@ from app.main_handlers.account_communication_helpers import (
     url_for,
     utc_now,
 )
+from app.services.personnel_read_grant import PERSONNEL_READ_ALL_KEY
 
 
 def _build_settings_matrix(grouped_menu_definitions, selected_rule_map: dict[str, bool], role_defaults: set[str], *, selected_user=None, users=None):
@@ -816,12 +817,16 @@ def _collect_form_visible_keys(form, flat_menu_items):
 
 
 def _apply_visibility_keys_to_user(user, flat_menu_items, visible_keys: set[str]):
-    UserMenuPermission.query.filter_by(user_id=user.id).delete()
+    # B1-F1: bulk profiles never write, prune or grant the per-user personnel_read_all row.
+    UserMenuPermission.query.filter(
+        UserMenuPermission.user_id == user.id,
+        UserMenuPermission.menu_key != PERSONNEL_READ_ALL_KEY,
+    ).delete()
     allowed_items = _bys360_pf_v14_dedupe_flat_menu_items(flat_menu_items)
     visible_keys = {str(key).strip() for key in (visible_keys or set()) if str(key).strip()}
     for item in allowed_items:
         key = str(item.get("key") or "").strip()
-        if not key:
+        if not key or key == PERSONNEL_READ_ALL_KEY:
             continue
         db.session.add(
             UserMenuPermission(
