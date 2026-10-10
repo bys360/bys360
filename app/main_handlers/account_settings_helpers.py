@@ -747,7 +747,11 @@ def _handle_user_scoped_profile_action(form_action, flat_menu_items, all_menu_ke
             changed = save_unit_menu_profile(target_unit, all_menu_keys, visible_keys, updated_by_user_id=getattr(current_user, "id", None))
             flash(f"{target_unit or '-'} birim profili güncellendi. İşlenen satır: {changed}", "success")
         elif form_action == "reset_user_overrides":
-            deleted = clear_user_menu_overrides(selected_user.id, updated_by_user_id=getattr(current_user, "id", None))
+            deleted = clear_user_menu_overrides(
+                selected_user.id,
+                updated_by_user_id=getattr(current_user, "id", None),
+                allow_personnel_read_grant_change=_can_change_personnel_read_grant(current_user, selected_user),
+            )
             flash(f"{selected_user.ad} {selected_user.soyad} için personel bazlı rol matrisi temizlendi. Kaldırılan sekme kaydı: {deleted}", "success")
         else:
             actor_id = getattr(current_user, "id", None)

@@ -362,12 +362,18 @@ def clear_user_menu_overrides_handler(
     user_menu_permission_model: Any,
     db_session: Any,
     create_settings_change_log_func: Callable[..., object],
+    preserved_menu_keys: Iterable[str] = (),
 ) -> int:
-    """Kisi bazli TUM override satirlarini (canli/kaldirilmis ayrimi yapmadan) temizler ve loglar."""
+    """Kisi bazli TUM override satirlarini (canli/kaldirilmis ayrimi yapmadan) temizler ve loglar.
+
+    preserved_menu_keys: bu sifirlamanin silmedigi satirlar (B1-F1 personnel_read_all yetkisi).
+    """
+    preserved = {str(key).strip() for key in preserved_menu_keys or () if str(key).strip()}
     rows = user_menu_permission_model.query.filter_by(user_id=user_id).all()
     previous_state = {row.menu_key: bool(row.is_visible) for row in rows}
-    deleted = len(rows)
-    for row in rows:
+    removed = [row for row in rows if row.menu_key not in preserved]
+    deleted = len(removed)
+    for row in removed:
         db_session.delete(row)
     create_settings_change_log_func(
         actor_user_id=updated_by_user_id,
@@ -375,7 +381,7 @@ def clear_user_menu_overrides_handler(
         action_type="clear",
         summary=f"Kullanıcı override temizlendi: user_id={user_id}",
         previous_state=previous_state,
-        new_state={},
+        new_state={row.menu_key: bool(row.is_visible) for row in rows if row.menu_key in preserved},
         target_user_id=user_id,
     )
     db_session.commit()

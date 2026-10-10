@@ -306,8 +306,18 @@ def save_user_menu_overrides(
         create_settings_change_log_func=_create_settings_change_log,
     )
 
-def clear_user_menu_overrides(user_id: int, *, updated_by_user_id: int | None = None) -> int:
+def clear_user_menu_overrides(
+    user_id: int,
+    *,
+    updated_by_user_id: int | None = None,
+    allow_personnel_read_grant_change: bool = False,
+) -> int:
+    # B1-F1: a reset removes the personnel_read_all grant only when an admin resets ANOTHER user.
+    grant_change_allowed = bool(
+        allow_personnel_read_grant_change and updated_by_user_id is not None and updated_by_user_id != user_id
+    )
     return _clear_user_menu_overrides_handler(
+        preserved_menu_keys=() if grant_change_allowed else (PERSONNEL_READ_ALL_KEY,),
         user_id=user_id,
         updated_by_user_id=updated_by_user_id,
         user_menu_permission_model=UserMenuPermission,

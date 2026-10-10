@@ -34,6 +34,7 @@ try:
     from app.services.ai_decision.permission_guard import (
         assert_center_access,
         assert_evaluation_access,
+        assert_health_access,
     )
 except Exception:  # pragma: no cover
     logger.exception("BYS360 V6C guarded exception | file=app/ai/decision_support_faz4_routes.py | line=30")
@@ -48,6 +49,9 @@ except Exception:  # pragma: no cover
     # firlatmak dogru yedek davranistir (_run_faz4_json zaten PermissionError'i
     # yakalayip 403 donuyor).
     def assert_center_access(user: Any) -> AIDecisionVisibilityScope:
+        raise PermissionError("Bu sayfaya erişim yetkiniz bulunmamaktadır.")
+
+    def assert_health_access(user: Any) -> AIDecisionVisibilityScope:
         raise PermissionError("Bu sayfaya erişim yetkiniz bulunmamaktadır.")
 
     def assert_evaluation_access(
@@ -113,7 +117,7 @@ def _load_settings() -> dict[str, Any]:
 @login_required
 def ai_decision_faz4_health():
     def _health() -> dict[str, Any]:
-        assert_center_access(current_user)
+        assert_health_access(current_user)
         return {
             "ok": True,
             "phase": "Faz 4",

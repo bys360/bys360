@@ -93,7 +93,12 @@ def _serializer() -> URLSafeTimedSerializer:
 
 
 def _role_key(user: User) -> str:
-    return ((getattr(user, "role", "") or getattr(user, "role_label", "") or "").strip().lower())
+    # B1-F1 decision 3: no role_label fallback (display text never stands in for the role).
+    return ((getattr(user, "role", "") or "").strip().lower())
+
+
+# Decision 2: technical roles keep technical, non-personal summaries (e.g. settings counters).
+_TECHNICAL_ROLES = {"sistem_yoneticisi", "system_admin"}
 
 
 def _authorization_role_key(user: User) -> str:
@@ -711,6 +716,7 @@ __all__ = [
     "_serializer",
     "_role_key",
     "_authorization_role_key",
+    "_TECHNICAL_ROLES",
     "_has_global_scope",
     "_full_name",
     "_safe_count",
