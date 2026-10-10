@@ -17,6 +17,11 @@ from app.models import (
     MessageThreadParticipant,
     Notification,
 )
+from app.security.private_uploads import (
+    legacy_static_upload_path,
+    private_upload_dir,
+    private_upload_path,
+)
 from app.services.runtime_cache import (
     get_or_set as _cache_get_or_set,
     invalidate as _cache_invalidate,
@@ -299,7 +304,8 @@ def remove_message_attachment_file(stored_filename: str | None) -> None:
     try:
         abs_path.unlink(missing_ok=True)
     except Exception:
-        current_app.logger.warning("Mesaj eki silinemedi: %s", stored_filename)
+        # B2-F06: depolanan ad indirme adresinin anahtarıdır; günlüğe yazılmaz.
+        current_app.logger.warning("Mesaj eki silinemedi.")
 
 
 def message_placeholder_bodies() -> set[str]:
@@ -307,9 +313,13 @@ def message_placeholder_bodies() -> set[str]:
 
 
 def message_upload_dir() -> Path:
-    upload_dir = Path(current_app.root_path) / "static" / "uploads" / "messages"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    return upload_dir
+    """Yeni mesaj ekleri için yazma klasörü (B2-F06: static dışındaki özel depo)."""
+    return private_upload_dir("messages")
+
+
+def message_attachment_search_dirs() -> tuple[Path, ...]:
+    """Ek okuma sırası: özel depo, ardından bu değişiklikten önce kullanılan static konumu."""
+    return (private_upload_path("messages"), legacy_static_upload_path("messages"))
 
 
 def resolve_message_attachment_abspath(stored_filename: str | None) -> Path:
@@ -319,11 +329,12 @@ def resolve_message_attachment_abspath(stored_filename: str | None) -> Path:
     if Path(filename).name != filename or "/" in filename or "\\" in filename:
         raise ValueError("Dosya adı güvenli değil.")
 
-    base_dir = message_upload_dir().resolve()
-    candidate = (base_dir / filename).resolve()
-    if base_dir not in candidate.parents or not candidate.exists() or not candidate.is_file():
-        raise ValueError("Dosya bulunamadı.")
-    return candidate
+    for base in message_attachment_search_dirs():
+        base_dir = base.resolve()
+        candidate = (base_dir / filename).resolve()
+        if base_dir in candidate.parents and candidate.is_file():
+            return candidate
+    raise ValueError("Dosya bulunamadı.")
 
 
 def save_message_attachment(file_storage, message, uploaded_by_user_id):

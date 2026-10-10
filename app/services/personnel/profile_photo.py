@@ -5,7 +5,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from flask import has_app_context
+
 from app.core.datetime_utils import utc_now
+from app.security.private_uploads import locate_upload, private_upload_path
 
 """Personel profil fotoğrafı servis köprüsü.
 
@@ -62,6 +65,20 @@ def _safe_static_file_path(*, app_root_path: str | Path, relative_path: str) -> 
     return candidate, ""
 
 
+def _delete_private_profile_photo_copy(relative_path: str) -> bool:
+    """B2-F06: yeni profil fotoğrafları static dışındaki özel depoda durur."""
+    if not has_app_context():
+        return False
+    located = locate_upload(Path(relative_path.replace("\\", "/")).name, (private_upload_path("profile_photos"),))
+    if located is None:
+        return False
+    try:
+        (located[0] / located[1]).unlink()
+    except OSError:
+        return False
+    return True
+
+
 def delete_personnel_profile_photo(
     user: Any,
     *,
@@ -83,14 +100,17 @@ def delete_personnel_profile_photo(
             safe_path.unlink()
             file_deleted = True
         except OSError as exc:
-            warning = f"profile_photo_delete_failed:{exc}"
+            # B2-F06: dosya yolu ve adı (OSError metni dahil) uyarıya/günlüğe yazılmaz.
+            warning = f"profile_photo_delete_failed:{type(exc).__name__}"
             if logger is not None:
-                logger.warning("Profil fotoğrafı silinemedi: %s", safe_path)
+                logger.warning("Profil fotoğrafı silinemedi (%s).", type(exc).__name__)
+    elif not warning and _delete_private_profile_photo_copy(relative_path):
+        file_deleted = True
     elif not warning and safe_path:
         warning = "profile_photo_file_not_found"
 
     if warning == "profile_photo_path_outside_static_root" and logger is not None:
-        logger.warning("Profil fotoğrafı yolu static dışı göründüğü için silinmedi: %s", relative_path)
+        logger.warning("Profil fotoğrafı yolu static dışı göründüğü için silinmedi.")
 
     _set_photo_fields_empty(user)
     return PersonnelProfilePhotoResult(

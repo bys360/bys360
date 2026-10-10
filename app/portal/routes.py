@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
-from flask import current_app, flash, jsonify, redirect, request, url_for
+from flask import abort, flash, jsonify, redirect, request, send_from_directory, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from werkzeug.utils import secure_filename
@@ -33,6 +33,12 @@ from app.route_support import (
     render_access_denied,
     safe_render,
     sanitize_free_text,
+)
+from app.security.private_uploads import (
+    legacy_static_upload_path,
+    locate_upload,
+    private_upload_dir,
+    private_upload_path,
 )
 from app.services.bys360_notification_bridge import (
     notify_portal_comment_added,
@@ -110,9 +116,8 @@ PORTAL_MAX_VIDEO_FILES_PER_POST = 1
 
 
 def _portal_upload_dir() -> Path:
-    upload_dir = Path(current_app.root_path) / "static" / "uploads" / "portal"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    return upload_dir
+    """Yeni portal medyası için yazma klasörü (B2-F06: static dışındaki özel depo)."""
+    return private_upload_dir("portal")
 
 
 def _portal_file_size(file_storage) -> int | None:
@@ -582,6 +587,42 @@ def portal_post_create():
     db.session.commit()
     flash("Paylaşım yayınlandı.", "success")
     return redirect(request.referrer or url_for("main.portal_feed"))
+
+
+# BYS360_B2F06_PORTAL_ATTACHMENT_ROUTE: portal medyası /static yerine bu route'tan,
+# paylaşımı görebilen kullanıcıya sunulur (kart; akış, profil ve grup ekranlarında).
+_PORTAL_POST_CARD_MENU_KEYS = ("portal_feed", "portal_profiles", "portal_groups")
+_PORTAL_FILE_MIME_PREFIXES = ("image/", "video/")
+
+
+@main_bp.get("/portal/attachments/<int:attachment_id>")
+@login_required
+def portal_attachment_file(attachment_id: int):
+    if not any(can_access_menu(current_user, key) for key in _PORTAL_POST_CARD_MENU_KEYS):
+        return render_access_denied()
+    attachment = PortalPostAttachment.query.get_or_404(attachment_id)
+    post = db.session.get(PortalPost, attachment.post_id)
+    if post is None:
+        abort(404)
+    if not can_user_view_post(current_user, post):
+        return render_access_denied()
+    mime_type = str(attachment.mime_type or "").strip().lower()
+    if not mime_type.startswith(_PORTAL_FILE_MIME_PREFIXES):
+        abort(404)
+    stored_name = Path(str(attachment.stored_path or "").replace("\\", "/")).name
+    located = locate_upload(stored_name, (private_upload_path("portal"), legacy_static_upload_path("portal")))
+    if located is None:
+        abort(404)
+    folder, safe_name = located
+    response = send_from_directory(
+        folder,
+        safe_name,
+        mimetype=mime_type,
+        as_attachment=False,
+        download_name=attachment.filename or safe_name,
+    )
+    response.headers["Cache-Control"] = "private, max-age=300"
+    return response
 
 
 @main_bp.post("/portal/posts/<int:post_id>/react")

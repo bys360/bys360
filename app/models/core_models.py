@@ -361,20 +361,9 @@ class User(UserMixin, TimestampMixin, db.Model):
                 __import__("logging").getLogger(__name__).exception("BYS360 SAFE V4: sessiz except loglandi: app/models/core_models.py:338")
                 return False
 
-        if raw.startswith("uploads/profile_photos/"):
-            if _static_exists(raw):
-                return _url("static", filename=raw)
-            return _url("main.bys360_profile_photo_file", filename=Path(raw).name)
-
-        if raw.startswith("profile_photos/"):
-            static_compat = f"uploads/{raw}"
-            if _static_exists(static_compat):
-                return _url("static", filename=static_compat)
-            return _url("main.bys360_profile_photo_file", filename=Path(raw).name)
-
-        if raw.startswith("uploads/"):
-            if _static_exists(raw):
-                return _url("static", filename=raw)
+        # B2-F06: yüklenen fotoğraflar /static yerine oturum isteyen route'tan sunulur;
+        # route özel depoyu ve eski static konumunu sırayla okur.
+        if raw.startswith(("uploads/", "profile_photos/")):
             return _url("main.bys360_profile_photo_file", filename=Path(raw).name)
 
         if _static_exists(raw):

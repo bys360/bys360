@@ -83,7 +83,14 @@ def _make_app(monkeypatch, **config_overrides):
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
-    app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, UPLOAD_FOLDER=str(upload_dir))
+    # B2-F06: new HR documents go to PRIVATE_UPLOAD_FOLDER (outside the static folder), not
+    # UPLOAD_FOLDER; both roots stay inside this test's own temp upload directory.
+    app.config.update(
+        TESTING=True,
+        WTF_CSRF_ENABLED=False,
+        UPLOAD_FOLDER=str(upload_dir),
+        PRIVATE_UPLOAD_FOLDER=str(upload_dir / "private"),
+    )
     app.config.update(config_overrides)
 
     from app.extensions import db
@@ -284,6 +291,8 @@ def test_self_service_request_save_with_attachment_persists_real_file(app, clien
         assert attachment.original_filename == "belge.pdf"
         assert os.path.exists(attachment.storage_path)
         assert str(_TEST_UPLOAD_ROOT) in attachment.storage_path
+        private_dir = Path(app.config["PRIVATE_UPLOAD_FOLDER"]) / "hr" / "personnel_documents"
+        assert Path(attachment.storage_path).parent == private_dir
 
 
 def test_self_service_request_save_missing_title_rejected_no_row_created(app, client):
