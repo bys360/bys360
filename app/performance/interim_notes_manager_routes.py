@@ -61,7 +61,10 @@ ALLOWED_ROLES = {
     'admin','super_admin','system_admin','sistem_yoneticisi','baskan','başkan','baskan_yardimcisi','başkan_yardımcısı',
     'grup_baskani','grup_başkanı','mali_musavir','mali_müşavir','koordinator','koordinatör','birim_sorumlusu'
 }
-ADMIN_ROLES = {'admin','super_admin','system_admin','sistem_yoneticisi','baskan','başkan'}
+# F06a / D2 (onaylı politika, 2026-10-09): teknik roller (sistem_yoneticisi, system_admin)
+# kurum geneli dönem içi (özel) notlara otomatik erişim almaz; ALLOWED_ROLES içinde diğer
+# yöneticiler gibi yalnız kendilerine bağlı personelin notlarını görür ve yazar.
+ADMIN_ROLES = {'admin','super_admin','baskan','başkan'}
 
 def _role():
     return str(getattr(current_user, 'role', '') or '').strip().lower()
