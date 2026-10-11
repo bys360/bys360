@@ -136,9 +136,10 @@ def _is_president_approvals_authorized_user(user) -> bool:
         return False
     if bool(getattr(user, "is_admin", False)) or bool(getattr(user, "is_superuser", False)):
         return True
+    # D3/R05: the job title (unvan/title) never grants president approvals.
     role_values = {
         _normalize_role_value(getattr(user, attr, ""))
-        for attr in ("role", "role_name", "user_type", "unvan", "title")
+        for attr in ("role", "role_name", "user_type")
     }
     admin_values = {"admin", "super_admin", "system_admin", "sistem_yoneticisi"}
     president_values = {"baskan", "president"}

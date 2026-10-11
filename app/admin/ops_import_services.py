@@ -16,6 +16,8 @@ from app.services.account_change_guard import (
     ROLE_REFUSAL_MESSAGE,
     audit_account_change,
     audit_refusal,
+    is_real_admin,
+    login_identity_changes,
     may_assign_role,
     may_change_account_state,
     may_change_role,
@@ -217,7 +219,9 @@ def admin_user_import_impl():
             refusal = None
             if not (may_change_role(current_user, user, role) if user is not None else may_assign_role(current_user, role)):
                 refusal = ROLE_REFUSAL_MESSAGE
-            elif user is not None and bool(is_active) != bool(user.is_active) and not may_change_account_state(current_user, user):
+            elif user is not None and not may_change_account_state(current_user, user) and (
+                bool(is_active) != bool(user.is_active) or login_identity_changes(user, sicil_no=sicil_no, email=email)
+            ):
                 refusal = REFUSAL_MESSAGE
             if refusal:
                 errors.append(f"Satır {rowno}: {refusal}")
@@ -308,6 +312,7 @@ def admin_user_import_impl():
                 fill_only_missing=False,
                 commit=False,
                 preserve_explicit_chain=True,
+                persist_inferred_roles=is_real_admin(current_user),  # R05
             )
             manager_sync_summary = sync_touched_users_manager_ids_from_sicils(
                 touched_users,

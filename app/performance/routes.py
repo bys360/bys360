@@ -18,6 +18,7 @@ from app.route_support import (
     safe_db_rollback,
     safe_render,
 )
+from app.services.account_change_guard import is_real_admin
 from app.services.ai.dashboard_panels import (
     build_hierarchy_ai_panel,
     build_hierarchy_assignment_person_ai_panel,
@@ -401,7 +402,7 @@ def performance_hierarchy_settings():
             if scope_employee_ids:
                 query = query.filter(User.id.in_(scope_employee_ids))
             target_users = query.order_by(User.id.asc()).all()
-            summary = auto_apply_manager_chains(target_users, fill_only_missing=True, commit=True, preserve_explicit_chain=True)  # BYS360_EXPLICIT_MANAGER_CHAIN_V2
+            summary = auto_apply_manager_chains(target_users, fill_only_missing=True, commit=True, preserve_explicit_chain=True, persist_inferred_roles=is_real_admin(current_user))  # BYS360_EXPLICIT_MANAGER_CHAIN_V2 / R05
             assignment_period_id = selected_period_id
             if not assignment_period_id:
                 active_period = PerformancePeriod.query.filter_by(is_active=True).order_by(PerformancePeriod.id.desc()).first()

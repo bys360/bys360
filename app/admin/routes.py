@@ -7,6 +7,7 @@ Bu modül kendi `admin_bp` blueprint'ini canlıda register etmez. Bunun yerine
 """
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections import defaultdict
 
@@ -37,11 +38,15 @@ from app.services.account_change_guard import (
     ROLE_REFUSAL_MESSAGE,
     audit_account_change,
     audit_refusal,
+    is_real_admin,
+    kept_role,
+    login_identity_changes,
     may_assign_role,
     may_change_account_state,
     may_change_role,
     record_account_changes,
     role_changes,
+    security_flags_change,
 )
 from app.services.ai import (
     build_admin_user_form_ai_panel,
@@ -602,6 +607,11 @@ def admin_user_edit(user_id):
                 audit_refusal(user, "activation_change")
                 flash(REFUSAL_MESSAGE, "danger")
                 return redirect(url_for("main.admin_user_edit", user_id=user_id))
+            if login_identity_changes(user, sicil_no=sicil_no, email=email) and not may_change_account_state(current_user, user):
+                audit_refusal(user, "identity_change")
+                flash(REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_edit", user_id=user_id))
+            role = kept_role(old_role, role)
 
             user.ad = ad
             user.soyad = soyad
@@ -867,10 +877,27 @@ def personnel_edit(user_id):
                 audit_refusal(user, "role_change")
                 flash(ROLE_REFUSAL_MESSAGE, "danger")
                 return redirect(url_for("main.personnel_edit", user_id=user_id))
-            if (new_password or new_is_active != old_active) and not may_change_account_state(current_user, user):
-                audit_refusal(user, "password_set" if new_password else "activation_change")
+            new_must_change_password = bool_from_form(request.form.get("must_change_password"))
+            new_must_set_security_question = bool_from_form(request.form.get("must_set_security_question"))
+            sensitive_change = (
+                ("password_set" if new_password else "")
+                or ("activation_change" if new_is_active != old_active else "")
+                or ("identity_change" if login_identity_changes(user, sicil_no=sicil_no, email=email) else "")
+                or (
+                    "security_flags_change"
+                    if security_flags_change(
+                        user,
+                        must_change_password=new_must_change_password,
+                        must_set_security_question=new_must_set_security_question,
+                    )
+                    else ""
+                )
+            )
+            if sensitive_change and not may_change_account_state(current_user, user):
+                audit_refusal(user, sensitive_change)
                 flash(REFUSAL_MESSAGE, "danger")
                 return redirect(url_for("main.personnel_edit", user_id=user_id))
+            payload = dataclasses.replace(payload, role_value=kept_role(user.role, payload.role_value or current_role or "Personel"))
 
             password_reset_applied = update_existing_personnel_user_from_payload(
                 user=user,
@@ -881,8 +908,8 @@ def personnel_edit(user_id):
                 ensure_unit_exists=ensure_unit_exists_strict,
                 password_hasher=generate_password_hash,
                 is_active=new_is_active,
-                must_change_password=bool_from_form(request.form.get("must_change_password")),
-                must_set_security_question=bool_from_form(request.form.get("must_set_security_question")),
+                must_change_password=new_must_change_password,
+                must_set_security_question=new_must_set_security_question,
             )
 
             remove_photo = bool_from_form(request.form.get("remove_profile_photo"))
@@ -1040,6 +1067,17 @@ def personnel_excel_upload():
                     audit_refusal(user, "excel_role_change" if user else "excel_role_assign")
                     flash(f"Satır {row_number}: {ROLE_REFUSAL_MESSAGE} Dosyadaki hiçbir kayıt yazılmadı.", "danger")
                     return redirect(url_for("main.personnel_excel_upload"))
+                # R05: a non-admin import never rewrites a protected account matched by another sicil or
+                # changes its e-mail (login identifiers).
+                if (
+                    user
+                    and update_existing
+                    and login_identity_changes(user, sicil_no=sicil_no, email=email)
+                    and not may_change_account_state(current_user, user)
+                ):
+                    audit_refusal(user, "excel_identity_change")
+                    flash(f"Satır {row_number}: {REFUSAL_MESSAGE} Dosyadaki hiçbir kayıt yazılmadı.", "danger")
+                    return redirect(url_for("main.personnel_excel_upload"))
 
                 if user:
                     if not update_existing:
@@ -1157,6 +1195,7 @@ def personnel_excel_upload():
                     fill_only_missing=True,
                     commit=False,
                     preserve_explicit_chain=True,  # BYS360_EXPLICIT_MANAGER_CHAIN_V2
+                    persist_inferred_roles=is_real_admin(current_user),  # R05
                 )
                 manager_sync_summary = sync_touched_users_manager_ids_from_sicils(
                     touched_users,

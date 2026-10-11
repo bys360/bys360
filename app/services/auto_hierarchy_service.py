@@ -50,30 +50,49 @@ def infer_role_from_profile(*, raw_role: str | None = None, unvan: str | None = 
     return canonical_role_value(role_value), canonical_role_label(role_value)
 
 
+def _audit_inferred_role_change(user: User, old_role: Any) -> None:
+    from flask import has_request_context
+
+    from app.services.account_change_guard import record_account_changes
+
+    if has_request_context():
+        record_account_changes(user, old_role=old_role, old_active=None)
+
+
 def auto_apply_manager_chains(
     scope_users: Iterable[User] | None = None,
     *,
     fill_only_missing: bool = True,
     commit: bool = False,
     preserve_explicit_chain: bool = True,
+    persist_inferred_roles: bool = False,
 ) -> dict[str, Any]:
+    """Rebuild manager chains.
+
+    R05: the stored roles are written back from the title/unit inference only when the caller
+    passes ``persist_inferred_roles=True`` (a real admin); every such change is audited.
+    Otherwise the chains are built from the stored roles and no role changes.
+    """
     users = User.query.order_by(User.id.asc()).all()
     normalized_targets = []
     for user in users:
-        try:
-            role_value, role_label = infer_role_from_profile(
-                raw_role=getattr(user, 'role', None) or getattr(user, 'role_label', None),
-                unvan=getattr(user, 'unvan', None),
-                birim=getattr(user, 'birim', None),
-                ust_birim=getattr(user, 'ust_birim', None),
-            )
-            if hasattr(user, 'role') and user.role != role_value:
-                user.role = role_value
-            if hasattr(user, 'role_label') and user.role_label != role_label:
-                user.role_label = role_label
-        except Exception:
-            import logging
-            logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/auto_hierarchy_service.py")
+        if persist_inferred_roles:
+            try:
+                role_value, role_label = infer_role_from_profile(
+                    raw_role=getattr(user, 'role', None) or getattr(user, 'role_label', None),
+                    unvan=getattr(user, 'unvan', None),
+                    birim=getattr(user, 'birim', None),
+                    ust_birim=getattr(user, 'ust_birim', None),
+                )
+                old_role = getattr(user, 'role', None)
+                if hasattr(user, 'role') and user.role != role_value:
+                    user.role = role_value
+                if hasattr(user, 'role_label') and user.role_label != role_label:
+                    user.role_label = role_label
+                _audit_inferred_role_change(user, old_role)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/auto_hierarchy_service.py")
         normalized_targets.append(user)
     db.session.flush()
     lookup = build_lookup(normalized_targets)

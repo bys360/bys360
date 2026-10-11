@@ -94,8 +94,26 @@ def may_change_role(actor: Any, target: Any, new_role: Any) -> bool:
 
 
 def may_change_account_state(actor: Any, target: Any) -> bool:
-    """Password, activation, archive and deletion of an existing account."""
+    """Password, activation, archive, deletion, login identifiers and security flags of an account."""
     return is_real_admin(actor) or not is_protected_account(target, actor)
+
+
+def kept_role(old_role: Any, new_role: Any) -> Any:
+    """Keep the stored spelling when the role does not change (no "ADMIN" for "admin")."""
+    return old_role if not role_changes(old_role, new_role) else new_role
+
+
+def login_identity_changes(target: Any, *, sicil_no: Any, email: Any) -> bool:
+    """sicil_no / e-mail are the login identifiers."""
+    return (str(sicil_no or "").strip() != str(getattr(target, "sicil_no", "") or "").strip()) or (
+        str(email or "").strip().lower() != str(getattr(target, "email", "") or "").strip().lower()
+    )
+
+
+def security_flags_change(target: Any, *, must_change_password: Any, must_set_security_question: Any) -> bool:
+    return bool(must_change_password) != bool(getattr(target, "must_change_password", False)) or bool(
+        must_set_security_question
+    ) != bool(getattr(target, "must_set_security_question", False))
 
 
 def end_other_sessions(target: Any) -> None:
@@ -139,14 +157,30 @@ def record_account_changes(target: Any, *, old_role: Any, old_active: Any, passw
 
 
 def audit_refusal(target: Any, reason: str, *, target_id: int | None = None) -> None:
-    """Record a refused change in its own transaction (nothing else is pending at refusal time)."""
+    """Record a refused change in its own transaction (nothing else is pending at refusal time).
+
+    An account created earlier in the same request disappears with the rollback, so its id is
+    not recorded; the sicil is always kept in the row.
+    """
+    from sqlalchemy import inspect as sa_inspect
+
     from app.extensions import db
     from app.services.audit_service import write_audit_log
 
     entity_id = target_id if target_id is not None else getattr(target, "id", None)
+    sicil_no = getattr(target, "sicil_no", None) if target is not None else None
     try:
         db.session.rollback()
-        write_audit_log("account.change_refused", "user", entity_id, new_data={"reason": reason}, summary=f"R05 refused: {reason}")
+        state = sa_inspect(target, raiseerr=False) if target is not None and target_id is None else None
+        if target is not None and target_id is None and (state is None or not state.persistent):
+            entity_id = None
+        write_audit_log(
+            "account.change_refused",
+            "user",
+            entity_id,
+            new_data={"reason": reason, "sicil_no": sicil_no},
+            summary=f"R05 refused: {reason}",
+        )
         db.session.commit()
     except SQLAlchemyError:
         logger.exception("BYS360 R05 refusal audit write failed | reason=%s | target=%s", reason, entity_id)

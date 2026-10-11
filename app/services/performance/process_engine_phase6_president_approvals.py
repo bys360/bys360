@@ -193,10 +193,10 @@ def is_admin_user(user: Any) -> bool:
 
 
 def is_president_user(user: Any) -> bool:
-    # Sadece kesin rol/unvan alanları yetki verir; kurum adı veya "Başkanlığı" metni yetki vermez.
+    # D3/R05: yalnız saklanan rol alanları yetki verir; unvan ve serbest metin (ör. "Başkan") yetki vermez.
     role_values = {
         normalize_role(getattr(user, attr, None))
-        for attr in ("role", "role_name", "user_type", "unvan", "title")
+        for attr in ("role", "role_name", "user_type")
     }
     return bool(role_values & {"baskan", "president"})
 

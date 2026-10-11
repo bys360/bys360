@@ -680,7 +680,12 @@ def _roles(env) -> dict[str, str]:
     from app.models import User
 
     with env.app.app_context():
-        return {key: db.session.get(User, user_id).role for key, user_id in env.ids.items()}
+        roles = {}
+        for key, user_id in env.ids.items():
+            user = db.session.get(User, user_id)
+            assert user is not None, key
+            roles[key] = user.role
+        return roles
 
 
 @pytest.mark.parametrize("path", IMPORT_PATHS)
@@ -716,6 +721,7 @@ def _identity(env, key):
 
     with env.app.app_context():
         user = db.session.get(User, env.ids[key])
+        assert user is not None, key
         return (user.sicil_no, user.email, bool(user.must_change_password), bool(user.must_set_security_question))
 
 
