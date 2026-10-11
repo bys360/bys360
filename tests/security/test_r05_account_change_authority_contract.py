@@ -48,7 +48,7 @@ from types import SimpleNamespace
 import pytest
 
 PASSWORD = "R05AccountChangeTest1!"
-NEW_PASSWORD = "R05-New-Password-9x!"
+NEW_PASSWORD = "R05-New-Test-Password-9x!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "r05_contract"
 
 # key: (role, is_active, explicit grant menu_key or None)
@@ -648,6 +648,7 @@ def test_guard_non_admin_can_edit_profile_fields_without_role_change(env, route)
 
     with env.app.app_context():
         user = db.session.get(User, env.ids["koordinator"])
+        assert user is not None
         assert user.unvan == "Kidemli Uzman"
         assert user.role == "koordinator"
         assert bool(user.is_active) is True

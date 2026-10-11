@@ -1411,9 +1411,11 @@ def test_guard_r07_only_the_grant_paths_reference_the_grant_key():
         for path in root.rglob("*.py")
         if "PERSONNEL_READ_ALL_KEY" in path.read_text(encoding="utf-8")
     )
+    # R05 (account_change_guard.py) only reads the key to protect grant holders from takeover.
     assert constant_files == [
         "app/main_handlers/account_settings_helpers.py",
         "app/main_handlers/account_visibility_helpers.py",
+        "app/services/account_change_guard.py",
         "app/services/personnel_read_grant.py",
         "app/services/settings/rollback_handler.py",
         "app/services/settings_service.py",

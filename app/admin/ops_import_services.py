@@ -11,6 +11,16 @@ from openpyxl import load_workbook
 from app.extensions import db
 from app.models import User
 from app.route_support import safe_render
+from app.services.account_change_guard import (
+    REFUSAL_MESSAGE,
+    ROLE_REFUSAL_MESSAGE,
+    audit_account_change,
+    audit_refusal,
+    may_assign_role,
+    may_change_account_state,
+    may_change_role,
+    record_account_changes,
+)
 from app.services.ai import build_excel_fix_preview_ai_panel
 from app.services.auto_hierarchy_service import auto_apply_manager_chains, infer_role_from_profile
 from app.services.hierarchy_admin_service import normalize_text
@@ -93,6 +103,8 @@ def admin_user_import_impl():
         skipped_admin = 0
         errors = []
         touched_users = []
+        created_users = []
+        refused_rows = []
 
         for rowno, row in enumerate(rows[1:], start=2):
             if not row or all(v is None or str(v).strip() == "" for v in row):
@@ -200,10 +212,23 @@ def admin_user_import_impl():
                 skipped_admin += 1
                 continue
 
+            # R05: a non-admin import never creates a non-baseline role, changes a stored role or
+            # switches a protected account on/off; one such row refuses the whole file.
+            refusal = None
+            if not (may_change_role(current_user, user, role) if user is not None else may_assign_role(current_user, role)):
+                refusal = ROLE_REFUSAL_MESSAGE
+            elif user is not None and bool(is_active) != bool(user.is_active) and not may_change_account_state(current_user, user):
+                refusal = REFUSAL_MESSAGE
+            if refusal:
+                errors.append(f"Satır {rowno}: {refusal}")
+                refused_rows.append(rowno)
+                continue
+
             resolved_ust_birim = ust_birim if ust_birim else (unit.parent.name if unit.parent else unit.name)
 
             try:
                 if user:
+                    old_role, old_active = user.role, bool(user.is_active)
                     user.ad = ad
                     user.soyad = soyad
                     user.email = email
@@ -219,6 +244,7 @@ def admin_user_import_impl():
                     user.ucuncu_yonetici_sicil = ucuncu_yonetici_sicil or None
                     user.is_active = is_active
                     assign_user_performance_category(user, personnel_category, db_session=db.session)  # BYS360_PHASE2_3_IMPORT_CATEGORY_UPDATE_BINDING
+                    record_account_changes(user, old_role=old_role, old_active=old_active)
                     updated += 1
                     touched_users.append(user)
                 else:
@@ -249,16 +275,21 @@ def admin_user_import_impl():
                     db.session.add(user)
                     created += 1
                     touched_users.append(user)
+                    created_users.append(user)
             except Exception as exc:
                 __import__("logging").getLogger(__name__).exception("BYS360 Excel içe aktarma satır hatası | rowno=%s | exc=%s", rowno, exc)
                 errors.append(f"Satır {rowno}: kayıt işlenirken beklenmeyen bir hata oluştu.")
 
         if errors:
             db.session.rollback()
+            if refused_rows:
+                audit_refusal(None, "excel_import_rows:" + ",".join(str(rowno) for rowno in refused_rows[:20]))
             flash("Excel içe aktarma sırasında hatalar oluştu.", "danger")
             return safe_render("excel_import.html", "<h3>Excel İçe Aktar</h3>", errors=errors, apply_ai_fixes=apply_ai_fixes, ai_excel_fix_panel=build_excel_fix_preview_ai_panel(errors=errors, normalized_headers=normalized_headers, autofix_enabled=apply_ai_fixes, applied_fixes=autofix_stats))
 
         db.session.flush()
+        for created_user in created_users:
+            audit_account_change("account.create", created_user, new={"role": created_user.role, "is_active": bool(created_user.is_active)})
         has_explicit_manager_columns = _has_explicit_manager_columns(normalized_headers)
         if has_explicit_manager_columns:
             # BYS360_IMPORT_EXPLICIT_MANAGER_CHAIN_PRESERVE_V1
