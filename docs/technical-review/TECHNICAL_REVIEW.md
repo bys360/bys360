@@ -126,13 +126,16 @@ PENDING. Son okumada her PR'ın iki zorunlu CI sonucu buraya yazılacak.
 | PR | İncelenen SHA | Sonuç | Not |
 |---|---|---|---|
 | #70 | `e2832218` | CHANGES-NEEDED | 13 sonda testi 7 açığı doğruladı. P1/P1c, P2, P3, P4 ve P5 `f8c6df9f`'de kapandı; P1b #65'te, P2c OPEN. Son sürüm incelenmedi. |
-| #65 | `866d8c63` | Önceki oturumda adversarial inceleme yapıldı | Birleşik #70 + #65 incelemesi yapılmadı. |
+| #65 | `866d8c63` | Önceki oturumda adversarial inceleme yapıldı | — |
+| **#70 + #65 birleşik** | #70 `d8068ae0` + #65 `fb1acdc4` (yerel entegrasyon) | **CHANGES-NEEDED** | Admin olmayan bir kullanıcının `support_all` veya `personnel_read_all` elde etmesinin **hiçbir yolu bulunamadı** (P1b birleşik kodda kapalı). 13 sonda testi şu açıkları doğruladı. **F1 (yüksek, #70):** Excel içe aktarmalarıyla kendini amir yapma veya korunan hesabın zincirini değiştirme. **F2 (yüksek, #70):** kendi menüsünü açarak üç hiyerarşi sayfasından kendini amir yapma. F1 ve F2 #70'te düzeltildi (bkz. §6). **F3 (orta, #70):** /settings toplu uygula, şablon, arşiv, rollback, rol ve birim profili rotaları korunan hesap ve profilleri değiştirebiliyor; açık yetki satırları korunuyor. Politika kararı gerektiği için OPEN. **F4 (düşük, #65):** dashboard'da kurum geneli destek talebi sayıları görünüyor (yalnız sayı). |
 | #69 | `0e190ee2` | Codex: engelleyici bulgu yok | Uygulama kodu güncel HEAD ile aynı. |
 | #68 | `582c1a76` | CHANGES-NEEDED | F1 ve F3 kapalı. F2 kısmi (portal, mesaj ve yayın yazımları). F4 kısmi (statik altındaki bağlantının özel köke işaret etmesi; publications alt dizini). Ön katman bilinmiyor. Eski dosya taşıma betiği yok. |
 
 ## 9. Açık güvenlik riskleri
 
 1. **P2c:** yayın onayı başkanı unvanla tanınıyor (OPEN, karar gerekiyor; belge 14).
+1a. **F3 (#70, orta):** /settings'teki toplu menü işlemleri (toplu uygula, şablon içe aktarma, arşiv uygula, rol matrisi, rollback, rol ve birim profili), admin ailesinden bir kullanıcının korunan hesapların ve admin/liderlik rol profillerinin menülerini değiştirmesine izin veriyor. Açık yetki satırları her durumda korunur. Öneri: bu toplu işlemleri yalnız gerçek admine açmak. Bu bir politika kararıdır.
+1b. **F4 (#65, düşük):** `/dashboard/rebuild-data`, `support_all` yetkisi olmayan rollere kurum geneli açık destek talebi sayısını gösteriyor. Talep içeriği gösterilmiyor.
 2. **#70 + #65 bağımlılığı:** biri diğeri olmadan merge edilirse açık kalır.
 3. **#68 ön katman ve dosyalar:** IIS/proxy davranışı, eski dosyaların taşınması ve geri dönüşte erişilemez kalacak yüklemeler.
 4. **Rol tanımı:** `User.role` serbest metin. Bazı hiyerarşi yardımcıları (`is_system_user`, `is_president`) hâlâ unvana bakıyor. Bunlar performans kapsamını ve değerlendirici zincirini etkiler (belge 04 §8).
