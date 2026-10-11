@@ -91,11 +91,11 @@ def register_mobile_communication_read_routes_v1(mobile_bp, route_globals) -> No
         for u in users:
             if getattr(u, "id", None) == user.id:
                 continue
+            # R06 (approved policy, 2026-10-10): the recipient picker carries and searches the name and
+            # the unit only; the sicil and title keys stay for client compatibility but are empty.
             haystack = " ".join([
                 _full_name(u),
-                _b46_txt(getattr(u, "sicil_no", None) or getattr(u, "registry_no", None)),
                 _b46_txt(getattr(u, "birim", None) or getattr(u, "unit_name", None)),
-                _b46_txt(getattr(u, "unvan", None) or getattr(u, "title", None)),
             ]).lower()
             if query_text and query_text not in haystack:
                 continue
@@ -104,10 +104,10 @@ def register_mobile_communication_read_routes_v1(mobile_bp, route_globals) -> No
                 "user_id": u.id,
                 "display_name": _full_name(u),
                 "name": _full_name(u),
-                "registry_no": _b46_txt(getattr(u, "sicil_no", None) or getattr(u, "registry_no", None)),
+                "registry_no": "",
                 "unit_name": _b46_txt(getattr(u, "birim", None) or getattr(u, "unit_name", None)),
-                "title_name": _b46_txt(getattr(u, "unvan", None) or getattr(u, "title", None)),
-                "subtitle": _b46_txt(getattr(u, "birim", None) or getattr(u, "unit_name", None) or getattr(u, "sicil_no", None)),
+                "title_name": "",
+                "subtitle": _b46_txt(getattr(u, "birim", None) or getattr(u, "unit_name", None)),
             })
             if len(rows) >= 50:
                 break
