@@ -156,7 +156,8 @@ def may_change_manager_chain(actor: Any, target: Any, new_sicils: Any) -> bool:
     new = tuple(_sicil(value) for value in (list(new_sicils or ()) + [None] * len(MANAGER_FIELDS))[: len(MANAGER_FIELDS)])
     if old == new:
         return True
-    if is_protected_account(target, actor):
+    # A new account (no target yet) only refuses self-assignment; an existing protected one refuses all.
+    if target is not None and is_protected_account(target, actor):
         return False
     actor_sicil = _sicil(getattr(actor, "sicil_no", None))
     return not actor_sicil or actor_sicil in old or actor_sicil not in new

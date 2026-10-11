@@ -18,7 +18,12 @@ from app.route_support import (
     safe_db_rollback,
     safe_render,
 )
-from app.services.account_change_guard import is_real_admin
+from app.services.account_change_guard import (
+    MANAGER_CHAIN_REFUSAL_MESSAGE,
+    audit_refusal,
+    is_real_admin,
+    may_change_manager_chain,
+)
 from app.services.ai.dashboard_panels import (
     build_hierarchy_ai_panel,
     build_hierarchy_assignment_person_ai_panel,
@@ -287,6 +292,16 @@ def performance_hierarchy_assignments_alias():
             manager_1 = db.session.get(User, manager_1_id) if manager_1_id else None
             manager_2 = db.session.get(User, manager_2_id) if manager_2_id else None
             manager_3 = db.session.get(User, manager_3_id) if manager_3_id else None
+
+            # R05: a non-admin never adds themselves to a chain nor changes a protected account's chain.
+            if not may_change_manager_chain(
+                current_user,
+                target_user,
+                [getattr(manager_1, "sicil_no", None), getattr(manager_2, "sicil_no", None), getattr(manager_3, "sicil_no", None)],
+            ):
+                audit_refusal(target_user, "hierarchy_assignment_chain_change")
+                flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.hierarchy_assignments", q=q, birim=birim, period_id=period_id))
 
             target_user.yonetici_sicil = _safe_str(getattr(manager_1, "sicil_no", "")) or None
             target_user.ikinci_yonetici_sicil = _safe_str(getattr(manager_2, "sicil_no", "")) or None
@@ -669,6 +684,11 @@ def performance_hierarchy_assignment_edit(user_id):
             yonetici_sicil = (request.form.get("yonetici_sicil") or "").strip() or None
             ikinci_yonetici_sicil = (request.form.get("ikinci_yonetici_sicil") or "").strip() or None
             ucuncu_yonetici_sicil = (request.form.get("ucuncu_yonetici_sicil") or "").strip() or None
+            # R05: a non-admin never adds themselves to a chain nor changes a protected account's chain.
+            if not may_change_manager_chain(current_user, user_obj, [yonetici_sicil, ikinci_yonetici_sicil, ucuncu_yonetici_sicil]):
+                audit_refusal(user_obj, "hierarchy_assignment_chain_change")
+                flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.performance_hierarchy_assignment_edit", user_id=user_id, period_id=selected_period_id, scope=selected_scope))
             user_obj.yonetici_sicil = yonetici_sicil
             user_obj.ikinci_yonetici_sicil = ikinci_yonetici_sicil
             user_obj.ucuncu_yonetici_sicil = ucuncu_yonetici_sicil

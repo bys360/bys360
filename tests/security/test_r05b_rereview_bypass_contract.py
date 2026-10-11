@@ -292,3 +292,73 @@ def test_p5_real_admin_still_assigns_manager_chains(env):
         data=_admin_edit_form(env, "baskan_yardimcisi", yonetici_sicil=SICIL["baskan"]),
     )
     assert _reload(env, "baskan_yardimcisi").yonetici_sicil == SICIL["baskan"]
+
+
+# Combined #70 + #65 review (F1/F2): manager chains through imports and hierarchy pages ----------
+
+_MGR_HEADERS = ("Sicil No", "Ad", "Soyad", "E-posta", "Unvan", "Birim", "Üst Birim", "Rol", "Yönetici Sicil")
+
+
+def _chain(env, key):
+    user = _reload(env, key)
+    return (user.yonetici_sicil, user.ikinci_yonetici_sicil, user.ucuncu_yonetici_sicil)
+
+
+def test_f1_admin_import_cannot_self_assign_or_change_protected_chain(env):
+    rows = [
+        (*_xlsx_row(SICIL["plain"], "personel"), SICIL["baskan_yardimcisi"]),
+        (*_xlsx_row(SICIL["koordinator"], "koordinator"), SICIL["baskan_yardimcisi"]),
+    ]
+    _web(env, "baskan_yardimcisi").post(
+        "/admin/users/import",
+        data={"excel_file": (_r05._xlsx(rows, headers=_MGR_HEADERS), "p.xlsx")},
+        content_type="multipart/form-data",
+    )
+    assert _chain(env, "plain")[0] != SICIL["baskan_yardimcisi"]
+    assert _chain(env, "koordinator")[0] != SICIL["baskan_yardimcisi"]
+
+
+def test_f1_excel_upload_cannot_self_assign_or_change_protected_chain(env):
+    for rows in (
+        [(*_xlsx_row(SICIL["plain"], "personel"), SICIL["mali_musavir"])],
+        [(*_xlsx_row(SICIL["sysadm"], "sistem_yoneticisi"), SICIL["plain"])],
+    ):
+        _web(env, "mali_musavir").post(
+            "/personnel/excel-upload",
+            data={"excel_file": (_r05._xlsx(rows, headers=_MGR_HEADERS), "p.xlsx"), "update_existing": "on"},
+            content_type="multipart/form-data",
+        )
+    assert _chain(env, "plain")[0] != SICIL["mali_musavir"]
+    assert _chain(env, "sysadm")[0] != SICIL["plain"]
+    assert _refusals(env, "excel_manager_chain_change")
+
+
+def test_f1_real_admin_import_still_assigns_chains(env):
+    rows = [(*_xlsx_row(SICIL["plain"], "personel"), SICIL["koordinator"])]
+    _web(env, "admin").post(
+        "/personnel/excel-upload",
+        data={"excel_file": (_r05._xlsx(rows, headers=_MGR_HEADERS), "p.xlsx"), "update_existing": "on"},
+        content_type="multipart/form-data",
+    )
+    assert _chain(env, "plain")[0] == SICIL["koordinator"]
+
+
+def test_f2_self_opened_menu_does_not_allow_hierarchy_self_assignment(env):
+    for who in ("mali_musavir", "baskan", "grup_baskani"):
+        client = _web(env, who)
+        client.post(
+            "/settings",
+            data={
+                "form_action": "save_user_visibility",
+                "user_id": env.ids[who],
+                "menu_performance_hierarchy_assignments": "on",
+                "menu_dashboard": "on",
+            },
+        )
+        client = _web(env, who)
+        client.post("/performance/hierarchy-assignments", data={"user_id": env.ids["plain"], "manager_1_id": env.ids[who]})
+        client.post(f"/performance/hierarchy-assignments/{env.ids['baskan_yardimcisi']}/edit", data={"yonetici_sicil": SICIL[who]})
+        client.post("/performance/hierarchy-assignments-live", data={"user_id": env.ids["sup_holder"], "yonetici_sicil": SICIL[who]})
+        assert _chain(env, "plain")[0] != SICIL[who], who
+        assert _chain(env, "baskan_yardimcisi")[0] != SICIL[who], who
+        assert _chain(env, "sup_holder")[0] != SICIL[who], who

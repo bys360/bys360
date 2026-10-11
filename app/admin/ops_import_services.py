@@ -12,6 +12,7 @@ from app.extensions import db
 from app.models import User
 from app.route_support import safe_render
 from app.services.account_change_guard import (
+    MANAGER_CHAIN_REFUSAL_MESSAGE,
     REFUSAL_MESSAGE,
     ROLE_REFUSAL_MESSAGE,
     audit_account_change,
@@ -20,6 +21,7 @@ from app.services.account_change_guard import (
     login_identity_changes,
     may_assign_role,
     may_change_account_state,
+    may_change_manager_chain,
     may_change_role,
     record_account_changes,
 )
@@ -223,6 +225,8 @@ def admin_user_import_impl():
                 bool(is_active) != bool(user.is_active) or login_identity_changes(user, sicil_no=sicil_no, email=email)
             ):
                 refusal = REFUSAL_MESSAGE
+            elif not may_change_manager_chain(current_user, user, [yonetici_sicil, ikinci_yonetici_sicil, ucuncu_yonetici_sicil]):
+                refusal = MANAGER_CHAIN_REFUSAL_MESSAGE
             if refusal:
                 errors.append(f"Satır {rowno}: {refusal}")
                 refused_rows.append(rowno)

@@ -1081,6 +1081,14 @@ def personnel_excel_upload():
                     audit_refusal(user, "excel_role_change" if user else "excel_role_assign")
                     flash(f"Satır {row_number}: {ROLE_REFUSAL_MESSAGE} Dosyadaki hiçbir kayıt yazılmadı.", "danger")
                     return redirect(url_for("main.personnel_excel_upload"))
+                # R05: a non-admin import never adds the importer to a manager chain nor changes the
+                # chain of a protected account; one such row refuses the file.
+                if (not user or update_existing) and not may_change_manager_chain(
+                    current_user, user, [yonetici_sicil, ikinci_yonetici_sicil, ucuncu_yonetici_sicil]
+                ):
+                    audit_refusal(user, "excel_manager_chain_change")
+                    flash(f"Satır {row_number}: {MANAGER_CHAIN_REFUSAL_MESSAGE} Dosyadaki hiçbir kayıt yazılmadı.", "danger")
+                    return redirect(url_for("main.personnel_excel_upload"))
                 # R05: a non-admin import never rewrites a protected account matched by another sicil or
                 # changes its e-mail (login identifiers).
                 if (

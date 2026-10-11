@@ -61,6 +61,11 @@ from app.route_support import (  # noqa: E402 - deferred import (staged facade/r
     safe_db_rollback,
     safe_render,
 )
+from app.services.account_change_guard import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
+    MANAGER_CHAIN_REFUSAL_MESSAGE,
+    audit_refusal,
+    may_change_manager_chain,
+)
 from app.services.hierarchy_admin_service import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
     sync_organization_units_from_users_if_stale,  # noqa: E402 - deferred import (staged facade/route-registration architecture)
 )
@@ -173,10 +178,17 @@ def performance_hierarchy_assignments_live():
         if not user or getattr(user, "role", None) == "admin":
             flash("Personel kaydı bulunamadı.", "warning")
             return redirect(url_for("main.performance_hierarchy_assignments_live"))
+        new_chain = [
+            (request.form.get(field) or "").strip() or None
+            for field in ("yonetici_sicil", "ikinci_yonetici_sicil", "ucuncu_yonetici_sicil")
+        ]
+        # R05: a non-admin never adds themselves to a chain nor changes a protected account's chain.
+        if not may_change_manager_chain(current_user, user, new_chain):
+            audit_refusal(user, "hierarchy_assignment_chain_change")
+            flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
+            return redirect(url_for("main.performance_hierarchy_assignments_live", user_id=user.id, q=q, birim=birim))
         try:
-            user.yonetici_sicil = (request.form.get("yonetici_sicil") or "").strip() or None
-            user.ikinci_yonetici_sicil = (request.form.get("ikinci_yonetici_sicil") or "").strip() or None
-            user.ucuncu_yonetici_sicil = (request.form.get("ucuncu_yonetici_sicil") or "").strip() or None
+            user.yonetici_sicil, user.ikinci_yonetici_sicil, user.ucuncu_yonetici_sicil = new_chain
             db.session.commit()
             flash("Hiyerarşi ataması kaydedildi.", "success")
             return redirect(url_for("main.performance_hierarchy_assignments_live", user_id=user.id, q=q, birim=birim))
