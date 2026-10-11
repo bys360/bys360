@@ -41,7 +41,7 @@ def account_change_photo():
         remove_photo = (request.form.get("remove_profile_photo") or "").strip().lower() in {"1", "true", "on", "evet", "yes"}
 
         if remove_photo:
-            _delete_profile_photo_file(current_user.profile_photo_path)
+            _delete_profile_photo_file(current_user.profile_photo_path, owner_id=current_user.id)
             current_user.profile_photo_path = None
             current_user.profile_photo_updated_at = utc_now()
             db.session.commit()

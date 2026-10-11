@@ -15,7 +15,7 @@ from app.security.private_uploads import locate_upload, private_upload_path
 Faz 4 kapsamı:
 - Route içindeki profil fotoğrafı yükleme/silme kararını servis katmanına alır.
 - Commit/rollback, flash/redirect ve kayıt akışı route tarafında kalır.
-- Dosya silme sırasında yalnızca uygulamanın static kökü altındaki dosyalar hedeflenir.
+- Dosya silme sırasında özel ve eski profil fotoğrafı depolarındaki kopyalar hedeflenir.
 """
 
 PhotoSaver = Callable[[Any, Any], Any]
@@ -85,7 +85,7 @@ def delete_personnel_profile_photo(
     app_root_path: str | Path,
     logger: Any | None = None,
 ) -> PersonnelProfilePhotoResult:
-    """Delete an existing profile photo file if it safely resolves under static.
+    """Delete safe photo copies, then clear the reference even if cleanup fails.
 
     This function does not commit and does not rollback. It mutates the user photo
     fields exactly like the legacy route helper did.
@@ -95,7 +95,15 @@ def delete_personnel_profile_photo(
     warning = ""
 
     safe_path, warning = _safe_static_file_path(app_root_path=app_root_path, relative_path=relative_path)
-    if safe_path and safe_path.is_file():
+    if has_app_context() and not warning:
+        from app.services.profile_photo_service import delete_profile_photo_copies
+
+        file_deleted, failed = delete_profile_photo_copies(relative_path, owner_id=getattr(user, "id", None))
+        if failed:
+            warning = "profile_photo_delete_failed:PRIVATE_UPLOAD_DELETE_FAILED"
+        elif not file_deleted:
+            warning = "profile_photo_file_not_found"
+    elif safe_path and safe_path.is_file():
         try:
             safe_path.unlink()
             file_deleted = True
