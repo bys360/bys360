@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import secrets
 from pathlib import Path
 
 import pytest
@@ -30,7 +31,7 @@ def env(tmp_path):
     (static / "img").mkdir()
     (static / "img" / "default-avatar.svg").write_text("default")
     app = Flask("f3", root_path=str(root), static_folder=str(static))
-    app.config.update(TESTING=True, SECRET_KEY="synthetic-f3-only", SQLALCHEMY_DATABASE_URI="sqlite://",
+    app.config.update(TESTING=True, SECRET_KEY=secrets.token_urlsafe(32), SQLALCHEMY_DATABASE_URI="sqlite://",
                       PRIVATE_UPLOAD_FOLDER=str(tmp_path / "private"), UPLOAD_FOLDER=str(tmp_path / "legacy"))
     db.init_app(app)
     login = LoginManager(app)
