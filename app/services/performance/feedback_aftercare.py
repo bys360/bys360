@@ -19,6 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
 from app.services import runtime_schema
+from app.services.performance.feedback_meeting_access import is_meeting_party, meeting_party_where
 
 logger = logging.getLogger(__name__)
 
@@ -296,9 +297,11 @@ def _is_global_user(role: str | None, is_admin: bool = False, is_superuser: bool
 
 
 def _meeting_visibility_where(role: str | None, user_id: int | None, is_admin: bool = False, is_superuser: bool = False) -> tuple[str, dict[str, Any]]:
-    if _is_global_user(role, is_admin=is_admin, is_superuser=is_superuser):
-        return "", {}
-    return "WHERE (m.employee_id = :current_user_id OR m.manager_id = :current_user_id)", {"current_user_id": user_id or 0}
+    # #57 (approved policy, 2026-10-10): only the meeting's parties, the employee and its manager, see a
+    # meeting; no role (admin and the technical roles included) widens that. role/is_admin are kept
+    # for the callers' signature only.
+    where, params = meeting_party_where("m", user_id)
+    return f"WHERE {where}", params
 
 
 def _meeting_select_sql(where_sql: str = "") -> str:
@@ -419,8 +422,7 @@ def get_meeting_aftercare_detail(
     for action in actions:
         action["status_label"] = ACTION_STATUS_LABELS.get(action.get("status") or "", action.get("status") or "-")
         action["responsible_label"] = RESPONSIBLE_LABELS.get(action.get("responsible_role") or "", action.get("responsible_role") or "-")
-    role = (current_user_role or "").lower()
-    can_edit = bool(_is_global_user(role, is_admin=is_admin, is_superuser=is_superuser) or current_user_id in {meeting.get("manager_id"), meeting.get("employee_id")})
+    can_edit = is_meeting_party(meeting, current_user_id)  # #57: the parties only
     mail_draft = build_summary_mail_draft(meeting, after_note, actions)
     return {
         "meeting": meeting,
