@@ -16,7 +16,6 @@ from app.api.mobile.shared import (
     _clean_mobile_text,
     _full_name,
     _generate_mobile_ticket_no,
-    _has_global_scope,
     _mobile_survey_anonymous_token,
     _mobile_survey_assignment_for_user,
     _mobile_survey_completed,
@@ -37,6 +36,7 @@ from app.api.mobile.shared import (
     require_mobile_user,
     timezone,
 )
+from app.services.support_ticket_access import can_view_all_support_tickets
 
 try:
     from app.api.mobile.services import (  # type: ignore[attr-defined]
@@ -147,7 +147,7 @@ def _bys360_legacy_mobile_support_ticket_reply(user: User, ticket_id: int):
     if len(message) < 3:
         return jsonify({"message": "Cevap alanı boş bırakılamaz."}), 400
 
-    can_manage = _has_global_scope(user)
+    can_manage = can_view_all_support_tickets(user)  # K5: internal notes and open -> reviewing, as on the web
     is_internal = bool(data.get("is_internal")) and can_manage
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.add(SupportTicketMessage(ticket=ticket, user_id=user.id, message_type="internal_note" if is_internal else "comment", message=message, is_internal=is_internal))
