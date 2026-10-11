@@ -139,12 +139,15 @@ def test_substring_overgrant_regression_synthetic_roles_stay_non_global():
         )
 
 
-def test_role_label_independently_grants_global_scope_when_role_itself_is_not():
+def test_role_label_never_grants_global_scope_when_role_itself_is_not():
+    # B1-F1 decision 3 (HUMAN_POLICY_APPROVED, 2026-10-09): role_label is display text and never
+    # grants institution-wide scope on its own, also when the stored role is empty.
     from app.api.mobile.shared import _has_global_scope
     from app.models import User
 
-    user = User(role="personel", role_label="baskan")
-    assert _has_global_scope(user) is True, "an exact global role_label must still grant scope"
+    for label in ("baskan", "admin", "Admin", "sistem_yoneticisi"):
+        assert _has_global_scope(User(role="personel", role_label=label)) is False, label
+        assert _has_global_scope(User(role="", role_label=label)) is False, label
 
 
 def test_role_label_grup_baskani_does_not_grant_global_scope():

@@ -32,8 +32,9 @@ logger = logging.getLogger(__name__)
 def performance_meeting_p4_development_guidance():
     if request.method == "POST":
         try:
-            save_phase10_recommendation_from_request()
-            flash("Gelişim rehberi kaydı alındı.", "success")
+            # On failure the save already flashed its own warning/error.
+            if save_phase10_recommendation_from_request():
+                flash("Gelişim rehberi kaydı alındı.", "success")
         except Exception as exc:
             logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)
             flash("Gelişim rehberi kaydı alınamadı.", "warning")

@@ -129,8 +129,10 @@ def _staff_rows(app):
         return [(user.sicil_no, user.email, user.role) for user in User.query.order_by(User.id).all()]
 
 
+# B1-F1 (approved least-privilege policy, 2026-10-09): only admin creates personnel on mobile;
+# ik moved to the role-denial cases below, and the validation / duplicate cases use admin.
 @pytest.mark.parametrize("path", PATHS)
-@pytest.mark.parametrize("role", ["admin", "ik"])
+@pytest.mark.parametrize("role", ["admin"])
 def test_create_entries_use_same_real_implementation_once(app, auth_calls, create_calls, path, role):
     response = app.test_client().post(path, json=_payload(), headers=_headers(app, role))
 
@@ -167,7 +169,7 @@ def test_create_entries_reject_missing_or_invalid_auth(app, auth_calls, create_c
 
 
 @pytest.mark.parametrize("path", PATHS)
-@pytest.mark.parametrize("role", ["personel", "birim_admin_full", "unknown"])
+@pytest.mark.parametrize("role", ["personel", "birim_admin_full", "unknown", "ik"])
 def test_create_entries_preserve_role_denial(app, auth_calls, create_calls, path, role):
     before = _staff_rows(app)
     response = app.test_client().post(path, json=_payload(), headers=_headers(app, role))
@@ -188,12 +190,12 @@ def test_create_entries_preserve_role_denial(app, auth_calls, create_calls, path
 )
 def test_create_entries_preserve_validation(app, auth_calls, create_calls, path, payload, message):
     before = _staff_rows(app)
-    response = app.test_client().post(path, json=payload, headers=_headers(app, "ik"))
+    response = app.test_client().post(path, json=payload, headers=_headers(app, "admin"))
 
     assert response.status_code == 400
     assert response.get_json() == {"message": message}
     assert _staff_rows(app) == before
-    _assert_once(app, "ik", auth_calls, create_calls)
+    _assert_once(app, "admin", auth_calls, create_calls)
 
 
 @pytest.mark.parametrize("path", PATHS)
@@ -206,20 +208,21 @@ def test_create_entries_preserve_validation(app, auth_calls, create_calls, path,
 )
 def test_create_entries_preserve_duplicate_response(app, auth_calls, create_calls, path, payload, message):
     before = _staff_rows(app)
-    response = app.test_client().post(path, json=payload, headers=_headers(app, "ik"))
+    response = app.test_client().post(path, json=payload, headers=_headers(app, "admin"))
 
     assert response.status_code == 400
     assert response.get_json() == {"message": message}
     assert _staff_rows(app) == before
-    _assert_once(app, "ik", auth_calls, create_calls)
+    _assert_once(app, "admin", auth_calls, create_calls)
 
 
 @pytest.mark.parametrize("path", PATHS)
 def test_hr_cannot_grant_admin_role_through_either_entry(app, auth_calls, create_calls, path):
+    # B1-F1: ik can no longer create accounts at all, so it is refused before the role check.
     before = _staff_rows(app)
     response = app.test_client().post(path, json=_payload(role="admin"), headers=_headers(app, "ik"))
 
     assert response.status_code == 403
-    assert response.get_json() == {"message": "Bu rolü atama yetkiniz bulunmamaktadır."}
+    assert response.get_json() == {"message": "Bu işlem için personel ekleme yetkiniz bulunmamaktadır."}
     assert _staff_rows(app) == before
     _assert_once(app, "ik", auth_calls, create_calls)

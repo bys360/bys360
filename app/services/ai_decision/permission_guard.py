@@ -15,8 +15,13 @@ from app.services.ai_decision.visibility_scope import (
     AIDecisionVisibilityScope,
     build_ai_decision_scope,
     build_safe_scope_payload,
+    normalize_role_name,
     user_matches_scope,
 )
+
+# B1-F1 decision 2: the technical roles keep the module health checks (marker, module settings,
+# fixed principle texts; no personal data) although they no longer open the centre's data.
+_TECHNICAL_HEALTH_ROLES = {"sistem_yoneticisi", "system_admin"}
 
 
 class AIDecisionPermissionDenied(PermissionError):
@@ -47,6 +52,20 @@ def assert_center_access(user: Any) -> AIDecisionVisibilityScope:
     if not scope.can_open_center:
         raise AIDecisionPermissionDenied(scope.denied_reason or "Bu sayfaya erişim yetkiniz bulunmamaktadır.")
     return scope
+
+
+def assert_health_access(user: Any) -> AIDecisionVisibilityScope:
+    """Health endpoints only: centre access, or a technical role read from the stored role."""
+    scope = get_ai_decision_scope_for_user(user)
+    if scope.can_open_center:
+        return scope
+    if (
+        user is not None
+        and getattr(user, "is_authenticated", True)
+        and normalize_role_name(getattr(user, "role", None)) in _TECHNICAL_HEALTH_ROLES
+    ):
+        return scope
+    raise AIDecisionPermissionDenied(scope.denied_reason or "Bu sayfaya erişim yetkiniz bulunmamaktadır.")
 
 
 def can_view_evaluation(user: Any, evaluation: Any, *, allow_own_published: bool = True) -> bool:

@@ -70,9 +70,16 @@ def _role_name(current_user: Any) -> str:
     return str(role).lower()
 
 
+# F09 (approved policy, 2026-10-10): the institution-wide KPI view comes from an exact stored role,
+# the same set as the mobile KPI API (app.api.mobile.shared._GLOBAL_ROLES). A role that merely
+# contains "admin" or "baskan" (grup_baskani, super_admin, ...) is not global; B1-F1 already kept
+# performans_yetkilisi, ik and the technical roles out. Every other role sees and edits its own and
+# its unit's targets.
+_GLOBAL_KPI_ROLES = frozenset({"admin", "başkan", "baskan", "baskanlik", "başkan_yardımcısı", "baskan_yardimcisi"})
+
+
 def _is_global_role(current_user: Any) -> bool:
-    role = _role_name(current_user)
-    return any(item in role for item in ["admin", "sistem", "başkan", "baskan", "performans", "ik"])
+    return _role_name(current_user).strip() in _GLOBAL_KPI_ROLES
 
 
 def _dict_rows(rows: Iterable[Any]) -> list[dict[str, Any]]:

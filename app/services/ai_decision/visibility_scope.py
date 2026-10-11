@@ -23,11 +23,11 @@ AI_DECISION_MENU_KEYS: tuple[str, ...] = (
     "decision_support",
 )
 
+# B1-F1 decision 2: sistem_yoneticisi / system_admin are technical roles; technical
+# administration does not open institution-wide performance evaluations.
 _FULL_SCOPE_ROLES = {
     "admin",
     "administrator",
-    "sistem_yoneticisi",
-    "system_admin",
     "super_admin",
     "baskan",
     "baskanlik",
@@ -35,12 +35,12 @@ _FULL_SCOPE_ROLES = {
     "president",
 }
 
+# B1-F1 (approved least-privilege policy, 2026-10-09): ik, insan_kaynaklari and
+# performans_yetkilisi get no institution-wide evaluation summary or person-level detail
+# by role name; they fall to own_scope.
 _HR_PERFORMANCE_SCOPE_ROLES = {
-    "ik",
-    "insan_kaynaklari",
     "personel_destek",
     "personel_ve_destek_hizmetleri_grup_baskani",
-    "performans_yetkilisi",
     "performans_admin",
 }
 
@@ -198,7 +198,8 @@ def build_ai_decision_scope(user: Any) -> AIDecisionVisibilityScope:
             denied_reason="Oturum bilgisi bulunamadı.",
         )
 
-    role = normalize_role_name(getattr(user, "role", None) or getattr(user, "role_label", None))
+    # B1-F1 decision 3: scope comes from the stored role only; role_label is display text.
+    role = normalize_role_name(getattr(user, "role", None))
     group = role_group_for(role)
     user_id = getattr(user, "id", None)
     unit_names = _compact((getattr(user, "birim", None),))
