@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import posixpath
+import stat
 from collections.abc import Iterable
 from functools import wraps
 from pathlib import Path
@@ -133,22 +134,61 @@ def static_root() -> Path:
     return Path(folder)
 
 
+def _reject_reparse(path: Path) -> None:
+    """Check lexical ancestors before resolution hides a symlink or junction."""
+    try:
+        for ancestor in (path, *path.parents):
+            try:
+                info = ancestor.lstat()
+            except FileNotFoundError:
+                continue
+            if stat.S_ISLNK(info.st_mode) or (getattr(info, "st_file_attributes", 0) or 0) & 0x400:
+                raise PrivateUploadError("PRIVATE_UPLOAD_REPARSE_POINT")
+    except OSError:
+        raise PrivateUploadError("PRIVATE_UPLOAD_PATH_CHECK_FAILED") from None
+
+
+def _resolved_private_path(path: Path) -> Path:
+    if not path.is_absolute():
+        raise PrivateUploadError("PRIVATE_UPLOAD_ABSOLUTE_ROOT_REQUIRED")
+    _reject_reparse(path)
+    try:
+        return path.resolve()
+    except (OSError, RuntimeError):
+        raise PrivateUploadError("PRIVATE_UPLOAD_PATH_CHECK_FAILED") from None
+
+
+def _canonical_public_roots() -> tuple[Path, ...]:
+    roots = public_upload_roots()
+    if any(not root.is_absolute() for root in roots):
+        raise PrivateUploadError("PRIVATE_UPLOAD_ABSOLUTE_ROOT_REQUIRED")
+    try:
+        return tuple(root.resolve() for root in roots)
+    except (OSError, RuntimeError):
+        raise PrivateUploadError("PRIVATE_UPLOAD_PATH_CHECK_FAILED") from None
+
+
+def _overlaps_public(path: Path, roots: tuple[Path, ...]) -> bool:
+    return any(_is_within(path, root) or _is_within(root, path) for root in roots)
+
+
 def private_upload_root() -> Path:
     """``PRIVATE_UPLOAD_FOLDER``; boşsa veya static içine işaret ediyorsa instance altındaki varsayılan."""
     default = Path(current_app.instance_path) / PRIVATE_UPLOAD_DEFAULT_DIRNAME
     configured = str(
         current_app.config.get("PRIVATE_UPLOAD_FOLDER") or os.getenv("PRIVATE_UPLOAD_FOLDER") or ""
     ).strip()
-    root = Path(configured).expanduser() if configured else default
-    if _is_within(root, static_root()):
-        current_app.logger.warning(
-            "PRIVATE_UPLOAD_FOLDER static klasörünün içinde; özel yüklemeler için varsayılan instance kökü kullanılıyor."
-        )
-        root = default
+    public_roots = _canonical_public_roots()
+    root = _resolved_private_path(Path(configured).expanduser() if configured else default)
+    if _overlaps_public(root, public_roots):
+        current_app.logger.warning("PRIVATE_UPLOAD_SAFE_FALLBACK_REQUIRED")
+        root = _resolved_private_path(default)
+    if _overlaps_public(root, public_roots):
+        raise PrivateUploadError("PRIVATE_UPLOAD_PUBLIC_ROOT")
     legacy = str(current_app.config.get("UPLOAD_FOLDER") or "").strip()
     if legacy and any(
         _is_within(legacy, public) or _is_within(public, legacy)
-        for public in public_upload_roots()[1:]
+        for public in public_roots[1:]
     ):
         raise PrivateUploadError("PRIVATE_UPLOAD_LEGACY_PUBLIC_ROOT")
     return root
@@ -156,7 +196,11 @@ def private_upload_root() -> Path:
 
 def private_upload_path(*parts: str) -> Path:
     """Okuma için özel depo yolu; klasör oluşturmaz."""
-    return private_upload_root().joinpath(*parts)
+    root = private_upload_root()
+    target = _resolved_private_path(root.joinpath(*parts))
+    if not _is_within(target, root):
+        raise PrivateUploadError("PRIVATE_UPLOAD_PATH_ESCAPE")
+    return target
 
 
 def private_upload_dir(*parts: str) -> Path:
@@ -166,13 +210,20 @@ def private_upload_dir(*parts: str) -> Path:
         target.mkdir(parents=True, exist_ok=True)
     except OSError:
         raise PrivateUploadError("PRIVATE_UPLOAD_WRITE_FAILED") from None
-    return target
+    # Validate again after creation, before returning a writable directory.
+    return private_upload_path(*parts)
 
 
 def store_private_upload(file_storage: Any, target: str | Path) -> None:
     """Prevent storage errors and their chains from reaching outer handler logs."""
     try:
-        file_storage.save(target)
+        path = _resolved_private_path(Path(target))
+        root = private_upload_root()
+        if not _is_within(path, root) or _overlaps_public(path, _canonical_public_roots()):
+            raise PrivateUploadError("PRIVATE_UPLOAD_PATH_ESCAPE")
+        file_storage.save(path)
+    except PrivateUploadError:
+        raise
     except Exception:
         raise PrivateUploadError("PRIVATE_UPLOAD_WRITE_FAILED") from None
 
@@ -189,8 +240,14 @@ def locate_upload(filename: str, directories: Iterable[str | Path]) -> tuple[Pat
         return None
     for directory in directories:
         candidate = safe_join(str(directory), name)
-        if candidate is not None and os.path.isfile(candidate):
-            return Path(directory), name
+        if candidate is not None:
+            try:
+                base = _resolved_private_path(Path(directory).absolute())
+                target = _resolved_private_path(Path(candidate).absolute())
+                if _is_within(target, base) and target.is_file():
+                    return base, name
+            except (OSError, PrivateUploadError):
+                continue
     return None
 
 
