@@ -26,7 +26,7 @@ Bu rapor bir onay veya sertifika değildir. Her iddia, belirtilen commit'e ve ko
 ## 0. Yönetici özeti
 
 - **Production** hâlâ `cdae2795` sürümünü çalıştırıyor. 9–11 Ekim'de birleştirilen yetki düzeltmeleri (#57, #59, #60, #62–#64, #66, #67) **canlıda değildir**; canlıya geçmeleri için ayrı bir cutover kararı gerekir.
-- **Açık güvenlik PR'ları** (#70, #65, #68, #69, admin PR'ı ve #57 takip PR'ı) taslak hâlindedir. **Hiçbiri merge edilmedi.**
+- **Açık güvenlik PR'ları** (#70, #65, #68, #69, #71, #72) taslak veya açık durumda. **Hiçbiri merge edilmedi.**
 - **Kritik bağımlılık:** #70 (hesap yönetiminde ayrıcalık yükseltme) ile #65 (açık `support_all` yetkisi) birlikte değerlendirilmelidir. #70 tek başına P1b'yi kapatmaz.
   - Birleşik kodda 430 güvenlik sözleşme testi geçti.
   - Birleşik kodun bağımsız güvenlik incelemesi **henüz yapılmadı**.
@@ -93,8 +93,8 @@ Ayrıntı: [04_ROL_VE_YETKI_MIMARISI.md](04_ROL_VE_YETKI_MIMARISI.md). Özet:
 | K5-Q: `support_all` yalnız açık kişi bazlı yetki; kapsam dışı talep bilgisinin sızmaması | #65 | ✔ | ✔ (308) | Kısmi⁴ | PENDING | ✘³ | ✘ | ✘ | ✘ |
 | F06b: teknik rollerin geri bildirim entegrasyon sayfasında kurum verisi görmesi | #69 | ✔ | ✔ (42) | Codex: PENDING | ✔ `21a40fa8` | ✔ (AI, `0e190ee2`)⁵ | ✘ | ✘ | ✘ |
 | B2-F06: özel dosyaların `/static` altında herkese açık olması | #68 | ✔ | ✔ (141) | ✘ | PENDING | **CHANGES-NEEDED** | ✘ | ✘ | ✘ |
-| #57 takip: geri bildirim görüşme ve talep web ekranlarında 15 sızıntı | #57 takip | ✔ | PENDING | PENDING | ✘ | ✘ | ✘ | ✘ | ✘ |
-| Canlı admin hesabı bulunamıyor / ilk giriş / kurtarma | admin PR | ✔ | ✔ (92) | PENDING | ✘ | ✘ | ✘ | ✘ | ✘ |
+| #57 takip: geri bildirim görüşme ve talep web ekranlarında 15 sızıntı | #71 | ✔ | ✔ (99; RED 22F) | ✔ (106 dosya, 2332 geçti / 0 kaldı) | PENDING | ✘ | ✘ | ✘ | ✘ |
+| Canlı admin hesabı bulunamıyor / ilk giriş / kurtarma | #72 | ✔ | ✔ (92; RED 20F) | ✔ (157 dosya, 3192 test, 0 kaldı) | PENDING | ✘ | ✘ | ✘ | ✘ |
 | B2-F01…F05: oturum ve kimlik doğrulama yaşam döngüsü | — | Tanımı bulunamadı⁶ | — | — | — | — | — | — | — |
 
 Dipnotlar:
@@ -114,8 +114,8 @@ Dipnotlar:
 | [#65](https://github.com/bys360/bys360/pull/65) | K5-Q `support_all` | `fb1acdc4802a0d2a26eef43fcf686c5b67a1eb82` (ana dal birleştirildi) | Draft |
 | [#69](https://github.com/bys360/bys360/pull/69) | F06b | `21a40fa8813cc5501e7f83a2b511bfc2161025fa` | Draft |
 | [#68](https://github.com/bys360/bys360/pull/68) | B2-F06 özel dosyalar | `f79ab0a3709c018666e7f2b9975d223725f103ce` | Open |
-| Admin PR | Admin hesap yönetimi | PENDING | Henüz açılmadı |
-| #57 takip PR | Geri bildirim web ekranları | PENDING | Henüz açılmadı |
+| [#72](https://github.com/bys360/bys360/pull/72) | Admin hesap yönetimi ve kurtarma | `db574721ac20df9b230ca5dbdb12dcad81938254` | Draft |
+| [#71](https://github.com/bys360/bys360/pull/71) | #57 takip: geri bildirim web ekranları | `0c00296020b5192228cc8add7800c9a47af8f4b0` | Draft |
 
 ## 7. GitHub CI ve test kanıtları
 
@@ -141,7 +141,13 @@ PENDING. Son okumada her PR'ın iki zorunlu CI sonucu buraya yazılacak.
 
 ## 10. Admin hesap yönetiminin durumu
 
-PENDING. Doldurulacak: PR, testler ve CI.
+PR [#72](https://github.com/bys360/bys360/pull/72) (`db574721`, Draft). Durum:
+
+- **Kod hazır.**
+- **Testler:** hedefli testler `f796107f` üzerinde 20 kaldı (RED); `db574721` üzerinde 92 geçti (GREEN). Geniş regresyon: 3192 test, 0 kaldı.
+- **CI:** sonucu bekleniyor.
+- **Bağımsız inceleme:** yapılmadı.
+- **Canlı hesap:** hiçbir canlı hesaba dokunulmadı.
 
 Kök neden (yerel olarak yeniden üretildi, canlıya dokunulmadı):
 
