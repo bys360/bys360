@@ -666,3 +666,143 @@ def test_guard_admin_excel_upload_can_assign_roles(env):
     client = _web(env, "admin")
     _upload(client, "/personnel/excel-upload", [_xlsx_row(SICIL["plain"], "koordinator")], update_existing="on")
     assert _state(env, "plain").role == "koordinator"
+
+
+# --------------------------------------------------------------------------------------
+# Independent review of the first R05 head (6672154a): F1, F3, F4, F5, R1
+# --------------------------------------------------------------------------------------
+
+IMPORT_PATHS = ("/personnel/excel-upload", "/admin/users/import")
+
+
+def _roles(env) -> dict[str, str]:
+    from app.extensions import db
+    from app.models import User
+
+    with env.app.app_context():
+        return {key: db.session.get(User, user_id).role for key, user_id in env.ids.items()}
+
+
+@pytest.mark.parametrize("path", IMPORT_PATHS)
+def test_r05_f1_non_admin_import_leaves_every_other_role_unchanged(env, path):
+    """The manager-chain rebuild after an import re-derived every user's role from the title/unit."""
+    before = _roles(env)
+    client = _web(env, "baskan")
+    _upload(client, path, [_xlsx_row("R5NEW20", "personel")], activate_new_users="on")
+    assert _roles(env) == before
+
+
+@pytest.mark.parametrize("path", IMPORT_PATHS)
+def test_r05_f1_admin_import_audits_every_role_it_changes(env, path):
+    before = _roles(env)
+    client = _web(env, "admin")
+    _upload(client, path, [_xlsx_row("R5NEW21", "personel")], activate_new_users="on")
+    after = _roles(env)
+    changed = {key for key in before if after[key] != before[key]}
+    audited = {row.entity_id for row in _audit_rows(env, "account.role_change")}
+    assert {env.ids[key] for key in changed} <= audited
+
+
+@pytest.mark.parametrize("route", EDIT_ROUTES)
+def test_r05_f3_non_admin_cannot_rewrite_a_role_to_a_case_variant(env, route):
+    client = _web(env, "baskan")
+    _post_edit(client, route, env, "admin2", role="ADMIN")
+    assert _state(env, "admin2").role == "admin"
+
+
+def _identity(env, key):
+    from app.extensions import db
+    from app.models import User
+
+    with env.app.app_context():
+        user = db.session.get(User, env.ids[key])
+        return (user.sicil_no, user.email, bool(user.must_change_password), bool(user.must_set_security_question))
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (("sicil_no", "R5LOCKED"), ("email", "r5locked@example.gov.tr")),
+)
+@pytest.mark.parametrize("route", EDIT_ROUTES)
+@pytest.mark.parametrize("target", ("admin2", "pra_holder", "self"))
+def test_r05_f4_non_admin_cannot_change_login_identifiers_of_protected_accounts(env, route, target, field, value):
+    target = "baskan" if target == "self" else target
+    before = _identity(env, target)
+    client = _web(env, "baskan")
+    _post_edit(client, route, env, target, **{field: value})
+    assert _identity(env, target) == before
+
+
+@pytest.mark.parametrize("flag", ("must_change_password", "must_set_security_question"))
+def test_r05_f4_non_admin_cannot_set_security_flags_of_protected_accounts(env, flag):
+    before = _identity(env, "admin2")
+    client = _web(env, "baskan")
+    _post_edit(client, "personnel_edit", env, "admin2", **{flag: "on"})
+    assert _identity(env, "admin2") == before
+
+
+def test_r05_f4_non_admin_excel_upload_cannot_change_a_protected_email(env):
+    before = _identity(env, "admin2")
+    client = _web(env, "baskan")
+    row = (SICIL["admin2"], "Kisi", SICIL["admin2"], "r5other@example.gov.tr", "Uzman", "R05 Birim", "R05 Ust Birim", "admin")
+    _upload(client, "/personnel/excel-upload", [row], update_existing="on")
+    assert _identity(env, "admin2") == before
+
+
+def test_r05_f4_non_admin_excel_upload_cannot_match_a_protected_account_by_email(env):
+    client = _web(env, "baskan")
+    row = ("R5OTHER", "Degisti", "Degisti", f"{SICIL['admin2'].lower()}@example.gov.tr", "Uzman", "R05 Birim", "R05 Ust Birim", "admin")
+    _upload(client, "/personnel/excel-upload", [row], update_existing="on")
+    from app.extensions import db
+    from app.models import User
+
+    with env.app.app_context():
+        user = db.session.get(User, env.ids["admin2"])
+        assert user is not None and user.ad == "Kisi" and user.soyad == SICIL["admin2"]
+
+
+def test_r05_f4_non_admin_admin_import_cannot_change_a_protected_email(env):
+    before = _identity(env, "pra_holder")
+    client = _web(env, "baskan")
+    row = (SICIL["pra_holder"], "Kisi", SICIL["pra_holder"], "r5other@example.gov.tr", "Uzman", "R05 Birim", "R05 Ust Birim", "personel")
+    _upload(client, "/admin/users/import", [row])
+    assert _identity(env, "pra_holder") == before
+
+
+def test_r05_f5_refusal_audit_never_points_at_a_rolled_back_account(env):
+    client = _web(env, "baskan")
+    shared_email = "r5shared@example.gov.tr"
+    rows = [
+        ("R5NEWC", "Kisi", "R5NEWC", shared_email, "Uzman", "R05 Birim", "R05 Ust Birim", "personel"),
+        ("R5NEWD", "Kisi", "R5NEWD", shared_email, "Uzman", "R05 Birim", "R05 Ust Birim", "admin"),
+    ]
+    _upload(client, "/personnel/excel-upload", rows, update_existing="on", activate_new_users="on")
+    from app.extensions import db
+    from app.models import User
+
+    refusals = _audit_rows(env, "account.change_refused")
+    assert refusals
+    with env.app.app_context():
+        for row in refusals:
+            assert row.entity_id is None or db.session.get(User, row.entity_id) is not None
+
+
+def _president_approvals_open(client) -> bool:
+    response = client.get("/performance/president-approvals")
+    return response.status_code == 200 and "/login" not in response.headers.get("Location", "")
+
+
+def test_r05_r1_a_self_assigned_title_gives_no_president_approvals(env):
+    client = _web(env, "grup_baskani")
+    _post_edit(client, "personnel_edit", env, "grup_baskani", unvan="Başkan")
+    assert not _president_approvals_open(_web(env, "grup_baskani"))
+
+
+def test_r05_r1_a_title_set_on_an_ordinary_account_gives_no_president_approvals(env):
+    client = _web(env, "baskan")
+    _post_edit(client, "personnel_edit", env, "plain", unvan="Başkan")
+    assert not _president_approvals_open(_web(env, "plain"))
+
+
+def test_guard_the_stored_president_role_keeps_president_approvals(env):
+    assert _president_approvals_open(_web(env, "baskan"))
