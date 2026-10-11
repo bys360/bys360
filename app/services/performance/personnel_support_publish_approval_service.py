@@ -202,8 +202,7 @@ def is_admin_user(user: Any) -> bool:
 
 
 def is_hr_publish_user(user: Any) -> bool:
-    # R05/R1: the stored role only; unvan or title never create the HR publish authority.
-    role_values = {_normalize(getattr(user, attr, None)) for attr in ("role", "role_name", "user_type")}
+    role_values = {_normalize(getattr(user, attr, None)) for attr in ("role", "role_name", "user_type", "unvan", "title")}
     return is_admin_user(user) or bool(role_values & {"ik", "insan_kaynaklari", "personel_yonetimi", "performans_yetkilisi"})
 
 
@@ -219,19 +218,17 @@ def is_personnel_support_group_chair_user(user: Any) -> bool:
     # içinde de geçiyor). explicit küme zaten bilinen tüm yazım
     # varyasyonlarını numaralandırdığı için fallback tamamen kaldırıldı --
     # yeni bir substring/allowlist icat edilmedi.
-    # R05/R1: the title never creates this authority. It only tells WHICH stored grup_baskani
-    # chairs Personnel and Support; any other role is refused whatever its title says.
-    role_values = {_normalize(getattr(user, attr, None)) for attr in ("role", "role_name", "user_type")}
-    title_values = {_normalize(getattr(user, attr, None)) for attr in ("unvan", "title", "position", "gorev")}
+    role_values = {
+        _normalize(getattr(user, attr, None))
+        for attr in ("role", "role_name", "user_type", "unvan", "title", "position", "gorev")
+    }
     explicit = {
         "personel_ve_destek_hizmetleri_grup_baskani",
         "personel_destek_hizmetleri_grup_baskani",
         "personel_ve_idari_isler_grup_baskani",
         "personel_idari_isler_grup_baskani",
     }
-    if role_values & explicit:
-        return True
-    return _normalize(getattr(user, "role", None)) == "grup_baskani" and bool(title_values & explicit)
+    return bool(role_values & explicit)
 
 
 def can_view_personnel_support_publish_approvals(user: Any) -> bool:

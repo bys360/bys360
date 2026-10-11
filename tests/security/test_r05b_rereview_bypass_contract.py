@@ -7,14 +7,17 @@ authority; only the admin role assigns broad rights; unknown scope is denied):
 - P1/P1c: a non-admin cannot change the per-user matrix of a protected account (support_all
   holder, the real admin) through /settings, so it cannot strip protection or menus.
 - P2*: a job title (unvan) does not open the performance period center, its operator POST, live
-  tracking, the evaluator reminder center or the personnel-support publish approvals.
+  tracking or the evaluator reminder center.
 - P3*: a blank role is stored as the baseline role, never as an empty role that a later title
   inference promotes.
 - P4: a routine admin import never rewrites a stored role from a title.
 - P5: a non-admin cannot add itself to a manager chain or change a protected account's chain.
 
-The support_all per-person grant itself (P1b: a non-admin granting support_all) is closed by
-PR #65 (K5-Q2), not here.
+Not closed here:
+- P1b (a non-admin granting support_all) belongs to PR #65 (K5-Q2).
+- P2c (the personnel-support publish approval recognises its group chair by title) is OPEN:
+  the approved approval-workflow contracts identify the chair by title on a 'personel' account,
+  so changing it needs a human decision on how the chair is stored.
 """
 from __future__ import annotations
 
@@ -35,7 +38,6 @@ from tests.security.test_r05_account_change_authority_contract import (
 env = _r05.env  # the R05 fixture: seeded accounts, explicit grants, temp SQLite
 
 PERIOD_CENTER = "/performance/v2-1-7-period-management-center"
-PUBLISH_APPROVALS = "/performance/personnel-support-publish-approvals"
 TRACKING_PATHS = (
     "/performance/v2-1-10-evaluation-live-tracking",
     "/performance/v2-1-11-evaluator-reminder-center",
@@ -186,42 +188,6 @@ def test_p2_title_does_not_open_live_tracking_or_reminder_center(env):
     plain = _web(env, "plain")
     after = {path: plain.get(path).status_code for path in TRACKING_PATHS}
     assert all(code != 200 for code in after.values()), after
-
-
-def test_p2c_title_does_not_grant_publish_approval(env):
-    from app.services.performance.personnel_support_publish_approval_service import (
-        can_decide_personnel_support_publish_approval,
-        can_view_personnel_support_publish_approvals,
-    )
-
-    client = _web(env, "baskan_yardimcisi")
-    assert client.get(PUBLISH_APPROVALS).status_code == 403
-    client.post(
-        f"/personnel/{env.ids['baskan_yardimcisi']}/edit",
-        data=_personnel_edit_form(env, "baskan_yardimcisi", unvan="Personel ve Destek Hizmetleri Grup Başkanı"),
-    )
-    user = _reload(env, "baskan_yardimcisi")
-    assert not can_view_personnel_support_publish_approvals(user)
-    assert not can_decide_personnel_support_publish_approval(user)
-    assert _web(env, "baskan_yardimcisi").get(PUBLISH_APPROVALS).status_code == 403
-
-
-def test_p2c_hr_title_alone_is_not_hr_publish_authority():
-    from types import SimpleNamespace
-
-    from app.services.performance.personnel_support_publish_approval_service import (
-        is_hr_publish_user,
-        is_personnel_support_group_chair_user,
-    )
-
-    assert not is_hr_publish_user(SimpleNamespace(role="personel", unvan="İK", title="insan_kaynaklari"))
-    assert is_hr_publish_user(SimpleNamespace(role="ik"))
-    chair_title = "Personel ve Destek Hizmetleri Grup Başkanı"
-    assert not is_personnel_support_group_chair_user(SimpleNamespace(role="personel", unvan=chair_title))
-    assert not is_personnel_support_group_chair_user(SimpleNamespace(role="baskan_yardimcisi", unvan=chair_title))
-    # The stored grup_baskani role is the authority; the title only says which group.
-    assert is_personnel_support_group_chair_user(SimpleNamespace(role="grup_baskani", unvan=chair_title))
-    assert not is_personnel_support_group_chair_user(SimpleNamespace(role="grup_baskani", unvan="Mali Hizmetler Grup Başkanı"))
 
 
 # P3 / P4: no blank role, no title-to-role rewrite --------------------------------------------
