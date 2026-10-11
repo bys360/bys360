@@ -146,10 +146,11 @@ def private_upload_root() -> Path:
         )
         root = default
     legacy = str(current_app.config.get("UPLOAD_FOLDER") or "").strip()
-    if legacy:
-        if any(_is_within(legacy, public) or _is_within(public, legacy)
-               for public in public_upload_roots()[1:]):
-            raise PrivateUploadError("PRIVATE_UPLOAD_LEGACY_PUBLIC_ROOT")
+    if legacy and any(
+        _is_within(legacy, public) or _is_within(public, legacy)
+        for public in public_upload_roots()[1:]
+    ):
+        raise PrivateUploadError("PRIVATE_UPLOAD_LEGACY_PUBLIC_ROOT")
     return root
 
 
