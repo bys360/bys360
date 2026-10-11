@@ -110,7 +110,7 @@ Dipnotlar:
 
 | PR | Konu | Exact HEAD | Durum |
 |---|---|---|---|
-| [#70](https://github.com/bys360/bys360/pull/70) | R05 hesap yönetimi yetkisi | `d8068ae04250ad366fd2e17151d5a652744da7be` | Draft |
+| [#70](https://github.com/bys360/bys360/pull/70) | R05 hesap yönetimi yetkisi | `389178dc062e1e5b5bfca9865fadaaabfde3caa2` | Draft |
 | [#65](https://github.com/bys360/bys360/pull/65) | K5-Q `support_all` | `fb1acdc4802a0d2a26eef43fcf686c5b67a1eb82` (ana dal birleştirildi) | Draft |
 | [#69](https://github.com/bys360/bys360/pull/69) | F06b | `21a40fa8813cc5501e7f83a2b511bfc2161025fa` | Draft |
 | [#68](https://github.com/bys360/bys360/pull/68) | B2-F06 özel dosyalar | `f79ab0a3709c018666e7f2b9975d223725f103ce` | Open |
@@ -127,7 +127,7 @@ PENDING. Son okumada her PR'ın iki zorunlu CI sonucu buraya yazılacak.
 |---|---|---|---|
 | #70 | `e2832218` | CHANGES-NEEDED | 13 sonda testi 7 açığı doğruladı. P1/P1c, P2, P3, P4 ve P5 `f8c6df9f`'de kapandı; P1b #65'te, P2c OPEN. Son sürüm incelenmedi. |
 | #65 | `866d8c63` | Önceki oturumda adversarial inceleme yapıldı | — |
-| **#70 + #65 birleşik** | #70 `d8068ae0` + #65 `fb1acdc4` (yerel entegrasyon) | **CHANGES-NEEDED** | Admin olmayan bir kullanıcının `support_all` veya `personnel_read_all` elde etmesinin **hiçbir yolu bulunamadı** (P1b birleşik kodda kapalı). 13 sonda testi şu açıkları doğruladı. **F1 (yüksek, #70):** Excel içe aktarmalarıyla kendini amir yapma veya korunan hesabın zincirini değiştirme. **F2 (yüksek, #70):** kendi menüsünü açarak üç hiyerarşi sayfasından kendini amir yapma. F1 ve F2 #70'te düzeltildi (bkz. §6). **F3 (orta, #70):** /settings toplu uygula, şablon, arşiv, rollback, rol ve birim profili rotaları korunan hesap ve profilleri değiştirebiliyor; açık yetki satırları korunuyor. Politika kararı gerektiği için OPEN. **F4 (düşük, #65):** dashboard'da kurum geneli destek talebi sayıları görünüyor (yalnız sayı). |
+| **#70 + #65 birleşik** | #70 `d8068ae0` + #65 `fb1acdc4` (yerel entegrasyon) | **CHANGES-NEEDED** | Admin olmayan bir kullanıcının `support_all` veya `personnel_read_all` elde etmesinin **hiçbir yolu bulunamadı** (P1b birleşik kodda kapalı). 13 sonda testi şu açıkları doğruladı. **F1 (yüksek, #70):** Excel içe aktarmalarıyla kendini amir yapma veya korunan hesabın zincirini değiştirme. **F2 (yüksek, #70):** kendi menüsünü açarak üç hiyerarşi sayfasından kendini amir yapma. F1 ve F2 #70'te `389178dc` ile düzeltildi: `d8068ae0` üzerinde RED 3 kaldı; yeni sürümde 4 yeni test ve 11 dosyalık regresyonda 600 test geçti. **F3 (orta, #70):** /settings toplu uygula, şablon, arşiv, rollback, rol ve birim profili rotaları korunan hesap ve profilleri değiştirebiliyor; açık yetki satırları korunuyor. Politika kararı gerektiği için OPEN. **F4 (düşük, #65):** dashboard'da kurum geneli destek talebi sayıları görünüyor (yalnız sayı). |
 | #69 | `0e190ee2` | Codex: engelleyici bulgu yok | Uygulama kodu güncel HEAD ile aynı. |
 | #68 | `582c1a76` | CHANGES-NEEDED | F1 ve F3 kapalı. F2 kısmi (portal, mesaj ve yayın yazımları). F4 kısmi (statik altındaki bağlantının özel köke işaret etmesi; publications alt dizini). Ön katman bilinmiyor. Eski dosya taşıma betiği yok. |
 
@@ -171,6 +171,17 @@ Kök neden (yerel olarak yeniden üretildi, canlıya dokunulmadı):
 - **Migration, model veya şema değişikliği yok.**
 
 Ayrıntı: belge 04 §9.
+
+### 11.1 Release candidate (yalnız hazırlık; tag veya release oluşturulmadı)
+
+| Kalem | Durum |
+|---|---|
+| Aday SHA | Bugün güvenli bir aday **yok**. Kod seviyesinde en olgun aday `assistant-v2-full` @ `f796107f`'dir; bu sürümde 9–11 Ekim yetki düzeltmeleri var, açık PR'lar yok. Önerilen hedef: #70 + #65, #69, #71 ve #72 insan onayıyla merge edildikten sonraki ana dal SHA'sı. #68 ayrıca ele alınır. |
+| Canlı SHA doğrulaması | Bu oturumdan canlıya erişim yok. Doğrulama yapılmadı. Belgelenen değer `cdae2795`. Operatör `/versionz` ile salt-okunur doğrulama yapmalı. |
+| Şema ve migration | `cdae2795..f796107f` arasında migration yok. Açık PR'larda da migration yok. |
+| Özel dosya depolama | #68 merge edilirse: ön katman doğrulaması, eski dosyaların taşınması, dosya yedeği ve geri dönüş planı gerekir (§13). |
+| Shadow DB provası | Bu gece yapılmadı. Migration olmadığı için risk düşük, ama cutover prosedürü provayı zorunlu tutuyor. |
+| Yedekleme ve rollback | Veritabanı yedeği cutover prosedüründe alınıyor. Dosya yedeği yok. RPO/RTO tanımsız (§14). |
 
 **Production GO/NO-GO: NO-GO.** Gerekçeler:
 
