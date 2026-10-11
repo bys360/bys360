@@ -46,16 +46,29 @@ def _clean_int(value: Any) -> int | None:
 
 
 def _query_first_by_field(user_model: Any, field_name: str, value: str, *, exclude_user_id: int | None = None) -> Any:
-    """Return first conflicting user for a field without mutating DB state."""
+    """Return first conflicting user for a field without mutating DB state.
+
+    sicil_no and email are compared like the login lookup (app/services/account_lookup.py):
+    trimmed and case-insensitive, so a case variant of an existing identifier is a conflict
+    instead of a second, unreachable account.
+    """
     if not value or not hasattr(user_model, field_name):
         return None
 
+    from app.services.account_lookup import email_matches, sicil_matches
+
     query = user_model.query
     field = getattr(user_model, field_name)
-    if exclude_user_id:
-        query = query.filter(field == value, user_model.id != exclude_user_id)
+    if field_name == "email":
+        condition = email_matches(field, value)
+    elif field_name == "sicil_no":
+        condition = sicil_matches(field, value)
     else:
-        query = query.filter(field == value)
+        condition = field == value
+    if exclude_user_id:
+        query = query.filter(condition, user_model.id != exclude_user_id)
+    else:
+        query = query.filter(condition)
     return query.first()
 
 

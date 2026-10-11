@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Hesapları - BYS360{% endblock %}
+{% block page_kicker %}Güvenli Yönetim{% endblock %}
+{% block page_title %}Admin Hesapları{% endblock %}
+{% block page_subtitle %}
+Yalnız sistem admini görür. Admin hesapları genel personel listelerinde gösterilmez.
+{% endblock %}
+
+{% block content %}
+<section class="bys-pro-card bys-pro-card-pad">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Sicil</th>
+        <th>Ad Soyad</th>
+        <th>E-posta</th>
+        <th>Durum</th>
+        <th>İlk giriş</th>
+        <th>Başlangıç şifresi</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for account in accounts %}
+      <tr>
+        <td>{{ account.sicil_no }}</td>
+        <td>{{ account.full_name }}</td>
+        <td>{{ account.email }}</td>
+        <td>{{ "Aktif" if account.is_active else "Pasif" }}</td>
+        <td>
+          {% if account.must_set_security_question %}Gizli soru bekleniyor{% elif account.must_change_password %}Şifre değişikliği bekleniyor{% else %}Tamamlandı{% endif %}
+          {% if not account.has_security_question %} · gizli soru tanımlı değil{% endif %}
+        </td>
+        <td>
+          {% if account.is_self %}
+          Kendi şifreniz: Hesabım &gt; Şifre değiştir
+          {% else %}
+          <form method="post" action="{{ url_for('main.admin_user_edit', user_id=account.id) }}" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="form_action" value="issue_initial_password">
+            <label>Kendi şifreniz
+              <input type="password" name="actor_password" required autocomplete="current-password">
+            </label>
+            <button type="submit" class="btn btn-danger">Yeni başlangıç şifresi ver</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">Admin hesabı bulunamadı.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p>Yeni başlangıç şifresi rastgele üretilir, yalnız bir kez gösterilir ve kaydedilmez. İşlem denetim kaydına yazılır; eski şifre görüntülenmez.</p>
+</section>
+{% endblock %}
