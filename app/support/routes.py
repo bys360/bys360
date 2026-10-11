@@ -32,7 +32,12 @@ from app.route_support import (
     safe_render,
     sanitize_free_text,
 )
-from app.security.private_uploads import locate_upload, private_upload_dir, private_upload_path
+from app.security.private_uploads import (
+    locate_upload,
+    private_upload_dir,
+    private_upload_path,
+    store_private_upload,
+)
 from app.security.upload_security import UploadValidationError, safe_store_filename, validate_upload
 from app.services.bys360_notification_bridge import (
     notify_support_ticket_assigned,
@@ -327,10 +332,8 @@ def _store_ticket_attachment(ticket: SupportTicket, file_obj, attachment_type: s
         max_size=current_app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024),
     )
     stored_name = safe_store_filename(file_obj.filename)
-    root = _support_upload_root()
-    ticket_folder = root / str(ticket.id)
-    ticket_folder.mkdir(parents=True, exist_ok=True)
-    file_obj.save(ticket_folder / stored_name)
+    ticket_folder = private_upload_dir("support_tickets", str(ticket.id))
+    store_private_upload(file_obj, ticket_folder / stored_name)
     db.session.add(
         SupportTicketAttachment(
             ticket=ticket,

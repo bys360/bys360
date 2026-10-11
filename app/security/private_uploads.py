@@ -162,8 +162,19 @@ def private_upload_path(*parts: str) -> Path:
 def private_upload_dir(*parts: str) -> Path:
     """Yazma için özel depo klasörü; klasörü yalnızca burada oluşturur."""
     target = private_upload_path(*parts)
-    target.mkdir(parents=True, exist_ok=True)
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        raise PrivateUploadError("PRIVATE_UPLOAD_WRITE_FAILED") from None
     return target
+
+
+def store_private_upload(file_storage: Any, target: str | Path) -> None:
+    """Prevent storage errors and their chains from reaching outer handler logs."""
+    try:
+        file_storage.save(target)
+    except Exception:
+        raise PrivateUploadError("PRIVATE_UPLOAD_WRITE_FAILED") from None
 
 
 def legacy_static_upload_path(*parts: str) -> Path:

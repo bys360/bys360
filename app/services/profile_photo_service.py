@@ -7,7 +7,12 @@ from flask import current_app
 from werkzeug.utils import secure_filename
 
 from app.core.datetime_utils import utc_now
-from app.security.private_uploads import locate_upload, private_upload_dir, private_upload_path
+from app.security.private_uploads import (
+    locate_upload,
+    private_upload_dir,
+    private_upload_path,
+    store_private_upload,
+)
 
 PROFILE_PHOTO_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
@@ -53,7 +58,7 @@ def save_profile_photo(file_storage, user) -> str:
 
     upload_dir = profile_photo_upload_dir()
     abs_path = os.path.join(upload_dir, new_name)
-    file_storage.save(abs_path)
+    store_private_upload(file_storage, abs_path)
 
     old_path = getattr(user, "profile_photo_path", None)
     new_relative_path = f"uploads/profile_photos/{new_name}"

@@ -37,7 +37,7 @@ from app.route_support import (
     safe_db_rollback,
     safe_render,
 )
-from app.security.private_uploads import private_upload_dir
+from app.security.private_uploads import private_upload_dir, store_private_upload
 
 from .routes import _all_personnel, _filter_users_in_scope, _hr_scope_context, _scope_user_ids
 
@@ -210,11 +210,11 @@ def _save_file(file_storage, *, prefix: str = "personnel") -> dict[str, Any]:
     stored_filename = f"{prefix}_{uuid.uuid4().hex}{ext}"
     folder = _upload_root()
     full_path = os.path.join(folder, stored_filename)
-    file_storage.save(full_path)
+    store_private_upload(file_storage, full_path)
     try:
         file_size = os.path.getsize(full_path)
     except Exception:
-        __import__("logging").getLogger(__name__).exception("BYS360 SAFE V4: sessiz except loglandi: app/institutional/hr_personnel_operations_routes.py:205")
+        logger.warning("PRIVATE_UPLOAD_SIZE_CHECK_FAILED")
         file_size = 0
     return {
         "original_filename": filename,
