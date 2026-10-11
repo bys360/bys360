@@ -9,6 +9,11 @@ from flask_login import current_user
 
 from app.extensions import db
 from app.models import PerformancePeriod, User
+from app.services.account_change_guard import (
+    MANAGER_CHAIN_REFUSAL_MESSAGE,
+    audit_refusal,
+    may_change_manager_chain,
+)
 from app.services.performance_service import generate_assignments_for_active_period
 
 
@@ -33,6 +38,15 @@ def performance_hierarchy_bulk_assign_impl():
     users = query.all()
     if not users:
         flash("Toplu atama için uygun personel bulunamadı.", "warning")
+        return redirect(url_for("main.performance_hierarchy_settings"))
+
+    # R05: a non-admin never changes a protected account's chain nor adds themselves to a
+    # chain; one such row refuses the whole bulk assignment (nothing is written).
+    new_chain = [yonetici_sicil, ikinci_yonetici_sicil, ucuncu_yonetici_sicil if level_3_enabled else None]
+    refused = next((u for u in users if not may_change_manager_chain(current_user, u, new_chain)), None)
+    if refused is not None:
+        audit_refusal(refused, "bulk_manager_chain_change")
+        flash(MANAGER_CHAIN_REFUSAL_MESSAGE + " Toplu atama yapılmadı.", "danger")
         return redirect(url_for("main.performance_hierarchy_settings"))
 
     updated_count = 0

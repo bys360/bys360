@@ -34,6 +34,7 @@ from app.security import (
     validate_excel_file,
 )
 from app.services.account_change_guard import (
+    MANAGER_CHAIN_REFUSAL_MESSAGE,
     REFUSAL_MESSAGE,
     ROLE_REFUSAL_MESSAGE,
     audit_account_change,
@@ -43,6 +44,7 @@ from app.services.account_change_guard import (
     login_identity_changes,
     may_assign_role,
     may_change_account_state,
+    may_change_manager_chain,
     may_change_role,
     record_account_changes,
     role_changes,
@@ -351,7 +353,7 @@ def admin_user_create():
             sicil_no = (request.form.get("sicil_no") or "").strip()
             email = (request.form.get("email") or "").strip().lower()
             unvan = (request.form.get("unvan") or "").strip()
-            role = (request.form.get("role") or "personel").strip()
+            role = (request.form.get("role") or "").strip() or "personel"
             birim = (request.form.get("birim") or "").strip()
             ust_birim = (request.form.get("ust_birim") or "").strip()
             yonetici_sicil = (request.form.get("yonetici_sicil") or "").strip() or None
@@ -559,7 +561,7 @@ def admin_user_edit(user_id):
             sicil_no = (request.form.get("sicil_no") or "").strip()
             email = (request.form.get("email") or "").strip().lower()
             unvan = (request.form.get("unvan") or "").strip()
-            role = (request.form.get("role") or "personel").strip()
+            role = (request.form.get("role") or "").strip() or "personel"
             birim = (request.form.get("birim") or "").strip()
             ust_birim = (request.form.get("ust_birim") or "").strip()
             yonetici_sicil = (request.form.get("yonetici_sicil") or "").strip() or None
@@ -610,6 +612,10 @@ def admin_user_edit(user_id):
             if login_identity_changes(user, sicil_no=sicil_no, email=email) and not may_change_account_state(current_user, user):
                 audit_refusal(user, "identity_change")
                 flash(REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_edit", user_id=user_id))
+            if not may_change_manager_chain(current_user, user, [yonetici_sicil, ikinci_yonetici_sicil, ucuncu_yonetici_sicil]):
+                audit_refusal(user, "manager_chain_change")
+                flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
                 return redirect(url_for("main.admin_user_edit", user_id=user_id))
             role = kept_role(old_role, role)
 
@@ -896,6 +902,14 @@ def personnel_edit(user_id):
             if sensitive_change and not may_change_account_state(current_user, user):
                 audit_refusal(user, sensitive_change)
                 flash(REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.personnel_edit", user_id=user_id))
+            new_manager_sicils = [
+                getattr(db.session.get(User, manager_id), "sicil_no", None) if manager_id else None
+                for manager_id in (new_manager_1_id, new_manager_2_id, new_manager_3_id)
+            ]
+            if not may_change_manager_chain(current_user, user, new_manager_sicils):
+                audit_refusal(user, "manager_chain_change")
+                flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
                 return redirect(url_for("main.personnel_edit", user_id=user_id))
             payload = dataclasses.replace(payload, role_value=kept_role(user.role, payload.role_value or current_role or "Personel"))
 

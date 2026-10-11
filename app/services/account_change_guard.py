@@ -13,6 +13,8 @@ these rules themselves:
   a protected account: their own, any role other than the baseline (unknown roles included)
   or a holder of a visible ``personnel_read_all`` / ``support_all`` row (any source, active
   or not, so a disabled holder cannot be revived and taken over);
+- a non-admin editor never changes the manager chain of a protected account and never adds
+  themselves to anyone's manager chain;
 - a password set by another user, and a deactivation, end the target's other sessions;
 - every change and every refusal writes an ``audit_logs`` row without password material.
 
@@ -37,6 +39,9 @@ SUPPORT_ALL_KEY = "support_all"
 PROTECTED_GRANT_KEYS: tuple[str, ...] = (PERSONNEL_READ_ALL_KEY, SUPPORT_ALL_KEY)
 
 REFUSAL_MESSAGE = "Bu hesap değişikliği (rol, şifre veya aktiflik) yalnız sistem admini tarafından yapılabilir."
+MANAGER_CHAIN_REFUSAL_MESSAGE = (
+    "Bu hesabın amir zinciri yalnız sistem admini tarafından değiştirilebilir; kendinizi bir personelin amiri yapamazsınız."
+)
 ROLE_REFUSAL_MESSAGE = "Rol ataması ve rol değişikliği yalnız sistem admini tarafından yapılabilir."
 
 
@@ -65,6 +70,25 @@ def holds_protected_grant(user: Any) -> bool:
         return row is not None
     except SQLAlchemyError:
         logger.exception("BYS360 R05 protected grant lookup failed; treating the account as protected.")
+        _safe_rollback()
+        return True
+
+
+def holds_support_all_row(user: Any) -> bool:
+    """A visible ``support_all`` row of any source (fails closed). Full matrix saves also store
+    invisible rows for every menu key, so an invisible row is not a holder."""
+    user_id = getattr(user, "id", None)
+    if user_id is None:
+        return True
+    try:
+        from app.models import UserMenuPermission
+
+        return (
+            UserMenuPermission.query.filter_by(user_id=user_id, menu_key=SUPPORT_ALL_KEY, is_visible=True).first()
+            is not None
+        )
+    except SQLAlchemyError:
+        logger.exception("BYS360 R05 support_all lookup failed; treating the account as protected.")
         _safe_rollback()
         return True
 
@@ -114,6 +138,28 @@ def security_flags_change(target: Any, *, must_change_password: Any, must_set_se
     return bool(must_change_password) != bool(getattr(target, "must_change_password", False)) or bool(
         must_set_security_question
     ) != bool(getattr(target, "must_set_security_question", False))
+
+
+MANAGER_FIELDS: tuple[str, ...] = ("yonetici_sicil", "ikinci_yonetici_sicil", "ucuncu_yonetici_sicil")
+
+
+def _sicil(value: Any) -> str:
+    return str(value or "").strip().upper()
+
+
+def may_change_manager_chain(actor: Any, target: Any, new_sicils: Any) -> bool:
+    """Manager (evaluator) chain: a non-admin never changes the chain of a protected account and
+    never adds themselves to anyone's chain (that would create an evaluator relation)."""
+    if is_real_admin(actor):
+        return True
+    old = tuple(_sicil(getattr(target, field, None)) for field in MANAGER_FIELDS)
+    new = tuple(_sicil(value) for value in (list(new_sicils or ()) + [None] * len(MANAGER_FIELDS))[: len(MANAGER_FIELDS)])
+    if old == new:
+        return True
+    if is_protected_account(target, actor):
+        return False
+    actor_sicil = _sicil(getattr(actor, "sicil_no", None))
+    return not actor_sicil or actor_sicil in old or actor_sicil not in new
 
 
 def end_other_sessions(target: Any) -> None:

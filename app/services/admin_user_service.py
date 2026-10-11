@@ -92,7 +92,7 @@ def parse_admin_user_form(form) -> AdminUserFormPayload:
         sicil_no=(form.get("sicil_no") or "").strip(),
         email=(form.get("email") or "").strip().lower(),
         unvan=(form.get("unvan") or "").strip(),
-        role=(form.get("role") or "personel").strip(),
+        role=(form.get("role") or "").strip() or "personel",
         birim=(form.get("birim") or "").strip(),
         ust_birim=(form.get("ust_birim") or "").strip(),
         yonetici_sicil=((form.get("yonetici_sicil") or "").strip() or None),

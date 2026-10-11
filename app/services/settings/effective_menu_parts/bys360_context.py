@@ -470,7 +470,8 @@ def _bys360_admin_period_reminder_is_admin_v1(user):
         except Exception:
             pass
     terms = set()
-    for attr in ("role", "role_name", "user_role", "authority_level", "title", "unvan", "position", "gorev", "username"):
+    # R05/R1: the stored role only; title, unvan, position, gorev or username never create authority.
+    for attr in ("role", "role_name", "user_role", "authority_level"):
         with contextlib.suppress(Exception):
             terms.add(_bys360_admin_period_reminder_norm_v1(getattr(user, attr, "")))
     try:

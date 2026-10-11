@@ -96,7 +96,8 @@ def _is_period_center_operator_user(user) -> bool:
     except Exception:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
         pass
-    for attr in ("role", "role_name", "user_role", "title", "unvan", "position", "gorev", "authority_level"):
+    # R05/R1: the stored role only; title, unvan, position or gorev never create authority.
+    for attr in ("role", "role_name", "user_role", "authority_level"):
         try:
             terms.add(_period_center_norm(getattr(user, attr, "")))
         except Exception:
@@ -128,7 +129,8 @@ def _period_center_collect_terms_v222a(user):
     terms: set[str] = set()
     if not user:
         return terms
-    for attr in ("role", "role_name", "user_role", "authority_level", "title", "unvan", "position", "gorev", "username"):
+    # R05/R1: the stored role only; title, unvan, position, gorev or username never create authority.
+    for attr in ("role", "role_name", "user_role", "authority_level"):
         try:
             terms.add(_period_center_norm_v222a(getattr(user, attr, "")))
         except Exception:

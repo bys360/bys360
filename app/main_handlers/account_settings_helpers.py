@@ -106,6 +106,13 @@ from app.main_handlers.account_visibility_helpers import (
     utc_now,
 )
 from app.route_support import normalize_role_name
+from app.services.account_change_guard import (
+    ADMIN_ROLE,
+    BASELINE_ROLE,
+    audit_refusal,
+    holds_support_all_row,
+    is_real_admin,
+)
 from app.services.assistant_role_matrix_service import (
     build_assistant_role_matrix,
     reset_assistant_role_matrix_defaults,
@@ -728,6 +735,13 @@ def _handle_delete_named_archive():
     return redirect(url_for("main.settings_page", user_id=selected_user_id) if selected_user_id else url_for("main.settings_page"))
 
 
+_PROTECTED_MATRIX_REFUSAL_MESSAGE = (
+    "Bu hesabın (yönetici, başkanlık veya teknik roller ya da tüm destek talepleri yetkisi sahipleri) sekme yetkileri "
+    "ve admin rol profili "
+    "yalnız sistem admini tarafından değiştirilebilir."
+)
+
+
 def _handle_user_scoped_profile_action(form_action, flat_menu_items, all_menu_keys):
     selected_user_id = request.form.get("user_id", type=int)
     selected_user = db.session.get(User, selected_user_id)
@@ -735,8 +749,27 @@ def _handle_user_scoped_profile_action(form_action, flat_menu_items, all_menu_ke
         flash("Personel seçiniz.", "warning")
         return redirect(url_for("main.settings_page"))
 
-    visible_keys = _collect_form_visible_keys(request.form, flat_menu_items)
     keep_user_id = selected_user.id
+    # R05: a non-admin never changes the per-user matrix of ANOTHER account that holds a role
+    # other than the baseline (admin, leadership, technical) or a support_all row, nor the admin
+    # role profile. Own saves and personnel_read_all holders keep the B1-F1 rules (the grant row
+    # is preserved, the rest of the matrix is saved).
+    if not is_real_admin(current_user):
+        refused_reason = None
+        if form_action == "save_role_profile":
+            target_role = (request.form.get("profile_role_target") or selected_user.role or "").strip()
+            if normalize_role_name(target_role) == ADMIN_ROLE:
+                refused_reason = "settings_admin_role_profile"
+        elif form_action != "save_unit_profile" and selected_user.id != getattr(current_user, "id", None) and (
+            normalize_role_name(selected_user.role) != BASELINE_ROLE or holds_support_all_row(selected_user)
+        ):
+            refused_reason = "settings_user_matrix"
+        if refused_reason:
+            audit_refusal(selected_user, refused_reason)
+            flash(_PROTECTED_MATRIX_REFUSAL_MESSAGE, "danger")
+            return redirect(url_for("main.settings_page", user_id=keep_user_id))
+
+    visible_keys = _collect_form_visible_keys(request.form, flat_menu_items)
     try:
         if form_action == "save_role_profile":
             target_role = (request.form.get("profile_role_target") or selected_user.role or "").strip()
