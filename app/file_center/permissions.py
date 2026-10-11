@@ -168,7 +168,13 @@ def role_key(user=None) -> str:
 # DÜZENLEME dahil) veriyordu. Artık yalnızca gerçek rol/unvan alanları
 # (username/email/department/unit HARİÇ) tek tek normalize edilip bu
 # kümelerle TAM eşleştiriliyor.
-_ROLE_IDENTITY_ATTRS = ("role", "role_key", "role_name", "role_label", "title", "position", "job_title")
+#
+# F07a / D3 (onaylı politika, 2026-10-09): role_label, title, position ve
+# job_title görünen ad/unvan alanlarıdır; tek başına yetki veremez. Örn.
+# role="personel" ve role_label="Sistem Yöneticisi" olan bir kullanıcı tam
+# Dosya Merkezi admini (başkasının özel dosyasını indirme/silme/paylaşma)
+# oluyordu. Rol kimliği artık yalnız saklanan rol alanlarıdır.
+_ROLE_IDENTITY_ATTRS = ("role", "role_key", "role_name")
 
 
 def _user_role_values(user=None) -> set[str]:
@@ -347,6 +353,32 @@ def update_role_matrix_from_form(form, actor_user_id: int | None = None) -> int:
 
 def is_file_center_admin(user=None) -> bool:
     return _permission(user, "can_manage_admin", default=_admin_like_text(user))
+
+
+# F07b (onaylı politikalar: D2 2026-10-09, F07b-Q1 ve F07b-Q2 2026-10-10): başka
+# kullanıcının dosyasını indirmek, misafir bağlantısıyla paylaşmak veya silmek
+# yalnız saklanan rolü "admin" olan ve Dosya Merkezi admin iznine sahip kullanıcıya
+# açıktır. Teknik roller (sistem_yoneticisi, system_admin) ve dosya_merkezi_yetkilisi
+# Dosya Merkezi'ni yönetir (panel, bakım, kota, güvenlik, ayarlar, rol matrisi,
+# bağlantı iptali) ama başkasının dosya içeriğine otomatik erişmez. role_label,
+# unvan veya role_key/role_name gibi diğer alanlar bu kararı vermez.
+_OTHER_USERS_FILES_ROLE = "admin"
+
+
+def _is_verified_file_center_admin(user) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if _normalize(getattr(user, "role", "")) != _OTHER_USERS_FILES_ROLE:
+        return False
+    return is_file_center_admin(user)
+
+
+def can_read_other_users_files(user=None) -> bool:
+    return _is_verified_file_center_admin(user or current_user)
+
+
+def can_delete_other_users_files(user=None) -> bool:
+    return _is_verified_file_center_admin(user or current_user)
 
 
 def is_file_center_manager(user=None) -> bool:
