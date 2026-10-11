@@ -18,8 +18,11 @@ from app.services.performance.history import humanize_workflow_status
 
 logger = logging.getLogger(__name__)
 
+# F06b (D2, approved 2026-10-09/10): the technical roles (system_admin, sistem_yoneticisi) keep their
+# technical administration but get no institution-wide view of scorecards or interim notes here, and
+# are not managers on this page either; they see their own records.
 GLOBAL_ROLES = {
-    "admin", "super_admin", "system_admin", "sistem_yoneticisi", "baskan", "baskan_yardimcisi"
+    "admin", "super_admin", "baskan", "baskan_yardimcisi"
 }
 MANAGER_ROLES = GLOBAL_ROLES | {
     "grup_baskani", "mali_musavir", "koordinator", "birim_sorumlusu", "yonetici", "manager"

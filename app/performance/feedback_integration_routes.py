@@ -24,7 +24,8 @@ def _role() -> str:
 
 
 def _is_admin() -> bool:
-    return bool(getattr(current_user, "is_admin", False) or _role() in {"admin", "super_admin", "system_admin", "sistem_yoneticisi"})
+    # F06b (D2): the technical roles are not administrators of personal performance data.
+    return bool(getattr(current_user, "is_admin", False) or _role() in {"admin", "super_admin"})
 
 
 def _is_superuser() -> bool:
