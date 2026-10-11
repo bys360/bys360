@@ -20,7 +20,10 @@ from app.api.mobile.shared import (
 @mobile_api_bp.get("/personnel/list")
 @require_mobile_user
 def mobile_personnel_list(user: User):
-    global_scope = _has_global_scope(user)
+    from app.services.personnel_read_grant import has_personnel_read_all_grant
+
+    # B1-F1: institution-wide only for the global roles or an explicit personnel_read_all grant.
+    global_scope = _has_global_scope(user) or has_personnel_read_all_grant(user)
     q = User.query.filter_by(is_active=True) if global_scope else User.query.filter_by(id=user.id)
     total = _safe_count(q)
     items = []

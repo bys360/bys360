@@ -15,11 +15,7 @@ records; a line manager keeps its reports; admin and başkan keep the institutio
 """
 from __future__ import annotations
 
-import os
-import tempfile
-import uuid
 from datetime import date
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -28,7 +24,7 @@ from sqlalchemy import text
 PASSWORD = "F06bIntegrationTest1!"
 NOTE = "F06B-PRIVATE-INTERIM-NOTE"
 EMPLOYEE_NAME = "Gizlicalisan F6BEMP"
-_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_f06b_integration")
+SCORE = 43.875
 
 # sicil -> (role, yonetici_sicil)
 USERS = {
@@ -42,6 +38,16 @@ USERS = {
 TECHNICAL = ["F6BTEC", "F6BSYS"]
 
 
+@pytest.mark.parametrize("role", ["sistem_yoneticisi", "system_admin"])
+@pytest.mark.parametrize("flags", [{}, {"is_admin": True}, {"is_superuser": True},
+                                  {"is_admin": True, "is_superuser": True}])
+def test_technical_role_remains_self_only_despite_administration_flags(role, flags):
+    from app.services.performance.feedback_integration import is_global_user, is_manager_user
+
+    assert is_global_user(role, **flags) is False
+    assert is_manager_user(role, **flags) is False
+
+
 @pytest.fixture
 def env(monkeypatch, install_interim_notes_schema):
     for key, value in {
@@ -52,8 +58,7 @@ def env(monkeypatch, install_interim_notes_schema):
         "SCHEDULER_ENABLED": "false", "LOGIN_FORCE_CAPTCHA_FOR_UNKNOWN_USER": "false",
     }.items():
         monkeypatch.setenv(key, value)
-    os.makedirs(_DB_DIR, exist_ok=True)
-    uri = "sqlite:///" + os.path.join(_DB_DIR, f"f06b_{uuid.uuid4().hex}.sqlite3").replace("\\", "/")
+    uri = "sqlite:///:memory:"
     monkeypatch.setenv("DATABASE_URL", uri)
     from app import create_app
     from config import Config
@@ -85,7 +90,7 @@ def env(monkeypatch, install_interim_notes_schema):
                                    end_date=date(2026, 3, 31), is_active=True)
         db.session.add(period)
         db.session.flush()
-        db.session.add(PerformanceEvaluation(period_id=period.id, employee_id=ids["F6BEMP"]))
+        db.session.add(PerformanceEvaluation(period_id=period.id, employee_id=ids["F6BEMP"], final_total_100=SCORE))
         db.session.execute(text("INSERT INTO performance_interim_notes (employee_id, period_id, note, note_type) "
                                 "VALUES (:e, :p, :n, 'olumsuz')"), {"e": ids["F6BEMP"], "p": period.id, "n": NOTE})
         db.session.commit()
@@ -112,6 +117,7 @@ def test_technical_roles_see_no_other_persons_notes_scores_or_name(env, sicil, q
     body = _page(env, sicil, query.format(emp=env.ids["F6BEMP"]), refused_ok=bool(query))
     assert NOTE not in body
     assert EMPLOYEE_NAME not in body
+    assert str(SCORE) not in body
 
 
 @pytest.mark.parametrize("sicil", TECHNICAL)
@@ -132,3 +138,86 @@ def test_technical_roles_get_only_their_own_records_from_the_service(env, sicil)
 def test_line_manager_admin_and_baskan_keep_the_employee(env, sicil):
     body = _page(env, sicil, f"?employee_id={env.ids['F6BEMP']}")
     assert NOTE in body
+    assert str(SCORE) in body
+
+
+@pytest.mark.parametrize("uid", [None, 0, -1])
+@pytest.mark.parametrize("role", ["sistem_yoneticisi", "system_admin", "manager", "admin"])
+def test_missing_viewer_fails_closed(monkeypatch, uid, role):
+    from app.services.performance import feedback_integration as integration
+
+    monkeypatch.setattr(integration, "list_periods", lambda: [])
+    def forbidden_query(**kwargs):
+        pytest.fail("Unscoped personal data query must not run")
+    monkeypatch.setattr(integration, "scorecard_rows", forbidden_query)
+    monkeypatch.setattr(integration, "interim_note_rows", forbidden_query)
+    monkeypatch.setattr(integration, "list_people", forbidden_query)
+    ctx = integration.build_integration_context(current_user_id=uid, current_user_role=role)
+    assert ctx["access_denied"] is True
+    assert ctx["people"] == []
+    assert ctx["scorecards"] == [] and ctx["interim_notes"] == []
+
+
+def test_empty_personnel_scope_fails_closed(monkeypatch):
+    from app.services.performance import feedback_integration as integration
+
+    monkeypatch.setattr(integration, "list_people", lambda **kwargs: [])
+    monkeypatch.setattr(integration, "list_periods", lambda: [])
+    def forbidden_query(**kwargs):
+        pytest.fail("Unscoped personal data query must not run")
+    monkeypatch.setattr(integration, "scorecard_rows", forbidden_query)
+    monkeypatch.setattr(integration, "interim_note_rows", forbidden_query)
+    ctx = integration.build_integration_context(current_user_id=123, current_user_role="manager")
+    assert ctx["access_denied"] is True
+
+
+@pytest.mark.parametrize("sicil", TECHNICAL)
+@pytest.mark.parametrize("flags", [{"is_admin": True}, {"is_superuser": True},
+                                  {"is_admin": True, "is_superuser": True}])
+def test_technical_administration_flags_do_not_grant_personal_data(env, sicil, flags):
+    from app.services.performance.feedback_integration import build_integration_context
+
+    with env.app.app_context():
+        ctx = build_integration_context(current_user_id=env.ids[sicil],
+                                        current_user_role=USERS[sicil][0], **flags)
+        assert {int(p["id"]) for p in ctx["people"]} == {env.ids[sicil]}
+        assert ctx["scorecards"] == [] and ctx["interim_notes"] == []
+        denied = build_integration_context(current_user_id=env.ids[sicil],
+                                           current_user_role=USERS[sicil][0],
+                                           employee_id=env.ids["F6BEMP"], **flags)
+        assert denied["access_denied"] is True
+        assert denied["scorecards"] == [] and denied["interim_notes"] == []
+
+
+@pytest.mark.parametrize("sicil", TECHNICAL)
+@pytest.mark.parametrize("path", ["/performance/feedback-integration",
+                                  "/performans/gorusme-entegrasyonu"])
+def test_technical_role_with_admin_flags_cannot_open_other_employee(env, monkeypatch, sicil, path):
+    from app.models import User
+
+    monkeypatch.setattr(User, "is_admin", True, raising=False)
+    monkeypatch.setattr(User, "is_superuser", True, raising=False)
+    client = _client(env, sicil)
+    response = client.get(f"{path}?employee_id={env.ids['F6BEMP']}")
+    assert response.status_code == 403
+    assert NOTE not in response.get_data(as_text=True)
+    assert EMPLOYEE_NAME not in response.get_data(as_text=True)
+
+
+@pytest.mark.parametrize("sicil", TECHNICAL)
+def test_technical_roles_keep_their_own_records(env, sicil):
+    from app.extensions import db
+    from app.models import PerformanceEvaluation, PerformancePeriod
+
+    own_note = "F06B-OWN-NOTE"
+    with env.app.app_context():
+        period = db.session.query(PerformancePeriod).first()
+        db.session.add(PerformanceEvaluation(period_id=period.id, employee_id=env.ids[sicil],
+                                            final_total_100=84.125))
+        db.session.execute(text("INSERT INTO performance_interim_notes (employee_id, period_id, note, note_type) "
+                                "VALUES (:e, :p, :n, 'genel')"),
+                           {"e": env.ids[sicil], "p": period.id, "n": own_note})
+        db.session.commit()
+    body = _page(env, sicil)
+    assert own_note in body and "84.125" in body
+    assert NOTE not in body and str(SCORE) not in body and EMPLOYEE_NAME not in body

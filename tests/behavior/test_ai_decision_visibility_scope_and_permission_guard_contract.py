@@ -94,11 +94,14 @@ def test_normalize_role_name_turkish_diacritics_and_punctuation():
     "role,expected_group",
     [
         ("admin", "global"),
-        ("sistem_yoneticisi", "global"),
+        # B1-F1 (approved policy, 2026-10-09): the technical role and ik / performans_yetkilisi
+        # get no institution-wide evaluation scope by role name (decision 2 and the base policy).
+        ("sistem_yoneticisi", "own_scope"),
         ("baskan", "global"),
         ("Başkan", "global"),
-        ("performans_yetkilisi", "performance_authority"),
-        ("ik", "performance_authority"),
+        ("performans_yetkilisi", "own_scope"),
+        ("ik", "own_scope"),
+        ("performans_admin", "performance_authority"),
         ("grup_baskani", "manager_scope"),
         ("koordinator", "manager_scope"),
         ("personel", "own_scope"),
@@ -187,12 +190,13 @@ def test_build_ai_decision_scope_global_roles_admin_and_baskan():
 
 
 def test_build_ai_decision_scope_performance_authority_has_identical_flags_to_global():
-    # Mandatory: performance_authority (ik / performans_yetkilisi) gets the
-    # SAME full access flags as global -- a real and easy-to-miss distinction
-    # from manager_scope, which does NOT get can_view_global_summary.
+    # Mandatory: performance_authority gets the SAME full access flags as global -- a real
+    # and easy-to-miss distinction from manager_scope, which does NOT get
+    # can_view_global_summary. B1-F1 (2026-10-09): ik and performans_yetkilisi left this group
+    # (they are own_scope now); performans_admin and personel_destek remain in it.
     admin_scope = build_ai_decision_scope(_user("admin", user_id=10))
-    perf_scope = build_ai_decision_scope(_user("performans_yetkilisi", user_id=20))
-    ik_scope = build_ai_decision_scope(_user("ik", user_id=30))
+    perf_scope = build_ai_decision_scope(_user("performans_admin", user_id=20))
+    ik_scope = build_ai_decision_scope(_user("personel_destek", user_id=30))
 
     flag_fields = (
         "can_open_center",

@@ -34,9 +34,17 @@ def test_allows_every_canonical_role_value(role):
     assert _can_mobile_create_personnel(_user(role=role)) is True
 
 
-@pytest.mark.parametrize("label", sorted(_PERSONNEL_CREATE_ROLES))
-def test_allows_every_canonical_role_label_value(label):
-    assert _can_mobile_create_personnel(_user(role_label=label)) is True
+@pytest.mark.parametrize("label", sorted(_PERSONNEL_CREATE_ROLES | {"Admin", "sistem_yoneticisi", "ik"}))
+def test_role_label_never_grants_creation(label):
+    # B1-F1 decision 3 (HUMAN_POLICY_APPROVED, 2026-10-09): role_label is display text only.
+    assert _can_mobile_create_personnel(_user(role_label=label)) is False
+    assert _can_mobile_create_personnel(_user(role="personel", role_label=label)) is False
+
+
+@pytest.mark.parametrize("role", ["ik", "personel_yonetimi", "sistem_yoneticisi", "system_admin"])
+def test_b1f1_hr_and_technical_roles_do_not_create_personnel(role):
+    # B1-F1 approved policy and decision 2: personnel write is a separate permission.
+    assert _can_mobile_create_personnel(_user(role=role)) is False
 
 
 @pytest.mark.parametrize(

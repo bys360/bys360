@@ -48,7 +48,8 @@ def register_mobile_light_read_routes_v1(mobile_bp, route_globals) -> None:
     @mobile_api_bp.get("/settings/summary")
     @require_mobile_user
     def mobile_settings_summary(user: User):
-        if not _has_global_scope(user):
+        # B1-F1 decision 2: technical roles keep these technical counters (no personal data).
+        if not (_has_global_scope(user) or _authorization_role_key(user) in _TECHNICAL_ROLES):
             return _module_payload([
                 _metric("Rol", getattr(user, "role_label", None) or getattr(user, "role", "-"), "Kendi oturum yetkiniz", "red", "badge"),
                 _metric("Erişim", "Sınırlı", "Ayar detayları yetkiye bağlıdır", "red", "lock"),

@@ -6,7 +6,7 @@ from flask import render_template, request
 from flask_login import current_user, login_required
 
 from app.route_registry import main_bp
-from app.services.performance.feedback_integration import build_integration_context
+from app.services.performance.feedback_integration import TECHNICAL_ROLES, build_integration_context
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +25,14 @@ def _role() -> str:
 
 def _is_admin() -> bool:
     # F06b (D2): the technical roles are not administrators of personal performance data.
+    if _role() in TECHNICAL_ROLES:
+        return False
     return bool(getattr(current_user, "is_admin", False) or _role() in {"admin", "super_admin"})
 
 
 def _is_superuser() -> bool:
+    if _role() in TECHNICAL_ROLES:
+        return False
     return bool(getattr(current_user, "is_superuser", False))
 
 

@@ -1076,6 +1076,28 @@
                     </div>
                 {% endfor %}
 
+                {# B1-F1: explicit per-user data-access grant; kept out of bulk/group toggles (no menu-checkbox class). #}
+                <div class="group-card" data-group-name="Veri Erişim Yetkileri">
+                    <div class="group-head">
+                        <div class="group-title">Veri Erişim Yetkileri</div>
+                    </div>
+                    <div class="menu-grid">
+                        <label class="menu-item">
+                            <div class="menu-left">
+                                <div class="menu-icon"><i class="fa-solid fa-address-book"></i></div>
+                                <div class="menu-text">
+                                    <strong>Kurum Geneli Personel Rehberi Okuma (personnel.read.all)</strong>
+                                    <span>Yalnız merkezi İK için. Yalnız personel rehberini okur; performans, özlük belgesi ve personel ekleme/düzenleme/silme yetkisi vermez. Yalnız admin rolü atayabilir; kişinin kendisine verilemez; her değişiklik ayar geçmişine yazılır. Tümünü Aç/Kapat, grup ve hazır profil düğmeleri bu yetkiyi değiştirmez.</span>
+                                </div>
+                            </div>
+                            <span class="switch">
+                                <input type="checkbox" name="menu_personnel_read_all" {% if personnel_read_all_granted %}checked{% endif %} {% if not personnel_read_all_editable %}disabled{% endif %}>
+                                <span class="slider"></span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="person-feature-matrix-final-save" style="position:sticky; bottom:14px; z-index:20; margin:18px 0; padding:16px 18px; border-radius:22px; background:#fff; border:2px solid rgba(139,0,0,.28); box-shadow:0 18px 40px rgba(15,23,42,.16); display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
                     <div>
                         <div style="font-weight:900; color:#111827; font-size:16px;">Son adım: Bu personel için kaydet</div>

@@ -33,9 +33,14 @@ def mobile_login_response(
     full_name: Callable[[Any], str],
 ):
     """Mobil giriş yanıtını üretir; route URL/endpoint değişmeden servis delegasyonu sağlar."""
-    data = request.get_json(silent=True) or {}
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        data = {}
+    # Non-string values are treated as missing (400), not as a server error.
+    username = data.get("username")
+    username = username.strip() if isinstance(username, str) else ""
+    password = data.get("password")
+    password = password if isinstance(password, str) else ""
     if not username or not password:
         return jsonify({"message": "Kullanıcı adı/sicil ve şifre zorunludur."}), 400
 
