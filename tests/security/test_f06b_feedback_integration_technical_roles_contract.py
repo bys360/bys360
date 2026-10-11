@@ -212,6 +212,7 @@ def test_technical_roles_keep_their_own_records(env, sicil):
     own_note = "F06B-OWN-NOTE"
     with env.app.app_context():
         period = db.session.query(PerformancePeriod).first()
+        assert period is not None
         db.session.add(PerformanceEvaluation(period_id=period.id, employee_id=env.ids[sicil],
                                             final_total_100=84.125))
         db.session.execute(text("INSERT INTO performance_interim_notes (employee_id, period_id, note, note_type) "
