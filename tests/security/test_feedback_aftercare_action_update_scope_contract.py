@@ -9,6 +9,10 @@ Rule reused: ``_can_edit_meeting`` of the same route file (global aftercare role
 meeting's manager or employee), which the sibling after-note, preparation and add-action
 routes already check BEFORE writing. The update now resolves the action's meeting and
 checks that rule first; allowed users keep the same behaviour.
+
+#57 (approved policy, 2026-10-10): a meeting, its action plans included, is visible and editable
+only to its parties, the employee and the meeting's manager; no role widens that, so the admin
+FAC05, not a party here, is refused like the other unrelated users.
 """
 from __future__ import annotations
 
@@ -105,15 +109,15 @@ def _action_state(app):
         return tuple(row)
 
 
-@pytest.mark.parametrize("sicil", ["FAC03", "FAC04"])
+@pytest.mark.parametrize("sicil", ["FAC03", "FAC04", "FAC05"])
 def test_unrelated_user_cannot_update_an_action_plan(app, sicil):
     response = _update(app, sicil)
     assert response.status_code == 302
     assert _action_state(app) == ("acik", "ilk not", "")
 
 
-@pytest.mark.parametrize("sicil", ["FAC01", "FAC02", "FAC05"])
-def test_meeting_employee_manager_and_admin_can_still_update(app, sicil):
+@pytest.mark.parametrize("sicil", ["FAC01", "FAC02"])
+def test_meeting_employee_and_manager_can_still_update(app, sicil):
     response = _update(app, sicil)
     assert response.status_code == 302
     assert f"/performance/feedback-aftercare/{app.config['_MEETING_ID']}" in response.headers.get("Location", "")
