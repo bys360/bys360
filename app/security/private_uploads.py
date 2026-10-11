@@ -32,6 +32,17 @@ PRIVATE_UPLOAD_DEFAULT_DIRNAME = "private_uploads"
 _GUARD_EXTENSION_KEY = "bys360_private_static_guard"
 
 
+class PrivateUploadError(RuntimeError):
+    """Only a fixed diagnostic code; never retain an OS error or a storage path."""
+
+
+def public_upload_roots() -> tuple[Path, ...]:
+    configured = current_app.config.get("PUBLIC_UPLOAD_ROOTS", ())
+    if isinstance(configured, str):
+        configured = configured.split(os.pathsep)
+    return (static_root(), *(Path(str(p)).expanduser() for p in configured if str(p).strip()))
+
+
 def _normalized_segments(filename: str) -> list[str]:
     """Windows dosya sistemi eşdeğerliğini de hesaba katan küçük harfli yol parçaları.
 
@@ -59,11 +70,11 @@ def _is_within(path: str | Path, root: str | Path) -> bool:
 
 
 def _configured_upload_folder_in_static(upload_folder: str | None, static_folder: str) -> str | None:
-    """Static içinde (ama static'in kendisi değil) duran bir ``UPLOAD_FOLDER``; yoksa ``None``."""
+    """Legacy root overlapping static; equality/ancestors block all static files."""
     configured = str(upload_folder or "").strip()
     if not configured:
         return None
-    if _real(configured) == _real(static_folder) or not _is_within(configured, static_folder):
+    if not (_is_within(configured, static_folder) or _is_within(static_folder, configured)):
         return None
     return configured
 
@@ -97,6 +108,8 @@ def is_private_static_path(
 
 def install_private_static_guard(app: Flask) -> None:
     """Flask ``static`` görünümünü özel yükleme alt yollarında 404 dönecek şekilde sarar."""
+    with app.app_context():
+        private_upload_root()  # Validate declared public aliases before starting.
     view = app.view_functions.get("static")
     if view is None or app.extensions.get(_GUARD_EXTENSION_KEY):
         return
@@ -132,6 +145,11 @@ def private_upload_root() -> Path:
             "PRIVATE_UPLOAD_FOLDER static klasörünün içinde; özel yüklemeler için varsayılan instance kökü kullanılıyor."
         )
         root = default
+    legacy = str(current_app.config.get("UPLOAD_FOLDER") or "").strip()
+    if legacy:
+        if any(_is_within(legacy, public) or _is_within(public, legacy)
+               for public in public_upload_roots()[1:]):
+            raise PrivateUploadError("PRIVATE_UPLOAD_LEGACY_PUBLIC_ROOT")
     return root
 
 

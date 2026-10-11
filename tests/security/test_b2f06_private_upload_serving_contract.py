@@ -482,8 +482,8 @@ def test_private_static_path_matcher_widens_only_to_an_upload_folder_strictly_in
     inside = str(env.static_root / "files")
     assert is_private_static_path("files/support_tickets/1/x.pdf", static_folder, inside)
     assert not is_private_static_path("css/site.css", static_folder, inside)
-    # UPLOAD_FOLDER equal to the static folder itself, or outside it, never hides public assets.
-    assert not is_private_static_path("css/site.css", static_folder, static_folder)
+    # UPLOAD_FOLDER equal to static fails closed; an unrelated external root does not hide public assets.
+    assert is_private_static_path("css/site.css", static_folder, static_folder)
     assert not is_private_static_path("files/x.pdf", static_folder, str(env.private_root))
 
 
