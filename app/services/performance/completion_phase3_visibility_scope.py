@@ -35,6 +35,12 @@ ACCESS_DENIED_MESSAGE = "Bu sayfaya erişim yetkiniz bulunmamaktadır."
 ADMIN_ROLES = {
     "admin",
     "super_admin",
+}
+# F06d (D2, approved 2026-10-09/10): the technical roles keep their technical administration but get
+# no automatic access to personnel or performance data, and the generic "yonetici" is a manager, not
+# an administrator. Both were in ADMIN_ROLES (institution-wide view); they are now scope-limited
+# like the other managers and their scope comes from the hierarchy helper.
+SCOPED_MANAGER_ROLES = {
     "system_admin",
     "sistem_yoneticisi",
     "sistem_yöneticisi",
@@ -165,6 +171,8 @@ def resolve_visibility_role_key(user_or_role: Any) -> str:
     if role in {_norm(item) for item in GROUP_HEAD_ROLES} or "grup_baskan" in role:
         return "grup_baskani"
     if role in {_norm(item) for item in COORDINATOR_ROLES} or "koordinator" in role:
+        return "koordinator"
+    if role in {_norm(item) for item in SCOPED_MANAGER_ROLES}:
         return "koordinator"
     if raw_role in PERSONNEL_ROLES or role in {_norm(item) for item in PERSONNEL_ROLES}:
         return "personel"

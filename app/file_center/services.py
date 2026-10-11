@@ -728,7 +728,8 @@ def soft_delete_file(item: FileStorageItem, actor_user_id: int) -> None:
     item.deleted_by_user_id = actor_user_id
     FileShareLink.query.filter_by(file_id=item.id, is_active=True).update({"is_active": False, "revoked_at": utc_now(), "revoked_by_user_id": actor_user_id})
     log_audit("file_deleted", file_id=item.id, message="Dosya silindi ve aktif misafir bağlantıları kapatıldı.", actor_user_id=actor_user_id)
-    update_quota_for_user(actor_user_id)
+    # F07b-Q2: admin başkasının dosyasını sildiğinde kota, işlemi yapanın değil dosya sahibinin kotasıdır.
+    update_quota_for_user(int(item.owner_user_id or actor_user_id))
 
 
 def create_transfer_package(*, owner_user_id: int, title: str, message: str | None, file_ids: Iterable[int], recipient_emails: str | None) -> FileTransfer:
