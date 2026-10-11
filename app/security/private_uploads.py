@@ -224,7 +224,9 @@ def store_private_upload(file_storage: Any, target: str | Path) -> None:
         file_storage.save(path)
     except PrivateUploadError:
         raise
-    except Exception:
+    except (OSError, RuntimeError, ValueError):
+        # Disk, permission, reparse/loop and malformed-path errors; the chain is dropped so no
+        # path or file name reaches a handler log.
         raise PrivateUploadError("PRIVATE_UPLOAD_WRITE_FAILED") from None
 
 
