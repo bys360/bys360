@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 @login_required
 @menu_key_required('reports')
 def communication_phase9a_dashboard():
-    payload = phase9a_dashboard_snapshot()
+    payload = phase9a_dashboard_snapshot(viewer=current_user)
     return safe_render('communication/phase9a_dashboard.html', payload=payload)
 
 
@@ -34,7 +34,7 @@ def communication_phase9a_dashboard():
 @login_required
 @menu_key_required('settings')
 def communication_phase9a_preflight_center():
-    payload = phase9a_preflight_snapshot()
+    payload = phase9a_preflight_snapshot(viewer=current_user)
     freeze_token = issue_form_token('communication_phase9a_freeze', scope=str(current_user.id))
     smoke_token = issue_form_token('communication_phase9a_smoke', scope=str(current_user.id))
     return safe_render(
@@ -49,7 +49,7 @@ def communication_phase9a_preflight_center():
 @login_required
 @menu_key_required('reports')
 def communication_phase9a_backup_center():
-    payload = phase9a_backup_snapshot()
+    payload = phase9a_backup_snapshot(viewer=current_user)
     return safe_render('communication/phase9a_backup_center.html', payload=payload)
 
 
@@ -99,7 +99,7 @@ def communication_phase9a_smoke_create():
 @menu_key_required('reports')
 def communication_phase9a_export_md():
     return Response(
-        build_phase9a_markdown(),
+        build_phase9a_markdown(viewer=current_user),
         mimetype='text/markdown; charset=utf-8',
         headers={'Content-Disposition': 'attachment; filename=communication_phase9a_teknik_kilit.md'},
     )

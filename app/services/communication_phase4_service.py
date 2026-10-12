@@ -171,18 +171,20 @@ def _load_surveys(days: int = 90):
     return query.order_by(Survey.created_at.desc()).all()
 
 
-_ALL_TICKETS = object()
+# K5 F4: support figures depend on the viewer's ticket scope. They are never stored in the shared
+# daily metrics, and a stored report shows its author's support figures only to its author or to a
+# viewer whose scope covers every ticket.
+SUPPORT_METRIC_GROUP = "support"
+SUPPORT_HEADLINE_KEYS = frozenset({"open_tickets", "overdue_first_response", "overdue_resolution"})
+SUPPORT_REPORT_KEYS = frozenset({"support_rows", "risk_support_rows", "support_status_breakdown"})
 
 
-def _load_tickets(days: int = 90, viewer: Any = _ALL_TICKETS):
-    """K5: a rendered or exported view passes its viewer; only institution-wide counts (no row
-    data, refresh_daily_metrics) read every ticket."""
+def _load_tickets(days: int = 90, *, viewer: Any):
+    """K5 F4: only the tickets inside ``viewer``'s scope; there is no institution-wide form."""
+    from app.services.support_ticket_access import support_ticket_visibility_clause
+
     start, _ = _period_range(days)
-    query = SupportTicket.query
-    if viewer is not _ALL_TICKETS:
-        from app.services.support_ticket_access import support_ticket_visibility_clause
-
-        query = query.filter(support_ticket_visibility_clause(viewer))
+    query = SupportTicket.query.filter(support_ticket_visibility_clause(viewer))
     if hasattr(SupportTicket, "created_at"):
         query = query.filter(SupportTicket.created_at >= start)
     return query.order_by(SupportTicket.created_at.desc()).all()
@@ -218,6 +220,8 @@ def _metric_series(metric_group: str, metric_name: str, days: int = 14) -> dict[
         CommunicationDailyMetric.metric_name == metric_name,
         CommunicationDailyMetric.metric_date >= start_date,
     ).order_by(CommunicationDailyMetric.metric_date.asc()).all()
+    if metric_group == SUPPORT_METRIC_GROUP:
+        rows = []  # K5 F4: rows stored before F4 hold institution-wide support figures
 
     value_map = {row.metric_date.isoformat(): float(getattr(row, "metric_value", 0) or 0) for row in rows}
     labels = []
@@ -255,7 +259,7 @@ def _score_band_label(rate: float) -> str:
     return "0-24"
 
 
-def executive_summary_snapshot(days: int = 30, *, viewer: Any = _ALL_TICKETS) -> dict[str, Any]:
+def executive_summary_snapshot(days: int = 30, *, viewer: Any) -> dict[str, Any]:
     clean_days = sanitize_days(days)
     bulletins = _load_bulletins(clean_days)
     surveys = _load_surveys(max(clean_days, 90))
@@ -470,7 +474,7 @@ def survey_analytics_snapshot(days: int = 180) -> dict[str, Any]:
     }
 
 
-def support_analytics_snapshot(days: int = 180, *, viewer: Any = _ALL_TICKETS) -> dict[str, Any]:
+def support_analytics_snapshot(days: int = 180, *, viewer: Any) -> dict[str, Any]:
     clean_days = sanitize_days(days, default=180, minimum=30, maximum=365)
     rows = _load_tickets(clean_days, viewer=viewer)
     policy_map = _sla_policy_map()
@@ -616,6 +620,45 @@ def create_executive_report(actor_user: Any, report_type: str = "weekly_summary"
     return row
 
 
+def executive_report_view(row: Any, viewer: Any) -> dict[str, Any]:
+    """K5 F4: what ``viewer`` may read of a stored executive report.
+
+    The support figures in a report were computed in its author's ticket scope. They are shown to the
+    author and to a viewer whose scope covers every ticket; any other reader gets the report without
+    them, so a stored report never widens a reader's view of the support tickets.
+    """
+    from app.services.support_ticket_access import support_scope_is_unrestricted
+
+    metrics = dict(getattr(row, "metrics_json", None) or {})
+    recommendations = list(getattr(row, "recommendations_json", None) or [])
+    summary_text = getattr(row, "summary_text", None)
+    viewer_id = getattr(viewer, "id", None)
+    if (viewer_id is not None and viewer_id == getattr(row, "created_by_user_id", None)) or support_scope_is_unrestricted(viewer):
+        return {"metrics": metrics, "recommendations": recommendations, "summary_text": summary_text, "support_hidden": False}
+
+    metrics.pop("support", None)
+    headline_payload = dict(metrics.get("headline") or {})
+    headline = {key: value for key, value in dict(headline_payload.get("headline") or {}).items() if key not in SUPPORT_HEADLINE_KEYS}
+    for key in SUPPORT_REPORT_KEYS:
+        headline_payload.pop(key, None)
+    trends = {key: value for key, value in dict(headline_payload.get("trends") or {}).items() if key != "open_tickets"}
+    headline_payload.update(headline=headline, trends=trends, recommendations=[])
+    metrics["headline"] = headline_payload
+    survey_totals = dict((metrics.get("surveys") or {}).get("totals") or {})
+    summary_text = (
+        f"{getattr(row, 'period_label', '') or 'Rapor dönemi'} görünümünde {headline.get('published_bulletins', 0)} "
+        f"yayımlanmış duyuru ve {headline.get('survey_count', 0)} anket bulunmaktadır. "
+        f"Anket ortalama tamamlama oranı %{float(survey_totals.get('average_completion_rate', 0) or 0):.1f}. "
+        "Destek göstergeleri raporu oluşturan kişinin yetki kapsamında hesaplandığı için gösterilmez."
+    )
+    return {
+        "metrics": metrics,
+        "recommendations": [item for item in recommendations if "destek" not in str(item).casefold()],
+        "summary_text": summary_text,
+        "support_hidden": True,
+    }
+
+
 def submit_report_for_review(report_id: int, actor_user: Any, note: str = "") -> CommunicationGovernanceReview:
     report = CommunicationExecutiveReport.query.get_or_404(report_id)
     review = CommunicationGovernanceReview(
@@ -662,16 +705,15 @@ def decide_governance(review_id: int, actor_user: Any, decision: str, note: str 
 
 
 def refresh_daily_metrics(actor_user: Any | None = None) -> int:
-    payload = executive_summary_snapshot(30)
+    payload = executive_summary_snapshot(30, viewer=actor_user)
     today = date.today()
+    # K5 F4: a stored metric is read by every viewer, so support figures are not stored.
+    shared_headline = {key: value for key, value in payload["headline"].items() if key not in SUPPORT_HEADLINE_KEYS}
     metrics = [
         ("bulletins", "published_count", payload["headline"]["published_bulletins"]),
         ("bulletins", "read_rate", payload["headline"]["bulletin_read_rate"]),
         ("surveys", "count", payload["headline"]["survey_count"]),
-        ("support", "open_count", payload["headline"]["open_tickets"]),
         ("notifications", "unread_count", payload["headline"]["unread_notifications"]),
-        ("support", "overdue_first_response", payload["headline"]["overdue_first_response"]),
-        ("support", "overdue_resolution", payload["headline"]["overdue_resolution"]),
     ]
     changed = 0
     for metric_group, metric_name, metric_value in metrics:
@@ -688,7 +730,7 @@ def refresh_daily_metrics(actor_user: Any | None = None) -> int:
                 captured_by_user_id=getattr(actor_user, "id", None),
             )
         row.metric_value = metric_value
-        row.snapshot_json = payload["headline"]
+        row.snapshot_json = shared_headline
         db.session.add(row)
         changed += 1
     db.session.commit()
@@ -699,7 +741,10 @@ def _daily_metrics_export_rows(days: int = 90) -> list[dict[str, Any]]:
     clean_days = sanitize_days(days, default=90, minimum=30, maximum=365)
     start_date = date.today() - timedelta(days=clean_days - 1)
     rows = []
-    for row in CommunicationDailyMetric.query.filter(CommunicationDailyMetric.metric_date >= start_date).order_by(
+    for row in CommunicationDailyMetric.query.filter(
+        CommunicationDailyMetric.metric_date >= start_date,
+        CommunicationDailyMetric.metric_group != SUPPORT_METRIC_GROUP,  # K5 F4: legacy rows stay unexported
+    ).order_by(
         CommunicationDailyMetric.metric_date.desc(),
         CommunicationDailyMetric.metric_group.asc(),
         CommunicationDailyMetric.metric_name.asc(),

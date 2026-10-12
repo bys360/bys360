@@ -78,13 +78,16 @@ def _recent_phase9c_logs(limit: int = 40) -> list[CommunicationAutomationLog]:
     )
 
 
-def _support_summary() -> dict[str, int]:
+def _support_summary(*, viewer: Any) -> dict[str, int]:
+    """K5 F4: counts only the tickets inside ``viewer``'s scope."""
+    from app.services.support_ticket_access import support_ticket_visibility_clause
+
     open_total = 0
     stale_total = 0
     unassigned_total = 0
     try:
         if SupportTicket is not None:
-            base = SupportTicket.query
+            base = SupportTicket.query.filter(support_ticket_visibility_clause(viewer))
             if hasattr(SupportTicket, 'status'):
                 base = base.filter(SupportTicket.status.in_(list(OPEN_TICKET_STATUSES)))
             open_total = base.count()
@@ -172,12 +175,12 @@ def _pilot_wave_rows(release: dict[str, Any], support: dict[str, int], feedback:
     return rows
 
 
-def phase9c_pilot_opening_snapshot() -> dict[str, Any]:
-    readiness = pilot_readiness_snapshot()
-    cutover = cutover_snapshot()
-    release = phase9_release_center_snapshot()
-    first72 = phase9_first72_snapshot()
-    support = _support_summary()
+def phase9c_pilot_opening_snapshot(*, viewer: Any) -> dict[str, Any]:
+    readiness = pilot_readiness_snapshot(viewer=viewer)
+    cutover = cutover_snapshot(viewer=viewer)
+    release = phase9_release_center_snapshot(viewer=viewer)
+    first72 = phase9_first72_snapshot(viewer=viewer)
+    support = _support_summary(viewer=viewer)
     feedback = _pending_feedback_summary()
     raw_recent_logs = _recent_phase9c_logs(40)
 
@@ -311,12 +314,12 @@ def phase9c_pilot_opening_snapshot() -> dict[str, Any]:
     }
 
 
-def phase9c_payload() -> dict[str, Any]:
-    return phase9c_pilot_opening_snapshot()
+def phase9c_payload(*, viewer: Any) -> dict[str, Any]:
+    return phase9c_pilot_opening_snapshot(viewer=viewer)
 
 
-def build_phase9c_markdown() -> str:
-    payload = phase9c_pilot_opening_snapshot()
+def build_phase9c_markdown(*, viewer: Any) -> str:
+    payload = phase9c_pilot_opening_snapshot(viewer=viewer)
     lines = [
         '# Faz 9C | Pilot Canlı Açılış',
         '',

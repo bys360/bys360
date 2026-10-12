@@ -215,9 +215,10 @@ def test_unread_total_counts_only_unread_notifications_read_ones_excluded(app, c
         db.session.commit()
 
     with app.app_context():
+        from app.models import User
         from app.services.communication_phase5_service import health_snapshot
 
-        snapshot = health_snapshot()
+        snapshot = health_snapshot(viewer=db.session.get(User, user_id))  # K5 F4: support figures need a viewer
         assert snapshot["summary"]["unread_total"] == 2, (
             "unread_total must count only is_read=False rows -- the removed "
             "is_hidden filter must not have changed is_read semantics"
@@ -253,9 +254,10 @@ def test_pending_surveys_counts_assignments_without_a_completed_response(app, cl
         db.session.commit()
 
     with app.app_context():
+        from app.models import User
         from app.services.communication_phase8_service import pilot_readiness_snapshot
 
-        readiness = pilot_readiness_snapshot()
+        readiness = pilot_readiness_snapshot(viewer=db.session.get(User, creator_id))  # K5 F4: support figures need a viewer
         next(g for g in readiness["gates"] if g["label"] == "Pilot kontrol noktası kaydı")
         # Sanity: the gate itself doesn't expose the raw count, so assert
         # indirectly via a direct re-query matching the fixed logic, proving

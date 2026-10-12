@@ -37,6 +37,12 @@ def can_view_all_support_tickets(user: Any) -> bool:
     return has_support_all_grant(user)
 
 
+def support_scope_is_unrestricted(user: Any) -> bool:
+    """K5 F4: does ``user``'s ticket scope cover every ticket (``support_ticket_visibility_clause`` is
+    ``true()``)? Only then may a figure computed in someone else's scope be shown to them."""
+    return can_view_all_support_tickets(user) and is_admin_family_user(user)
+
+
 def support_ticket_visibility_clause(user: Any) -> Any:
     """K5 (2026-10-10): the SQL form of ``can_view_support_ticket`` for every list and counter.
 

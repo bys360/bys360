@@ -217,21 +217,22 @@ def _ticket_owner_snapshot(ticket: Any) -> str:
     return snapshot or "-"
 
 
-_ALL_TICKETS = object()
+# Health checks derived from support tickets. They depend on the viewer's ticket scope, so they are
+# computed live for each viewer and never stored in the shared health table (K5 F4).
+SUPPORT_HEALTH_CHECKS = frozenset({"Açık destek talebi", "Atanmamış destek", "Duran talepler"})
 
 
 def _visible_tickets(viewer: Any):
-    """K5: a rendered view passes its viewer; only institution-wide counts (no row data:
-    health_snapshot, Faz 8/9 gates) read every ticket."""
-    query = SupportTicket.query
-    if viewer is not _ALL_TICKETS:
-        from app.services.support_ticket_access import support_ticket_visibility_clause
+    """K5 F4: every list, counter and statistic counts only the tickets inside the viewer's scope.
 
-        query = query.filter(support_ticket_visibility_clause(viewer))
-    return query
+    There is no institution-wide form: a builder without a viewer cannot be called.
+    """
+    from app.services.support_ticket_access import support_ticket_visibility_clause
+
+    return SupportTicket.query.filter(support_ticket_visibility_clause(viewer))
 
 
-def support_operations_snapshot(limit: int = 200, *, viewer: Any = _ALL_TICKETS) -> dict[str, Any]:
+def support_operations_snapshot(limit: int = 200, *, viewer: Any) -> dict[str, Any]:
     from app.support.routes import SUPPORT_STATUS_CHOICES
 
     status_labels = dict(SUPPORT_STATUS_CHOICES)
@@ -243,10 +244,9 @@ def support_operations_snapshot(limit: int = 200, *, viewer: Any = _ALL_TICKETS)
     assignee_counter: dict[tuple[int | None, str], int] = defaultdict(int)
     stale_rows = []
     unassigned_rows = []
-    history_query = SupportTicketStatusHistory.query
-    if viewer is not _ALL_TICKETS:  # K5: no status or note of a ticket outside the viewer's scope
-        history_query = history_query.filter(
-            SupportTicketStatusHistory.ticket_id.in_(_visible_tickets(viewer).with_entities(SupportTicket.id)))
+    # K5: no status or note of a ticket outside the viewer's scope
+    history_query = SupportTicketStatusHistory.query.filter(
+        SupportTicketStatusHistory.ticket_id.in_(_visible_tickets(viewer).with_entities(SupportTicket.id)))
     recent_history = history_query.order_by(SupportTicketStatusHistory.created_at.desc()).limit(30).all()
     policies = _sla_map()
 
@@ -361,7 +361,7 @@ def automation_center_snapshot() -> dict[str, Any]:
     }
 
 
-def escalation_snapshot(*, viewer: Any = _ALL_TICKETS) -> dict[str, Any]:
+def escalation_snapshot(*, viewer: Any) -> dict[str, Any]:
     rules = CommunicationEscalationRule.query.order_by(CommunicationEscalationRule.priority.asc(), CommunicationEscalationRule.threshold_hours.asc()).all()
     policies = _sla_map()
     tickets = _visible_tickets(viewer).order_by(SupportTicket.created_at.desc()).limit(300).all()
@@ -446,7 +446,7 @@ RETENTION_SCOPE_LABELS = {
 }
 
 
-def retention_snapshot() -> dict[str, Any]:
+def retention_snapshot(*, viewer: Any) -> dict[str, Any]:
     policies = CommunicationRetentionPolicy.query.order_by(CommunicationRetentionPolicy.data_scope.asc()).all()
     now = _now()
     stats = []
@@ -454,9 +454,9 @@ def retention_snapshot() -> dict[str, Any]:
         if scope == "notifications":
             total = Notification.query.count()
             old = Notification.query.filter(Notification.created_at < now - timedelta(days=365)).count()
-        elif scope == "support":
-            total = SupportTicket.query.count()
-            old = SupportTicket.query.filter(SupportTicket.created_at < now - timedelta(days=365)).count()
+        elif scope == "support":  # K5 F4: only the tickets inside the viewer's scope
+            total = _visible_tickets(viewer).count()
+            old = _visible_tickets(viewer).filter(SupportTicket.created_at < now - timedelta(days=365)).count()
         elif scope == "surveys":
             total = Survey.query.count()
             old = Survey.query.filter(Survey.created_at < now - timedelta(days=365)).count()
@@ -512,13 +512,21 @@ def create_or_update_retention_policy(actor: Any, form: Any) -> CommunicationRet
     return row
 
 
-def health_snapshot() -> dict[str, Any]:
+def health_snapshot(*, viewer: Any) -> dict[str, Any]:
     unread_total = Notification.query.filter_by(is_read=False).count()
-    tickets_open = SupportTicket.query.filter(SupportTicket.status.in_(list(OPEN_TICKET_STATUSES))).count()
+    # K5 F4: support figures count only the tickets inside the viewer's scope.
+    tickets_open = _visible_tickets(viewer).filter(SupportTicket.status.in_(list(OPEN_TICKET_STATUSES))).count()
     survey_active = Survey.query.filter(Survey.status.in_(["published", "active", "yayinda"])).count()
     failed_logs = CommunicationAutomationLog.query.filter_by(status="failed").count()
-    recent_checks = CommunicationOperationHealth.query.order_by(CommunicationOperationHealth.checked_at.desc()).limit(20).all()
-    support_ops = support_operations_snapshot(150)
+    # Rows stored before K5 F4 may carry institution-wide support figures; they are not shown.
+    recent_checks = (
+        CommunicationOperationHealth.query
+        .filter(CommunicationOperationHealth.check_name.notin_(sorted(SUPPORT_HEALTH_CHECKS)))
+        .order_by(CommunicationOperationHealth.checked_at.desc())
+        .limit(20)
+        .all()
+    )
+    support_ops = support_operations_snapshot(150, viewer=viewer)
     stale_total = support_ops["summary"]["stale_total"]
     unassigned_total = support_ops["summary"]["unassigned_total"]
     risk_score = min(100, unread_total // 25 + tickets_open * 2 + failed_logs * 10 + stale_total * 3 + unassigned_total * 2)
@@ -567,9 +575,11 @@ def health_snapshot() -> dict[str, Any]:
 
 
 def refresh_operation_health(actor: Any | None = None) -> int:
-    snapshot = health_snapshot()
+    snapshot = health_snapshot(viewer=actor)
     rows = []
     for item in snapshot["synthetic_checks"]:
+        if item["check_name"] in SUPPORT_HEALTH_CHECKS:
+            continue  # K5 F4: a stored row is read by every viewer; support figures stay live and scoped
         rows.append(
             CommunicationOperationHealth(
                 check_name=item["check_name"],

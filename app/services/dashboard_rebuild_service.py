@@ -443,40 +443,52 @@ def _low_score_trend(reader: _Reader, scope_ids: list[int] | None) -> dict[str, 
     return _chart("low_score_trend", "Düşük Performans Trendi", [_short(r.get("label"), 18) for r in rows], [_int(r.get("row_count")) for r in rows], "line")
 
 
+_SUPPORT_OPEN = frozenset({"open", "açık", "acik"})
+_SUPPORT_PROGRESS = frozenset({"reviewing", "waiting_info", "assigned", "planned", "in_progress", "islemde", "işlemde"})
+_SUPPORT_CLOSED = frozenset({"resolved", "closed", "rejected", "completed", "kapalı", "kapali", "çözüldü", "cozuldu"})
+
+
+def _visible_support_status_counts(reader: _Reader, user: Any) -> dict[str, int]:
+    """K5 F4: ticket counts by status, only over the tickets inside ``user``'s scope.
+
+    The support figures follow ``support_ticket_visibility_clause`` (own tickets, plus what an explicit
+    ``support_all`` grant opens). A role in ``GLOBAL_ROLES`` or a manager's team scope widens nothing.
+    """
+    if not reader.has_table("support_tickets"):
+        return {}
+    try:
+        from sqlalchemy import func
+
+        from app.models import SupportTicket
+        from app.services.support_ticket_access import support_ticket_visibility_clause
+
+        rows = (
+            db.session.query(SupportTicket.status, func.count(SupportTicket.id))
+            .filter(support_ticket_visibility_clause(user))
+            .group_by(SupportTicket.status)
+            .all()
+        )
+    except Exception as exc:
+        current_app.logger.warning("Dashboard destek sayacı güvenli boş döndü: %s", type(exc).__name__)
+        db.session.rollback()
+        return {}
+    counts: dict[str, int] = {}
+    for status, total in rows:
+        key = str(status or "").strip().lower()
+        counts[key] = counts.get(key, 0) + _int(total)
+    return counts
+
+
 def _support_status(reader: _Reader, scope_ids: list[int] | None, user: Any) -> dict[str, Any]:
     labels = ["Açık", "İşlemde", "Kapalı"]
     if not reader.has_table("support_tickets") or not reader.has_col("support_tickets", "status"):
         return _chart("support_status", "Destek Talepleri", labels, [0, 0, 0], "donut")
-    where = "WHERE 1=1"
-    params: dict[str, Any] = {}
-    if scope_ids is not None:
-        uid = _user_id(user)
-        if not scope_ids and not uid:
-            where += " AND 1=0"
-        else:
-            parts = []
-            if reader.has_col("support_tickets", "created_by_user_id"):
-                parts.append("st.created_by_user_id IN :scope_ids")
-            if reader.has_col("support_tickets", "assigned_to_user_id"):
-                parts.append("st.assigned_to_user_id IN :scope_ids")
-            if parts:
-                where += " AND (" + " OR ".join(parts) + ")"
-                params["scope_ids"] = scope_ids or ([uid] if uid else [])
-            else:
-                where += " AND 1=0"
-    row = reader.rows(
-        f"""
-        SELECT
-          SUM(CASE WHEN LOWER(COALESCE(st.status,'')) IN ('open','açık','acik') THEN 1 ELSE 0 END) AS open_count,
-          SUM(CASE WHEN LOWER(COALESCE(st.status,'')) IN ('reviewing','waiting_info','assigned','planned','in_progress','islemde','işlemde') THEN 1 ELSE 0 END) AS progress_count,
-          SUM(CASE WHEN LOWER(COALESCE(st.status,'')) IN ('resolved','closed','rejected','completed','kapalı','kapali','çözüldü','cozuldu') THEN 1 ELSE 0 END) AS closed_count
-        FROM support_tickets st {where}
-        """,
-        params,
-    )
-    values = [0, 0, 0]
-    if row:
-        values = [_int(row[0].get("open_count")), _int(row[0].get("progress_count")), _int(row[0].get("closed_count"))]
+    counts = _visible_support_status_counts(reader, user)  # K5 F4: scope_ids does not apply here
+    values = [
+        sum(total for status, total in counts.items() if status in _SUPPORT_OPEN),
+        sum(total for status, total in counts.items() if status in _SUPPORT_PROGRESS),
+        sum(total for status, total in counts.items() if status in _SUPPORT_CLOSED),
+    ]
     return _chart("support_status", "Destek Talepleri", labels, values, "donut")
 
 
@@ -615,25 +627,10 @@ def _count_unread_notifications(reader: _Reader, user: Any) -> int:
 
 
 def _count_support(reader: _Reader, scope_ids: list[int] | None, user: Any, open_only: bool = True) -> int:
-    if not reader.has_table("support_tickets"):
-        return 0
-    where = "WHERE 1=1"
-    params: dict[str, Any] = {}
-    if open_only and reader.has_col("support_tickets", "status"):
-        where += " AND LOWER(COALESCE(st.status,'')) NOT IN ('resolved','closed','rejected','completed','kapalı','kapali','çözüldü','cozuldu')"
-    if scope_ids is not None:
-        uid = _user_id(user)
-        parts = []
-        if reader.has_col("support_tickets", "created_by_user_id"):
-            parts.append("st.created_by_user_id IN :scope_ids")
-        if reader.has_col("support_tickets", "assigned_to_user_id"):
-            parts.append("st.assigned_to_user_id IN :scope_ids")
-        if parts:
-            where += " AND (" + " OR ".join(parts) + ")"
-            params["scope_ids"] = scope_ids or ([uid] if uid else [])
-        elif uid:
-            where += " AND 1=0"
-    return _int(reader.scalar(f"SELECT COUNT(*) FROM support_tickets st {where}", params))
+    counts = _visible_support_status_counts(reader, user)  # K5 F4: scope_ids does not apply here
+    if open_only:
+        return sum(total for status, total in counts.items() if status not in _SUPPORT_CLOSED)
+    return sum(counts.values())
 
 
 def _count_open_surveys(reader: _Reader) -> int:

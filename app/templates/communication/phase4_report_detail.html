@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 {% block title %}Rapor Detayı{% endblock %}
-{% set metrics = row.metrics_json or {} %}
+{% set report_view = report_view if report_view is defined else {'metrics': row.metrics_json or {}, 'recommendations': row.recommendations_json or [], 'summary_text': row.summary_text, 'support_hidden': False} %}
+{% set metrics = report_view.metrics or {} %}
+{% set support_hidden = report_view.support_hidden %}
 {% set headline = metrics.get('headline', {}).get('headline', {}) if metrics.get('headline') else {} %}
 {% set trend_root = metrics.get('headline', {}).get('trends', {}) if metrics.get('headline') else {} %}
 {% set survey_totals = metrics.get('surveys', {}).get('totals', {}) if metrics.get('surveys') else {} %}
@@ -21,14 +23,14 @@
   <div class="row g-3 mb-4">
     <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="text-muted small">Duyuru</div><div class="display-6">{{ headline.get('published_bulletins', 0) }}</div></div></div></div>
     <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="text-muted small">Anket</div><div class="display-6">{{ headline.get('survey_count', 0) }}</div></div></div></div>
-    <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="text-muted small">Açık Destek</div><div class="display-6">{{ headline.get('open_tickets', 0) }}</div></div></div></div>
-    <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="text-muted small">SLA Riski</div><div class="display-6">{{ support_totals.get('sla_risk_count', 0) }}</div></div></div></div>
+    <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="text-muted small">Açık Destek</div><div class="display-6">{{ '—' if support_hidden else headline.get('open_tickets', 0) }}</div></div></div></div>
+    <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="text-muted small">SLA Riski</div><div class="display-6">{{ '—' if support_hidden else support_totals.get('sla_risk_count', 0) }}</div></div></div></div>
   </div>
 
   <div class="card shadow-sm mb-4">
     <div class="card-header"><strong>Özet</strong></div>
     <div class="card-body">
-      <p class="mb-0">{{ row.summary_text or 'Özet bilgisi bulunamadı.' }}</p>
+      <p class="mb-0">{{ report_view.summary_text or 'Özet bilgisi bulunamadı.' }}</p>
     </div>
   </div>
 
@@ -45,7 +47,7 @@
       <div class="card shadow-sm h-100">
         <div class="card-header"><strong>Öneriler</strong></div>
         <div class="card-body">
-          {% for item in row.recommendations_json or [] %}
+          {% for item in report_view.recommendations or [] %}
             <div class="mb-2">• {{ item }}</div>
           {% else %}
             <div class="text-muted">Öneri üretilmedi.</div>
@@ -78,10 +80,14 @@
         <div class="card-body table-responsive">
           <table class="table table-sm align-middle mb-0">
             <tbody>
+              {% if support_hidden %}
+              <tr><td colspan="2" class="text-muted">Destek göstergeleri raporu oluşturan kişinin yetki kapsamında hesaplandı; yetki kapsamınız dışında olduğu için gösterilmez.</td></tr>
+              {% else %}
               <tr><th>Toplam kayıt</th><td>{{ support_totals.get('ticket_count', 0) }}</td></tr>
               <tr><th>Açık kayıt</th><td>{{ support_totals.get('open_count', 0) }}</td></tr>
               <tr><th>SLA riski</th><td>{{ support_totals.get('sla_risk_count', 0) }}</td></tr>
               <tr><th>Ort. yaş</th><td>{{ support_totals.get('average_age_days', 0) }} gün</td></tr>
+              {% endif %}
               <tr><th>Kritik bildirim</th><td>{{ headline.get('critical_unread', 0) }}</td></tr>
             </tbody>
           </table>

@@ -70,9 +70,9 @@ def _recent_phase9a_logs(limit: int = 20) -> list[CommunicationAutomationLog]:
     )
 
 
-def phase9a_preflight_snapshot() -> dict[str, Any]:
-    release = phase9_release_center_snapshot()
-    first72 = phase9_first72_snapshot()
+def phase9a_preflight_snapshot(*, viewer: Any) -> dict[str, Any]:
+    release = phase9_release_center_snapshot(viewer=viewer)
+    first72 = phase9_first72_snapshot(viewer=viewer)
 
     env_rows = [
         _env_row('APP_ENV', True, 'production', mask=False),
@@ -137,8 +137,8 @@ def phase9a_preflight_snapshot() -> dict[str, Any]:
     }
 
 
-def phase9a_backup_snapshot() -> dict[str, Any]:
-    release = phase9_release_center_snapshot()
+def phase9a_backup_snapshot(*, viewer: Any) -> dict[str, Any]:
+    release = phase9_release_center_snapshot(viewer=viewer)
     go_live = release.get('go_live', {}) or {}
     backup_summary = go_live.get('backup_summary', {}) or {}
     log_summary = go_live.get('log_summary', {}) or {}
@@ -173,9 +173,9 @@ def phase9a_backup_snapshot() -> dict[str, Any]:
     }
 
 
-def phase9a_dashboard_snapshot() -> dict[str, Any]:
-    preflight = phase9a_preflight_snapshot()
-    backup = phase9a_backup_snapshot()
+def phase9a_dashboard_snapshot(*, viewer: Any) -> dict[str, Any]:
+    preflight = phase9a_preflight_snapshot(viewer=viewer)
+    backup = phase9a_backup_snapshot(viewer=viewer)
     release = preflight['release']
     summary_cards = [
         {'label': 'Env blokajı', 'value': preflight['counts']['env'].get('fail', 0), 'suffix': ''},
@@ -192,8 +192,8 @@ def phase9a_dashboard_snapshot() -> dict[str, Any]:
     }
 
 
-def build_phase9a_markdown() -> str:
-    payload = phase9a_dashboard_snapshot()
+def build_phase9a_markdown(*, viewer: Any) -> str:
+    payload = phase9a_dashboard_snapshot(viewer=viewer)
     lines = [
         '# BYS360 İletişim ve Anket | Faz 9A Teknik Kilit',
         '',

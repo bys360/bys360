@@ -46,15 +46,15 @@ def _recent_phase9_logs(limit: int = 40) -> list[CommunicationAutomationLog]:
     )
 
 
-def _try_phase8_snapshot() -> dict[str, Any]:
+def _try_phase8_snapshot(*, viewer: Any) -> dict[str, Any]:
     try:
         from app.services.communication_phase8_service import (
             cutover_snapshot,
             pilot_readiness_snapshot,
         )
         return {
-            'readiness': pilot_readiness_snapshot(),
-            'cutover': cutover_snapshot(),
+            'readiness': pilot_readiness_snapshot(viewer=viewer),
+            'cutover': cutover_snapshot(viewer=viewer),
         }
     except Exception:
         logger.exception("BYS360 V6C guarded exception | file=app/services/communication_phase9_service.py | line=54")
@@ -134,14 +134,15 @@ def _smoke_rows() -> list[dict[str, Any]]:
     ]
 
 
-def phase9_release_center_snapshot() -> dict[str, Any]:
+def phase9_release_center_snapshot(*, viewer: Any) -> dict[str, Any]:
+    """K5 F4: support figures count only the tickets inside ``viewer``'s scope."""
     go_live = build_go_live_readiness_context()
-    health = health_snapshot()
-    support_ops = support_operations_snapshot(150)
+    health = health_snapshot(viewer=viewer)
+    support_ops = support_operations_snapshot(150, viewer=viewer)
     automation = automation_center_snapshot()
-    escalations = escalation_snapshot()
-    retention = retention_snapshot()
-    phase8 = _try_phase8_snapshot()
+    escalations = escalation_snapshot(viewer=viewer)
+    retention = retention_snapshot(viewer=viewer)
+    phase8 = _try_phase8_snapshot(viewer=viewer)
     recent_logs = [
         {
             'action_type': row.action_type,
@@ -296,8 +297,8 @@ def phase9_release_center_snapshot() -> dict[str, Any]:
     }
 
 
-def phase9_first72_snapshot() -> dict[str, Any]:
-    release = phase9_release_center_snapshot()
+def phase9_first72_snapshot(*, viewer: Any) -> dict[str, Any]:
+    release = phase9_release_center_snapshot(viewer=viewer)
     health = release['health']
     support_ops = release['support_ops']
     escalation = release['escalations']
@@ -343,9 +344,9 @@ def phase9_first72_snapshot() -> dict[str, Any]:
     }
 
 
-def phase9_dashboard_snapshot() -> dict[str, Any]:
-    release = phase9_release_center_snapshot()
-    first72 = phase9_first72_snapshot()
+def phase9_dashboard_snapshot(*, viewer: Any) -> dict[str, Any]:
+    release = phase9_release_center_snapshot(viewer=viewer)
+    first72 = phase9_first72_snapshot(viewer=viewer)
     return {
         'generated_at': _now(),
         'release': release,
@@ -354,9 +355,9 @@ def phase9_dashboard_snapshot() -> dict[str, Any]:
     }
 
 
-def phase9_release_payload() -> dict[str, Any]:
-    release = phase9_release_center_snapshot()
-    first72 = phase9_first72_snapshot()
+def phase9_release_payload(*, viewer: Any) -> dict[str, Any]:
+    release = phase9_release_center_snapshot(viewer=viewer)
+    first72 = phase9_first72_snapshot(viewer=viewer)
     return {
         'generated_at': release['generated_at'],
         'decision': release['decision'],
@@ -371,8 +372,8 @@ def phase9_release_payload() -> dict[str, Any]:
     }
 
 
-def build_phase9_release_markdown() -> str:
-    payload = phase9_release_payload()
+def build_phase9_release_markdown(*, viewer: Any) -> str:
+    payload = phase9_release_payload(viewer=viewer)
     lines = [
         '# BYS360 İletişim ve Anket | Faz 9 Canlıya Geçiş Paketi',
         '',

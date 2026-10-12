@@ -120,9 +120,12 @@ def communication_phase4_report_create():
 @menu_key_required("reports")
 def communication_phase4_report_detail(report_id: int):
     from app.models.communication_phase4_models import CommunicationExecutiveReport
+    from app.services.communication_phase4_service import executive_report_view
 
     row = CommunicationExecutiveReport.query.get_or_404(report_id)
-    return safe_render("communication/phase4_report_detail.html", row=row, status_labels=REPORT_STATUS_LABELS)
+    # K5 F4: a reader outside the author's ticket scope gets the report without its support figures.
+    view = executive_report_view(row, current_user)
+    return safe_render("communication/phase4_report_detail.html", row=row, report_view=view, status_labels=REPORT_STATUS_LABELS)
 
 
 @main_bp.route("/communication/faz4/reports/<int:report_id>/submit-review", methods=["POST"])
