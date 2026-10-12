@@ -444,6 +444,17 @@ def test_static_guard_covers_normalised_spellings(env, template):
     assert response.status_code in {404, 308}
 
 
+@pytest.mark.parametrize("method", ["get", "head"])
+@pytest.mark.parametrize("template", ["/static/uploads%00/{tail}", "/static/{rel}%00", "/static/img/probe%00.png"])
+def test_static_guard_answers_a_nul_byte_with_404_not_a_server_error(env, method, template):
+    """Plain Flask answers 404; the guard must not turn a NUL byte into a 500 with a traceback."""
+    item = env.legacy["messages"]
+    url = template.format(rel=item.static_rel, tail=item.static_rel.split("/", 1)[1])
+    response = getattr(_client(env), method)(url)
+    assert response.status_code == 404
+    assert item.marker not in response.get_data()
+
+
 def test_static_guard_covers_an_upload_folder_configured_inside_static(env):
     env.app.config["UPLOAD_FOLDER"] = str(env.static_root / "files")
     payload, marker = _pdf("custom-upload-folder")

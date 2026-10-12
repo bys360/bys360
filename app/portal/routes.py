@@ -39,6 +39,7 @@ from app.security.private_uploads import (
     locate_upload,
     private_upload_dir,
     private_upload_path,
+    store_private_upload,
 )
 from app.services.bys360_notification_bridge import (
     notify_portal_comment_added,
@@ -173,7 +174,7 @@ def _save_portal_images(post: PortalPost, files) -> None:
         except Exception:
             __import__("logging").getLogger(__name__).exception("BYS360 SAFE V4: sessiz except loglandi: app/portal/routes.py:166")
             pass
-        file_storage.save(stored_path)
+        store_private_upload(file_storage, stored_path)
         image_mime = mime or ("image/jpeg" if ext in {"jpg", "jpeg"} else f"image/{ext}")
         db.session.add(PortalPostAttachment(
             post_id=post.id,
@@ -210,7 +211,7 @@ def _save_portal_video_file(post: PortalPost, files) -> None:
         except Exception:
             __import__("logging").getLogger(__name__).exception("BYS360 SAFE V4: sessiz except loglandi: app/portal/routes.py:202")
             pass
-        file_storage.save(stored_path)
+        store_private_upload(file_storage, stored_path)
         video_mime = mime or ("video/mp4" if ext in {"mp4", "m4v"} else "video/webm")
         if ext == "mov" and not mime:
             video_mime = "video/quicktime"

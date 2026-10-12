@@ -21,6 +21,7 @@ from app.security.private_uploads import (
     legacy_static_upload_path,
     private_upload_dir,
     private_upload_path,
+    store_private_upload,
 )
 from app.services.runtime_cache import (
     get_or_set as _cache_get_or_set,
@@ -351,7 +352,7 @@ def save_message_attachment(file_storage, message, uploaded_by_user_id):
     abs_path = upload_dir / stored_filename
 
     file_storage.stream.seek(0)
-    file_storage.save(abs_path)
+    store_private_upload(file_storage, abs_path)
 
     attachment = MessageAttachment(
         message_id=message.id,

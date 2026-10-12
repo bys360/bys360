@@ -117,11 +117,14 @@ def install_private_static_guard(app: Flask) -> None:
 
     @wraps(view)
     def guarded_static(*args: Any, **kwargs: Any) -> Any:
-        if is_private_static_path(
-            str(kwargs.get("filename") or ""),
-            app.static_folder,
-            app.config.get("UPLOAD_FOLDER"),
-        ):
+        filename = str(kwargs.get("filename") or "")
+        if "\x00" in filename:
+            abort(404)  # Plain Flask answers 404; never a 500 with a traceback.
+        try:
+            private = is_private_static_path(filename, app.static_folder, app.config.get("UPLOAD_FOLDER"))
+        except (OSError, ValueError):
+            abort(404)  # An unresolvable path is refused, never served.
+        if private:
             abort(404)
         return view(*args, **kwargs)
 

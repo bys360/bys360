@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import secrets
 from pathlib import Path
 
@@ -21,6 +22,23 @@ from app.services.profile_photo_service import save_profile_photo
 NAME = "user_1_old_key.png"
 REL = "uploads/profile_photos/" + NAME
 SECRET = b"REVOKED-PRIVATE-PHOTO"
+
+
+def _user(user_id: int) -> User:
+    user = db.session.get(User, user_id)
+    assert user is not None
+    return user
+
+
+@pytest.fixture(autouse=True)
+def _logging_enabled():
+    """These tests assert on log text, so they must not depend on a process-wide
+    ``logging.disable()`` left on by an earlier test (the authorization-matrix
+    script disables logging when it builds its app)."""
+    previous = logging.root.manager.disable
+    logging.disable(logging.NOTSET)
+    yield
+    logging.disable(previous)
 
 
 @pytest.fixture
@@ -78,9 +96,9 @@ def copies(roots):
 
 def revoke(app):
     with app.app_context():
-        result = delete_personnel_profile_photo(db.session.get(User, 1), app_root_path=app.root_path)
+        result = delete_personnel_profile_photo(_user(1), app_root_path=app.root_path)
         db.session.commit()
-        assert db.session.get(User, 1).profile_photo_path is None
+        assert _user(1).profile_photo_path is None
     return result
 
 
@@ -132,7 +150,7 @@ def test_shared_reference_is_not_physically_deleted(env, reference):
     app, roots = env
     files = copies(roots)
     with app.app_context():
-        db.session.get(User, 3).profile_photo_path = reference
+        _user(3).profile_photo_path = reference
         db.session.commit()
     revoke(app)
     assert all(path.read_bytes() == SECRET for path in files)
@@ -145,7 +163,7 @@ def test_unreferenced_or_inactive_photo_is_not_downloadable(env, state):
     app, roots = env
     copies(roots)
     with app.app_context():
-        owner = db.session.get(User, 1)
+        owner = _user(1)
         if state == "inactive":
             owner.is_active = False
         else:
@@ -160,7 +178,7 @@ def test_active_legacy_and_private_photo_remain_readable_without_cache(env, inde
     app, roots = env
     copies([roots[index]])
     with app.app_context():
-        db.session.get(User, 1).profile_photo_path = REL.replace("/", separator)
+        _user(1).profile_photo_path = REL.replace("/", separator)
         db.session.commit()
     response = client(app).get("/uploads/profile_photos/" + NAME)
     assert response.status_code == 200 and response.data == SECRET
@@ -189,7 +207,7 @@ def test_replacement_revokes_old_url_even_when_cleanup_fails(env, monkeypatch):
     copies(roots)
     monkeypatch.setattr(Path, "unlink", lambda *args, **kwargs: (_ for _ in ()).throw(PermissionError("denied")))
     with app.app_context():
-        new = save_profile_photo(FileStorage(stream=io.BytesIO(b"NEW"), filename="new.png"), db.session.get(User, 1))
+        new = save_profile_photo(FileStorage(stream=io.BytesIO(b"NEW"), filename="new.png"), _user(1))
         db.session.commit()
     refused(app)
     assert client(app).get("/" + new).data == b"NEW"
@@ -199,7 +217,7 @@ def test_traversal_reference_does_not_delete_other_user_file(env):
     app, roots = env
     files = copies(roots)
     with app.app_context():
-        db.session.get(User, 1).profile_photo_path = "../outside/" + NAME
+        _user(1).profile_photo_path = "../outside/" + NAME
         db.session.commit()
     revoke(app)
     assert all(path.exists() for path in files)
@@ -209,8 +227,8 @@ def test_mismatched_user_filename_is_not_deleted(env):
     app, roots = env
     files = copies(roots)
     with app.app_context():
-        db.session.get(User, 1).profile_photo_path = None
-        other = db.session.get(User, 2)
+        _user(1).profile_photo_path = None
+        other = _user(2)
         other.profile_photo_path = REL
         db.session.commit()
         delete_personnel_profile_photo(other, app_root_path=app.root_path)

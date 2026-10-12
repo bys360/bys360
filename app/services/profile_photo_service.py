@@ -14,6 +14,7 @@ from app.security.private_uploads import (
     locate_upload,
     private_upload_dir,
     private_upload_path,
+    static_root,
     store_private_upload,
 )
 
@@ -65,7 +66,7 @@ def delete_profile_photo_copies(relative_path: str | None, *, owner_id: int | No
             if query.first() is not None:
                 current_app.logger.warning("PRIVATE_UPLOAD_DELETE_SKIPPED_REFERENCED")
                 return False, True
-        roots = [private_upload_path("profile_photos"), Path(current_app.static_folder) / "uploads" / "profile_photos"]
+        roots = [private_upload_path("profile_photos"), static_root() / "uploads" / "profile_photos"]
         configured = current_app.config.get("UPLOAD_FOLDER") or os.getenv("UPLOAD_FOLDER")
         if configured:
             roots.extend([Path(configured) / "profile_photos", Path(configured) / "uploads" / "profile_photos"])
