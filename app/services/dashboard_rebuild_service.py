@@ -456,19 +456,20 @@ def _visible_support_status_counts(reader: _Reader, user: Any) -> dict[str, int]
     """
     if not reader.has_table("support_tickets"):
         return {}
+    from sqlalchemy import func
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from app.models import SupportTicket
+    from app.services.support_ticket_access import support_ticket_visibility_clause
+
     try:
-        from sqlalchemy import func
-
-        from app.models import SupportTicket
-        from app.services.support_ticket_access import support_ticket_visibility_clause
-
         rows = (
             db.session.query(SupportTicket.status, func.count(SupportTicket.id))
             .filter(support_ticket_visibility_clause(user))
             .group_by(SupportTicket.status)
             .all()
         )
-    except Exception as exc:
+    except SQLAlchemyError as exc:  # fail closed: a database error shows no count rather than a wider one
         current_app.logger.warning("Dashboard destek sayacı güvenli boş döndü: %s", type(exc).__name__)
         db.session.rollback()
         return {}

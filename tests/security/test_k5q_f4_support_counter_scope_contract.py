@@ -448,3 +448,21 @@ def test_an_unrestricted_holder_still_reads_a_legacy_report(env):
     report_id = _legacy_report(env, "sysadm")
     text = _text(_web(env, "admin_holder").get(f"/communication/faz4/reports/{report_id}").get_data(as_text=True))
     assert f"{OTHER_TICKETS + 1} açık destek talebi" in text
+
+
+def test_a_database_error_in_the_dashboard_counter_fails_closed(env, monkeypatch):
+    """The dashboard support counter shows nothing, not a wider count, when its query fails."""
+    from sqlalchemy.exc import OperationalError
+
+    from app.extensions import db
+    from app.services.dashboard_rebuild_service import build_dashboard_rebuild_context
+
+    def failing_query(*args, **kwargs):
+        raise OperationalError("SELECT support_tickets", {}, Exception("database unavailable"))
+
+    with env.app.app_context():
+        user = _user(env, "admin_holder")
+        monkeypatch.setattr(db.session, "query", failing_query)
+        context = build_dashboard_rebuild_context(user)
+    assert context["metrics"]["open_support"] == 0
+    assert sum(context["charts"]["support_status"]["values"]) == 0
