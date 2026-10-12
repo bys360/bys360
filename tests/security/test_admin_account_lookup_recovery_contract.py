@@ -391,6 +391,7 @@ def _state(env, key_or_id):
     user_id = env.ids[key_or_id] if isinstance(key_or_id, str) else key_or_id
     with env.app.app_context():
         user = db.session.get(User, user_id)
+        assert user is not None
         return SimpleNamespace(
             password_hash=user.password_hash,
             security_stamp=user.security_stamp,
