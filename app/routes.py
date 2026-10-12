@@ -97,12 +97,28 @@ def bys360_profile_photo_file(filename: str):
 
     from werkzeug.utils import secure_filename
 
+    from app.models import User
+
     safe_name = secure_filename(Path(filename or "").name)
     if not safe_name:
         abort(404)
 
-    roots = []
-    static_profile_dir = (Path(current_app.root_path) / "static" / "uploads" / "profile_photos").resolve()
+    # A filename is not a grant: leftover bytes are inaccessible after the
+    # persisted photo reference is cleared/replaced, including failed cleanup.
+    photo_path = User.profile_photo_path
+    active_photo = User.query.filter(
+        User.is_active.is_(True),
+        (photo_path == safe_name) | photo_path.endswith("/" + safe_name, autoescape=True)
+        | photo_path.endswith("\\" + safe_name, autoescape=True),
+    ).first()
+    if active_photo is None:
+        abort(404)
+
+    from app.security.private_uploads import legacy_static_upload_path, private_upload_path
+
+    # B2-F06: yeni fotoğraflar static dışındaki özel depoda; eski konumlar geri dönüş olarak okunur.
+    roots = [private_upload_path("profile_photos").resolve()]
+    static_profile_dir = legacy_static_upload_path("profile_photos").resolve()
     roots.append(static_profile_dir)
 
     configured_upload_root = current_app.config.get("UPLOAD_FOLDER") or os.getenv("UPLOAD_FOLDER")
@@ -119,12 +135,12 @@ def bys360_profile_photo_file(filename: str):
             continue
         if candidate.is_file():
             response = send_from_directory(str(root), safe_name, as_attachment=False, conditional=True)
-            response.headers.setdefault("Cache-Control", "private, max-age=3600")
+            response.headers["Cache-Control"] = "no-store, private"
             return response
 
     default_dir = (Path(current_app.root_path) / "static" / "img").resolve()
     response = send_from_directory(str(default_dir), "default-avatar.svg", as_attachment=False, conditional=True)
-    response.headers.setdefault("Cache-Control", "private, max-age=600")
+    response.headers["Cache-Control"] = "no-store, private"
     return response
 # BYS360_PROFILE_PHOTO_VISIBILITY_V2_17_73_END
 

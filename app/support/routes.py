@@ -32,6 +32,12 @@ from app.route_support import (
     safe_render,
     sanitize_free_text,
 )
+from app.security.private_uploads import (
+    locate_upload,
+    private_upload_dir,
+    private_upload_path,
+    store_private_upload,
+)
 from app.security.upload_security import UploadValidationError, safe_store_filename, validate_upload
 from app.services.bys360_notification_bridge import (
     notify_support_ticket_assigned,
@@ -311,10 +317,14 @@ def _support_list_rows(query, limit: int = SUPPORT_LIST_LIMIT) -> list[SupportTi
 
 
 def _support_upload_root() -> Path:
-    base_folder = current_app.config.get("UPLOAD_FOLDER") or "uploads"
-    root = Path(base_folder) / "support_tickets"
-    root.mkdir(parents=True, exist_ok=True)
-    return root
+    """Yeni destek talebi ekleri için yazma kökü (B2-F06: static dışındaki özel depo)."""
+    return private_upload_dir("support_tickets")
+
+
+def _support_attachment_dirs(ticket_id: int) -> tuple[Path, ...]:
+    """Ek okuma sırası: özel depo, ardından bu değişiklikten önceki UPLOAD_FOLDER konumu."""
+    legacy_root = Path(current_app.config.get("UPLOAD_FOLDER") or "uploads") / "support_tickets"
+    return (private_upload_path("support_tickets", str(ticket_id)), legacy_root / str(ticket_id))
 
 def _store_ticket_attachment(ticket: SupportTicket, file_obj, attachment_type: str = "document") -> None:
     meta = validate_upload(
@@ -323,10 +333,8 @@ def _store_ticket_attachment(ticket: SupportTicket, file_obj, attachment_type: s
         max_size=current_app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024),
     )
     stored_name = safe_store_filename(file_obj.filename)
-    root = _support_upload_root()
-    ticket_folder = root / str(ticket.id)
-    ticket_folder.mkdir(parents=True, exist_ok=True)
-    file_obj.save(ticket_folder / stored_name)
+    ticket_folder = private_upload_dir("support_tickets", str(ticket.id))
+    store_private_upload(file_obj, ticket_folder / stored_name)
     db.session.add(
         SupportTicketAttachment(
             ticket=ticket,
@@ -1129,8 +1137,11 @@ def support_attachment_download(ticket_id: int, attachment_id: int):
     if not _can_view_ticket(ticket):
         abort(403)
     attachment = SupportTicketAttachment.query.filter_by(id=attachment_id, ticket_id=ticket.id).first_or_404()
-    folder = _support_upload_root() / str(ticket.id)
-    return send_from_directory(folder, attachment.stored_name, as_attachment=True, download_name=attachment.filename)
+    located = locate_upload(attachment.stored_name, _support_attachment_dirs(ticket.id))
+    if located is None:
+        abort(404)
+    folder, stored_name = located
+    return send_from_directory(folder, stored_name, as_attachment=True, download_name=attachment.filename)
 
 def _sync_seeded_help_articles(*, update_existing: bool = False) -> tuple[int, int, int]:
     inserted = 0

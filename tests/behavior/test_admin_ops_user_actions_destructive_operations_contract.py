@@ -832,16 +832,13 @@ def test_admin_user_change_photo_invalid_extension_rejected_with_no_mutation(app
 
 def test_admin_user_change_photo_valid_upload_succeeds_and_mutates_real_row(app, client, monkeypatch):
     """Exercises the full real save_profile_photo path (secure_filename,
-    extension check, DB field updates) with the on-disk write destination
-    redirected to this file's own scratch temp directory -- never the real
-    app/static/uploads/profile_photos/ directory in the repo -- via
-    monkeypatching app.services.profile_photo_service.profile_photo_upload_dir,
-    which save_profile_photo looks up as a module-global at call time."""
+    extension check, private-root containment, DB field updates) with the
+    private upload root pointed at this file's own scratch temp directory --
+    never the repo's app/static or instance/ folders. B2-F06 refuses any write
+    outside the private root, so the root itself is redirected rather than the
+    upload directory."""
     os.makedirs(_TMP_PHOTO_DIR, exist_ok=True)
-    monkeypatch.setattr(
-        "app.services.profile_photo_service.profile_photo_upload_dir",
-        lambda: _TMP_PHOTO_DIR,
-    )
+    monkeypatch.setitem(app.config, "PRIVATE_UPLOAD_FOLDER", _TMP_PHOTO_DIR)
 
     _create_user(app, role="admin", sicil_no="photo_ok_admin")
     target_id = _create_user(app, role="personel", sicil_no="photo_ok_target")
@@ -865,7 +862,9 @@ def test_admin_user_change_photo_valid_upload_succeeds_and_mutates_real_row(app,
     assert reloaded.profile_photo_updated_at is not None
 
     saved_name = reloaded.profile_photo_path.rsplit("/", 1)[-1]
-    assert os.path.isfile(os.path.join(_TMP_PHOTO_DIR, saved_name))
+    assert os.path.isfile(os.path.join(_TMP_PHOTO_DIR, "profile_photos", saved_name))
+    static_copy = os.path.join(app.static_folder, "uploads", "profile_photos", saved_name)
+    assert not os.path.exists(static_copy)
 
 
 # ---------------------------------------------------------------------------

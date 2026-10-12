@@ -420,6 +420,12 @@ def test_style_and_handler_inventory_is_completely_unaffected() -> None:
 # 995 to 996 and changed ENDPOINT_SHA256 accordingly -- mechanically
 # re-derived from a fresh, isolated create_app() run, unrelated to this
 # wave's own OpenAPI-drift-cleanup change.
+#
+# FORWARD-COMPATIBILITY FOLLOW-UP (BYS360 B2-F06 private uploads): one new,
+# additive endpoint (GET /portal/attachments/<int:attachment_id>, endpoint
+# main.portal_attachment_file, app/portal/routes.py) raised ROUTE_COUNT from
+# 996 to 997 and changed ENDPOINT_SHA256 accordingly -- mechanically
+# re-derived from a fresh, isolated create_app() run.
 def test_url_map_route_count_and_hash_are_unaffected() -> None:
     probe_script = (
         "import hashlib\n"
@@ -431,8 +437,8 @@ def test_url_map_route_count_and_hash_are_unaffected() -> None:
     )
     output_lines = _run_isolated_probe(probe_script)
     values = dict(line.split("=", 1) for line in output_lines if "=" in line)
-    assert values.get("ROUTE_COUNT") == "996"
-    assert values.get("ENDPOINT_SHA256") == "6d77723ef2dac703edf297eb04993979267b8c34c76da49d71028e01b15c39b3"
+    assert values.get("ROUTE_COUNT") == "997"
+    assert values.get("ENDPOINT_SHA256") == "269dc9216997f412a6323e22a365605535f4214aab4fdb87c0dabb74e7820e4e"
 
 
 # ---------------------------------------------------------------------------

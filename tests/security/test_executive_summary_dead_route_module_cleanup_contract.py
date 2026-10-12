@@ -138,8 +138,13 @@ RESIDUAL_TEMPLATE_FILE = "app/templates/dashboard/executive_summary.html"
 # and changed the endpoint-list hash accordingly -- mechanically re-verified
 # against a fresh app.url_map, unrelated to this wave's own dead-module-
 # deletion change.
-EXPECTED_ROUTE_COUNT = 996
-EXPECTED_ENDPOINT_LIST_SHA256 = "6d77723ef2dac703edf297eb04993979267b8c34c76da49d71028e01b15c39b3"
+#
+# FORWARD-COMPATIBILITY FOLLOW-UP (BYS360 B2-F06 private uploads): one new,
+# additive route (GET /portal/attachments/<int:attachment_id>) raised the
+# count 996->997 and changed the endpoint-list hash accordingly --
+# mechanically re-verified against a fresh app.url_map, unrelated to this wave.
+EXPECTED_ROUTE_COUNT = 997
+EXPECTED_ENDPOINT_LIST_SHA256 = "269dc9216997f412a6323e22a365605535f4214aab4fdb87c0dabb74e7820e4e"
 
 STARTUP_FILES_THAT_MUST_NOT_REFERENCE_THE_DEAD_MODULE = (
     "app/dashboard/routes.py",
