@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+from datetime import UTC, datetime, timedelta
 
 from flask import flash, make_response, redirect, request, url_for
 from flask_login import current_user
@@ -94,6 +95,25 @@ def _admin_view_url() -> str:
     return url_for("main.admin_users", view="admins")
 
 
+REAUTH_MAX_FAILURES = 5
+REAUTH_WINDOW = timedelta(minutes=15)
+
+
+def _recent_reauthentication_failures() -> int:
+    """Failed re-authentications of the current admin in the window, from the audit trail."""
+    from app.models import AuditLog
+
+    since = datetime.now(UTC).replace(tzinfo=None) - REAUTH_WINDOW
+    return (
+        AuditLog.query.filter(
+            AuditLog.user_id == current_user.id,
+            AuditLog.action == "account.initial_password_reissue_refused",
+            AuditLog.summary.like("%reauthentication_failed%"),
+            AuditLog.created_at >= since,
+        ).count()
+    )
+
+
 def _refuse(target_id: int | None, reason: str, message: str):
     db.session.rollback()
     write_audit_log(
@@ -117,6 +137,8 @@ def reissue_initial_password_impl(target_id: int):
         return _refuse(target_id, "not_an_admin_account", "Bu işlem yalnız admin hesapları için kullanılabilir.")
     if target.id == current_user.id:
         return _refuse(target.id, "self", "Kendi şifrenizi Hesabım > Şifre değiştir ekranından değiştirin.")
+    if _recent_reauthentication_failures() >= REAUTH_MAX_FAILURES:
+        return _refuse(target.id, "reauthentication_locked", "Çok sayıda hatalı deneme: 15 dakika sonra yeniden deneyin.")
     if not current_user.check_password(request.form.get("actor_password") or ""):
         return _refuse(target.id, "reauthentication_failed", "Kimlik doğrulaması başarısız: kendi şifrenizi doğru girin.")
 

@@ -5,17 +5,20 @@ lower-cased input; mobile: both exact). An identifier typed in another case, a s
 capitals, or an invisible character copied with the identifier ended in "Kullanıcı bulunamadı"
 although the account existed.
 
-Rule: an exact match keeps winning (sicil first, then e-mail); otherwise the sicil and the e-mail
-are compared case-insensitively, trimmed and without zero-width characters. If more than one
-account matches that way, nobody is returned, so an ambiguous identifier never logs into the
-wrong account. The password and every other check stay with the caller.
+Rule: an identifier with "@" is an e-mail and is compared with e-mails only; any other identifier
+is a sicil and is compared with sicils only, so an account whose sicil looks like someone's e-mail
+never captures that person's login. An exact match wins; otherwise the value is compared
+case-insensitively, trimmed and without zero-width characters, but only for an ASCII identifier
+(no Unicode case-fold look-alikes such as the long s, the dotless i or the Kelvin sign). If more
+than one account matches that way, nobody is returned, so an ambiguous identifier never logs into
+the wrong account. The password and every other check stay with the caller.
 """
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from sqlalchemy import func, or_
+from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
@@ -52,16 +55,19 @@ def find_user_by_login_identifier(value: Any) -> Any | None:
     identifier = normalize_login_identifier(value)
     if not identifier:
         return None
-    exact = User.query.filter(User.sicil_no == identifier).first()
-    if exact is None:
-        exact = User.query.filter(User.email == identifier.lower()).first()
+    if "@" in identifier:
+        exact = User.query.filter(User.email == identifier).first()
+        if exact is None and identifier.isascii():
+            exact = User.query.filter(User.email == identifier.lower()).first()
+        folded = email_matches(User.email, identifier)
+    else:
+        exact = User.query.filter(User.sicil_no == identifier).first()
+        folded = sicil_matches(User.sicil_no, identifier)
     if exact is not None:
         return exact
-    candidates = (
-        User.query.filter(or_(sicil_matches(User.sicil_no, identifier), email_matches(User.email, identifier)))
-        .limit(2)
-        .all()
-    )
+    if not identifier.isascii():
+        return None
+    candidates = User.query.filter(folded).limit(2).all()
     if len(candidates) == 1:
         return candidates[0]
     if candidates:

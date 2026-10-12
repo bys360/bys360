@@ -495,3 +495,61 @@ def test_create_delivers_the_initial_password_once_and_not_in_the_session_cookie
     body = response.get_data(as_text=True)
     assert body.count(FIRST_LOGIN) == 1
     assert FIRST_LOGIN not in str(_flashes(client))
+
+
+# --------------------------------------------------------------------------------------
+# Independent review of f8dfa95b: identifier capture, Unicode look-alikes, re-auth throttle
+# --------------------------------------------------------------------------------------
+
+
+def _add_user(env, sicil, email, role="personel"):
+    from app.extensions import db
+    from app.models import User
+
+    with env.app.app_context():
+        user = User(ad="Ek", soyad=sicil, sicil_no=sicil, email=email, role=role, is_active=True)
+        user.set_password(PASSWORD)
+        db.session.add(user)
+        db.session.commit()
+        return user.id
+
+
+def _resolve(env, identifier):
+    from app.services.account_lookup import find_user_by_login_identifier
+
+    with env.app.app_context():
+        user = find_user_by_login_identifier(identifier)
+        return getattr(user, "id", None)
+
+
+@pytest.mark.parametrize("identifier", ["al01x@example.gov.tr", "AL01X@EXAMPLE.GOV.TR", " al01x@example.gov.tr​"])
+def test_a_sicil_shaped_like_an_email_never_captures_that_email(env, identifier):
+    planted = _add_user(env, "al01x@example.gov.tr", "planted@example.gov.tr")
+    assert _resolve(env, identifier) == env.ids["admin"] != planted
+    assert _logged_in(_login(env.app.test_client(), identifier, PASSWORD))
+
+
+@pytest.mark.parametrize("identifier", ["ſıſ9", "sıs9", "Kadir@example.gov.tr"])
+def test_unicode_case_fold_look_alikes_do_not_resolve(env, identifier):
+    _add_user(env, "SIS9", "sis9@example.gov.tr")
+    _add_user(env, "KD01", "kadir@example.gov.tr")
+    assert _resolve(env, identifier) is None
+
+
+def test_ascii_case_variants_still_resolve(env):
+    sis = _add_user(env, "SIS9", "sis9@example.gov.tr")
+    kadir = _add_user(env, "KD01", "kadir@example.gov.tr")
+    assert _resolve(env, "sis9") == sis
+    assert _resolve(env, "KADIR@Example.gov.tr") == kadir
+
+
+def test_reissue_reauthentication_locks_after_repeated_failures(env):
+    target = _create_new_admin(env)
+    before = _state(env, target.id)
+    client = _web(env, "admin")
+    for _ in range(5):
+        _reissue(client, target.id, "wrong-password-123")
+    response = _reissue(client, target.id, PASSWORD)
+    assert response.status_code == 302
+    assert _state(env, target.id).password_hash == before.password_hash
+    assert any("reauthentication_locked" in row.raw for row in _audit(env, "account.initial_password_reissue_refused"))
