@@ -213,6 +213,7 @@ def test_file_size_and_peek_bytes_restore_original_stream_position():
 
 def test_save_message_attachment_happy_path_writes_file_and_builds_record(tmp_path, monkeypatch):
     flask_app = Flask(__name__, root_path=str(tmp_path))
+    flask_app.config["PRIVATE_UPLOAD_FOLDER"] = str(tmp_path / "private_uploads")
 
     captured_adds: list = []
 
@@ -240,13 +241,16 @@ def test_save_message_attachment_happy_path_writes_file_and_builds_record(tmp_pa
     assert attachment.uploaded_by_user_id == 7
     assert captured_adds == [attachment]
 
-    saved_path = tmp_path / "static" / "uploads" / "messages" / attachment.stored_filename
+    # B2-F06: the attachment is stored outside the static folder, never under /static.
+    saved_path = tmp_path / "private_uploads" / "messages" / attachment.stored_filename
     assert saved_path.exists()
     assert saved_path.read_bytes() == payload
+    assert not (tmp_path / "static" / "uploads" / "messages" / attachment.stored_filename).exists()
 
 
 def test_save_message_attachment_rejects_invalid_extension_without_side_effects(tmp_path, monkeypatch):
     flask_app = Flask(__name__, root_path=str(tmp_path))
+    flask_app.config["PRIVATE_UPLOAD_FOLDER"] = str(tmp_path / "private_uploads")
 
     captured_adds: list = []
 
@@ -266,6 +270,7 @@ def test_save_message_attachment_rejects_invalid_extension_without_side_effects(
     # Rejection must happen before any upload directory is even created.
     upload_dir = tmp_path / "static" / "uploads" / "messages"
     assert not upload_dir.exists()
+    assert not (tmp_path / "private_uploads" / "messages").exists()
 
 
 def test_save_message_attachment_returns_none_without_file():
@@ -289,6 +294,7 @@ def test_resolve_message_attachment_abspath_rejects_path_traversal_filename():
 
 def test_resolve_message_attachment_abspath_resolves_existing_file_and_rejects_missing(tmp_path):
     flask_app = Flask(__name__, root_path=str(tmp_path))
+    flask_app.config["PRIVATE_UPLOAD_FOLDER"] = str(tmp_path / "private_uploads")
 
     with flask_app.app_context():
         upload_dir = svc.message_upload_dir()

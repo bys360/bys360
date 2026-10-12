@@ -37,6 +37,7 @@ from app.route_support import (
     safe_db_rollback,
     safe_render,
 )
+from app.security.private_uploads import private_upload_dir, store_private_upload
 
 from .routes import _all_personnel, _filter_users_in_scope, _hr_scope_context, _scope_user_ids
 
@@ -181,12 +182,9 @@ def _require_user_in_scope(user_id: int | None, scope_user_ids: set[int]) -> Use
 
 
 def _upload_root() -> str:
-    base_dir = current_app.config.get("UPLOAD_FOLDER")
-    if not base_dir:
-        base_dir = os.path.join(current_app.root_path, "uploads")
-    target = os.path.join(base_dir, "hr", "personnel_documents")
-    os.makedirs(target, exist_ok=True)
-    return target
+    # B2-F06: yeni belgeler static dışındaki özel depoya yazılır; kayıtlar mutlak
+    # storage_path tuttuğu için eski UPLOAD_FOLDER konumundaki dosyalar okunmaya devam eder.
+    return str(private_upload_dir("hr", "personnel_documents"))
 
 
 def _remove_file(path: str | None) -> None:
@@ -197,7 +195,8 @@ def _remove_file(path: str | None) -> None:
         if os.path.exists(raw):
             os.remove(raw)
     except Exception:
-        current_app.logger.warning("Personel belge dosyasi silinemedi: %s", raw)
+        # B2-F06: özel depo yolu ve dosya adı günlüğe yazılmaz.
+        current_app.logger.warning("Personel belge dosyasi silinemedi.")
 
 
 def _save_file(file_storage, *, prefix: str = "personnel") -> dict[str, Any]:
@@ -211,11 +210,11 @@ def _save_file(file_storage, *, prefix: str = "personnel") -> dict[str, Any]:
     stored_filename = f"{prefix}_{uuid.uuid4().hex}{ext}"
     folder = _upload_root()
     full_path = os.path.join(folder, stored_filename)
-    file_storage.save(full_path)
+    store_private_upload(file_storage, full_path)
     try:
         file_size = os.path.getsize(full_path)
     except Exception:
-        __import__("logging").getLogger(__name__).exception("BYS360 SAFE V4: sessiz except loglandi: app/institutional/hr_personnel_operations_routes.py:205")
+        logger.warning("PRIVATE_UPLOAD_SIZE_CHECK_FAILED")
         file_size = 0
     return {
         "original_filename": filename,

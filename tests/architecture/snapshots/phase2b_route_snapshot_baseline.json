@@ -1,5 +1,5 @@
 {
-  "route_count": 1035,
+  "route_count": 1036,
   "contract_keys": [
     "/account/change-password|GET,POST",
     "/account/photo|POST",
@@ -930,6 +930,7 @@
     "/personnel/list|GET",
     "/personnel/template/download|GET",
     "/personnel|GET",
+    "/portal/attachments/<int:attachment_id>|GET",
     "/portal/groups/<int:group_id>|GET",
     "/portal/groups|GET",
     "/portal/groups|POST",
