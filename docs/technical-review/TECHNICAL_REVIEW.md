@@ -131,7 +131,7 @@ Son okuma: 12.10.2026 07:15 (+03). İki zorunlu kontrol: `quality-gate` (Run tes
 | #65 | `fb1acdc4` | **SUCCESS** | **SUCCESS** | |
 | #69 | `21a40fa8` | **SUCCESS** | **SUCCESS** | |
 | #70 | `627eb391` | çalışıyor | SUCCESS | Önceki HEAD `17af72bf`'de iki kontrol de başarısızlıksız bitti. |
-| #72 | `78f63397` | çalışıyor | SUCCESS | Önceki HEAD `f8dfa95b`'de iki kontrol de başarısızlıksız bitti. |
+| #72 | `78f63397` | **SUCCESS** (07:26) | **SUCCESS** | |
 | #71 | `43fa10e8` | yeni push, PENDING | PENDING | Önceki HEAD `3c4fa709`'da iki kontrol de başarısızlıksız bitti. |
 | #73 (doküman) | son commit | çalışıyor | SUCCESS | |
 | #68 | `f79ab0a3` | **FAILURE** | SUCCESS | Ayrıntılar aşağıda. |
