@@ -238,6 +238,7 @@ def test_p4_hierarchy_auto_build_by_admin_never_rewrites_roles_from_titles(env):
 
     with env.app.app_context():
         plain = db.session.get(User, env.ids["plain"])
+        assert plain is not None
         plain.unvan = "Başkan"
         db.session.commit()
     with env.app.test_request_context():
