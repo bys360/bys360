@@ -96,7 +96,7 @@ Ayrıntı: [04_ROL_VE_YETKI_MIMARISI.md](04_ROL_VE_YETKI_MIMARISI.md). Özet:
 | K5-Q: `support_all` yalnız açık kişi bazlı yetki; kapsam dışı talep bilgisinin sızmaması | #65 | ✔ | ✔ (308) | Kısmi⁴ | PENDING | ✘³ | ✘ | ✘ | ✘ |
 | F06b: teknik rollerin geri bildirim entegrasyon sayfasında kurum verisi görmesi | #69 | ✔ | ✔ (42) | Codex: PENDING | ✔ `21a40fa8` | ✔ (AI, `0e190ee2`)⁵ | ✘ | ✘ | ✘ |
 | B2-F06: özel dosyaların `/static` altında herkese açık olması | #68 | ✔ | ✔ (141) | ✘ | PENDING | **CHANGES-NEEDED** | ✘ | ✘ | ✘ |
-| #57 takip: 15 sızıntı + eylem planı takip sayfası + özet e-postası | #71 | ✔ | ✔ (50; RED 22F + 6F) | ✔ (106 dosya, 2340 geçti / 0 kaldı) | PENDING (`3c4fa709`)⁷ | CHANGES-NEEDED → düzeltildi; yeniden incelenmedi | ✘ | ✘ | ✘ |
+| #57 takip: 15 sızıntı + eylem planı takip sayfası + özet e-postası | #71 | ✔ | ✔ (53; RED 22F + 6F + 2F) | ✔ (`3c4fa709`: 106 dosya, 2340 geçti / 0 kaldı; `43fa10e8`: 11 dosya, 251 geçti) | PENDING (`43fa10e8`) | İki tur bağımsız inceleme yapıldı. 1. tur (`0c002960`): bulgu 1 (eylem planı takip sayfası) ve bulgu 2 (özet e-postası) çıktı, ikisi de düzeltildi. 2. tur (`3c4fa709`): yeni bulgu N1 (web'den başlatılan bildirim üretimi) çıktı, `43fa10e8`'de düzeltildi. N1 düzeltmesi henüz yeniden incelenmedi. | ✘ | ✘ | ✘ |
 | Canlı admin hesabı bulunamıyor / ilk giriş / kurtarma | #72 | ✔ | ✔ (100; RED 20F + 6F) | ✔ (150 dosya, 3218 geçti / 0 kaldı) | PENDING (`78f63397`)⁷ | ✔ yeniden inceleme **APPROVE** (`78f63397`); 2 düşük önemli canlıya geçiş öncesi kontrol (§9) | ✘ | ✘ | ✘ |
 | B2-F01…F05: oturum ve kimlik doğrulama yaşam döngüsü | — | Tanımı bulunamadı⁶ | — | — | — | — | — | — | — |
 
@@ -119,21 +119,22 @@ Dipnotlar:
 | [#69](https://github.com/bys360/bys360/pull/69) | F06b | `21a40fa8813cc5501e7f83a2b511bfc2161025fa` | Draft |
 | [#68](https://github.com/bys360/bys360/pull/68) | B2-F06 özel dosyalar | `f79ab0a3709c018666e7f2b9975d223725f103ce` | Open |
 | [#72](https://github.com/bys360/bys360/pull/72) | Admin hesap yönetimi ve kurtarma | `78f63397bddb5e40bb858f4c663155febd917362` | Draft |
-| [#71](https://github.com/bys360/bys360/pull/71) | #57 takip: geri bildirim web ekranları | `3c4fa70906ed73f8c8fe5b49ec4a100925a44613` | Draft |
+| [#71](https://github.com/bys360/bys360/pull/71) | #57 takip: geri bildirim web ekranları | `43fa10e8cfda46aa7a64ce069495f30054b38c8f` | Draft |
 
 ## 7. GitHub CI ve test kanıtları
 
-Okuma zamanı: 12.10.2026 03:20 (+03). Zorunlu iki kontrol: `quality-gate` (Run tests) ve `score100-quality-gate`.
+Son okuma: 12.10.2026 07:15 (+03). İki zorunlu kontrol: `quality-gate` (Run tests) ve `score100-quality-gate`. Bir commit'in CI sonucu başka bir commit için kanıt sayılmaz.
 
 | PR | Exact HEAD | quality-gate | score100 | Not |
 |---|---|---|---|---|
-| #65 | `fb1acdc4` | **SUCCESS** | **SUCCESS** | Ana dal birleştirildikten sonraki HEAD. |
-| #71 | `0c002960` | **SUCCESS** | **SUCCESS** | |
+| `assistant-v2-full` | `f796107f` | **SUCCESS** | **SUCCESS** | push CI |
+| #65 | `fb1acdc4` | **SUCCESS** | **SUCCESS** | |
 | #69 | `21a40fa8` | **SUCCESS** | **SUCCESS** | |
-| #70 | `17af72bf` | PENDING | PENDING | Önceki `d8068ae0`: 7558 test geçti; yalnız CI'ın `mypy app tests scripts` adımı test dosyasındaki tip daraltması yüzünden kırmızıydı. Düzeltildi. |
-| #72 | `f8dfa95b` | PENDING | PENDING | Önceki `db574721`: 7456 test geçti; yalnız aynı mypy adımı kırmızıydı. Düzeltildi. |
+| #70 | `627eb391` | çalışıyor | SUCCESS | Önceki HEAD `17af72bf`'de iki kontrol de başarısızlıksız bitti. |
+| #72 | `78f63397` | çalışıyor | SUCCESS | Önceki HEAD `f8dfa95b`'de iki kontrol de başarısızlıksız bitti. |
+| #71 | `43fa10e8` | yeni push, PENDING | PENDING | Önceki HEAD `3c4fa709`'da iki kontrol de başarısızlıksız bitti. |
+| #73 (doküman) | son commit | çalışıyor | SUCCESS | |
 | #68 | `f79ab0a3` | **FAILURE** | SUCCESS | Ayrıntılar aşağıda. |
-| `assistant-v2-full` | `f796107f` | — | — | Ana dalın push CI'ı bu rapor için ayrıca okunmadı. |
 
 **#68 `f79ab0a3` FAILURE ayrıntısı:** 17 test kaldı, 7541 test geçti.
 
