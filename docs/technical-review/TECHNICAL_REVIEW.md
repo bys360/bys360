@@ -96,7 +96,7 @@ Ayrıntı: [04_ROL_VE_YETKI_MIMARISI.md](04_ROL_VE_YETKI_MIMARISI.md). Özet:
 | K5-Q: `support_all` yalnız açık kişi bazlı yetki; kapsam dışı talep bilgisinin sızmaması | #65 | ✔ | ✔ (308) | Kısmi⁴ | PENDING | ✘³ | ✘ | ✘ | ✘ |
 | F06b: teknik rollerin geri bildirim entegrasyon sayfasında kurum verisi görmesi | #69 | ✔ | ✔ (42) | Codex: PENDING | ✔ `21a40fa8` | ✔ (AI, `0e190ee2`)⁵ | ✘ | ✘ | ✘ |
 | B2-F06: özel dosyaların `/static` altında herkese açık olması | #68 | ✔ | ✔ (141) | ✘ | PENDING | **CHANGES-NEEDED** | ✘ | ✘ | ✘ |
-| #57 takip: 15 sızıntı + eylem planı takip sayfası + özet e-postası | #71 | ✔ | ✔ (53; RED 22F + 6F + 2F) | ✔ (`3c4fa709`: 106 dosya, 2340 geçti / 0 kaldı; `43fa10e8`: 11 dosya, 251 geçti) | PENDING (`43fa10e8`) | İki tur bağımsız inceleme yapıldı. 1. tur (`0c002960`): bulgu 1 (eylem planı takip sayfası) ve bulgu 2 (özet e-postası) çıktı, ikisi de düzeltildi. 2. tur (`3c4fa709`): yeni bulgu N1 (web'den başlatılan bildirim üretimi) çıktı, `43fa10e8`'de düzeltildi. N1 düzeltmesi henüz yeniden incelenmedi. | ✘ | ✘ | ✘ |
+| #57 takip: 15 sızıntı + eylem planı takip sayfası + özet e-postası | #71 | ✔ | ✔ (53; RED 22F + 6F + 2F) | ✔ (`3c4fa709`: 106 dosya, 2340 geçti / 0 kaldı; `43fa10e8`: 11 dosya, 251 geçti) | ✔ (`43fa10e8`) | İki tur bağımsız inceleme yapıldı. 1. tur (`0c002960`): bulgu 1 (eylem planı takip sayfası) ve bulgu 2 (özet e-postası) çıktı, ikisi de düzeltildi. 2. tur (`3c4fa709`): yeni bulgu N1 (web'den başlatılan bildirim üretimi) çıktı, `43fa10e8`'de düzeltildi. N1 düzeltmesi henüz yeniden incelenmedi. | ✘ | ✘ | ✘ |
 | Canlı admin hesabı bulunamıyor / ilk giriş / kurtarma | #72 | ✔ | ✔ (100; RED 20F + 6F) | ✔ (150 dosya, 3218 geçti / 0 kaldı) | PENDING (`78f63397`)⁷ | ✔ yeniden inceleme **APPROVE** (`78f63397`); 2 düşük önemli canlıya geçiş öncesi kontrol (§9) | ✘ | ✘ | ✘ |
 | B2-F01…F05: oturum ve kimlik doğrulama yaşam döngüsü | — | Tanımı bulunamadı⁶ | — | — | — | — | — | — | — |
 
@@ -132,7 +132,7 @@ Son okuma: 12.10.2026 07:15 (+03). İki zorunlu kontrol: `quality-gate` (Run tes
 | #69 | `21a40fa8` | **SUCCESS** | **SUCCESS** | |
 | #70 | `627eb391` | **SUCCESS** (08:14) | **SUCCESS** | |
 | #72 | `78f63397` | **SUCCESS** (07:26) | **SUCCESS** | |
-| #71 | `43fa10e8` | çalışıyor | **SUCCESS** | Önceki HEAD `3c4fa709`'da iki kontrol de başarısızlıksız bitti. |
+| #71 | `43fa10e8` | **SUCCESS** (08:52) | **SUCCESS** | |
 | #73 (doküman) | son commit | çalışıyor | SUCCESS | |
 | #68 | `f79ab0a3` | **FAILURE** | SUCCESS | Ayrıntılar aşağıda. |
 
