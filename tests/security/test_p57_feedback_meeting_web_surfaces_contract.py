@@ -308,3 +308,58 @@ def test_guard_the_meeting_manager_updates_the_meeting(env):
     )
     status, note, _manager = _meeting_row(env)
     assert status == "ertelendi" and "P57-MANAGER-UPDATE" in (note or "")
+
+
+# Independent review of 0c002960: the action-plan follow-up page and the digest fan-out ----------
+
+
+def _execute(env, sql, **params):
+    from sqlalchemy import text
+
+    from app.extensions import db
+
+    with env.app_context():
+        db.session.execute(text(sql), params)
+        db.session.commit()
+
+
+@pytest.mark.parametrize("sicil", ["P57ADM", "P57BSK", "P57SYS", "P57OMG", "P57COL"])
+def test_followup_page_hides_another_persons_action_plan(env, sicil):
+    body = _client(env, sicil).get("/performance/feedback-followup?filter=all").get_data(as_text=True)
+    assert ACTION not in body and EMPLOYEE_NAME not in body
+
+
+@pytest.mark.parametrize("sicil", ["P57ADM", "P57BSK"])
+def test_followup_quick_update_is_refused_to_non_parties(env, sicil):
+    action_id = _data(env)["action"]
+    _client(env, sicil).post(
+        f"/performance/feedback-followup/actions/{action_id}/quick-update",
+        data={"status": "tamamlandi", "follow_up_note": f"R71-{sicil}", "result_summary": f"R71-{sicil}"},
+    )
+    row = _scalar(
+        env,
+        "SELECT COALESCE(follow_up_note,'') || '|' || COALESCE(status,'') FROM feedback_meeting_action_plans WHERE id=:a",
+        a=action_id,
+    )
+    assert f"R71-{sicil}" not in (row or "") and "tamamlandi" not in (row or "")
+
+
+def test_digest_mail_reaches_each_manager_with_only_their_records(env, monkeypatch):
+    import app.services.performance.feedback_executive_summary_service as svc
+
+    sent: list[tuple[str, str]] = []
+
+    def fake_send_email(to, subject, body, *args, **kwargs):
+        sent.append((to, body))
+        return True, "ok"
+
+    monkeypatch.setattr(svc, "send_email", fake_send_email)
+    data = _data(env)
+    _execute(env, "UPDATE feedback_requests SET level_2_manager_id=:m WHERE id=:r", m=data["ids"]["P57MGR"], r=data["rep_request"])
+    _execute(env, "UPDATE feedback_requests SET requested_at='2026-01-01 00:00:00' WHERE id=:r", r=data["open_request"])
+    _client(env, "P57MGR").post(
+        "/performance/feedback-executive-summary/run-digest",
+        data={"scope": "all", "preset": "daily", "send_email": "1"},
+    )
+    to_other_manager = [body for to, body in sent if to.startswith("p57omg")]
+    assert to_other_manager and not any(EMPLOYEE_NAME in body for body in to_other_manager), sent

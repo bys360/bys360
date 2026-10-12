@@ -92,6 +92,28 @@ def _normalize_recipient_users(recipients: Iterable[Any] | None) -> list[User]:
         resolved.append(user)
     return resolved
 
+def _related_request_ids(req: Any) -> set[int]:
+    ids: set[int] = set()
+    for field in ("employee_id", "level_1_manager_id", "level_2_manager_id", "level_3_manager_id"):
+        value = getattr(req, field, None)
+        if isinstance(value, int):
+            ids.add(value)
+    return ids
+
+
+def _related_meeting_ids(meeting: Any) -> set[int]:
+    ids: set[int] = set()
+    for value in (getattr(meeting, "employee_id", None), getattr(meeting, "manager_id", None)):
+        if isinstance(value, int):
+            ids.add(value)
+    req = getattr(meeting, "feedback_request", None)
+    for field in ("level_1_manager_id", "level_2_manager_id", "level_3_manager_id", "scheduled_by_id"):
+        value = getattr(req, field, None) if req is not None else None
+        if isinstance(value, int):
+            ids.add(value)
+    return ids
+
+
 def _suggest_recipient_users(requests_list: list[Any], meetings: list[Any]) -> list[User]:
     user_ids: set[int] = set()
     for req in requests_list:
@@ -122,14 +144,8 @@ def _suggest_recipient_users(requests_list: list[Any], meetings: list[Any]) -> l
                 continue
 
     if not user_ids:
-        fallback = (
-            User.query
-            .filter(User.is_active.is_(True), User.role.in_(["admin", "baskan", "baskan_yardimcisi", "grup_baskani", "mali_musavir", "koordinator"]))
-            .order_by(User.ad.asc(), User.soyad.asc(), User.id.asc())
-            .limit(25)
-            .all()
-        )
-        return fallback
+        # #57: no role-based fallback; a digest goes only to people related to its records.
+        return []
 
     return (
         User.query
@@ -274,7 +290,7 @@ def dispatch_feedback_executive_summary(
     if preset not in SUMMARY_PRESET_LABELS:
         preset = "daily"
 
-    summary = build_feedback_executive_summary(
+    overall_summary = build_feedback_executive_summary(
         requests_list,
         meetings,
         preset=preset,
@@ -284,13 +300,6 @@ def dispatch_feedback_executive_summary(
     )
     recipient_users = _normalize_recipient_users(recipients) or _suggest_recipient_users(requests_list, meetings)
     source_id = _summary_source_id(now, preset)
-    notification_body = (
-        f"Açık talep: {summary['cards']['open_requests']} · "
-        f"SLA riski: {summary['cards']['request_sla_risks']} · "
-        f"24 saat içinde görüşme: {summary['cards']['meetings_next_24h']} · "
-        f"Geciken görüşme: {summary['cards']['meeting_overdue']}"
-    )
-    priority = "high" if summary["cards"].get("request_sla_risks") or summary["cards"].get("meeting_overdue") else "normal"
     result = {
         "preset": preset,
         "recipient_count": len(recipient_users),
@@ -299,13 +308,35 @@ def dispatch_feedback_executive_summary(
         "mail_success_count": 0,
         "mail_failed_count": 0,
         "mail_failed_items": [],
-        "subject": summary["digest_subject"],
+        "subject": overall_summary["digest_subject"],
     }
 
     for user in recipient_users:
         user_id = getattr(user, "id", None)
         if not user_id:
             continue
+        # #57: each recipient's digest is built only from the records that recipient is related to
+        # (the same party/duty rule as the pages); a recipient with no such record gets nothing.
+        own_requests = [req for req in requests_list if int(user_id) in _related_request_ids(req)]
+        own_meetings = [meeting for meeting in meetings if int(user_id) in _related_meeting_ids(meeting)]
+        if not own_requests and not own_meetings:
+            result["notification_skipped"] += 1
+            continue
+        summary = build_feedback_executive_summary(
+            own_requests,
+            own_meetings,
+            preset=preset,
+            scope_label=scope_label,
+            scope_role_title=scope_role_title,
+            now=now,
+        )
+        notification_body = (
+            f"Açık talep: {summary['cards']['open_requests']} · "
+            f"SLA riski: {summary['cards']['request_sla_risks']} · "
+            f"24 saat içinde görüşme: {summary['cards']['meetings_next_24h']} · "
+            f"Geciken görüşme: {summary['cards']['meeting_overdue']}"
+        )
+        priority = "high" if summary["cards"].get("request_sla_risks") or summary["cards"].get("meeting_overdue") else "normal"
         if _summary_notification_exists(user_id=int(user_id), preset=preset, source_id=source_id):
             result["notification_skipped"] += 1
         else:
@@ -338,4 +369,4 @@ def dispatch_feedback_executive_summary(
                         }
                     )
 
-    return {**result, "summary": summary, "source_id": source_id}
+    return {**result, "summary": overall_summary, "source_id": source_id}

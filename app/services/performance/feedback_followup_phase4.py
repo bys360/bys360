@@ -316,8 +316,19 @@ def normalize_30_day_followups() -> int:
     return count
 
 
-def _visibility_where(role: str | None, current_user_id: int | None, *, is_admin: bool = False, is_superuser: bool = False) -> tuple[str, dict[str, Any]]:
-    if is_global_user(role, is_admin=is_admin, is_superuser=is_superuser):
+def _visibility_where(
+    role: str | None,
+    current_user_id: int | None,
+    *,
+    is_admin: bool = False,
+    is_superuser: bool = False,
+    include_all_for_notices: bool = False,
+) -> tuple[str, dict[str, Any]]:
+    # #57 (approved policy): meeting action plans are visible only to the meeting's and the
+    # action's employee and manager; a role (admin, başkan, technical) never widens the read or
+    # the quick-update. The only unscoped caller is the notice generator of a global user, which
+    # notifies each action's own parties and returns counts only.
+    if include_all_for_notices and is_global_user(role, is_admin=is_admin, is_superuser=is_superuser):
         return "", {}
     params = {"current_user_id": int(current_user_id or 0)}
     scope = ["m.employee_id=:current_user_id", "m.manager_id=:current_user_id", "a.employee_id=:current_user_id", "a.manager_id=:current_user_id"]
@@ -401,12 +412,19 @@ def list_followup_actions(
     due_filter: str = "open",
     query: str = "",
     limit: int = 350,
+    include_all_for_notices: bool = False,
 ) -> list[dict[str, Any]]:
     schema = ensure_followup_schema()
     if not schema.get("ok"):
         return []
     normalize_30_day_followups()
-    where_sql, params = _visibility_where(current_user_role, current_user_id, is_admin=is_admin, is_superuser=is_superuser)
+    where_sql, params = _visibility_where(
+        current_user_role,
+        current_user_id,
+        is_admin=is_admin,
+        is_superuser=is_superuser,
+        include_all_for_notices=include_all_for_notices,
+    )
     sql = _action_select_sql(where_sql)
     if query:
         condition = "(LOWER(COALESCE(a.title,'')) LIKE :q OR LOWER(COALESCE(a.smart_description,'')) LIKE :q OR LOWER(COALESCE(a.follow_up_note,'')) LIKE :q OR LOWER(" + _name_expr("e") + ") LIKE :q OR LOWER(" + _name_expr("g") + ") LIKE :q)"
@@ -627,6 +645,7 @@ def generate_followup_notices(
         is_superuser=is_superuser,
         due_filter="open",
         limit=700,
+        include_all_for_notices=True,
     )
     today = date.today()
     created = 0
@@ -694,9 +713,9 @@ def list_recent_notices(
         return []
     where = ""
     params: dict[str, Any] = {"limit": int(limit or 80)}
-    if not is_global_user(current_user_role, is_admin=is_admin, is_superuser=is_superuser):
-        where = "WHERE n.recipient_id=:current_user_id OR n.created_by_id=:current_user_id"
-        params["current_user_id"] = int(current_user_id or 0)
+    # #57: a notice names the action and its recipient, so every role sees only its own notices.
+    where = "WHERE n.recipient_id=:current_user_id OR n.created_by_id=:current_user_id"
+    params["current_user_id"] = int(current_user_id or 0)
     sql = f"""
         SELECT n.*, a.title AS action_title, {_name_expr('u')} AS recipient_name
         FROM feedback_action_followup_notices n
