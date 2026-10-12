@@ -110,16 +110,43 @@ Dipnotlar:
 
 | PR | Konu | Exact HEAD | Durum |
 |---|---|---|---|
-| [#70](https://github.com/bys360/bys360/pull/70) | R05 hesap yönetimi yetkisi | `389178dc062e1e5b5bfca9865fadaaabfde3caa2` | Draft |
+| [#70](https://github.com/bys360/bys360/pull/70) | R05 hesap yönetimi yetkisi | `17af72bf61a71bc1d7424998826f854c6ddcdddf` | Draft |
 | [#65](https://github.com/bys360/bys360/pull/65) | K5-Q `support_all` | `fb1acdc4802a0d2a26eef43fcf686c5b67a1eb82` (ana dal birleştirildi) | Draft |
 | [#69](https://github.com/bys360/bys360/pull/69) | F06b | `21a40fa8813cc5501e7f83a2b511bfc2161025fa` | Draft |
 | [#68](https://github.com/bys360/bys360/pull/68) | B2-F06 özel dosyalar | `f79ab0a3709c018666e7f2b9975d223725f103ce` | Open |
-| [#72](https://github.com/bys360/bys360/pull/72) | Admin hesap yönetimi ve kurtarma | `db574721ac20df9b230ca5dbdb12dcad81938254` | Draft |
+| [#72](https://github.com/bys360/bys360/pull/72) | Admin hesap yönetimi ve kurtarma | `f8dfa95be90f9a80923ab8b561fe1c095df05800` | Draft |
 | [#71](https://github.com/bys360/bys360/pull/71) | #57 takip: geri bildirim web ekranları | `0c00296020b5192228cc8add7800c9a47af8f4b0` | Draft |
 
 ## 7. GitHub CI ve test kanıtları
 
-PENDING. Son okumada her PR'ın iki zorunlu CI sonucu buraya yazılacak.
+Okuma zamanı: 12.10.2026 03:20 (+03). Zorunlu iki kontrol: `quality-gate` (Run tests) ve `score100-quality-gate`.
+
+| PR | Exact HEAD | quality-gate | score100 | Not |
+|---|---|---|---|---|
+| #65 | `fb1acdc4` | **SUCCESS** | **SUCCESS** | Ana dal birleştirildikten sonraki HEAD. |
+| #71 | `0c002960` | **SUCCESS** | **SUCCESS** | |
+| #69 | `21a40fa8` | **SUCCESS** | **SUCCESS** | |
+| #70 | `17af72bf` | PENDING | PENDING | Önceki `d8068ae0`: 7558 test geçti; yalnız CI'ın `mypy app tests scripts` adımı test dosyasındaki tip daraltması yüzünden kırmızıydı. Düzeltildi. |
+| #72 | `f8dfa95b` | PENDING | PENDING | Önceki `db574721`: 7456 test geçti; yalnız aynı mypy adımı kırmızıydı. Düzeltildi. |
+| #68 | `f79ab0a3` | **FAILURE** | SUCCESS | Ayrıntılar aşağıda. |
+| `assistant-v2-full` | `f796107f` | — | — | Ana dalın push CI'ı bu rapor için ayrıca okunmadı. |
+
+**#68 `f79ab0a3` FAILURE ayrıntısı:** 17 test kaldı, 7541 test geçti.
+
+- `test_admin_user_change_photo_valid_upload_succeeds_and_mutates_real_row` testi `PRIVATE_UPLOAD_PATH_ESCAPE` ile kalıyor. Hata `582c1a76`'da da yeniden üretildi, yani son commit'ten önce de vardı.
+- 16 F2/F3 log-hijyeni testinde `caplog` boş. Bu testler tek başlarına geçiyor; yalnız tam pakette kalıyorlar (test sırası bağımlılığı).
+- CI'ın mypy adımı ayrıca 11 hata verecek. Bunlar test dosyalarında ve `app/services/profile_photo_service.py:68` satırında.
+
+Bu dosyalar Codex'in yerel çalışma alanındaki commit edilmemiş değişikliklerle çakışabileceği için düzeltilmedi; sorumlu: #68 sahibi (Codex). Bu gece #68'e iki küçük commit eklendi: secret gate düzeltmesi ve broad-except daraltması.
+
+**Hedefli ve geniş test kanıtları (yerel, exact commit):**
+
+- **#70:** R05 + R05b + B1-F1: 251 geçti. Birleşik #70 + #65 kodunda 430 geçti. F1/F2 için RED'de 3 test kaldı; GREEN sonrası 11 dosyalık regresyonda 600 geçti.
+- **#65:** 308 geçti.
+- **#71:** RED'de 22 test kaldı; GREEN'de 99 geçti; 106 dosyalık regresyonda 2332 geçti, 0 kaldı.
+- **#72:** RED'de 20 test kaldı; GREEN'de 92 geçti; 157 dosyalık regresyonda 3192 test, 0 kaldı.
+- **#69:** 42 geçti (yerelde çalıştırıldı, bağımsız inceleme değil).
+- **#68:** hedefli testlerde 141 geçti.
 
 ## 8. Bağımsız güvenlik incelemeleri
 
@@ -144,7 +171,7 @@ PENDING. Son okumada her PR'ın iki zorunlu CI sonucu buraya yazılacak.
 
 ## 10. Admin hesap yönetiminin durumu
 
-PR [#72](https://github.com/bys360/bys360/pull/72) (`db574721`, Draft). Durum:
+PR [#72](https://github.com/bys360/bys360/pull/72) (`f8dfa95b`, Draft). Durum:
 
 - **Kod hazır.**
 - **Testler:** hedefli testler `f796107f` üzerinde 20 kaldı (RED); `db574721` üzerinde 92 geçti (GREEN). Geniş regresyon: 3192 test, 0 kaldı.
