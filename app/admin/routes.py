@@ -387,6 +387,11 @@ def admin_user_create():
                 audit_refusal(None, "create_role_assign")
                 flash(ROLE_REFUSAL_MESSAGE, "danger")
                 return redirect(url_for("main.admin_user_create"))
+            # R05: a non-admin never puts themselves in a new account's manager chain.
+            if not may_change_manager_chain(current_user, None, [yonetici_sicil, ikinci_yonetici_sicil, ucuncu_yonetici_sicil]):
+                audit_refusal(None, "create_manager_chain_self_assign")
+                flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_create"))
 
             identity_conflicts = validate_personnel_identity_uniqueness(
                 user_model=User,
@@ -737,6 +742,19 @@ def personnel_add():
             if not may_assign_role(current_user, payload.role_value):
                 audit_refusal(None, "create_role_assign")
                 flash(ROLE_REFUSAL_MESSAGE, "danger")
+                return safe_render(
+                    "personnel_add.html",
+                    "<h3>Yeni Personel Ekle</h3>",
+                    **form_context,
+                )
+            # R05: a non-admin never puts themselves in a new account's manager chain.
+            new_manager_sicils = [
+                getattr(db.session.get(User, manager_id), "sicil_no", None) if manager_id else None
+                for manager_id in (payload.manager_1_id, payload.manager_2_id, payload.manager_3_id)
+            ]
+            if not may_change_manager_chain(current_user, None, new_manager_sicils):
+                audit_refusal(None, "create_manager_chain_self_assign")
+                flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
                 return safe_render(
                     "personnel_add.html",
                     "<h3>Yeni Personel Ekle</h3>",

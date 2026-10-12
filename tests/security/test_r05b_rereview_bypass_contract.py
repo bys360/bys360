@@ -363,3 +363,48 @@ def test_f2_self_opened_menu_does_not_allow_hierarchy_self_assignment(env):
         assert _chain(env, "plain")[0] != SICIL[who], who
         assert _chain(env, "baskan_yardimcisi")[0] != SICIL[who], who
         assert _chain(env, "sup_holder")[0] != SICIL[who], who
+
+
+# Combined re-review of 17af72bf: the two account-creation routes ------------------------------
+
+
+def _new_account_form(sicil, **extra):
+    form = {
+        "ad": "Yeni",
+        "soyad": "Kisi",
+        "sicil_no": sicil,
+        "email": f"{sicil.lower()}@example.gov.tr",
+        "unvan": "Uzman",
+        "birim": "R05 Birim",
+        "ust_birim": "R05 Ust Birim",
+        "role": "personel",
+        "is_active": "on",
+        "personnel_category": "Diğer",
+    }
+    form.update(extra)
+    return form
+
+
+def _new_chain(env, sicil):
+    found = _user_by_sicil(env, sicil)
+    if found is None:
+        return None
+    user = _reload(env, found.id)
+    return (user.yonetici_sicil, user.ikinci_yonetici_sicil, user.ucuncu_yonetici_sicil)
+
+
+def test_create_routes_refuse_a_non_admin_as_the_new_accounts_manager(env):
+    who = "mali_musavir"
+    _web(env, who).post("/admin/users/create", data=_new_account_form("NEWC1", yonetici_sicil=SICIL[who]))
+    _web(env, who).post("/personnel/add", data=_new_account_form("NEWC2", manager_1_id=env.ids[who]))
+    for sicil in ("NEWC1", "NEWC2"):
+        chain = _new_chain(env, sicil)
+        assert chain is None or SICIL[who] not in chain, (sicil, chain)
+    assert _refusals(env, "create_manager_chain_self_assign")
+
+
+def test_create_routes_still_allow_another_manager_and_a_real_admin(env):
+    _web(env, "mali_musavir").post("/admin/users/create", data=_new_account_form("NEWC3", yonetici_sicil=SICIL["koordinator"]))
+    assert (_new_chain(env, "NEWC3") or ("",))[0] == SICIL["koordinator"]
+    _web(env, "admin").post("/personnel/add", data=_new_account_form("NEWC4", manager_1_id=env.ids["admin"]))
+    assert (_new_chain(env, "NEWC4") or ("",))[0] == SICIL["admin"]
