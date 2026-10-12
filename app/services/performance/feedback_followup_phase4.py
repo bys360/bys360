@@ -326,8 +326,8 @@ def _visibility_where(
 ) -> tuple[str, dict[str, Any]]:
     # #57 (approved policy): meeting action plans are visible only to the meeting's and the
     # action's employee and manager; a role (admin, başkan, technical) never widens the read or
-    # the quick-update. The only unscoped caller is the notice generator of a global user, which
-    # notifies each action's own parties and returns counts only.
+    # the quick-update. The only unscoped caller is the scheduled notice job (no acting user),
+    # which notifies each action's own parties.
     if include_all_for_notices and is_global_user(role, is_admin=is_admin, is_superuser=is_superuser):
         return "", {}
     params = {"current_user_id": int(current_user_id or 0)}
@@ -645,7 +645,10 @@ def generate_followup_notices(
         is_superuser=is_superuser,
         due_filter="open",
         limit=700,
-        include_all_for_notices=True,
+        # Only the scheduler (no acting user) scans every open action; a run started from the web
+        # covers the actor's own actions, so the actor never becomes the creator of, or writes
+        # follow-up flags on, notices for actions they are not a party to.
+        include_all_for_notices=current_user_id is None,
     )
     today = date.today()
     created = 0

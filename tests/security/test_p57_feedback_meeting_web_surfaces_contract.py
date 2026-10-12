@@ -363,3 +363,11 @@ def test_digest_mail_reaches_each_manager_with_only_their_records(env, monkeypat
     )
     to_other_manager = [body for to, body in sent if to.startswith("p57omg")]
     assert to_other_manager and not any(EMPLOYEE_NAME in body for body in to_other_manager), sent
+
+
+@pytest.mark.parametrize("sicil", ["P57ADM", "P57BSK"])
+def test_generating_notices_from_the_web_never_exposes_other_persons_notices(env, sicil):
+    client = _client(env, sicil)
+    client.post("/performance/feedback-followup/generate-notices")
+    body = client.get("/performance/feedback-followup?filter=all").get_data(as_text=True)
+    assert ACTION not in body and EMPLOYEE_NAME not in body
