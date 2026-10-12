@@ -97,7 +97,7 @@ Ayrıntı: [04_ROL_VE_YETKI_MIMARISI.md](04_ROL_VE_YETKI_MIMARISI.md). Özet:
 | F06b: teknik rollerin geri bildirim entegrasyon sayfasında kurum verisi görmesi | #69 | ✔ | ✔ (42) | Codex: PENDING | ✔ `21a40fa8` | ✔ (AI, `0e190ee2`)⁵ | ✘ | ✘ | ✘ |
 | B2-F06: özel dosyaların `/static` altında herkese açık olması | #68 | ✔ | ✔ (141) | ✘ | PENDING | **CHANGES-NEEDED** | ✘ | ✘ | ✘ |
 | #57 takip: 15 sızıntı + eylem planı takip sayfası + özet e-postası | #71 | ✔ | ✔ (50; RED 22F + 6F) | ✔ (106 dosya, 2340 geçti / 0 kaldı) | PENDING (`3c4fa709`)⁷ | CHANGES-NEEDED → düzeltildi; yeniden incelenmedi | ✘ | ✘ | ✘ |
-| Canlı admin hesabı bulunamıyor / ilk giriş / kurtarma | #72 | ✔ | ✔ (100; RED 20F + 6F) | ✔ (150 dosya, 3218 geçti / 0 kaldı) | PENDING (`78f63397`)⁷ | CHANGES-NEEDED → düzeltildi; yeniden incelenmedi | ✘ | ✘ | ✘ |
+| Canlı admin hesabı bulunamıyor / ilk giriş / kurtarma | #72 | ✔ | ✔ (100; RED 20F + 6F) | ✔ (150 dosya, 3218 geçti / 0 kaldı) | PENDING (`78f63397`)⁷ | ✔ yeniden inceleme **APPROVE** (`78f63397`); 2 düşük önemli canlıya geçiş öncesi kontrol (§9) | ✘ | ✘ | ✘ |
 | B2-F01…F05: oturum ve kimlik doğrulama yaşam döngüsü | — | Tanımı bulunamadı⁶ | — | — | — | — | — | — | — |
 
 Dipnotlar:
@@ -168,6 +168,10 @@ Bu dosyalar Codex'in yerel çalışma alanındaki commit edilmemiş değişiklik
 
 1. **P2c:** yayın onayı başkanı unvanla tanınıyor (OPEN, karar gerekiyor; belge 14).
 1a. **F3 (#70, orta):** /settings'teki toplu menü işlemleri (toplu uygula, şablon içe aktarma, arşiv uygula, rol matrisi, rollback, rol ve birim profili), admin ailesinden bir kullanıcının korunan hesapların ve admin/liderlik rol profillerinin menülerini değiştirmesine izin veriyor. Açık yetki satırları her durumda korunur. Öneri: bu toplu işlemleri yalnız gerçek admine açmak. Bu bir politika kararıdır.
+1c. **#72 canlıya geçiş öncesi veri kontrolleri (düşük):**
+    - Sicilinde `@` geçen bir hesap artık sicille giriş yapamaz. Canlıda bu tür sicillerin sayısı salt-okunur bir sorguyla kontrol edilmeli.
+    - ASCII dışı karakter içeren bir e-posta farklı büyük/küçük harfle yazılırsa eşleşmez.
+    - Yeniden kimlik doğrulama sınırı eşzamanlı isteklerle birkaç deneme aşılabilir; PostgreSQL üzerinde doğrulanmadı.
 1b. **F4 (#65, düşük):** `/dashboard/rebuild-data`, `support_all` yetkisi olmayan rollere kurum geneli açık destek talebi sayısını gösteriyor. Talep içeriği gösterilmiyor.
 2. **#70 + #65 bağımlılığı:** biri diğeri olmadan merge edilirse açık kalır.
 3. **#68 ön katman ve dosyalar:** IIS/proxy davranışı, eski dosyaların taşınması ve geri dönüşte erişilemez kalacak yüklemeler.
