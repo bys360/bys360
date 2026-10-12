@@ -29,7 +29,7 @@ Bu rapor bir onay veya sertifika değildir. Her iddia, belirtilen commit'e ve ko
 - **Açık güvenlik PR'ları** (#70, #65, #68, #69, #71, #72) taslak veya açık durumda. **Hiçbiri merge edilmedi.**
 - **Kritik bağımlılık:** #70 (hesap yönetiminde ayrıcalık yükseltme) ile #65 (açık `support_all` yetkisi) birlikte değerlendirilmelidir. #70 tek başına P1b'yi kapatmaz.
   - Birleşik kodda 430 güvenlik sözleşme testi geçti.
-  - Birleşik kodun bağımsız güvenlik incelemesi **henüz yapılmadı**.
+  - Birleşik kodun bağımsız incelemesi CHANGES-NEEDED verdi. Admin olmayan bir kullanıcının açık yetki edinme yolu bulunmadı. İki yüksek bulgu (F1: Excel içe aktarma, F2: hiyerarşi sayfalarıyla kendini amir yapma) #70'te düzeltildi. **F3** (/settings toplu menü işlemleri) karar gerektirdiği için açık. Düzeltilmiş son sürüm yeniden bağımsız incelemeden geçmedi.
 - **Açık politika kararı (P2c):** Personel ve Destek Hizmetleri yayın onayını veren grup başkanı hâlâ **unvanla** tanınıyor. Kapatmak için karar gerekiyor (belge 14).
 - **Production için engel (#68):** Canlıdaki ön katmanın (IIS/proxy/LB) `/static` yolunu doğrudan diskten sunup sunmadığı bilinmiyor.
   - Bu doğrulanmadan ve eski dosyaların taşınması ile geri dönüş prova edilmeden özel dosya değişikliği canlıya alınamaz.
@@ -88,13 +88,15 @@ Ayrıntı: [04_ROL_VE_YETKI_MIMARISI.md](04_ROL_VE_YETKI_MIMARISI.md). Özet:
 |---|---|---|---|---|---|---|---|---|---|
 | R05 (F1, F3, F4, F5, R1, D3): admin olmayanın rol değiştirmesi ve korunan hesabı ele geçirmesi | #70 | ✔ | ✔ | Kısmi¹ | PENDING² | ✘³ | ✘ | ✘ | ✘ |
 | R05 yeniden inceleme P1/P1c, P2 (dönem, hatırlatma, izleme, yönetici görünümü), P3, P4, P5 | #70 | ✔ | ✔ | Kısmi¹ | PENDING² | ✘³ | ✘ | ✘ | ✘ |
+| Birleşik inceleme F1/F2: içe aktarma ve hiyerarşi sayfalarıyla kendini amir yapma | #70 | ✔ | ✔ (RED 3F → 4 geçti) | ✔ (11 dosya, 600 geçti) | PENDING | yeniden incelenmedi | ✘ | ✘ | ✘ |
+| Birleşik inceleme F3: /settings toplu menü işlemleri korunan hesapları değiştirebiliyor | #70 | ✘ **OPEN (politika)** | — | — | — | — | — | — | — |
 | **P1b:** admin olmayanın `support_all` vermesi | #65 | ✔ | ✔ (birleşik 430) | Kısmi⁴ | PENDING | ✘³ | ✘ | ✘ | ✘ |
 | **P2c:** yayın onayı başkanının unvanla tanınması | — | ✘ **OPEN** | — | — | — | — | — | — | — |
 | K5-Q: `support_all` yalnız açık kişi bazlı yetki; kapsam dışı talep bilgisinin sızmaması | #65 | ✔ | ✔ (308) | Kısmi⁴ | PENDING | ✘³ | ✘ | ✘ | ✘ |
 | F06b: teknik rollerin geri bildirim entegrasyon sayfasında kurum verisi görmesi | #69 | ✔ | ✔ (42) | Codex: PENDING | ✔ `21a40fa8` | ✔ (AI, `0e190ee2`)⁵ | ✘ | ✘ | ✘ |
 | B2-F06: özel dosyaların `/static` altında herkese açık olması | #68 | ✔ | ✔ (141) | ✘ | PENDING | **CHANGES-NEEDED** | ✘ | ✘ | ✘ |
-| #57 takip: geri bildirim görüşme ve talep web ekranlarında 15 sızıntı | #71 | ✔ | ✔ (99; RED 22F) | ✔ (106 dosya, 2332 geçti / 0 kaldı) | PENDING | ✘ | ✘ | ✘ | ✘ |
-| Canlı admin hesabı bulunamıyor / ilk giriş / kurtarma | #72 | ✔ | ✔ (92; RED 20F) | ✔ (157 dosya, 3192 test, 0 kaldı) | PENDING | ✘ | ✘ | ✘ | ✘ |
+| #57 takip: 15 sızıntı + eylem planı takip sayfası + özet e-postası | #71 | ✔ | ✔ (50; RED 22F + 6F) | ✔ (106 dosya, 2340 geçti / 0 kaldı) | PENDING (`3c4fa709`)⁷ | CHANGES-NEEDED → düzeltildi; yeniden incelenmedi | ✘ | ✘ | ✘ |
+| Canlı admin hesabı bulunamıyor / ilk giriş / kurtarma | #72 | ✔ | ✔ (100; RED 20F + 6F) | ✔ (150 dosya, 3218 geçti / 0 kaldı) | PENDING (`78f63397`)⁷ | CHANGES-NEEDED → düzeltildi; yeniden incelenmedi | ✘ | ✘ | ✘ |
 | B2-F01…F05: oturum ve kimlik doğrulama yaşam döngüsü | — | Tanımı bulunamadı⁶ | — | — | — | — | — | — | — |
 
 Dipnotlar:
@@ -105,6 +107,7 @@ Dipnotlar:
 4. #65'in önceki sürümü (`866d8c63`) için 104 dosyalık regresyon: 2271 geçti, 0 kaldı (PR açıklaması). Güncel `fb1acdc4` için: 308 sözleşme testi geçti; geniş regresyon çalışmadı.
 5. Codex'in bağımsız yapay zekâ incelemesi `0e190ee2` üzerinde yapıldı. `21a40fa8`, bundan yalnız bir test satırıyla ayrılır; uygulama kodu aynıdır.
 6. Depoda, PR'larda ve issue'larda B2-F01…F05 için tanım bulunamadı. Bu kimlikler yalnız #59 açıklamasında, kararları ayrıca verilecek bir başlık olarak geçiyor.
+7. Bir önceki HEAD'de bütün testler geçti; CI yalnız `mypy app tests scripts` adımındaki test tip daraltması nedeniyle kırmızıydı. Bu düzeltildi. Son HEAD'in CI sonucu §7'de.
 
 ## 6. PR'lar ve exact SHA'lar
 
@@ -114,8 +117,8 @@ Dipnotlar:
 | [#65](https://github.com/bys360/bys360/pull/65) | K5-Q `support_all` | `fb1acdc4802a0d2a26eef43fcf686c5b67a1eb82` (ana dal birleştirildi) | Draft |
 | [#69](https://github.com/bys360/bys360/pull/69) | F06b | `21a40fa8813cc5501e7f83a2b511bfc2161025fa` | Draft |
 | [#68](https://github.com/bys360/bys360/pull/68) | B2-F06 özel dosyalar | `f79ab0a3709c018666e7f2b9975d223725f103ce` | Open |
-| [#72](https://github.com/bys360/bys360/pull/72) | Admin hesap yönetimi ve kurtarma | `f8dfa95be90f9a80923ab8b561fe1c095df05800` | Draft |
-| [#71](https://github.com/bys360/bys360/pull/71) | #57 takip: geri bildirim web ekranları | `0c00296020b5192228cc8add7800c9a47af8f4b0` | Draft |
+| [#72](https://github.com/bys360/bys360/pull/72) | Admin hesap yönetimi ve kurtarma | `78f63397bddb5e40bb858f4c663155febd917362` | Draft |
+| [#71](https://github.com/bys360/bys360/pull/71) | #57 takip: geri bildirim web ekranları | `3c4fa70906ed73f8c8fe5b49ec4a100925a44613` | Draft |
 
 ## 7. GitHub CI ve test kanıtları
 
@@ -173,7 +176,7 @@ Bu dosyalar Codex'in yerel çalışma alanındaki commit edilmemiş değişiklik
 
 ## 10. Admin hesap yönetiminin durumu
 
-PR [#72](https://github.com/bys360/bys360/pull/72) (`f8dfa95b`, Draft). Durum:
+PR [#72](https://github.com/bys360/bys360/pull/72) (`78f63397`, Draft). Durum:
 
 - **Kod hazır.**
 - **Testler:** hedefli testler `f796107f` üzerinde 20 kaldı (RED); `db574721` üzerinde 92 geçti (GREEN). Geniş regresyon: 3192 test, 0 kaldı.
