@@ -466,3 +466,145 @@ def test_a_database_error_in_the_dashboard_counter_fails_closed(env, monkeypatch
         context = build_dashboard_rebuild_context(user)
     assert context["metrics"]["open_support"] == 0
     assert sum(context["charts"]["support_status"]["values"]) == 0
+
+
+# --- owner decision I-2: a report author sees stored support figures only while their current scope
+# still covers the scope the figures were computed in; otherwise the figures fail closed ------------
+
+
+def _set_grant(env, who, granted):
+    from app.extensions import db
+    from app.models import UserMenuPermission
+
+    with env.app.app_context():
+        row = UserMenuPermission.query.filter_by(user_id=env.ids[who], menu_key="support_all").first()
+        if granted and row is None:
+            db.session.add(UserMenuPermission(user_id=env.ids[who], menu_key="support_all", is_visible=True,
+                                              source_type="user_override"))
+        elif row is not None:
+            row.is_visible = bool(granted)
+        db.session.commit()
+
+
+def _set_unit(env, who, birim):
+    from app.extensions import db
+
+    with env.app.app_context():
+        _user(env, who).birim = birim
+        db.session.commit()
+
+
+def _report_text(env, who, report_id):
+    return _text(_web(env, who).get(f"/communication/faz4/reports/{report_id}").get_data(as_text=True))
+
+
+def _shows_support(text, figure):
+    return bool(re.search(rf"Açık Destek {figure}\b", text)) or f"{figure} açık destek talebi" in text
+
+
+def _hides_support(text, figure):
+    return (not re.search(rf"Açık Destek {figure}\b", text) and f"{figure} açık destek talebi" not in text
+            and "destek kaydı" not in text and not re.search(rf"Toplam kayıt {figure}\b", text))
+
+
+def test_an_author_whose_grant_was_revoked_no_longer_sees_the_reports_support_figures(env):
+    report_id, figure = _report_for(env, "holder")
+    _set_grant(env, "holder", False)
+    assert _hides_support(_report_text(env, "holder", report_id), figure)
+
+
+def test_an_admin_author_whose_grant_was_revoked_no_longer_sees_the_reports_support_figures(env):
+    report_id, figure = _report_for(env, "admin_holder")
+    assert figure > 0
+    _set_grant(env, "admin_holder", False)
+    assert _hides_support(_report_text(env, "admin_holder", report_id), figure)
+
+
+def test_an_author_moved_to_another_unit_no_longer_sees_the_reports_support_figures(env):
+    report_id, figure = _report_for(env, "holder")
+    _set_unit(env, "holder", "Birim-Z")  # the report counted Birim-A's private ticket
+    assert _hides_support(_report_text(env, "holder", report_id), figure)
+
+
+def test_an_author_whose_grant_was_given_back_sees_the_reports_support_figures_again(env):
+    report_id, figure = _report_for(env, "holder")
+    _set_grant(env, "holder", False)
+    assert _hides_support(_report_text(env, "holder", report_id), figure)
+    _set_grant(env, "holder", True)
+    assert _shows_support(_report_text(env, "holder", report_id), figure)
+
+
+def test_an_author_without_a_grant_keeps_their_own_figures_and_keeps_them_after_a_grant(env):
+    report_id, figure = _report_for(env, "sysadm")  # own tickets only
+    assert figure == EXPECTED["sysadm"]
+    assert _shows_support(_report_text(env, "sysadm", report_id), figure)
+    _set_grant(env, "sysadm", True)  # a wider scope still covers the own-ticket figures
+    assert _shows_support(_report_text(env, "sysadm", report_id), figure)
+
+
+def test_a_report_without_a_verifiable_scope_hides_figures_from_its_author(env):
+    """A report marked by the earlier F4 rule records no author scope, so it cannot be verified."""
+    from app.extensions import db
+    from app.models.communication_phase4_models import CommunicationExecutiveReport
+
+    report_id, figure = _report_for(env, "holder")
+    with env.app.app_context():
+        row = db.session.get(CommunicationExecutiveReport, report_id)
+        assert row is not None
+        metrics = dict(row.metrics_json)
+        metrics.pop("support_scope_fingerprint", None)
+        metrics["support_scope"] = "author_scope_v1"
+        row.metrics_json = metrics
+        db.session.commit()
+    assert _hides_support(_report_text(env, "holder", report_id), figure)
+    assert _shows_support(_report_text(env, "admin_holder", report_id), figure)
+
+
+@pytest.mark.parametrize("who", ["colleague", "sysadm", "baskan"])
+def test_another_user_never_sees_the_authors_support_figures(env, who):
+    report_id, figure = _report_for(env, "holder")
+    assert _hides_support(_report_text(env, who, report_id), figure)
+
+
+@pytest.mark.parametrize("who", ["colleague", "sysadm"])
+def test_report_lists_governance_and_csv_carry_no_stored_support_figures(env, who):
+    """Only the detail page renders a stored report's figures; for a reader who is not the author,
+    lists, governance and the CSV carry none of its stored summary or recommendations."""
+    from app.extensions import db
+    from app.models.communication_phase4_models import CommunicationExecutiveReport
+
+    report_id, figure = _report_for(env, "holder")
+    with env.app.app_context():
+        row = db.session.get(CommunicationExecutiveReport, report_id)
+        assert row is not None
+        stored = [row.summary_text] + list(row.recommendations_json or [])
+    assert any(f"{figure} açık destek talebi" in item for item in stored)
+    client = _web(env, who)
+    for path in ("/communication/faz4/reports", "/communication/faz4/governance"):
+        page = client.get(path)
+        assert page.status_code == 200, path
+        text = page.get_data(as_text=True)
+        assert [item for item in stored if item and item in text] == [], path
+    exported = client.post("/communication/faz4/export", data={"export_type": "executive_reports", "days": 90})
+    assert exported.status_code == 200
+    body = exported.get_data(as_text=True)
+    assert [item for item in stored if item and item in body] == []
+
+
+# --- owner decision I-1: export row counts stay a follow-up only while nothing exposes them ---------
+
+
+@pytest.mark.parametrize("who", ["sysadm", "baskan", "colleague"])
+def test_another_users_support_export_row_count_is_not_exposed(env, who):
+    holder = _web(env, "holder")
+    exported = holder.post("/communication/faz4/export", data={"export_type": "support_analytics", "days": 180})
+    assert exported.status_code == 200
+    from app.models.communication_phase4_models import CommunicationReportExportLog
+
+    with env.app.app_context():
+        log = CommunicationReportExportLog.query.filter_by(export_type="support_analytics").one()
+        file_name = log.file_name
+    for path in ("/communication/faz4/export-center", "/communication/faz4", "/communication/faz4/reports",
+                 "/communication/faz4/support/analytics"):
+        body = _web(env, who).get(path).get_data(as_text=True)
+        assert file_name not in body, path

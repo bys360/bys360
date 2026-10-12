@@ -43,6 +43,43 @@ def support_scope_is_unrestricted(user: Any) -> bool:
     return can_view_all_support_tickets(user) and is_admin_family_user(user)
 
 
+SUPPORT_SCOPE_FINGERPRINT_VERSION = 2
+
+
+def support_scope_fingerprint(user: Any) -> dict[str, Any]:
+    """K5 F4 / I-2: what decides ``user``'s ticket scope, recorded with a figure computed in it."""
+    return {
+        "version": SUPPORT_SCOPE_FINGERPRINT_VERSION,
+        "user_id": int(getattr(user, "id", 0) or 0),
+        "support_all": bool(can_view_all_support_tickets(user)),
+        "admin_family": bool(is_admin_family_user(user)),
+        "units": sorted({str(value) for value in (getattr(user, "birim", None), getattr(user, "ust_birim", None)) if value}),
+    }
+
+
+def support_scope_covers(user: Any, recorded: Any) -> bool:
+    """K5 F4 / I-2: does ``user``'s current scope still cover a scope recorded by ``support_scope_fingerprint``?
+
+    A figure computed in the recorded scope may be shown to the same user only while this holds; a
+    revoked ``support_all`` grant, a move to another unit or an unreadable record fails closed.
+    Own-ticket figures (no grant when recorded) stay covered for the same user.
+    """
+    if not isinstance(recorded, dict) or recorded.get("version") != SUPPORT_SCOPE_FINGERPRINT_VERSION:
+        return False
+    current = support_scope_fingerprint(user)
+    if not current["user_id"] or current["user_id"] != recorded.get("user_id"):
+        return False
+    if not recorded.get("support_all"):
+        return True
+    if not current["support_all"]:
+        return False
+    if current["admin_family"]:
+        return True
+    if recorded.get("admin_family"):
+        return False
+    return set(recorded.get("units") or []) <= set(current["units"])
+
+
 def support_ticket_visibility_clause(user: Any) -> Any:
     """K5 (2026-10-10): the SQL form of ``can_view_support_ticket`` for every list and counter.
 
