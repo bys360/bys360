@@ -29,7 +29,7 @@ Bu rapor bir onay veya sertifika değildir. Her iddia, belirtilen commit'e ve ko
 - **Açık güvenlik PR'ları** (#70, #65, #68, #69, #71, #72) taslak veya açık durumda. **Hiçbiri merge edilmedi.**
 - **Kritik bağımlılık:** #70 (hesap yönetiminde ayrıcalık yükseltme) ile #65 (açık `support_all` yetkisi) birlikte değerlendirilmelidir. #70 tek başına P1b'yi kapatmaz.
   - Birleşik kodda 430 güvenlik sözleşme testi geçti.
-  - Birleşik kodun bağımsız incelemesi CHANGES-NEEDED verdi. Admin olmayan bir kullanıcının açık yetki edinme yolu bulunmadı. İki yüksek bulgu (F1: Excel içe aktarma, F2: hiyerarşi sayfalarıyla kendini amir yapma) #70'te düzeltildi. **F3** (/settings toplu menü işlemleri) karar gerektirdiği için açık. Düzeltilmiş son sürüm yeniden bağımsız incelemeden geçmedi.
+  - Birleşik kodun bağımsız incelemesi CHANGES-NEEDED verdi. Admin olmayan bir kullanıcının açık yetki edinme yolu bulunmadı. İki yüksek bulgu (F1: Excel içe aktarma, F2: hiyerarşi sayfalarıyla kendini amir yapma) #70'te düzeltildi. **F3** (/settings toplu menü işlemleri) karar gerektirdiği için açık. Düzeltilmiş sürüm (`17af72bf` + #65) yeniden bağımsız incelemeden geçti. F1 ve F2 PASS; açık yetki edinme ve hesap ele geçirme kontrolleri PASS. Yeni bir orta bulgu çıktı: hesap oluşturma rotalarında kendini amir yapma. `627eb391` ile düzeltildi (RED kaldı, GREEN 2 test, regresyon 675 test geçti). `627eb391` henüz yeniden incelenmedi.
 - **Açık politika kararı (P2c):** Personel ve Destek Hizmetleri yayın onayını veren grup başkanı hâlâ **unvanla** tanınıyor. Kapatmak için karar gerekiyor (belge 14).
 - **Production için engel (#68):** Canlıdaki ön katmanın (IIS/proxy/LB) `/static` yolunu doğrudan diskten sunup sunmadığı bilinmiyor.
   - Bu doğrulanmadan ve eski dosyaların taşınması ile geri dönüş prova edilmeden özel dosya değişikliği canlıya alınamaz.
@@ -88,7 +88,8 @@ Ayrıntı: [04_ROL_VE_YETKI_MIMARISI.md](04_ROL_VE_YETKI_MIMARISI.md). Özet:
 |---|---|---|---|---|---|---|---|---|---|
 | R05 (F1, F3, F4, F5, R1, D3): admin olmayanın rol değiştirmesi ve korunan hesabı ele geçirmesi | #70 | ✔ | ✔ | Kısmi¹ | PENDING² | ✘³ | ✘ | ✘ | ✘ |
 | R05 yeniden inceleme P1/P1c, P2 (dönem, hatırlatma, izleme, yönetici görünümü), P3, P4, P5 | #70 | ✔ | ✔ | Kısmi¹ | PENDING² | ✘³ | ✘ | ✘ | ✘ |
-| Birleşik inceleme F1/F2: içe aktarma ve hiyerarşi sayfalarıyla kendini amir yapma | #70 | ✔ | ✔ (RED 3F → 4 geçti) | ✔ (11 dosya, 600 geçti) | PENDING | yeniden incelenmedi | ✘ | ✘ | ✘ |
+| Birleşik inceleme F1/F2: içe aktarma ve hiyerarşi sayfalarıyla kendini amir yapma | #70 | ✔ | ✔ (RED 3F → 4 geçti) | ✔ (11 dosya, 600 geçti) | PENDING | ✔ yeniden inceleme PASS (`17af72bf`) | ✘ | ✘ | ✘ |
+| Yeniden inceleme: hesap oluşturma rotalarında kendini amir yapma (orta) | #70 | ✔ `627eb391` | ✔ (RED 1F → 2 geçti) | ✔ (12 dosya, 675 geçti) | PENDING | yeniden incelenmedi | ✘ | ✘ | ✘ |
 | Birleşik inceleme F3: /settings toplu menü işlemleri korunan hesapları değiştirebiliyor | #70 | ✘ **OPEN (politika)** | — | — | — | — | — | — | — |
 | **P1b:** admin olmayanın `support_all` vermesi | #65 | ✔ | ✔ (birleşik 430) | Kısmi⁴ | PENDING | ✘³ | ✘ | ✘ | ✘ |
 | **P2c:** yayın onayı başkanının unvanla tanınması | — | ✘ **OPEN** | — | — | — | — | — | — | — |
@@ -113,7 +114,7 @@ Dipnotlar:
 
 | PR | Konu | Exact HEAD | Durum |
 |---|---|---|---|
-| [#70](https://github.com/bys360/bys360/pull/70) | R05 hesap yönetimi yetkisi | `17af72bf61a71bc1d7424998826f854c6ddcdddf` | Draft |
+| [#70](https://github.com/bys360/bys360/pull/70) | R05 hesap yönetimi yetkisi | `627eb391e43a4b8d05e0604c382c0612f7dd8916` | Draft |
 | [#65](https://github.com/bys360/bys360/pull/65) | K5-Q `support_all` | `fb1acdc4802a0d2a26eef43fcf686c5b67a1eb82` (ana dal birleştirildi) | Draft |
 | [#69](https://github.com/bys360/bys360/pull/69) | F06b | `21a40fa8813cc5501e7f83a2b511bfc2161025fa` | Draft |
 | [#68](https://github.com/bys360/bys360/pull/68) | B2-F06 özel dosyalar | `f79ab0a3709c018666e7f2b9975d223725f103ce` | Open |
