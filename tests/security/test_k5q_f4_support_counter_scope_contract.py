@@ -382,3 +382,69 @@ def test_a_team_scope_does_not_count_the_team_members_tickets(env, monkeypatch):
         context = dashboard.build_dashboard_rebuild_context(_user(env, "colleague"))
     assert context["metrics"]["open_support"] == 0
     assert sum(context["charts"]["support_status"]["values"]) == 0
+
+
+# --- review F-1: a stored digest job carries its owner's open-ticket count --------------------------
+
+
+def _digest_for(env, who):
+    from app.extensions import db
+    from app.services.communication_phase5_service import create_digest_job
+
+    with env.app.app_context():
+        create_digest_job(_user(env, who), "daily")
+        db.session.commit()
+
+
+@pytest.mark.parametrize("path", ["/communication/faz5/automation-center", "/communication/faz5",
+                                  "/communication/faz9c/export/json", "/communication/faz9/export/json"])
+@pytest.mark.parametrize("who", ["sysadm", "baskan", "colleague"])
+def test_another_users_digest_summary_is_not_shown(env, path, who):
+    _digest_for(env, "creator")
+    body = _web(env, who).get(path).get_data(as_text=True)
+    assert f"Açık destek talebi: {OTHER_TICKETS}" not in body
+
+
+def test_the_digest_owner_still_sees_their_own_summary(env):
+    from app.services.communication_phase5_service import automation_center_snapshot
+
+    _digest_for(env, "sysadm")
+    with env.app.app_context():
+        jobs = _call(automation_center_snapshot, _user(env, "sysadm"))["recent_jobs"]
+    assert any(f"Açık destek talebi: {EXPECTED['sysadm']}" in (job["result_summary"] or "") for job in jobs)
+
+
+# --- review F-2: a report stored before F4 holds figures from an unscoped count ---------------------
+
+
+def _legacy_report(env, author):
+    """A report as stored before F4: no scope marker, institution-wide support figures."""
+    from app.extensions import db
+    from app.models.communication_phase4_models import CommunicationExecutiveReport
+
+    with env.app.app_context():
+        row = CommunicationExecutiveReport(
+            title="Eski rapor", report_type="weekly_summary", period_label="Son 30 Gün", status="draft",
+            summary_text=f"0 yayımlanmış duyuru, 0 anket ve {OTHER_TICKETS + 1} açık destek talebi bulunmaktadır.",
+            metrics_json={"headline": {"headline": {"open_tickets": OTHER_TICKETS + 1},
+                                       "trends": {"open_tickets": {"labels": ["x"], "values": [OTHER_TICKETS + 1]}}},
+                          "support": {"totals": {"ticket_count": OTHER_TICKETS + 1}}},
+            recommendations_json=[f"İlk geri dönüş SLA’sı aşılmış {OTHER_TICKETS + 1} destek kaydı var."],
+            created_by_user_id=env.ids[author])
+        db.session.add(row)
+        db.session.commit()
+        return row.id
+
+
+def test_a_legacy_report_hides_unscoped_figures_even_from_its_author(env):
+    report_id = _legacy_report(env, "sysadm")
+    text = _text(_web(env, "sysadm").get(f"/communication/faz4/reports/{report_id}").get_data(as_text=True))
+    assert f"{OTHER_TICKETS + 1} açık destek talebi" not in text
+    assert not re.search(rf"Açık Destek {OTHER_TICKETS + 1}\b", text)
+    assert "destek kaydı" not in text
+
+
+def test_an_unrestricted_holder_still_reads_a_legacy_report(env):
+    report_id = _legacy_report(env, "sysadm")
+    text = _text(_web(env, "admin_holder").get(f"/communication/faz4/reports/{report_id}").get_data(as_text=True))
+    assert f"{OTHER_TICKETS + 1} açık destek talebi" in text

@@ -177,6 +177,10 @@ def _load_surveys(days: int = 90):
 SUPPORT_METRIC_GROUP = "support"
 SUPPORT_HEADLINE_KEYS = frozenset({"open_tickets", "overdue_first_response", "overdue_resolution"})
 SUPPORT_REPORT_KEYS = frozenset({"support_rows", "risk_support_rows", "support_status_breakdown"})
+# Marks a report whose support figures were computed in its author's scope (K5 F4). A report without
+# it was stored before the scope rule and may hold institution-wide figures.
+REPORT_SUPPORT_SCOPE_KEY = "support_scope"
+REPORT_SUPPORT_SCOPE_AUTHOR = "author_scope_v1"
 
 
 def _load_tickets(days: int = 90, *, viewer: Any):
@@ -611,6 +615,7 @@ def create_executive_report(actor_user: Any, report_type: str = "weekly_summary"
             "headline": payload,
             "surveys": survey_payload,
             "support": support_payload,
+            REPORT_SUPPORT_SCOPE_KEY: REPORT_SUPPORT_SCOPE_AUTHOR,
         }),
         recommendations_json=payload.get("recommendations", []),
         created_by_user_id=getattr(actor_user, "id", None),
@@ -625,7 +630,9 @@ def executive_report_view(row: Any, viewer: Any) -> dict[str, Any]:
 
     The support figures in a report were computed in its author's ticket scope. They are shown to the
     author and to a viewer whose scope covers every ticket; any other reader gets the report without
-    them, so a stored report never widens a reader's view of the support tickets.
+    them, so a stored report never widens a reader's view of the support tickets. A report stored
+    before this rule has no scope marker and may hold institution-wide figures, so its author sees
+    them only with an unrestricted scope too.
     """
     from app.services.support_ticket_access import support_scope_is_unrestricted
 
@@ -633,7 +640,9 @@ def executive_report_view(row: Any, viewer: Any) -> dict[str, Any]:
     recommendations = list(getattr(row, "recommendations_json", None) or [])
     summary_text = getattr(row, "summary_text", None)
     viewer_id = getattr(viewer, "id", None)
-    if (viewer_id is not None and viewer_id == getattr(row, "created_by_user_id", None)) or support_scope_is_unrestricted(viewer):
+    is_author = viewer_id is not None and viewer_id == getattr(row, "created_by_user_id", None)
+    author_scoped = metrics.get(REPORT_SUPPORT_SCOPE_KEY) == REPORT_SUPPORT_SCOPE_AUTHOR
+    if support_scope_is_unrestricted(viewer) or (is_author and author_scoped):
         return {"metrics": metrics, "recommendations": recommendations, "summary_text": summary_text, "support_hidden": False}
 
     metrics.pop("support", None)

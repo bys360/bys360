@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 @menu_key_required("settings")
 def communication_phase5_dashboard_view():
     payload = {
-        "automation": automation_center_snapshot(),
+        "automation": automation_center_snapshot(viewer=current_user),  # K5 F4: own digest summaries only
         "health": health_snapshot(viewer=current_user),  # K5 F4: viewer-scoped counters
         "retention": retention_snapshot(viewer=current_user),  # K5 F4: viewer-scoped counters
         "support_ops": support_operations_snapshot(viewer=current_user),  # K5: viewer-scoped rows
@@ -57,7 +57,7 @@ def communication_phase5_dashboard_view():
 @login_required
 @menu_key_required("settings")
 def communication_phase5_automation_center():
-    payload = automation_center_snapshot()
+    payload = automation_center_snapshot(viewer=current_user)  # K5 F4: own digest summaries only
     return safe_render("communication/phase5_automation_center.html", payload=payload)
 
 

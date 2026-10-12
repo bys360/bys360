@@ -139,7 +139,7 @@ def phase9_release_center_snapshot(*, viewer: Any) -> dict[str, Any]:
     go_live = build_go_live_readiness_context()
     health = health_snapshot(viewer=viewer)
     support_ops = support_operations_snapshot(150, viewer=viewer)
-    automation = automation_center_snapshot()
+    automation = automation_center_snapshot(viewer=viewer)
     escalations = escalation_snapshot(viewer=viewer)
     retention = retention_snapshot(viewer=viewer)
     phase8 = _try_phase8_snapshot(viewer=viewer)

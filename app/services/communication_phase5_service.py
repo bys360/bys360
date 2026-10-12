@@ -306,7 +306,10 @@ def support_operations_snapshot(limit: int = 200, *, viewer: Any) -> dict[str, A
     }
 
 
-def automation_center_snapshot() -> dict[str, Any]:
+def automation_center_snapshot(*, viewer: Any) -> dict[str, Any]:
+    """K5 F4: a digest job's summary carries its owner's own figures (open support tickets,
+    unread notifications, pending surveys), so it is shown only to that owner."""
+    viewer_id = getattr(viewer, "id", None)
     prefs_total = CommunicationNotificationPreference.query.count()
     active_users = _active_user_count()
     digest_total = CommunicationDigestJob.query.count()
@@ -351,7 +354,7 @@ def automation_center_snapshot() -> dict[str, Any]:
                 "digest_type": row.digest_type,
                 "status": row.status,
                 "status_label": gate_status_label(row.status),
-                "result_summary": row.result_summary,
+                "result_summary": row.result_summary if viewer_id is not None and row.user_id == viewer_id else None,
             }
             for row in recent_jobs
         ],

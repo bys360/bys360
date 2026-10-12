@@ -66,7 +66,7 @@ def pilot_readiness_snapshot(*, viewer: Any) -> dict[str, Any]:
     """K5 F4: support figures count only the tickets inside ``viewer``'s scope."""
     go_live = build_go_live_readiness_context()
     health = health_snapshot(viewer=viewer)
-    automation = automation_center_snapshot()
+    automation = automation_center_snapshot(viewer=viewer)
     escalations = escalation_snapshot(viewer=viewer)
     retention = retention_snapshot(viewer=viewer)
 
