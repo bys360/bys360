@@ -367,7 +367,30 @@ def test_digest_mail_reaches_each_manager_with_only_their_records(env, monkeypat
 
 @pytest.mark.parametrize("sicil", ["P57ADM", "P57BSK"])
 def test_generating_notices_from_the_web_never_exposes_other_persons_notices(env, sicil):
+    action_id = _data(env)["action"]
+    _execute(
+        env,
+        "UPDATE feedback_meeting_action_plans SET follow_up_check_date=DATE('now','-3 day'), "
+        "target_date=DATE('now','-3 day'), status='acik', overdue_notice_sent_at=NULL, reminder_sent_at=NULL "
+        "WHERE id=:a",
+        a=action_id,
+    )
     client = _client(env, sicil)
-    client.post("/performance/feedback-followup/generate-notices")
-    body = client.get("/performance/feedback-followup?filter=all").get_data(as_text=True)
+    flash_page = client.post("/performance/feedback-followup/generate-notices", follow_redirects=True).get_data(as_text=True)
+    body = flash_page + client.get("/performance/feedback-followup?filter=all").get_data(as_text=True)
     assert ACTION not in body and EMPLOYEE_NAME not in body
+    # A web run by a non-party creates no notice for the action and writes no follow-up flag on it.
+    assert (_scalar(env, "SELECT COUNT(*) FROM feedback_action_followup_notices WHERE action_id=:a", a=action_id) or 0) == 0
+
+
+def test_the_actions_own_manager_still_generates_its_notices(env):
+    action_id = _data(env)["action"]
+    _execute(
+        env,
+        "UPDATE feedback_meeting_action_plans SET follow_up_check_date=DATE('now','-3 day'), "
+        "target_date=DATE('now','-3 day'), status='acik', overdue_notice_sent_at=NULL, reminder_sent_at=NULL "
+        "WHERE id=:a",
+        a=action_id,
+    )
+    _client(env, "P57MGR").post("/performance/feedback-followup/generate-notices")
+    assert (_scalar(env, "SELECT COUNT(*) FROM feedback_action_followup_notices WHERE action_id=:a", a=action_id) or 0) > 0
