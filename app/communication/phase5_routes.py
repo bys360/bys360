@@ -45,10 +45,10 @@ logger = logging.getLogger(__name__)
 @menu_key_required("settings")
 def communication_phase5_dashboard_view():
     payload = {
-        "automation": automation_center_snapshot(),
-        "health": health_snapshot(),
-        "retention": retention_snapshot(),
-        "support_ops": support_operations_snapshot(),
+        "automation": automation_center_snapshot(viewer=current_user),  # K5 F4: own digest summaries only
+        "health": health_snapshot(viewer=current_user),  # K5 F4: viewer-scoped counters
+        "retention": retention_snapshot(viewer=current_user),  # K5 F4: viewer-scoped counters
+        "support_ops": support_operations_snapshot(viewer=current_user),  # K5: viewer-scoped rows
     }
     return safe_render("communication/phase5_dashboard.html", payload=payload)
 
@@ -57,7 +57,7 @@ def communication_phase5_dashboard_view():
 @login_required
 @menu_key_required("settings")
 def communication_phase5_automation_center():
-    payload = automation_center_snapshot()
+    payload = automation_center_snapshot(viewer=current_user)  # K5 F4: own digest summaries only
     return safe_render("communication/phase5_automation_center.html", payload=payload)
 
 
@@ -96,7 +96,7 @@ def communication_phase5_create_digest():
 @login_required
 @menu_key_required("support_all")
 def communication_phase5_support_operations():
-    payload = support_operations_snapshot()
+    payload = support_operations_snapshot(viewer=current_user)  # K5: viewer-scoped rows
     return safe_render("communication/phase5_support_operations.html", payload=payload)
 
 
@@ -106,7 +106,7 @@ def communication_phase5_support_operations():
 def communication_phase5_escalations():
     if not is_manager(current_user):
         flash("Bu ekran yönetici kullanımına yöneliktir.", "warning")
-    payload = escalation_snapshot()
+    payload = escalation_snapshot(viewer=current_user)  # K5: viewer-scoped rows
     return safe_render("communication/phase5_escalation_center.html", payload=payload)
 
 
@@ -129,7 +129,7 @@ def communication_phase5_save_escalation_rule():
 @login_required
 @menu_key_required("settings")
 def communication_phase5_retention():
-    payload = retention_snapshot()
+    payload = retention_snapshot(viewer=current_user)  # K5 F4: viewer-scoped counters
     return safe_render("communication/phase5_retention_center.html", payload=payload)
 
 
@@ -152,7 +152,7 @@ def communication_phase5_save_retention_policy():
 @login_required
 @menu_key_required("reports")
 def communication_phase5_health():
-    payload = health_snapshot()
+    payload = health_snapshot(viewer=current_user)  # K5 F4: viewer-scoped counters
     return safe_render("communication/phase5_operational_health.html", payload=payload)
 
 

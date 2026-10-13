@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from flask import abort, current_app
-from flask_login import login_required
+from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.models import Notification, OrganizationUnit, PortalPost, User
@@ -244,7 +244,10 @@ def settings_center_surveys():
 @login_required
 @menu_key_required("settings_center_support")
 def settings_center_support():
-    ticket_count = _safe_count(lambda: SupportTicket.query.count())
+    from app.services.support_ticket_access import support_ticket_visibility_clause
+
+    # K5 F4: the count follows the ticket access rule; no role sees the institution-wide total.
+    ticket_count = _safe_count(lambda: SupportTicket.query.filter(support_ticket_visibility_clause(current_user)).count())
     return _render_module_page(
         "support_help",
         kv_facts=[

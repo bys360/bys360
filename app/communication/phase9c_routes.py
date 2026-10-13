@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 @login_required
 @menu_key_required('reports')
 def communication_phase9c_dashboard():
-    payload = phase9c_pilot_opening_snapshot()
+    payload = phase9c_pilot_opening_snapshot(viewer=current_user)
     gate_token = issue_form_token('communication_phase9c_gate', scope=str(current_user.id))
     decision_token = issue_form_token('communication_phase9c_decision', scope=str(current_user.id))
     incident_token = issue_form_token('communication_phase9c_incident', scope=str(current_user.id))
@@ -45,7 +45,7 @@ def communication_phase9c_dashboard():
 @login_required
 @menu_key_required('settings')
 def communication_phase9c_pilot_opening_center():
-    payload = phase9c_pilot_opening_snapshot()
+    payload = phase9c_pilot_opening_snapshot(viewer=current_user)
     gate_token = issue_form_token('communication_phase9c_gate', scope=str(current_user.id))
     decision_token = issue_form_token('communication_phase9c_decision', scope=str(current_user.id))
     incident_token = issue_form_token('communication_phase9c_incident', scope=str(current_user.id))
@@ -126,7 +126,7 @@ def communication_phase9c_incident_create():
 @menu_key_required('reports')
 def communication_phase9c_export_md():
     return Response(
-        build_phase9c_markdown(),
+        build_phase9c_markdown(viewer=current_user),
         mimetype='text/markdown; charset=utf-8',
         headers={'Content-Disposition': 'attachment; filename=communication_phase9c_pilot_opening.md'},
     )
@@ -136,7 +136,7 @@ def communication_phase9c_export_md():
 @login_required
 @menu_key_required('reports')
 def communication_phase9c_export_json():
-    payload = json.dumps(phase9c_payload(), ensure_ascii=False, indent=2, default=str)
+    payload = json.dumps(phase9c_payload(viewer=current_user), ensure_ascii=False, indent=2, default=str)
     data = BytesIO(payload.encode('utf-8'))
     data.seek(0)
     return send_file(

@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 @login_required
 @menu_key_required('reports')
 def communication_phase9_dashboard():
-    payload = phase9_dashboard_snapshot()
+    payload = phase9_dashboard_snapshot(viewer=current_user)
     return safe_render('communication/phase9_dashboard.html', payload=payload)
 
 
@@ -37,7 +37,7 @@ def communication_phase9_dashboard():
 @login_required
 @menu_key_required('settings')
 def communication_phase9_release_center():
-    payload = phase9_release_center_snapshot()
+    payload = phase9_release_center_snapshot(viewer=current_user)
     checkpoint_token = issue_form_token('communication_phase9_checkpoint', scope=str(current_user.id))
     decision_token = issue_form_token('communication_phase9_decision', scope=str(current_user.id))
     return safe_render(
@@ -52,7 +52,7 @@ def communication_phase9_release_center():
 @login_required
 @menu_key_required('reports')
 def communication_phase9_first72():
-    payload = phase9_first72_snapshot()
+    payload = phase9_first72_snapshot(viewer=current_user)
     return safe_render('communication/phase9_first72_center.html', payload=payload)
 
 
@@ -103,7 +103,7 @@ def communication_phase9_decision_create():
 @menu_key_required('reports')
 def communication_phase9_export_md():
     return Response(
-        build_phase9_release_markdown(),
+        build_phase9_release_markdown(viewer=current_user),
         mimetype='text/markdown; charset=utf-8',
         headers={'Content-Disposition': 'attachment; filename=communication_phase9_go_live.md'},
     )
@@ -113,7 +113,7 @@ def communication_phase9_export_md():
 @login_required
 @menu_key_required('reports')
 def communication_phase9_export_json():
-    payload = json.dumps(phase9_release_payload(), ensure_ascii=False, default=str, indent=2)
+    payload = json.dumps(phase9_release_payload(viewer=current_user), ensure_ascii=False, default=str, indent=2)
     data = BytesIO(payload.encode('utf-8'))
     data.seek(0)
     return send_file(

@@ -12,6 +12,8 @@ from collections import OrderedDict
 from collections.abc import Callable, Iterable
 from typing import Any
 
+from app.services.personnel_read_grant import without_explicit_grants
+
 logger = logging.getLogger(__name__)
 
 
@@ -78,7 +80,9 @@ def ensure_settings_phase1_seeded_handler(
         flat_items = flatten_menu_definitions_func()
         all_menu_keys = filter_live_menu_keys([item["key"] for item in flat_items])
         for role_name in sorted(role_menu_defaults.keys()):
-            visible_keys = set(static_role_default_menu_keys_func(role_name))
+            # B1-F1, K5-Q1: the explicit per-user grants are never a role default, not even a
+            # stored seed row (the effective menu ignores them; the role matrix must not show them).
+            visible_keys = set(without_explicit_grants(static_role_default_menu_keys_func(role_name)))
             existing_rows = {
                 row.menu_key: row
                 for row in role_menu_default_model.query.filter_by(role_name=role_name).all()

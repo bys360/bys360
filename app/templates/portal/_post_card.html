@@ -104,8 +104,8 @@
         <div class="portal-media-gallery {{ 'compact' if image_count.value > 2 else '' }}">
           {% for attachment in portal_attachments %}
             {% if attachment.mime_type and attachment.mime_type.startswith('image/') %}
-              <a class="portal-media-image" href="{{ url_for('static', filename=attachment.stored_path) }}" target="_blank" rel="noopener" title="Görseli aç">
-                <img src="{{ url_for('static', filename=attachment.stored_path) }}" alt="Paylaşım görseli" loading="lazy">
+              <a class="portal-media-image" href="{{ url_for('main.portal_attachment_file', attachment_id=attachment.id) }}" target="_blank" rel="noopener" title="Görseli aç">
+                <img src="{{ url_for('main.portal_attachment_file', attachment_id=attachment.id) }}" alt="Paylaşım görseli" loading="lazy">
               </a>
             {% endif %}
           {% endfor %}
@@ -127,7 +127,7 @@
         {% elif attachment.mime_type and attachment.mime_type.startswith('video/') %}
           <div class="portal-native-video-frame" aria-label="Yüklenen portal videosu">
             <video controls preload="metadata">
-              <source src="{{ url_for('static', filename=attachment.stored_path) }}" type="{{ attachment.mime_type }}">
+              <source src="{{ url_for('main.portal_attachment_file', attachment_id=attachment.id) }}" type="{{ attachment.mime_type }}">
               Tarayıcınız video oynatmayı desteklemiyor.
             </video>
             <span class="portal-media-label"><i class="fa-solid fa-video"></i> {{ attachment.filename }}</span>

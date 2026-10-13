@@ -324,6 +324,13 @@ def build_menu_visibility_map(
         log.exception("BYS360 effective menu fallback failed | phase=exec_admin_only")
     # PHASE3A_EFFECTIVE_MENU_PORTAL_EXEC_INLINE_END
 
+    # K5-Q1/K5-Q3 (approved policy, 2026-10-10): support_all is an explicit per-user grant.
+    # No role default, unit profile, role/label policy layer above or later wrapper opens it;
+    # the menu, menu_key_required("support_all") and the support screens read the same grant.
+    from app.services.personnel_read_grant import SUPPORT_ALL_KEY, has_support_all_grant
+
+    if SUPPORT_ALL_KEY in visibility:
+        visibility[SUPPORT_ALL_KEY] = has_support_all_grant(user)
     return visibility
 
 __all__ = [

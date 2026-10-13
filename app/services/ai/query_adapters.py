@@ -6,7 +6,7 @@ from flask_login import current_user
 
 from app import db
 from app.models import PerformanceEvaluation, PerformanceEvaluationItem, SupportTicket
-from app.route_support import is_manager_family_user
+from app.services.support_ticket_access import can_view_all_support_tickets, can_view_support_ticket
 
 from .guardrails import AIAccessDenied, AIInputError, AIResourceNotFound
 from .redaction import redact_payload
@@ -81,16 +81,15 @@ def get_support_ticket_payload(ticket_id: int) -> tuple[SupportTicket, dict[str,
     if ticket is None:
         raise AIResourceNotFound("Destek talebi bulunamadı.")
 
-    can_view = False
-    if getattr(current_user, 'is_authenticated', False) and (is_manager_family_user(current_user) or int(getattr(ticket, 'created_by_user_id', 0) or 0) == int(getattr(current_user, 'id', 0) or 0) or int(getattr(ticket, 'assigned_to_user_id', 0) or 0) == int(getattr(current_user, 'id', 0) or 0)):
-        can_view = True
+    # K5: the same object rule as the support screens; a manager role alone opens no ticket.
+    can_view = bool(getattr(current_user, 'is_authenticated', False)) and can_view_support_ticket(ticket, current_user)
     if not can_view:
         raise AIInputError("Bu destek talebi için AI triage görme yetkiniz yok.")
 
     latest_status_entry = cast("list[Any]", ticket.status_history)[0] if getattr(ticket, 'status_history', None) else None
     visible_messages = []
     for row in list(getattr(ticket, 'messages', []) or [])[-8:]:
-        if getattr(row, 'is_internal', False) and not is_manager_family_user(current_user):
+        if getattr(row, 'is_internal', False) and not can_view_all_support_tickets(current_user):
             continue
         visible_messages.append({
             'message_type': getattr(row, 'message_type', None),

@@ -29,7 +29,11 @@ from app.models.communication_phase3_models import (
     CommunicationSurveyReminderLog,
 )
 from app.services.communication_phase2_service import SURVEY_STATUS_LABELS
-from app.services.support_ticket_access import can_view_private_support_ticket
+from app.services.support_ticket_access import (
+    can_view_all_support_tickets,
+    can_view_support_ticket,
+    support_ticket_visibility_clause,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -575,13 +579,9 @@ def _sla_snapshot_for_ticket(ticket: Any) -> dict[str, Any]:
 
 def support_queue_snapshot(user: Any, filter_name: str = "all") -> dict[str, Any]:
     query = SupportTicket.query.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc())
-    if not is_manager(user):
-        query = query.filter(
-            or_(
-                SupportTicket.created_by_user_id == user.id,
-                SupportTicket.assigned_to_user_id == user.id,
-            )
-        )
+    # K5-Q3: the queue follows the central rule (own tickets, or support_all inside the
+    # private-ticket unit rule); out-of-scope tickets never reach the rows or the counts.
+    query = query.filter(support_ticket_visibility_clause(user))
 
     if filter_name == "open":
         query = query.filter(SupportTicket.status.in_(["open", "reviewing", "waiting_info", "assigned", "planned"]))
@@ -615,13 +615,9 @@ def support_queue_snapshot(user: Any, filter_name: str = "all") -> dict[str, Any
 
 
 def _can_access_ticket(ticket: Any, user: Any) -> bool:
-    user_id = int(getattr(user, "id", 0) or 0)
-    if user_id in {
-        int(getattr(ticket, "created_by_user_id", 0) or 0),
-        int(getattr(ticket, "assigned_to_user_id", 0) or 0),
-    }:
-        return True
-    return is_manager(user) and can_view_private_support_ticket(ticket, user)
+    # K5-Q3: the same central rule as /support/* and the mobile API (creator, assignee, or
+    # support_all within the Phase 13B private-ticket rule).
+    return can_view_support_ticket(ticket, user)
 
 
 def support_detail_payload(ticket_id: int, user: Any) -> dict[str, Any]:
@@ -630,14 +626,15 @@ def support_detail_payload(ticket_id: int, user: Any) -> dict[str, Any]:
         raise CommunicationPhase3Error("Bu talebi görüntüleme yetkiniz yok.")
 
     users = []
-    if is_manager(user):
+    can_manage = can_view_all_support_tickets(user)
+    if can_manage:
         users = _active_user_query().order_by(User.ad.asc(), User.soyad.asc()).all()
 
     return {
         "ticket": ticket,
         "sla": _sla_snapshot_for_ticket(ticket),
         "status_labels": SUPPORT_STATUS_LABELS,
-        "can_manage": is_manager(user),
+        "can_manage": can_manage,
         "assignable_users": users,
     }
 
@@ -879,7 +876,7 @@ def help_article_detail(slug: str, user: Any, search_term: str = "") -> dict[str
 def phase3_dashboard_snapshot(user: Any) -> dict[str, Any]:
     notifications = notification_center_snapshot(user, filter_name="all", limit=8)
     surveys = survey_center_for_user(user)
-    support = support_queue_snapshot(user, filter_name="mine" if is_manager(user) else "all")
+    support = support_queue_snapshot(user, filter_name="mine" if can_view_all_support_tickets(user) else "all")
     help_rows = help_center_snapshot(user)
 
     return {

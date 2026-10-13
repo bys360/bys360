@@ -59,12 +59,15 @@ def _checkin_window_rows() -> list[dict[str, Any]]:
     ]
 
 
-def _support_metrics() -> dict[str, int]:
+def _support_metrics(*, viewer: Any) -> dict[str, int]:
+    """K5 F4: counts only the tickets inside ``viewer``'s scope."""
+    from app.services.support_ticket_access import support_ticket_visibility_clause
+
     metrics = {'open_total': 0, 'unassigned_total': 0, 'stale_total': 0}
     try:
         if SupportTicket is None:
             return metrics
-        base = SupportTicket.query
+        base = SupportTicket.query.filter(support_ticket_visibility_clause(viewer))
         if hasattr(SupportTicket, 'status'):
             base = base.filter(SupportTicket.status.in_(list(OPEN_TICKET_STATUSES)))
         metrics['open_total'] = base.count()
@@ -228,11 +231,11 @@ def _signal_rows(logs: list[CommunicationAutomationLog]) -> list[dict[str, Any]]
     return rows[:12]
 
 
-def phase9d_stabilization_snapshot() -> dict[str, Any]:
-    release = phase9_release_center_snapshot()
-    first72 = phase9_first72_snapshot()
+def phase9d_stabilization_snapshot(*, viewer: Any) -> dict[str, Any]:
+    release = phase9_release_center_snapshot(viewer=viewer)
+    first72 = phase9_first72_snapshot(viewer=viewer)
     logs = _recent_phase9d_logs(60)
-    support = _support_metrics()
+    support = _support_metrics(viewer=viewer)
     feedback = _feedback_metrics()
     hotfix = _hotfix_summary(logs)
     signals = _signal_summary(logs)
@@ -272,8 +275,8 @@ def phase9d_stabilization_snapshot() -> dict[str, Any]:
     }
 
 
-def phase9d_payload() -> dict[str, Any]:
-    payload = phase9d_stabilization_snapshot()
+def phase9d_payload(*, viewer: Any) -> dict[str, Any]:
+    payload = phase9d_stabilization_snapshot(viewer=viewer)
     return {
         'generated_at': payload['generated_at'],
         'decision': payload['decision'],
@@ -291,8 +294,8 @@ def phase9d_payload() -> dict[str, Any]:
     }
 
 
-def build_phase9d_markdown() -> str:
-    payload = phase9d_payload()
+def build_phase9d_markdown(*, viewer: Any) -> str:
+    payload = phase9d_payload(viewer=viewer)
     lines = [
         '# Faz 9D | İlk 72 Saat Stabilizasyonu',
         '',

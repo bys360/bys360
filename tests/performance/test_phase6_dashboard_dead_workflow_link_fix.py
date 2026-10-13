@@ -103,8 +103,13 @@ _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360_pytest_tmp" / "phase6_dead
 # and changed the endpoint-list hash accordingly -- mechanically re-verified
 # against a fresh app.url_map, unrelated to this wave's own dead-link-
 # removal change.
-EXPECTED_ROUTE_COUNT = 996
-EXPECTED_ENDPOINT_LIST_SHA256 = "6d77723ef2dac703edf297eb04993979267b8c34c76da49d71028e01b15c39b3"
+#
+# FORWARD-COMPATIBILITY FOLLOW-UP (BYS360 B2-F06 private uploads): one new,
+# additive route (GET /portal/attachments/<int:attachment_id>) raised the
+# count 996->997 and changed the endpoint-list hash accordingly --
+# mechanically re-verified against a fresh app.url_map, unrelated to this wave.
+EXPECTED_ROUTE_COUNT = 997
+EXPECTED_ENDPOINT_LIST_SHA256 = "269dc9216997f412a6323e22a365605535f4214aab4fdb87c0dabb74e7820e4e"
 
 TEMPLATE_PATH = REPO_ROOT / "app" / "templates" / "performance_v2_phase6_dashboard.html"
 

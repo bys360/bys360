@@ -32,6 +32,12 @@ from app.route_support import (
     safe_render,
     sanitize_free_text,
 )
+from app.security.private_uploads import (
+    locate_upload,
+    private_upload_dir,
+    private_upload_path,
+    store_private_upload,
+)
 from app.security.upload_security import UploadValidationError, safe_store_filename, validate_upload
 from app.services.bys360_notification_bridge import (
     notify_support_ticket_assigned,
@@ -43,6 +49,7 @@ from app.services.bys360_notification_bridge import (
 from app.services.support_ticket_access import (
     can_view_all_support_tickets,
     can_view_support_ticket,
+    support_ticket_visibility_clause,
 )
 from app.support.help_center_content import (
     HELP_CATEGORIES,
@@ -310,10 +317,14 @@ def _support_list_rows(query, limit: int = SUPPORT_LIST_LIMIT) -> list[SupportTi
 
 
 def _support_upload_root() -> Path:
-    base_folder = current_app.config.get("UPLOAD_FOLDER") or "uploads"
-    root = Path(base_folder) / "support_tickets"
-    root.mkdir(parents=True, exist_ok=True)
-    return root
+    """Yeni destek talebi ekleri için yazma kökü (B2-F06: static dışındaki özel depo)."""
+    return private_upload_dir("support_tickets")
+
+
+def _support_attachment_dirs(ticket_id: int) -> tuple[Path, ...]:
+    """Ek okuma sırası: özel depo, ardından bu değişiklikten önceki UPLOAD_FOLDER konumu."""
+    legacy_root = Path(current_app.config.get("UPLOAD_FOLDER") or "uploads") / "support_tickets"
+    return (private_upload_path("support_tickets", str(ticket_id)), legacy_root / str(ticket_id))
 
 def _store_ticket_attachment(ticket: SupportTicket, file_obj, attachment_type: str = "document") -> None:
     meta = validate_upload(
@@ -322,10 +333,8 @@ def _store_ticket_attachment(ticket: SupportTicket, file_obj, attachment_type: s
         max_size=current_app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024),
     )
     stored_name = safe_store_filename(file_obj.filename)
-    root = _support_upload_root()
-    ticket_folder = root / str(ticket.id)
-    ticket_folder.mkdir(parents=True, exist_ok=True)
-    file_obj.save(ticket_folder / stored_name)
+    ticket_folder = private_upload_dir("support_tickets", str(ticket.id))
+    store_private_upload(file_obj, ticket_folder / stored_name)
     db.session.add(
         SupportTicketAttachment(
             ticket=ticket,
@@ -356,7 +365,8 @@ def _build_recent_support_streams(limit: int = 6) -> dict:
     return {
         "my_recent_tickets": my_base.order_by(*base_order).limit(limit).all(),
         "assigned_recent_tickets": assigned_base.order_by(*base_order).limit(limit).all() if assigned_view else [],
-        "all_recent_tickets": SupportTicket.query.order_by(*base_order).limit(limit).all() if manager_mode else [],
+        # K5: out-of-scope (other units' private) tickets never reach the stream, not even their title.
+        "all_recent_tickets": SupportTicket.query.filter(support_ticket_visibility_clause(current_user)).order_by(*base_order).limit(limit).all() if manager_mode else [],
     }
 
 def _build_dashboard_context() -> dict:
@@ -365,14 +375,16 @@ def _build_dashboard_context() -> dict:
     assigned_base = SupportTicket.query.filter_by(assigned_to_user_id=current_user.id)
     manager_mode = _can_use_all_support_view()
     assigned_view = _can_use_assigned_support_view()
+    # K5: the all-view counters count only tickets inside the viewer's scope.
+    scoped = SupportTicket.query.filter(support_ticket_visibility_clause(current_user))
 
     counts = {
         "my_total": my_base.count(),
         "my_open": my_base.filter(SupportTicket.status.in_(open_statuses)).count(),
         "assigned_total": assigned_base.count() if assigned_view else 0,
-        "critical_open": SupportTicket.query.filter(SupportTicket.priority == "critical", SupportTicket.status.in_(open_statuses)).count() if manager_mode else my_base.filter(SupportTicket.priority == "critical", SupportTicket.status.in_(open_statuses)).count(),
-        "resolved_total": SupportTicket.query.filter(SupportTicket.status == "resolved").count() if manager_mode else my_base.filter(SupportTicket.status == "resolved").count(),
-        "all_total": SupportTicket.query.count() if manager_mode else my_base.count(),
+        "critical_open": scoped.filter(SupportTicket.priority == "critical", SupportTicket.status.in_(open_statuses)).count() if manager_mode else my_base.filter(SupportTicket.priority == "critical", SupportTicket.status.in_(open_statuses)).count(),
+        "resolved_total": scoped.filter(SupportTicket.status == "resolved").count() if manager_mode else my_base.filter(SupportTicket.status == "resolved").count(),
+        "all_total": scoped.count() if manager_mode else my_base.count(),
     }
 
     streams = _build_recent_support_streams(limit=6)
@@ -901,7 +913,7 @@ def support_all():
         return guard
     search = sanitize_free_text(request.args.get("q"), limit=120)
     status_filter = _normalize_choice(request.args.get("status"), set(_status_map().keys()), "")
-    query = SupportTicket.query
+    query = SupportTicket.query.filter(support_ticket_visibility_clause(current_user))  # K5: scoped list
     query = _apply_support_search_filter(query, search, include_requester=True)
     if status_filter:
         query = query.filter(SupportTicket.status == status_filter)
@@ -1125,8 +1137,11 @@ def support_attachment_download(ticket_id: int, attachment_id: int):
     if not _can_view_ticket(ticket):
         abort(403)
     attachment = SupportTicketAttachment.query.filter_by(id=attachment_id, ticket_id=ticket.id).first_or_404()
-    folder = _support_upload_root() / str(ticket.id)
-    return send_from_directory(folder, attachment.stored_name, as_attachment=True, download_name=attachment.filename)
+    located = locate_upload(attachment.stored_name, _support_attachment_dirs(ticket.id))
+    if located is None:
+        abort(404)
+    folder, stored_name = located
+    return send_from_directory(folder, stored_name, as_attachment=True, download_name=attachment.filename)
 
 def _sync_seeded_help_articles(*, update_existing: bool = False) -> tuple[int, int, int]:
     inserted = 0

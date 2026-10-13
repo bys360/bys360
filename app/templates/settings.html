@@ -1044,7 +1044,8 @@
                         </div>
 
                         <div class="menu-grid">
-                            {% for item in items %}
+                            {# K5-Q2: support_all is an explicit per-user grant, rendered in the card below, outside group/bulk toggles. #}
+                            {% for item in items if item.key != 'support_all' %}
                                 {% set checked = selected_rule_map.get(item.key, False) %}
                                 <label class="menu-item" data-group-name="{{ group_name }}" data-item-label="{{ item.label }}">
                                     <div class="menu-left">
@@ -1092,6 +1093,19 @@
                             </div>
                             <span class="switch">
                                 <input type="checkbox" name="menu_personnel_read_all" {% if personnel_read_all_granted %}checked{% endif %} {% if not personnel_read_all_editable %}disabled{% endif %}>
+                                <span class="slider"></span>
+                            </span>
+                        </label>
+                        <label class="menu-item">
+                            <div class="menu-left">
+                                <div class="menu-icon"><i class="fa-solid fa-table-list"></i></div>
+                                <div class="menu-text">
+                                    <strong>Tüm Destek Talepleri (support_all)</strong>
+                                    <span>Kurum geneli destek talebi görünümü (web, mobil ve Faz 3 ekranları). Gizli talepler için birim kuralı geçerlidir. Rol, birim profili veya unvanla kazanılmaz; yalnız admin rolü başka bir personele atayabilir veya kaldırabilir; her değişiklik ayar geçmişine yazılır. Tümünü Aç/Kapat, grup ve hazır profil düğmeleri bu yetkiyi değiştirmez.</span>
+                                </div>
+                            </div>
+                            <span class="switch">
+                                <input type="checkbox" name="menu_support_all" {% if support_all_granted %}checked{% endif %} {% if not support_all_editable %}disabled{% endif %}>
                                 <span class="slider"></span>
                             </span>
                         </label>

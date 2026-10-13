@@ -24,7 +24,10 @@ from app.api.mobile.shared import (
     mobile_api_bp,
     require_mobile_user,
 )
-from app.services.support_ticket_access import can_view_all_support_tickets
+from app.services.support_ticket_access import (
+    can_view_all_support_tickets,
+    support_ticket_visibility_clause,
+)
 
 
 @mobile_api_bp.get("/dashboard/summary")
@@ -43,7 +46,9 @@ def _bys360_legacy_mobile_dashboard_summary(user: User):
         __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: sessiz except/pass yakalandi (app/api/mobile/routes.py:687)")
 
     open_tickets_q = SupportTicket.query
-    if not can_view_all_support_tickets(user):  # K5
+    if can_view_all_support_tickets(user):  # K5: counts only tickets inside the viewer's scope
+        open_tickets_q = open_tickets_q.filter(support_ticket_visibility_clause(user))
+    else:
         open_tickets_q = open_tickets_q.filter(SupportTicket.created_by_user_id == user.id)
     try:
         open_tickets_q = open_tickets_q.filter(~SupportTicket.status.in_(["closed", "kapali", "kapalı", "resolved"]))

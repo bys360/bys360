@@ -5,14 +5,17 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from flask import has_app_context
+
 from app.core.datetime_utils import utc_now
+from app.security.private_uploads import locate_upload, private_upload_path
 
 """Personel profil fotoğrafı servis köprüsü.
 
 Faz 4 kapsamı:
 - Route içindeki profil fotoğrafı yükleme/silme kararını servis katmanına alır.
 - Commit/rollback, flash/redirect ve kayıt akışı route tarafında kalır.
-- Dosya silme sırasında yalnızca uygulamanın static kökü altındaki dosyalar hedeflenir.
+- Dosya silme sırasında özel ve eski profil fotoğrafı depolarındaki kopyalar hedeflenir.
 """
 
 PhotoSaver = Callable[[Any, Any], Any]
@@ -62,13 +65,27 @@ def _safe_static_file_path(*, app_root_path: str | Path, relative_path: str) -> 
     return candidate, ""
 
 
+def _delete_private_profile_photo_copy(relative_path: str) -> bool:
+    """B2-F06: yeni profil fotoğrafları static dışındaki özel depoda durur."""
+    if not has_app_context():
+        return False
+    located = locate_upload(Path(relative_path.replace("\\", "/")).name, (private_upload_path("profile_photos"),))
+    if located is None:
+        return False
+    try:
+        (located[0] / located[1]).unlink()
+    except OSError:
+        return False
+    return True
+
+
 def delete_personnel_profile_photo(
     user: Any,
     *,
     app_root_path: str | Path,
     logger: Any | None = None,
 ) -> PersonnelProfilePhotoResult:
-    """Delete an existing profile photo file if it safely resolves under static.
+    """Delete safe photo copies, then clear the reference even if cleanup fails.
 
     This function does not commit and does not rollback. It mutates the user photo
     fields exactly like the legacy route helper did.
@@ -78,19 +95,30 @@ def delete_personnel_profile_photo(
     warning = ""
 
     safe_path, warning = _safe_static_file_path(app_root_path=app_root_path, relative_path=relative_path)
-    if safe_path and safe_path.is_file():
+    if has_app_context() and not warning:
+        from app.services.profile_photo_service import delete_profile_photo_copies
+
+        file_deleted, failed = delete_profile_photo_copies(relative_path, owner_id=getattr(user, "id", None))
+        if failed:
+            warning = "profile_photo_delete_failed:PRIVATE_UPLOAD_DELETE_FAILED"
+        elif not file_deleted:
+            warning = "profile_photo_file_not_found"
+    elif safe_path and safe_path.is_file():
         try:
             safe_path.unlink()
             file_deleted = True
         except OSError as exc:
-            warning = f"profile_photo_delete_failed:{exc}"
+            # B2-F06: dosya yolu ve adı (OSError metni dahil) uyarıya/günlüğe yazılmaz.
+            warning = f"profile_photo_delete_failed:{type(exc).__name__}"
             if logger is not None:
-                logger.warning("Profil fotoğrafı silinemedi: %s", safe_path)
+                logger.warning("Profil fotoğrafı silinemedi (%s).", type(exc).__name__)
+    elif not warning and _delete_private_profile_photo_copy(relative_path):
+        file_deleted = True
     elif not warning and safe_path:
         warning = "profile_photo_file_not_found"
 
     if warning == "profile_photo_path_outside_static_root" and logger is not None:
-        logger.warning("Profil fotoğrafı yolu static dışı göründüğü için silinmedi: %s", relative_path)
+        logger.warning("Profil fotoğrafı yolu static dışı göründüğü için silinmedi.")
 
     _set_photo_fields_empty(user)
     return PersonnelProfilePhotoResult(

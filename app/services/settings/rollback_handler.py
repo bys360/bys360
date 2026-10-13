@@ -21,7 +21,7 @@ from app.models import (
     UnitMenuProfile,
     UserMenuPermission,
 )
-from app.services.personnel_read_grant import PERSONNEL_READ_ALL_KEY
+from app.services.personnel_read_grant import EXPLICIT_GRANT_KEYS
 from app.services.settings.change_logs import create_settings_change_log, deserialize_settings_state
 from app.services.settings.menu_permissions import (
     filter_live_menu_keys,
@@ -221,13 +221,16 @@ def _rollback_user_menu_overrides(
         raise ValueError("Kayıtta kullanıcı bilgisi bulunamadı.")
 
     current_snapshot = snapshot_user_override_state(user_id)
-    # B1-F1: a menu rollback never touches the personnel_read_all data-access grant (it neither
-    # restores nor removes it); only an admin's per-user save for another user changes it.
+    # B1-F1, K5-Q2: a menu rollback never touches the explicit grants (personnel_read_all,
+    # support_all): it neither restores nor removes them; only an admin's per-user save for
+    # another user changes them.
     UserMenuPermission.query.filter(
         UserMenuPermission.user_id == user_id,
-        UserMenuPermission.menu_key != PERSONNEL_READ_ALL_KEY,
+        UserMenuPermission.menu_key.notin_(EXPLICIT_GRANT_KEYS),
     ).delete()
     for menu_key, is_visible in (previous_state or {}).items():
+        if menu_key in EXPLICIT_GRANT_KEYS:
+            continue
         if menu_key in _live_menu_keys():
             db.session.add(UserMenuPermission(
                 user_id=user_id,

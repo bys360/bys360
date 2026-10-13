@@ -47,6 +47,13 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
+    # B2-F06: app/static/uploads altındaki eski özel yüklemeler (mesaj, destek, portal,
+    # İK, yayın, profil fotoğrafı) /static'ten sunulmaz; uygulama onları yetki kontrolü
+    # yapan route'larla sunar. ^~ ile en uzun önek olarak /static/ bloğunun önüne geçer.
+    location ^~ /static/uploads/ {
+        return 404;
+    }
+
     location /static/ {
         alias /opt/bys360/project/app/static/;
         expires 7d;

@@ -26,6 +26,7 @@ from app.bootstrap.schema_validation import validate_required_schema
 from app.bootstrap.startup import run_runtime_pipeline
 from app.core.monitoring import configure_optional_sentry
 from app.error_handlers import register_error_handlers, register_service_unavailable_handler
+from app.security.private_uploads import install_private_static_guard
 from app.security.startup_audit import run_startup_security_audit
 from app.services.assistant_module_access import register_assistant_module_master_access
 from app.services.assistant_shortcut_visibility import (
@@ -41,6 +42,7 @@ from app.template_safety import register_template_safety
 def create_bys360_application(import_name: str) -> Flask:
     """BYS360 uygulamasini Faz 5 pipeline sozlesmesine gore olusturur."""
     app = create_configured_flask_app(import_name)
+    install_private_static_guard(app)  # B2-F06: /static/uploads/* -> 404
     run_preflight_checks(app)
     initialize_core_extensions(app)
     configure_login_manager_defaults()

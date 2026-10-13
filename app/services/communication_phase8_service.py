@@ -62,12 +62,13 @@ def _count_phase8_logs(hours: int = 72) -> int:
     )
 
 
-def pilot_readiness_snapshot() -> dict[str, Any]:
+def pilot_readiness_snapshot(*, viewer: Any) -> dict[str, Any]:
+    """K5 F4: support figures count only the tickets inside ``viewer``'s scope."""
     go_live = build_go_live_readiness_context()
-    health = health_snapshot()
-    automation = automation_center_snapshot()
-    escalations = escalation_snapshot()
-    retention = retention_snapshot()
+    health = health_snapshot(viewer=viewer)
+    automation = automation_center_snapshot(viewer=viewer)
+    escalations = escalation_snapshot(viewer=viewer)
+    retention = retention_snapshot(viewer=viewer)
 
     open_tickets = health['summary'].get('tickets_open', 0)
     failed_logs = health['summary'].get('failed_logs', 0)
@@ -198,8 +199,8 @@ def pilot_readiness_snapshot() -> dict[str, Any]:
     }
 
 
-def cutover_snapshot() -> dict[str, Any]:
-    readiness = pilot_readiness_snapshot()
+def cutover_snapshot(*, viewer: Any) -> dict[str, Any]:
+    readiness = pilot_readiness_snapshot(viewer=viewer)
     project_root = _project_root()
     checkpoint_logs = (
         CommunicationAutomationLog.query
@@ -278,9 +279,9 @@ def cutover_snapshot() -> dict[str, Any]:
     }
 
 
-def phase8_dashboard_snapshot() -> dict[str, Any]:
-    readiness = pilot_readiness_snapshot()
-    cutover = cutover_snapshot()
+def phase8_dashboard_snapshot(*, viewer: Any) -> dict[str, Any]:
+    readiness = pilot_readiness_snapshot(viewer=viewer)
+    cutover = cutover_snapshot(viewer=viewer)
     return {
         'readiness': readiness,
         'cutover': cutover,
