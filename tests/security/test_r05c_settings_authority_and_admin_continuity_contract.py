@@ -680,19 +680,18 @@ def test_k5_file_center_non_admin_matrix_manager_cannot_escalate_or_touch_protec
     assert len(_refusals(env, "file_center_role_matrix")) >= len(attempts) + 1
 
 
-def test_guard_file_center_baseline_usage_and_real_admin_changes_still_work(env, monkeypatch):
+def test_guard_file_center_real_admin_changes_still_work(env, monkeypatch):
     monkeypatch.setenv("FILE_CENTER_ENABLED", "true")
-    client = _web(env, "sysadm")
-    client.get("/file-center/settings/roles")
-    current = _fc_rows(env)["personel"]
+    admin = _web(env, "admin")
+    admin.get("/file-center/settings/roles")
     from app.file_center.permissions import PERMISSION_FIELDS
 
-    guest_index = 4 + PERMISSION_FIELDS.index("can_create_guest_links")
-    client.post("/file-center/settings/roles", data=_fc_form(env, {("personel", "can_create_guest_links"): not current[guest_index]}))
-    assert _fc_rows(env)["personel"][guest_index] is (not current[guest_index])
-    admin = _web(env, "admin")
     admin.post("/file-center/settings/roles", data=_fc_form(env, {("sistem_yoneticisi", "can_manage_admin"): False}))
     assert _fc_rows(env)["sistem_yoneticisi"][4 + PERMISSION_FIELDS.index("can_manage_admin")] is False
+    from app.models.file_center_models import FileAuditLog
+
+    with env.app.app_context():
+        assert FileAuditLog.query.filter_by(action="file_center_role_matrix_updated").count() >= 1
 
 
 # --------------------------------------------------------------------------------------
@@ -805,3 +804,152 @@ def test_c_postgresql_control_without_the_row_lock_the_race_loses_every_admin(mo
     pg = _pg_env(monkeypatch, install_interim_notes_schema)
     _race(pg, monkeypatch, lock=False)
     assert _active_admins(pg) == []
+
+
+# --------------------------------------------------------------------------------------
+# Independent review of edf00cfb (REQUEST_CHANGES): each test failed on edf00cfb
+# --------------------------------------------------------------------------------------
+
+
+def _set_role(env, key, role, *, active=None):
+    from app.extensions import db
+    from app.models import User
+
+    with env.app.app_context():
+        user = db.session.get(User, env.ids[key])
+        assert user is not None
+        user.role = role
+        if active is not None:
+            user.is_active = active
+        db.session.commit()
+
+
+def test_m1_admin_import_never_demotes_or_deactivates_an_admin_of_any_spelling(env):
+    from tests.security.test_r05_account_change_authority_contract import _xlsx
+
+    _set_role(env, "admin", "Admin ")
+    _set_role(env, "admin2", "admin", active=False)
+    headers = ("Sicil No", "Ad", "Soyad", "E-posta", "Unvan", "Birim", "Üst Birim", "Rol", "Aktif")
+    rows = [(*_xlsx_row(SICIL["admin"], "personel"), "0")]
+    _web(env, "admin").post(
+        "/admin/users/import",
+        data={"excel_file": (_xlsx(rows, headers=headers), "personel.xlsx")},
+        content_type="multipart/form-data",
+    )
+    assert _account(env, "admin") == ("Admin ", True, False)
+
+
+def test_m2_reset_all_keeps_every_admin_account_of_any_spelling(env):
+    _set_role(env, "admin", "Admin ")
+    _set_role(env, "admin2", "ADMIN")
+    _web(env, "admin").post("/admin/users/reset-all")
+    assert _account(env, "admin") == ("Admin ", True, False)
+    assert _account(env, "admin2") == ("ADMIN", True, False)
+
+
+def _v10_row(env, role, key):
+    from app.models import RoleMenuDefault
+
+    with env.app.app_context():
+        row = RoleMenuDefault.query.filter_by(role_name=role, menu_key=key).order_by(RoleMenuDefault.id.desc()).first()
+        return None if row is None else (bool(row.is_visible), row.source_type)
+
+
+def test_m3_a_settings_visit_never_reverts_an_admin_v10_change(env):
+    admin = _seeded_client(env, "admin")
+    matrix = _v10_matrix(env)
+    form = {
+        f"assistant_matrix__{feature}__{role}": "on"
+        for feature, roles in matrix.items()
+        for role, visible in roles.items()
+        if visible and not (feature == "assistant_module" and role == "grup_baskani")
+    }
+    admin.post("/settings/assistant-role-matrix-v10/save", data=form)
+    assert _v10_row(env, "grup_baskani", "assistant_module")[0] is False
+    _web(env, NON_ADMIN).get("/settings")  # runs the per-request settings seed
+    assert _v10_row(env, "grup_baskani", "assistant_module")[0] is False
+    assert _v10_matrix(env)["assistant_module"]["grup_baskani"] is False
+
+
+def test_l1_an_unchanged_v10_form_by_a_non_admin_writes_nothing(env):
+    from app.extensions import db
+    from app.models import RoleMenuDefault
+
+    _seeded_client(env, "admin")
+    with env.app.app_context():
+        db.session.add(RoleMenuDefault(role_name="grup_baskani", menu_key="sanal_asistan", is_visible=False, source_type="manual"))
+        db.session.commit()
+    matrix = _v10_matrix(env)
+    before = _role_profile(env, "grup_baskani")
+    form = {f"assistant_matrix__{f}__{r}": "on" for f, roles in matrix.items() for r, v in roles.items() if v}
+    _web(env, NON_ADMIN).post("/settings/assistant-role-matrix-v10/save", data=form)
+    assert _role_profile(env, "grup_baskani") == before
+
+
+def test_l2_k5_a_non_admin_matrix_manager_never_changes_the_row_that_also_backs_protected_roles(env, monkeypatch):
+    monkeypatch.setenv("FILE_CENTER_ENABLED", "true")
+    client = _web(env, "sysadm")
+    client.get("/file-center/settings/roles")
+    before = _fc_rows(env)
+    from app.file_center.permissions import PERMISSION_FIELDS
+
+    guest_index = 4 + PERMISSION_FIELDS.index("can_create_guest_links")
+    client.post("/file-center/settings/roles", data=_fc_form(env, {("personel", "can_create_guest_links"): not before["personel"][guest_index]}))
+    assert _fc_rows(env) == before
+    assert _refusals(env, "file_center_role_matrix")
+
+
+def test_l3_revoking_the_lockout_keys_never_leaves_no_admin_with_access(env):
+    _set_role(env, "admin2", "admin")
+    admin = _seeded_client(env, "admin")
+    _settings(admin, {"form_action": "save_user_visibility", "user_id": env.ids["admin2"], "menu_dashboard": "on"})
+    assert ("admin_users", False, "user_override") in _overrides(env, "admin2")
+    # admin2 is now without access; a later revocation of admin (by a stale admin2 request) must fail
+    from types import SimpleNamespace
+
+    from app.extensions import db
+    from app.models import User
+    from app.services.account_change_guard import lockout_revocation_refusal
+
+    with env.app.test_request_context():
+        target = db.session.get(User, env.ids["admin"])
+        stale_actor = SimpleNamespace(id=env.ids["admin2"], role="admin")
+        assert lockout_revocation_refusal(stale_actor, target, revoked_keys={"admin_users"}) == "last_admin_with_access"
+        assert lockout_revocation_refusal(stale_actor, target, revoked_keys={"dashboard"}) is None
+        db.session.rollback()
+
+
+def test_l4_named_archives_are_written_and_deleted_by_a_real_admin_only_and_audited(env):
+    from app.models import SystemSetting
+
+    archive_key = _save_archive(env, "dashboard", name="r05c-yonetim")
+    assert _audit(env, "settings.archive_save")
+    with env.app.app_context():
+        before = SystemSetting.query.filter_by(setting_key=archive_key).first().value_text
+    client = _web(env, NON_ADMIN)
+    _settings(client, {"form_action": "save_named_archive", "user_id": env.ids["plain"], "archive_name": "r05c-yonetim", "archive_scope": "general", "menu_settings": "on"})
+    _settings(client, {"form_action": "delete_named_archive", "user_id": env.ids["plain"], "archive_key": archive_key})
+    with env.app.app_context():
+        row = SystemSetting.query.filter_by(setting_key=archive_key).first()
+        assert row is not None and row.value_text == before
+    assert len(_refusals(env, "settings_archive_write")) == 2
+
+
+def test_info_a_non_admin_assistant_matrix_save_never_re_enables_a_disabled_assistant(env):
+    from app.extensions import db
+    from app.models import ModuleSetting
+
+    _seeded_client(env, "admin")
+    with env.app.app_context():
+        row = ModuleSetting.query.filter_by(module_key="assistant", setting_key="enabled").first()
+        if row is None:
+            row = ModuleSetting(module_key="assistant", setting_key="enabled", label="Sanal Asistan Aktif", value_type="bool")
+            db.session.add(row)
+        row.value_text = "false"
+        db.session.commit()
+    current = _module_setting(env, "assistant", "visible_roles")
+    form = {"form_action": "save_assistant_role_matrix"}
+    roles = (current[0] if current else "admin,baskan,baskan_yardimcisi,grup_baskani,mali_musavir,koordinator,birim_sorumlusu").split(",")
+    form.update({f"assistant_role_policy__{role}__assistant_module": "on" for role in roles if role})
+    _settings(_web(env, NON_ADMIN), form)
+    assert _module_setting(env, "assistant", "enabled")[0] == "false"

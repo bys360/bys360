@@ -206,6 +206,32 @@ def own_matrix_lockout_refusal(actor: Any, target: Any, *, revoked_keys: Any) ->
     return "admin_self_lockout_keys" if any(key in revoked for key in LOCKOUT_CRITICAL_ADMIN_KEYS) else None
 
 
+def lockout_revocation_refusal(actor: Any, target: Any, *, revoked_keys: Any) -> str | None:
+    """K4: revoking admin_users / settings for an active admin never leaves no active admin with
+    access to them. Row-locks the active admins, so two admins revoking each other at the same
+    time are serialised and the second is refused."""
+    if not any(key in set(revoked_keys or ()) for key in LOCKOUT_CRITICAL_ADMIN_KEYS):
+        return None
+    target_id = getattr(target, "id", None)
+    if target_id is None or not (bool(getattr(target, "is_active", False)) and is_real_admin(target)):
+        return None
+    from app.extensions import db
+    from app.models import UserMenuPermission
+
+    others = lock_active_admin_ids() - {int(target_id)}
+    if not others:
+        return "last_admin_with_access"
+    revoked_ids = {
+        int(row.user_id)
+        for row in db.session.query(UserMenuPermission.user_id).filter(
+            UserMenuPermission.user_id.in_(others),
+            UserMenuPermission.menu_key.in_(LOCKOUT_CRITICAL_ADMIN_KEYS),
+            UserMenuPermission.is_visible.is_(False),
+        )
+    }
+    return None if others - revoked_ids else "last_admin_with_access"
+
+
 def unit_profile_change_refusal(actor: Any) -> str | None:
     """K2 / N3: unit rows override the role defaults of every member, admins included."""
     return None if is_real_admin(actor) else "settings_unit_profile"

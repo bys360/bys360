@@ -304,35 +304,16 @@ def role_matrix_rows() -> list[FileCenterRolePermission]:
     return FileCenterRolePermission.query.order_by(FileCenterRolePermission.id.asc()).all()
 
 
-# R05c / K5: what a non-admin role-matrix manager may change: the usage fields of the baseline
-# (personel) row. Every other row, the management fields, labels, activation and new rows are
-# for a real admin only.
-FILE_CENTER_BASELINE_USAGE_FIELDS: tuple[str, ...] = (
-    "can_use",
-    "can_upload_files",
-    "can_download_files",
-    "can_create_guest_links",
-    "can_create_guest_upload_requests",
-    "can_view_transfers",
-    "can_view_requests",
-    "can_use_chunk_upload",
-)
-
-
+# R05c / K5: the file-center role matrix is changed by a real admin only. Even the "personel" row
+# also backs protected accounts (_effective_role_key resolves mali_musavir, baskan_yardimcisi,
+# birim_sorumlusu, blank and unknown roles to it), so a non-admin manager changes no row.
 def role_matrix_change_refusal(actor: Any, changes: list[tuple[str, str]]) -> str | None:
     """None when ``actor`` may make every (role_key, field) change, else the refusal reason."""
-    from app.services.account_change_guard import is_protected_role, is_real_admin
+    from app.services.account_change_guard import is_real_admin
 
-    if is_real_admin(actor):
+    if is_real_admin(actor) or not changes:
         return None
-    refused = sorted(
-        {
-            str(role_key)
-            for role_key, field in changes
-            if is_protected_role(role_key) or field not in FILE_CENTER_BASELINE_USAGE_FIELDS
-        }
-    )
-    return "file_center_role_matrix:" + ",".join(refused) if refused else None
+    return "file_center_role_matrix:" + ",".join(sorted({str(role_key) for role_key, _field in changes}))
 
 
 def update_role_matrix_from_form(form, actor_user_id: int | None = None, changes: list[tuple[str, str]] | None = None) -> int:

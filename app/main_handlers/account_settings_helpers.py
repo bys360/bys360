@@ -110,6 +110,7 @@ from app.services.account_change_guard import (
     ChangeRefused,
     audit_refusal,
     is_real_admin,
+    lockout_revocation_refusal,
     own_matrix_lockout_refusal,
     role_membership_change_refusal,
     role_profile_change_refusal,
@@ -124,7 +125,11 @@ from app.services.assistant_role_matrix_service import (
     reset_assistant_role_matrix_defaults,
     save_assistant_role_matrix_from_form,
 )
-from app.services.assistant_settings_service import current_visible_roles, visible_roles_for_value
+from app.services.assistant_settings_service import (
+    current_visible_roles,
+    get_assistant_settings,
+    visible_roles_for_value,
+)
 from app.services.audit_service import write_audit_log
 from app.services.personnel_read_grant import (
     PERSONNEL_READ_ALL_KEY,
@@ -167,10 +172,12 @@ _LOCKOUT_REFUSAL_MESSAGE = (
     "Kullanıcı Yönetimi (admin_users) ve Ayarlar (settings) yetkileri admin rol profilinden ve adminin kendi "
     "hesabından kaldırılamaz; bu, sistemin kendi yöneticilerini kilitlemesini önler."
 )
-# identity_access.* flags describe how authority is resolved; a non-admin never changes them.
+# identity_access.* flags describe how authority is resolved, and assistant.enabled opens or closes
+# the assistant for every role; a non-admin never changes them.
 _AUTHORITY_FLAG_SETTINGS: tuple[tuple[str, str], ...] = (
     ("identity_access", "use_role_based_visibility"),
     ("identity_access", "allow_user_override"),
+    ("assistant", "enabled"),
 )
 
 
@@ -225,7 +232,10 @@ def _user_matrix_refusal(target, visible_keys, flat_menu_items):
     if refusal:
         return refusal
     listed = {str((item or {}).get("key") or "").strip() for item in flat_menu_items or []}
-    return own_matrix_lockout_refusal(current_user, target, revoked_keys=listed - set(visible_keys or ()))
+    revoked = listed - set(visible_keys or ())
+    return own_matrix_lockout_refusal(current_user, target, revoked_keys=revoked) or lockout_revocation_refusal(
+        current_user, target, revoked_keys=revoked
+    )
 
 
 def _authorize_rollback(row, plan):
@@ -241,8 +251,11 @@ def _authorize_rollback(row, plan):
         reason = unit_profile_change_refusal(current_user)
     elif scope == "user_menu_overrides":
         target = db.session.get(User, row.target_user_id) if row.target_user_id else None
-        reason = user_matrix_change_refusal(current_user, target) or own_matrix_lockout_refusal(
-            current_user, target, revoked_keys=plan.get("user_revoked") or set()
+        revoked = plan.get("user_revoked") or set()
+        reason = (
+            user_matrix_change_refusal(current_user, target)
+            or own_matrix_lockout_refusal(current_user, target, revoked_keys=revoked)
+            or lockout_revocation_refusal(current_user, target, revoked_keys=revoked)
         )
     elif scope == "module_settings":
         reason = _module_authority_refusal(snapshot_module_settings(), plan.get("module_after") or {})
@@ -672,7 +685,12 @@ def _audit_assistant_roles(action, before, after):
 def _assistant_roles_refusal(after_value):
     before = current_visible_roles()
     after = visible_roles_for_value(after_value)
-    return before, after, role_membership_change_refusal(current_user, before=before, after=after, reason="settings_assistant_roles")
+    refusal = role_membership_change_refusal(current_user, before=before, after=after, reason="settings_assistant_roles")
+    # The matrix save and reset also set assistant.enabled=true: a non-admin never re-enables an
+    # assistant a real admin disabled (it would reopen it for every protected role).
+    if not refusal and not is_real_admin(current_user) and not bool(get_assistant_settings().get("enabled", True)):
+        refusal = "settings_assistant_roles:enabled"
+    return before, after, refusal
 
 
 def _handle_save_assistant_role_matrix():
@@ -849,6 +867,9 @@ def _handle_save_named_archive(flat_menu_items):
     if not selected_user:
         flash("Şablon arşivi kaydetmek için kullanıcı seçiniz.", "warning")
         return redirect(url_for("main.settings_page"))
+    # R05c review L4: shared archives are applied by admins, so only a real admin writes them.
+    if not is_real_admin(current_user):
+        return _refuse_settings_change(selected_user, "settings_archive_write", keep_user_id=selected_user.id)
     archive_name = (request.form.get("archive_name") or "").strip()
     archive_scope = (request.form.get("archive_scope") or "general").strip()
     archive_description = (request.form.get("archive_description") or "").strip()
@@ -866,6 +887,13 @@ def _handle_save_named_archive(flat_menu_items):
             target_birim=archive_birim_target,
             source_user=selected_user,
             updated_by_user_id=getattr(current_user, "id", None),
+        )
+        write_audit_log(
+            "settings.archive_save",
+            "system_setting",
+            None,
+            new_data={"setting_key": result["setting_key"], "visible_count": result["visible_count"], "scope": archive_scope},
+            summary=f"settings archive saved: {result['setting_key']}",
         )
         db.session.commit()
         flash(f"Şablon arşivi kaydedildi: {result['archive_name']} · Açık sekme: {result['visible_count']}", "success")
@@ -930,8 +958,11 @@ def _handle_apply_named_archive(all_menu_keys, flat_menu_items):
 def _handle_delete_named_archive():
     selected_user_id = request.form.get("user_id", type=int)
     archive_key = (request.form.get("archive_key") or "").strip()
+    if not is_real_admin(current_user):  # R05c review L4
+        return _refuse_settings_change(None, "settings_archive_write", keep_user_id=selected_user_id)
     try:
         result = _delete_settings_template_archive(archive_key)
+        write_audit_log("settings.archive_delete", "system_setting", None, old_data={"setting_key": archive_key}, summary=f"settings archive deleted: {archive_key}")
         db.session.commit()
         flash(f"Şablon arşivi silindi: {result['archive_name']}", "success")
     except Exception as exc:

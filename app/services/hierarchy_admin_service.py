@@ -432,7 +432,7 @@ def _detach_non_admin_user_fk_references() -> list[dict[str, Any]]:
                 f"UPDATE {_q(table_name)} "
                 f"SET {_q(column_name)} = NULL "
                 f"WHERE {_q(column_name)} IN ("
-                f"SELECT id FROM {_q('users')} WHERE role != :admin_role"
+                f"SELECT id FROM {_q('users')} WHERE lower(trim(role)) != :admin_role"
                 f")"
             )
             action = "null"
@@ -440,7 +440,7 @@ def _detach_non_admin_user_fk_references() -> list[dict[str, Any]]:
             sql = text(
                 f"DELETE FROM {_q(table_name)} "
                 f"WHERE {_q(column_name)} IN ("
-                f"SELECT id FROM {_q('users')} WHERE role != :admin_role"
+                f"SELECT id FROM {_q('users')} WHERE lower(trim(role)) != :admin_role"
                 f")"
             )
             action = "delete"
@@ -528,7 +528,8 @@ def reset_all_personnel_and_related_data() -> None:
     _detach_non_admin_user_fk_references()
 
     db.session.execute(
-        text('DELETE FROM "users" WHERE role != :admin_role'),
+        # R05c / K4: every spelling of the admin role ("Admin ", "ADMIN") is kept.
+        text('DELETE FROM "users" WHERE lower(trim(role)) != :admin_role'),
         {"admin_role": "admin"},
     )
     OrganizationUnit.query.delete(synchronize_session=False)

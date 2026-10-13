@@ -212,7 +212,9 @@ def admin_user_import_impl():
                 continue
 
             user = User.query.filter_by(sicil_no=sicil_no).first()
-            if user and user.role == "admin":
+            # R05c / K4: an admin account of any spelling ("Admin ", "ADMIN") is never touched by an
+            # import (no self-demotion, no deactivation, never the last active admin).
+            if user and is_real_admin(user):
                 skipped_admin += 1
                 continue
 
