@@ -46,6 +46,29 @@ MENUS = ("settings_center_support", "settings", "reports", "dashboard")
 SUPPORT_CHECKS = {"Açık destek talebi", "Atanmamış destek", "Duran talepler"}
 
 
+_TCKN_SCAN_CACHE: dict[str, tuple[dict, list]] = {}
+
+
+def _replay_tckn_scan(original):
+    """The Faz 8/9 snapshots run a full regex scan of every app/ file on each request (unrelated to
+    support tickets and ~20 s per page here). Scan once per process and replay the same stats and
+    findings, so every page renders exactly what the real scan produces."""
+    def scan(report, root_dir):
+        key = str(root_dir)
+        if key not in _TCKN_SCAN_CACHE:
+            from app.services.security_hardening_service import AuditReport
+
+            probe = AuditReport()
+            original(probe, root_dir)
+            _TCKN_SCAN_CACHE[key] = (dict(probe.stats), list(probe.findings))
+        stats, findings = _TCKN_SCAN_CACHE[key]
+        report.stats.update(stats)
+        for finding in findings:
+            report.add(finding)
+
+    return scan
+
+
 @pytest.fixture
 def env(monkeypatch, tmp_path):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
@@ -59,8 +82,11 @@ def env(monkeypatch, tmp_path):
     }.items():
         monkeypatch.setenv(key, value)
     from app import create_app
+    from app.services import security_hardening_service
     from config import Config
 
+    monkeypatch.setattr(security_hardening_service, "_scan_tckn_exposure",
+                        _replay_tckn_scan(security_hardening_service._scan_tckn_exposure))
     monkeypatch.setattr(Config, "APP_ENV", "testing")
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
