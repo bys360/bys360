@@ -18,7 +18,10 @@ from app.api.mobile.shared import (
     request,
     require_mobile_user,
 )
-from app.services.support_ticket_access import can_view_all_support_tickets
+from app.services.support_ticket_access import (
+    can_view_all_support_tickets,
+    support_ticket_visibility_clause,
+)
 
 
 # BYS360_MOBILE_V2_8_49_ASSISTANT_CHAT_API
@@ -57,7 +60,9 @@ def _b49_safe_summary(user):
         unread = 0
     try:
         support_q = SupportTicket.query.order_by(SupportTicket.created_at.desc())
-        if not can_view_all_support_tickets(user):  # K5
+        if can_view_all_support_tickets(user):  # K5: counts only tickets inside the viewer's scope
+            support_q = support_q.filter(support_ticket_visibility_clause(user))
+        else:
             support_q = support_q.filter(SupportTicket.created_by_user_id == user.id)
         open_support = _safe_count(support_q.filter(~SupportTicket.status.in_(['closed', 'kapalı', 'kapali', 'resolved'])))
     except Exception:

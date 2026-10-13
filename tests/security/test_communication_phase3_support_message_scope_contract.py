@@ -9,6 +9,12 @@ ticket and notify its creator and assignee.
 The same route family also ignored the private-ticket unit scope that /support/<id>
 enforces (Phase 13B): any Faz 3 manager, birim_sorumlusu included, could read, answer,
 assign or close a private ticket of another unit.
+
+K5-Q1/K5-Q3 (approved policy, 2026-10-10): ``support_all`` is an explicit per-person grant, never a
+role default, and every Faz 3 support route checks it (``menu_key_required("support_all")`` and
+``can_view_all_support_tickets``). The "managers" below (SMS03 admin, SMS04 and SMS05
+birim_sorumlusu) hold the grant, as an admin assigns it in Settings; the koordinator SMS02 does not:
+it reaches no Faz 3 support page and answers its own and assigned tickets on /support/<id>.
 """
 from __future__ import annotations
 
@@ -44,7 +50,7 @@ def app(monkeypatch):
     flask_app = create_app()
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
-    from app.models import SupportTicket, User
+    from app.models import SupportTicket, User, UserMenuPermission
 
     with flask_app.app_context():
         db.create_all()
@@ -62,6 +68,9 @@ def app(monkeypatch):
             db.session.add(user)
             users[sicil] = user
         db.session.flush()
+        for sicil in ("SMS03", "SMS04", "SMS05"):  # K5-Q1: explicit support_all, as assigned in Settings
+            db.session.add(UserMenuPermission(user_id=users[sicil].id, menu_key="support_all", is_visible=True,
+                                              source_type="user_override"))
 
         def _ticket(no, creator, assignee=None, private=False):
             ticket = SupportTicket(ticket_no=no, title=f"Talep {no}", description=f"Aciklama {no}",
@@ -114,8 +123,9 @@ def _post(app, sicil, ticket_key, text):
 def test_non_manager_cannot_read_a_foreign_ticket(app):
     ticket_id = app.config["_TICKETS"]["foreign"]
     response = _client(app, "SMS02").get(f"/communication/faz3/support/{ticket_id}")
-    assert response.status_code == 302
+    assert response.status_code in (302, 403)  # K5-Q: no support_all, no Faz 3 support page
     assert f"/communication/faz3/support/{ticket_id}" not in response.headers.get("Location", "")
+    assert b"Aciklama SMS-T1" not in response.data
 
 
 def test_non_manager_cannot_post_to_a_foreign_ticket(app):
@@ -126,8 +136,10 @@ def test_non_manager_cannot_post_to_a_foreign_ticket(app):
 
 @pytest.mark.parametrize("ticket_key", ["own", "assigned"])
 def test_non_manager_can_post_to_own_or_assigned_ticket(app, ticket_key):
-    _post(app, "SMS02", ticket_key, f"Mesaj {ticket_key}")
-    assert f"Mesaj {ticket_key}" in _messages(app, app.config["_TICKETS"][ticket_key])
+    # K5-Q: without support_all the koordinator answers its own and assigned tickets on /support.
+    ticket_id = app.config["_TICKETS"][ticket_key]
+    _client(app, "SMS02").post(f"/support/{ticket_id}/comment", data={"message": f"Mesaj {ticket_key}"})
+    assert f"Mesaj {ticket_key}" in _messages(app, ticket_id)
 
 
 def test_manager_can_post_to_any_ticket(app):

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 @login_required
 @menu_key_required('reports')
 def communication_phase8_dashboard():
-    payload = phase8_dashboard_snapshot()
+    payload = phase8_dashboard_snapshot(viewer=current_user)  # K5 F4: viewer-scoped support figures
     return safe_render('communication/phase8_dashboard.html', payload=payload)
 
 
@@ -33,7 +33,7 @@ def communication_phase8_dashboard():
 @login_required
 @menu_key_required('reports')
 def communication_phase8_readiness():
-    payload = pilot_readiness_snapshot()
+    payload = pilot_readiness_snapshot(viewer=current_user)  # K5 F4: viewer-scoped support figures
     return safe_render('communication/phase8_readiness_center.html', payload=payload)
 
 
@@ -41,7 +41,7 @@ def communication_phase8_readiness():
 @login_required
 @menu_key_required('settings')
 def communication_phase8_cutover():
-    payload = cutover_snapshot()
+    payload = cutover_snapshot(viewer=current_user)  # K5 F4: viewer-scoped support figures
     checkpoint_token = issue_form_token('communication_phase8_checkpoint', scope=str(current_user.id))
     note_token = issue_form_token('communication_phase8_note', scope=str(current_user.id))
     return safe_render(

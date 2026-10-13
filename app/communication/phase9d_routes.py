@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 @login_required
 @menu_key_required('reports')
 def communication_phase9d_dashboard():
-    payload = phase9d_stabilization_snapshot()
+    payload = phase9d_stabilization_snapshot(viewer=current_user)
     checkin_token = issue_form_token('communication_phase9d_checkin', scope=str(current_user.id))
     hotfix_token = issue_form_token('communication_phase9d_hotfix', scope=str(current_user.id))
     signal_token = issue_form_token('communication_phase9d_signal', scope=str(current_user.id))
@@ -45,7 +45,7 @@ def communication_phase9d_dashboard():
 @login_required
 @menu_key_required('settings')
 def communication_phase9d_stabilization_center():
-    payload = phase9d_stabilization_snapshot()
+    payload = phase9d_stabilization_snapshot(viewer=current_user)
     checkin_token = issue_form_token('communication_phase9d_checkin', scope=str(current_user.id))
     hotfix_token = issue_form_token('communication_phase9d_hotfix', scope=str(current_user.id))
     signal_token = issue_form_token('communication_phase9d_signal', scope=str(current_user.id))
@@ -126,7 +126,7 @@ def communication_phase9d_signal_create():
 @menu_key_required('reports')
 def communication_phase9d_export_md():
     return Response(
-        build_phase9d_markdown(),
+        build_phase9d_markdown(viewer=current_user),
         mimetype='text/markdown; charset=utf-8',
         headers={'Content-Disposition': 'attachment; filename=communication_phase9d_stabilization.md'},
     )
@@ -136,7 +136,7 @@ def communication_phase9d_export_md():
 @login_required
 @menu_key_required('reports')
 def communication_phase9d_export_json():
-    payload = json.dumps(phase9d_payload(), ensure_ascii=False, indent=2, default=str)
+    payload = json.dumps(phase9d_payload(viewer=current_user), ensure_ascii=False, indent=2, default=str)
     data = BytesIO(payload.encode('utf-8'))
     data.seek(0)
     return send_file(

@@ -82,7 +82,7 @@ def communication_phase4_dashboard_view():
     if not is_manager(current_user):
         flash("Bu ekran yönetici görünümü için tasarlanmıştır.", "warning")
     days = _read_days(30)
-    payload = executive_summary_snapshot(days)
+    payload = executive_summary_snapshot(days, viewer=current_user)  # K5: viewer-scoped ticket rows
     return safe_render("communication/phase4_dashboard.html", payload=payload)
 
 
@@ -91,7 +91,7 @@ def communication_phase4_dashboard_view():
 @menu_key_required("reports")
 def communication_phase4_reports_view():
     days = _read_days(30)
-    payload = executive_summary_snapshot(days)
+    payload = executive_summary_snapshot(days, viewer=current_user)  # K5: viewer-scoped ticket rows
     history = report_history_snapshot(25)
     return safe_render("communication/phase4_reports.html", payload=payload, history=history)
 
@@ -120,9 +120,12 @@ def communication_phase4_report_create():
 @menu_key_required("reports")
 def communication_phase4_report_detail(report_id: int):
     from app.models.communication_phase4_models import CommunicationExecutiveReport
+    from app.services.communication_phase4_service import executive_report_view
 
     row = CommunicationExecutiveReport.query.get_or_404(report_id)
-    return safe_render("communication/phase4_report_detail.html", row=row, status_labels=REPORT_STATUS_LABELS)
+    # K5 F4: a reader outside the author's ticket scope gets the report without its support figures.
+    view = executive_report_view(row, current_user)
+    return safe_render("communication/phase4_report_detail.html", row=row, report_view=view, status_labels=REPORT_STATUS_LABELS)
 
 
 @main_bp.route("/communication/faz4/reports/<int:report_id>/submit-review", methods=["POST"])
@@ -152,7 +155,7 @@ def communication_phase4_survey_analytics():
 @menu_key_required("support_all")
 def communication_phase4_support_analytics():
     days = _read_days(180)
-    payload = support_analytics_snapshot(days)
+    payload = support_analytics_snapshot(days, viewer=current_user)  # K5: viewer-scoped ticket rows
     return safe_render("communication/phase4_support_analytics.html", payload=payload)
 
 

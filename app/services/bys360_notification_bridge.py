@@ -113,6 +113,25 @@ def _support_manager_ids(*, exclude: Iterable[Any] | None = None, limit: int = 8
     )
 
 
+def _support_all_recipient_ids(ticket: Any, *, exclude: Iterable[Any] | None = None, limit: int = 80) -> list[int]:
+    """K5-Q3: support ticket notifications reach the explicit support_all holders allowed to see the ticket.
+
+    Not role, role_label or title matches (_support_manager_ids); the private-ticket unit rule applies.
+    """
+    from app.services.personnel_read_grant import SUPPORT_ALL_KEY, explicit_grant_holder_ids
+    from app.services.support_ticket_access import can_view_private_support_ticket
+
+    holder_ids = explicit_grant_holder_ids(SUPPORT_ALL_KEY, limit=800)
+    if not holder_ids:
+        return []
+    holders = _active_users_query().filter(User.id.in_(holder_ids)).all()
+    return _unique_ids(
+        [u.id for u in holders if can_view_private_support_ticket(ticket, u)],
+        exclude=exclude,
+        limit=limit,
+    )
+
+
 def _portal_manager_ids(*, exclude: Iterable[Any] | None = None, limit: int = 80) -> list[int]:
     rows = _active_users_query().limit(800).all()
     return _unique_ids(
@@ -207,7 +226,7 @@ def _support_link(ticket: Any) -> str:
 def notify_support_ticket_created(ticket: Any, actor: Any) -> int:
     actor_id = _actor_id(actor)
     ticket_no = _text(getattr(ticket, "ticket_no", ""), limit=40)
-    recipients = _support_manager_ids(exclude=[actor_id])
+    recipients = _support_all_recipient_ids(ticket, exclude=[actor_id])
     assigned_id = _safe_int(getattr(ticket, "assigned_to_user_id", None))
     if assigned_id:
         recipients.append(assigned_id)
@@ -226,7 +245,7 @@ def notify_support_ticket_created(ticket: Any, actor: Any) -> int:
 
 def notify_user_feedback_created(ticket: Any, actor: Any, *, kind_label: str | None = None) -> int:
     actor_id = _actor_id(actor)
-    recipients = _support_manager_ids(exclude=[actor_id])
+    recipients = _support_all_recipient_ids(ticket, exclude=[actor_id])
     label = _text(kind_label, limit=80) or "Geri bildirim"
     return create_notifications(
         user_ids=recipients,
@@ -247,7 +266,7 @@ def notify_support_ticket_comment(ticket: Any, actor: Any, *, is_internal: bool 
     creator_id = _safe_int(getattr(ticket, "created_by_user_id", None))
     assigned_id = _safe_int(getattr(ticket, "assigned_to_user_id", None))
     if is_internal:
-        recipients.extend(_support_manager_ids(exclude=[actor_id]))
+        recipients.extend(_support_all_recipient_ids(ticket, exclude=[actor_id]))
         if assigned_id:
             recipients.append(assigned_id)
     elif creator_id and creator_id != actor_id:
@@ -255,7 +274,7 @@ def notify_support_ticket_comment(ticket: Any, actor: Any, *, is_internal: bool 
     else:
         if assigned_id:
             recipients.append(assigned_id)
-        recipients.extend(_support_manager_ids(exclude=[actor_id]))
+        recipients.extend(_support_all_recipient_ids(ticket, exclude=[actor_id]))
     return create_notifications(
         user_ids=recipients,
         title="Talebe yeni not eklendi",
@@ -310,7 +329,7 @@ def notify_support_ticket_assigned(ticket: Any, actor: Any, *, assignee: Any | N
 
 def notify_support_ticket_rating(ticket: Any, actor: Any, *, rating: int | None = None, note: str | None = None) -> int:
     actor_id = _actor_id(actor)
-    recipients = _support_manager_ids(exclude=[actor_id])
+    recipients = _support_all_recipient_ids(ticket, exclude=[actor_id])
     assigned_to_user_id = _safe_int(getattr(ticket, "assigned_to_user_id", None))
     if assigned_to_user_id:
         recipients.append(assigned_to_user_id)

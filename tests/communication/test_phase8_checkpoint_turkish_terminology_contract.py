@@ -78,7 +78,7 @@ def _make_app(monkeypatch):
     return app
 
 
-def _stub_pilot_readiness_snapshot():
+def _stub_pilot_readiness_snapshot(*, viewer=None):  # K5 F4: callers pass the viewer
     """Stand-in for communication_phase8_service.pilot_readiness_snapshot().
 
     Unrelated pre-existing bugs (confirmed independently, NOT introduced or

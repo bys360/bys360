@@ -43,6 +43,7 @@ from app.services.communication_phase3_service import (
     survey_center_for_user,
     update_support_status,
 )
+from app.services.support_ticket_access import can_view_all_support_tickets
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +160,7 @@ def communication_phase3_support_detail(ticket_id: int):
                 ticket_id=ticket_id,
                 actor_user=current_user,
                 message=request.form.get("message") or "",
-                is_internal=bool(request.form.get("is_internal")) and is_manager(current_user),
+                is_internal=bool(request.form.get("is_internal")) and can_view_all_support_tickets(current_user),
             )
             flash("Talep mesajı kaydedildi.", "success")
             return redirect(url_for("main.communication_phase3_support_detail", ticket_id=ticket_id))
@@ -187,7 +188,8 @@ def communication_phase3_support_detail(ticket_id: int):
 @login_required
 @menu_key_required("support_all")
 def communication_phase3_support_assign(ticket_id: int):
-    if not is_manager(current_user):
+    # K5-Q3: the central support_all grant, not a manager role.
+    if not can_view_all_support_tickets(current_user):
         flash("Bu işlem için yönetici yetkisi gerekir.", "warning")
         return redirect(url_for("main.communication_phase3_support_detail", ticket_id=ticket_id))
 
@@ -214,7 +216,8 @@ def communication_phase3_support_assign(ticket_id: int):
 @login_required
 @menu_key_required("support_all")
 def communication_phase3_support_status(ticket_id: int):
-    if not is_manager(current_user):
+    # K5-Q3: the central support_all grant, not a manager role.
+    if not can_view_all_support_tickets(current_user):
         flash("Bu işlem için yönetici yetkisi gerekir.", "warning")
         return redirect(url_for("main.communication_phase3_support_detail", ticket_id=ticket_id))
 

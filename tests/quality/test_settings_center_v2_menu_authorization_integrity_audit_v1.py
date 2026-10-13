@@ -333,7 +333,7 @@ def test_all_five_orphan_auth_keys_are_now_resolved_for_admin(app) -> None:
     this project's own established _make_app/_create_user test pattern --
     not just trusting the registry-level assertions above."""
     from app.extensions import db
-    from app.models import User
+    from app.models import User, UserMenuPermission
 
     with app.app_context():
         user = User(
@@ -348,6 +348,11 @@ def test_all_five_orphan_auth_keys_are_now_resolved_for_admin(app) -> None:
         )
         user.set_password("orphan-auth-test-pw-1")
         db.session.add(user)
+        db.session.flush()
+        # K5-Q1 (approved policy, 2026-10-10): support_all is never a role default, the admin's
+        # included; another admin assigns it per person. The support route needs that grant.
+        db.session.add(UserMenuPermission(user_id=user.id, menu_key="support_all", is_visible=True,
+                                          source_type="user_override"))
         db.session.commit()
 
     client = app.test_client()
