@@ -738,3 +738,52 @@ def test_a_report_recording_a_scope_but_no_ticket_ids_hides_figures_from_its_aut
         row.metrics_json = metrics
         db.session.commit()
     assert _hides_support(_report_text(env, "holder", report_id), figure)
+
+
+def test_a_ticket_counted_while_the_report_is_built_is_always_recorded(env, monkeypatch):
+    """Review L1: the recorded ids are the rows the figures were computed from, so a ticket that
+    enters and leaves the author's scope while the report is built cannot be counted unrecorded."""
+    from app.extensions import db
+    from app.models import SupportTicket
+    from app.models.communication_phase4_models import CommunicationExecutiveReport
+    from app.services import communication_phase4_service as phase4
+
+    original_summary = phase4.executive_summary_snapshot
+    original_analytics = phase4.support_analytics_snapshot
+
+    def summary_after_assigning(*args, **kwargs):
+        _assign(env, "K5QF-OTHER-05", "colleague")
+        return original_summary(*args, **kwargs)
+
+    def analytics_then_unassigning(*args, **kwargs):
+        result = original_analytics(*args, **kwargs)
+        _assign(env, "K5QF-OTHER-05", None)
+        return result
+
+    monkeypatch.setattr(phase4, "executive_summary_snapshot", summary_after_assigning)
+    monkeypatch.setattr(phase4, "support_analytics_snapshot", analytics_then_unassigning)
+    report_id, figure = _report_for(env, "colleague")
+    assert figure == 1
+    with env.app.app_context():
+        row = db.session.get(CommunicationExecutiveReport, report_id)
+        assert row is not None
+        counted = SupportTicket.query.filter_by(ticket_no="K5QF-OTHER-05").one().id
+        assert counted in row.metrics_json["support_ticket_ids"]
+    assert _hides_support(_report_text(env, "colleague", report_id), figure)
+
+
+def test_a_current_marker_report_without_ticket_ids_hides_figures_from_its_author(env):
+    from app.extensions import db
+    from app.models.communication_phase4_models import CommunicationExecutiveReport
+
+    report_id, figure = _report_for(env, "holder")
+    with env.app.app_context():
+        row = db.session.get(CommunicationExecutiveReport, report_id)
+        assert row is not None
+        metrics = dict(row.metrics_json)
+        assert metrics["support_scope"] == "author_scope_v3"
+        metrics.pop("support_ticket_ids")
+        row.metrics_json = metrics
+        db.session.commit()
+    assert _hides_support(_report_text(env, "holder", report_id), figure)
+    assert _shows_support(_report_text(env, "admin_holder", report_id), figure)

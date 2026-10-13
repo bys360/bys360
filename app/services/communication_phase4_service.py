@@ -186,15 +186,22 @@ REPORT_SUPPORT_SCOPE_FINGERPRINT_KEY = "support_scope_fingerprint"
 REPORT_SUPPORT_TICKET_IDS_KEY = "support_ticket_ids"
 
 
-def _load_tickets(days: int = 90, *, viewer: Any):
-    """K5 F4: only the tickets inside ``viewer``'s scope; there is no institution-wide form."""
+def _load_tickets(days: int = 90, *, viewer: Any, collect_ids: set[int] | None = None):
+    """K5 F4: only the tickets inside ``viewer``'s scope; there is no institution-wide form.
+
+    ``collect_ids`` receives the id of every ticket returned, so a stored report can record exactly
+    the tickets its figures were computed from.
+    """
     from app.services.support_ticket_access import support_ticket_visibility_clause
 
     start, _ = _period_range(days)
     query = SupportTicket.query.filter(support_ticket_visibility_clause(viewer))
     if hasattr(SupportTicket, "created_at"):
         query = query.filter(SupportTicket.created_at >= start)
-    return query.order_by(SupportTicket.created_at.desc()).all()
+    rows = query.order_by(SupportTicket.created_at.desc()).all()
+    if collect_ids is not None:
+        collect_ids.update(int(ticket.id) for ticket in rows)
+    return rows
 
 
 def _sla_policy_map() -> dict[str, dict[str, int]]:
@@ -266,11 +273,11 @@ def _score_band_label(rate: float) -> str:
     return "0-24"
 
 
-def executive_summary_snapshot(days: int = 30, *, viewer: Any) -> dict[str, Any]:
+def executive_summary_snapshot(days: int = 30, *, viewer: Any, collect_ticket_ids: set[int] | None = None) -> dict[str, Any]:
     clean_days = sanitize_days(days)
     bulletins = _load_bulletins(clean_days)
     surveys = _load_surveys(max(clean_days, 90))
-    tickets = _load_tickets(max(clean_days, 90), viewer=viewer)
+    tickets = _load_tickets(max(clean_days, 90), viewer=viewer, collect_ids=collect_ticket_ids)
 
     unread_notifications = 0
     critical_unread = 0
@@ -481,9 +488,9 @@ def survey_analytics_snapshot(days: int = 180) -> dict[str, Any]:
     }
 
 
-def support_analytics_snapshot(days: int = 180, *, viewer: Any) -> dict[str, Any]:
+def support_analytics_snapshot(days: int = 180, *, viewer: Any, collect_ticket_ids: set[int] | None = None) -> dict[str, Any]:
     clean_days = sanitize_days(days, default=180, minimum=30, maximum=365)
-    rows = _load_tickets(clean_days, viewer=viewer)
+    rows = _load_tickets(clean_days, viewer=viewer, collect_ids=collect_ticket_ids)
     policy_map = _sla_policy_map()
     status_counter: Counter[str] = Counter()
     priority_counter: Counter[str] = Counter()
@@ -598,15 +605,13 @@ def create_executive_report(actor_user: Any, report_type: str = "weekly_summary"
     from app.services.support_ticket_access import support_scope_fingerprint
 
     clean_days = sanitize_days(days)
-    # K5 F4: record every ticket the figures can count (the widest window the two snapshots load),
-    # read before and after them, so the author's later view can be checked ticket by ticket.
-    ticket_window = max(clean_days, 90)
-    counted_ids = {ticket.id for ticket in _load_tickets(ticket_window, viewer=actor_user)}
     # K5: the stored report carries only the ticket rows inside its author's scope.
-    payload = executive_summary_snapshot(clean_days, viewer=actor_user)
+    # K5 F4: record exactly the tickets the figures are computed from (the snapshots' own loads), so
+    # the author's later view can be checked ticket by ticket.
+    counted_ids: set[int] = set()
+    payload = executive_summary_snapshot(clean_days, viewer=actor_user, collect_ticket_ids=counted_ids)
     survey_payload = survey_analytics_snapshot(max(clean_days, 30))
-    support_payload = support_analytics_snapshot(max(clean_days, 30), viewer=actor_user)
-    counted_ids |= {ticket.id for ticket in _load_tickets(ticket_window, viewer=actor_user)}
+    support_payload = support_analytics_snapshot(max(clean_days, 30), viewer=actor_user, collect_ticket_ids=counted_ids)
     today = _now().date().isoformat()
     title = f"İletişim ve Anket Yönetimi {REPORT_TYPE_LABELS.get(report_type, 'Bilinmiyor')} Raporu"
     summary_text = (
