@@ -8,8 +8,10 @@ K1 Holders of ``personnel_read_all`` are protected accounts too; protection foll
 K2 A non-admin never changes a unit profile (unit rows override the role defaults of every
    member, admins included). Server side, not by hiding a button.
 K3 A non-admin never changes its own menu/access matrix (no widening, no narrowing).
-K4 Even a real admin cannot remove ``admin_users`` / ``settings`` from the admin role profile,
-   and no unit profile or per-user override locks an active admin out of them. The last active
+K4 Even a real admin cannot remove ``admin_users`` / ``settings`` from the admin role profile;
+   no role default or unit profile locks an active admin out of them, and an admin cannot revoke
+   them on its own account. (An explicit per-user revocation for ANOTHER admin account stays
+   authoritative, as the admin routes contract requires.) The last active
    admin is never demoted, deactivated or deleted; an admin never demotes or deactivates itself.
 K5 The file-center role matrix is in R05 scope: no escalation and no change to protected roles
    through it.
@@ -63,6 +65,7 @@ OTHER_UNIT = "R05C Diger Birim"
 PROTECTED_ROLES = ("admin", "baskan", "baskan_yardimcisi", "grup_baskani", "mali_musavir", "koordinator", "birim_sorumlusu")
 MATRIX_GROUPS = ("general", "portal", "personnel", "performance", "communication", "ai", "assistant", "settings_security")
 LOCKOUT_KEYS = ("admin_users", "settings")
+ADMIN_USERS_GATED_PATH = "/personnel"  # menu_key_required("admin_users")
 NON_ADMIN = "baskan"
 
 
@@ -395,16 +398,34 @@ def test_k4_real_admin_cannot_remove_the_lockout_keys_from_the_admin_role(env):
     assert len(_refusals(env, "admin_role_lockout_keys")) >= 3
 
 
-def test_k4_unit_profile_and_user_override_never_lock_an_admin_out(env):
+def test_k4_a_unit_profile_never_locks_an_admin_out_and_an_admin_cannot_lock_itself_out(env):
     admin = _seeded_client(env, "admin")
     _settings(admin, {"form_action": "save_unit_profile", "user_id": env.ids["plain"], "profile_unit_target": UNIT, "menu_dashboard": "on"})
-    _settings(admin, {"form_action": "save_user_visibility", "user_id": env.ids["admin2"], "menu_dashboard": "on"})
+    assert ("admin_users", False, "manual") in _unit_profile(env, UNIT)
     for who in ("admin", "admin2"):
         client = _web(env, who)
-        assert client.get("/admin/users").status_code == 200, who
+        assert client.get(ADMIN_USERS_GATED_PATH).status_code == 200, who
         assert client.get("/communication/faz9a/preflight").status_code == 200, who
-    # the floor is for active real admins only
-    assert _web(env, "plain").get("/admin/users").status_code in (302, 403)
+    # the floor is for active real admins only: the unit row still hides admin_users from others
+    assert _web(env, "plain").get(ADMIN_USERS_GATED_PATH).status_code in (302, 403)
+    # an admin's own matrix, template or archive can never revoke the lockout keys
+    before = _overrides(env, "admin")
+    archive_key = _save_archive(env, "dashboard")
+    template = json.dumps({"visible_keys": ["dashboard"], "effective_rule_map": {"dashboard": True}})
+    _settings(admin, {"form_action": "save_user_visibility", "user_id": env.ids["admin"], "menu_dashboard": "on"})
+    _settings(admin, {"form_action": "import_visibility_template", "user_id": env.ids["admin"], "import_template_json": template})
+    _settings(admin, {"form_action": "apply_named_archive", "user_id": env.ids["admin"], "archive_key": archive_key, "archive_apply_mode": "user_override"})
+    assert _overrides(env, "admin") == before
+    assert len(_refusals(env, "admin_self_lockout_keys")) == 3
+    assert _web(env, "admin").get(ADMIN_USERS_GATED_PATH).status_code == 200
+
+
+def test_guard_an_explicit_per_user_revocation_for_another_admin_stays_authoritative(env):
+    """Admin routes contract: role "admin" alone is not enough once admin_users is revoked for
+    that one account (single-account admin action, audited in settings_change_logs)."""
+    _settings(_seeded_client(env, "admin"), {"form_action": "save_user_visibility", "user_id": env.ids["admin2"], "menu_dashboard": "on"})
+    assert ("admin_users", False, "user_override") in _overrides(env, "admin2")
+    assert _web(env, "admin2").get(ADMIN_USERS_GATED_PATH).status_code == 403
 
 
 def test_k4_rollback_cannot_restore_an_admin_profile_without_the_lockout_keys(env):

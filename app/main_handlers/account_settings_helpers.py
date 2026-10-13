@@ -110,6 +110,7 @@ from app.services.account_change_guard import (
     ChangeRefused,
     audit_refusal,
     is_real_admin,
+    own_matrix_lockout_refusal,
     role_membership_change_refusal,
     role_profile_change_refusal,
     split_bulk_targets,
@@ -163,8 +164,8 @@ def _can_change_explicit_grants(actor, target) -> bool:
 # ---------------------------------------------------------------------------
 
 _LOCKOUT_REFUSAL_MESSAGE = (
-    "Admin rol profilinden Kullanıcı Yönetimi (admin_users) ve Ayarlar (settings) yetkileri kaldırılamaz; "
-    "bu, sistemin kendi yöneticilerini kilitlemesini önler."
+    "Kullanıcı Yönetimi (admin_users) ve Ayarlar (settings) yetkileri admin rol profilinden ve adminin kendi "
+    "hesabından kaldırılamaz; bu, sistemin kendi yöneticilerini kilitlemesini önler."
 )
 # identity_access.* flags describe how authority is resolved; a non-admin never changes them.
 _AUTHORITY_FLAG_SETTINGS: tuple[tuple[str, str], ...] = (
@@ -179,7 +180,7 @@ def _settings_redirect(keep_user_id=None, **kwargs):
 
 def _refuse_settings_change(target, reason, *, keep_user_id=None, **redirect_kwargs):
     audit_refusal(target, reason)
-    flash(_LOCKOUT_REFUSAL_MESSAGE if reason.startswith("admin_role_lockout_keys") else _PROTECTED_MATRIX_REFUSAL_MESSAGE, "danger")
+    flash(_LOCKOUT_REFUSAL_MESSAGE if "lockout_keys" in reason else _PROTECTED_MATRIX_REFUSAL_MESSAGE, "danger")
     return _settings_redirect(keep_user_id, **redirect_kwargs)
 
 
@@ -217,6 +218,16 @@ def _module_authority_refusal(before_state, after_state):
     return None
 
 
+def _user_matrix_refusal(target, visible_keys, flat_menu_items):
+    """Per-user matrix save: R05-2/K1/K3, then the admin self-lockout guard (K4). A full save
+    stores every listed key, so an unchecked key is a revocation."""
+    refusal = user_matrix_change_refusal(current_user, target)
+    if refusal:
+        return refusal
+    listed = {str((item or {}).get("key") or "").strip() for item in flat_menu_items or []}
+    return own_matrix_lockout_refusal(current_user, target, revoked_keys=listed - set(visible_keys or ()))
+
+
 def _authorize_rollback(row, plan):
     """N1: a rollback is a write like any other; the same rules apply to what it would restore."""
     scope = row.change_scope
@@ -230,13 +241,15 @@ def _authorize_rollback(row, plan):
         reason = unit_profile_change_refusal(current_user)
     elif scope == "user_menu_overrides":
         target = db.session.get(User, row.target_user_id) if row.target_user_id else None
-        reason = user_matrix_change_refusal(current_user, target)
+        reason = user_matrix_change_refusal(current_user, target) or own_matrix_lockout_refusal(
+            current_user, target, revoked_keys=plan.get("user_revoked") or set()
+        )
     elif scope == "module_settings":
         reason = _module_authority_refusal(snapshot_module_settings(), plan.get("module_after") or {})
     else:
         reason = None
     if reason:
-        raise ChangeRefused(reason if reason.startswith("admin_role_lockout_keys") else f"settings_rollback:{reason}")
+        raise ChangeRefused(reason if "lockout_keys" in reason else f"settings_rollback:{reason}")
 
 
 # BYS360_PERSONNEL_FEATURE_MATRIX_V1_4_HELPER_DEDUP_AND_FULL_SAVE
@@ -818,6 +831,9 @@ def _handle_import_visibility_template(flat_menu_items):
         visible_keys = _extract_visible_keys_from_template_payload(payload, flat_menu_items)
         if not visible_keys and not isinstance(payload.get("effective_rule_map"), dict):
             raise ValueError("Şablonda görünür menü anahtarları bulunamadı.")
+        lockout = _user_matrix_refusal(import_user, visible_keys, flat_menu_items)
+        if lockout:
+            return _refuse_settings_change(import_user, lockout, keep_user_id=import_user.id)
         result = save_user_menu_overrides(import_user, flat_menu_items, visible_keys, updated_by_user_id=getattr(current_user, "id", None))
         flash(f"Yetki şablonu içe aktarıldı. Aktif override: {result['override_count']}", "success")
     except Exception as exc:
@@ -884,7 +900,7 @@ def _handle_apply_named_archive(all_menu_keys, flat_menu_items):
     elif apply_mode == "unit_profile":
         refusal = unit_profile_change_refusal(current_user)
     else:
-        refusal = user_matrix_change_refusal(current_user, selected_user)
+        refusal = _user_matrix_refusal(selected_user, visible_keys, flat_menu_items)
     if refusal:
         return _refuse_settings_change(selected_user, refusal, keep_user_id=selected_user_id, archive_key=archive_key)
     try:
@@ -953,8 +969,10 @@ def _handle_user_scoped_profile_action(form_action, flat_menu_items, all_menu_ke
         )
     elif form_action == "save_unit_profile":
         refusal = unit_profile_change_refusal(current_user)
-    else:
+    elif form_action == "reset_user_overrides":
         refusal = user_matrix_change_refusal(current_user, selected_user)
+    else:
+        refusal = _user_matrix_refusal(selected_user, visible_keys, flat_menu_items)
     if refusal:
         return _refuse_settings_change(selected_user, refusal, keep_user_id=keep_user_id)
 

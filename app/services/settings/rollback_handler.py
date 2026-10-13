@@ -264,7 +264,7 @@ def rollback_settings_change_handler(
     R05c: ``authorize(row, plan)`` runs before anything is written and raises to refuse. ``plan``
     holds what the rollback would write: ``role_after`` (visible role keys) and
     ``live_menu_keys`` for a role log, ``module_after`` (module -> setting -> stored value) for a
-    module-settings log.
+    module-settings log, ``user_revoked`` (keys restored as hidden) for a per-user log.
     """
     _ensure_change_log_table(table_exists)
     row = _load_target_log(log_id)
@@ -286,6 +286,8 @@ def rollback_settings_change_handler(
                     value_to_storage(definition.get("default"), definition["value_type"]),
                 )
             plan["module_after"] = module_after
+        elif row.change_scope == "user_menu_overrides":
+            plan["user_revoked"] = {key for key, visible in (previous_state or {}).items() if not bool(visible)}
         authorize(row, plan)
 
     if row.change_scope == "system_settings":

@@ -196,6 +196,16 @@ def role_profile_change_refusal(actor: Any, role: Any, *, before: Any, after: An
     return None
 
 
+def own_matrix_lockout_refusal(actor: Any, target: Any, *, revoked_keys: Any) -> str | None:
+    """K4: an admin never revokes admin_users / settings on its own account (a per-user revocation
+    is authoritative over the effective-menu floor, so this is the self-lockout guard)."""
+    actor_id = getattr(actor, "id", None)
+    if not is_real_admin(actor) or actor_id is None or getattr(target, "id", None) != actor_id:
+        return None
+    revoked = set(revoked_keys or ())
+    return "admin_self_lockout_keys" if any(key in revoked for key in LOCKOUT_CRITICAL_ADMIN_KEYS) else None
+
+
 def unit_profile_change_refusal(actor: Any) -> str | None:
     """K2 / N3: unit rows override the role defaults of every member, admins included."""
     return None if is_real_admin(actor) else "settings_unit_profile"
