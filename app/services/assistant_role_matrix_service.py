@@ -177,16 +177,25 @@ def _upsert_assistant_module_setting(setting_key, label, value_text, value_type=
     return row
 
 
-def save_assistant_role_matrix_from_form(form, *, updated_by_user_id=None):
-    from app.extensions import db
-
+def assistant_visible_roles_value_from_form(form) -> str:
+    """The stored ``visible_roles`` value a matrix form saves (R05c compares it before saving)."""
     selected_roles = []
     for role_key, _role_label in ASSISTANT_POLICY_ROLE_OPTIONS:
         field_name = f"assistant_role_policy__{role_key}__assistant_module"
         if form.get(field_name):
             selected_roles.append(role_key)
+    return ",".join(selected_roles) if selected_roles else "__none__"
 
-    visible_roles_value = ",".join(selected_roles) if selected_roles else "__none__"
+
+def assistant_default_visible_roles_value() -> str:
+    return ",".join(sorted(ASSISTANT_DEFAULT_VISIBLE_ROLES))
+
+
+def save_assistant_role_matrix_from_form(form, *, updated_by_user_id=None):
+    from app.extensions import db
+
+    visible_roles_value = assistant_visible_roles_value_from_form(form)
+    selected_roles = [] if visible_roles_value == "__none__" else visible_roles_value.split(",")
 
     _upsert_assistant_module_setting(
         "enabled",
@@ -211,7 +220,7 @@ def save_assistant_role_matrix_from_form(form, *, updated_by_user_id=None):
 def reset_assistant_role_matrix_defaults(*, updated_by_user_id=None):
     from app.extensions import db
 
-    visible_roles_value = ",".join(sorted(ASSISTANT_DEFAULT_VISIBLE_ROLES))
+    visible_roles_value = assistant_default_visible_roles_value()
 
     _upsert_assistant_module_setting(
         "enabled",

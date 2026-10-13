@@ -304,9 +304,42 @@ def role_matrix_rows() -> list[FileCenterRolePermission]:
     return FileCenterRolePermission.query.order_by(FileCenterRolePermission.id.asc()).all()
 
 
-def update_role_matrix_from_form(form, actor_user_id: int | None = None) -> int:
+# R05c / K5: what a non-admin role-matrix manager may change: the usage fields of the baseline
+# (personel) row. Every other row, the management fields, labels, activation and new rows are
+# for a real admin only.
+FILE_CENTER_BASELINE_USAGE_FIELDS: tuple[str, ...] = (
+    "can_use",
+    "can_upload_files",
+    "can_download_files",
+    "can_create_guest_links",
+    "can_create_guest_upload_requests",
+    "can_view_transfers",
+    "can_view_requests",
+    "can_use_chunk_upload",
+)
+
+
+def role_matrix_change_refusal(actor: Any, changes: list[tuple[str, str]]) -> str | None:
+    """None when ``actor`` may make every (role_key, field) change, else the refusal reason."""
+    from app.services.account_change_guard import is_protected_role, is_real_admin
+
+    if is_real_admin(actor):
+        return None
+    refused = sorted(
+        {
+            str(role_key)
+            for role_key, field in changes
+            if is_protected_role(role_key) or field not in FILE_CENTER_BASELINE_USAGE_FIELDS
+        }
+    )
+    return "file_center_role_matrix:" + ",".join(refused) if refused else None
+
+
+def update_role_matrix_from_form(form, actor_user_id: int | None = None, changes: list[tuple[str, str]] | None = None) -> int:
+    """Apply the matrix form (no commit). ``changes`` collects every (role_key, field) changed."""
     ensure_file_center_role_matrix_defaults(actor_user_id=actor_user_id)
     changed = 0
+    record = changes if changes is not None else []
     rows = FileCenterRolePermission.query.order_by(FileCenterRolePermission.id.asc()).all()
     for row in rows:
         prefix = f"role_{row.id}_"
@@ -316,17 +349,21 @@ def update_role_matrix_from_form(form, actor_user_id: int | None = None) -> int:
         if row.role_label != label:
             row.role_label = label
             changed += 1
+            record.append((row.role_key, "role_label"))
         if (row.description or "") != description:
             row.description = description
             changed += 1
+            record.append((row.role_key, "description"))
         if bool(row.is_active) != bool(is_active):
             row.is_active = bool(is_active)
             changed += 1
+            record.append((row.role_key, "is_active"))
         for field in PERMISSION_FIELDS:
             new_value = form.get(prefix + field) in {"on", "true", "1", "yes"}
             if bool(getattr(row, field, False)) != bool(new_value):
                 setattr(row, field, bool(new_value))
                 changed += 1
+                record.append((row.role_key, field))
         if changed:
             row.updated_by_user_id = actor_user_id
             row.updated_at = utc_now()
@@ -348,6 +385,7 @@ def update_role_matrix_from_form(form, actor_user_id: int | None = None) -> int:
                 updated_by_user_id=actor_user_id,
             ))
             changed += 1
+            record.append((new_role_key, "create"))
     return changed
 
 

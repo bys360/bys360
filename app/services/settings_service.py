@@ -35,6 +35,7 @@ from app.services.settings.final_hardening import (
     get_settings_final_release_checklist as _get_settings_final_release_checklist,
 )
 from app.services.settings.form_pipeline import (
+    module_settings_state_from_form_handler as _module_settings_state_from_form_handler,
     save_module_settings_from_form_handler as _save_module_settings_from_form_handler,
     save_system_settings_from_form_handler as _save_system_settings_from_form_handler,
 )
@@ -389,7 +390,21 @@ def save_module_settings_from_form(form, *, updated_by_user_id: int | None = Non
     )
 
 
-def rollback_settings_change(log_id: int, *, actor_user_id: int | None = None) -> dict[str, Any]:
+def module_settings_state_from_form(form) -> dict[str, dict[str, str]]:
+    """What ``save_module_settings_from_form`` would store for the live modules (no write)."""
+    return _module_settings_state_from_form_handler(
+        form,
+        iter_live_module_setting_definitions=_iter_live_module_setting_definitions,
+        value_to_storage=_value_to_storage,
+    )
+
+
+def snapshot_module_settings() -> dict[str, dict[str, str]]:
+    """The stored (or default) value of every live module setting."""
+    return _snapshot_module_state()
+
+
+def rollback_settings_change(log_id: int, *, actor_user_id: int | None = None, authorize: Any = None) -> dict[str, Any]:
     """Ayar değişikliğini Faz 8 rollback handler servisi üzerinden geri alır.
 
     Dış sözleşme bilinçli olarak korunur. Route, template ve çağıran kodlar aynı
@@ -407,6 +422,7 @@ def rollback_settings_change(log_id: int, *, actor_user_id: int | None = None) -
         snapshot_module_state=_snapshot_module_state,
         create_change_log=_create_settings_change_log,
         deserialize_state=_deserialize_state,
+        authorize=authorize,
     )
 
 # ---------------------------------------------------------------------------

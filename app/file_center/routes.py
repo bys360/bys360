@@ -1142,12 +1142,21 @@ def file_center_role_matrix_save():
         return redirect(url_for("main.home"))
     from app.file_center.permissions import (
         can_manage_file_center_role_matrix,
+        role_matrix_change_refusal,
         update_role_matrix_from_form,
     )
+    from app.services.account_change_guard import audit_refusal
     if not can_manage_file_center_role_matrix(current_user):
         return _access_denied_response()
     try:
-        changed = update_role_matrix_from_form(request.form, actor_user_id=int(current_user.id))
+        changes: list[tuple[str, str]] = []
+        changed = update_role_matrix_from_form(request.form, actor_user_id=int(current_user.id), changes=changes)
+        # R05c / K5: nothing is written when a non-admin's form changes a protected row.
+        refusal = role_matrix_change_refusal(current_user, changes)
+        if refusal:
+            audit_refusal(None, refusal)  # rolls the pending form changes back first
+            flash("Dosya Merkezi rol matrisinde personel dışındaki roller, yönetim yetkileri ve yeni roller yalnız sistem admini tarafından değiştirilebilir.", "danger")
+            return redirect(url_for("main.file_center_role_matrix"))
         log_audit("file_center_role_matrix_updated", message=f"Dosya Merkezi rol matrisi güncellendi. Değişen alan: {changed}", actor_user_id=int(current_user.id))
         db.session.commit()
         flash(f"Dosya Merkezi rol matrisi güncellendi. Değişen alan: {changed}", "success")

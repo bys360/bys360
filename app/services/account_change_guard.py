@@ -18,6 +18,16 @@ these rules themselves:
 - a password set by another user, and a deactivation, end the target's other sessions;
 - every change and every refusal writes an ``audit_logs`` row without password material.
 
+R05c (owner decisions K1-K5, 2026-10-13) extends the same rules to the access matrices:
+
+- role defaults: a non-admin changes the baseline role only; nobody removes ``admin_users`` /
+  ``settings`` from the admin role (K4);
+- unit profiles: real admin only (K2);
+- per-user matrices: a non-admin never changes its own (K3) nor a protected account's (K1);
+- bulk changes skip every protected account, also for a real admin (F3);
+- the last active admin is never demoted or deactivated, and an admin never demotes or
+  deactivates itself; the check row-locks the active admins (``SELECT ... FOR UPDATE``).
+
 The checks read the stored values only and fail closed.
 """
 from __future__ import annotations
@@ -28,21 +38,25 @@ from typing import Any
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.route_support import normalize_role_name
-from app.services.personnel_read_grant import PERSONNEL_READ_ALL_KEY
+from app.services.personnel_read_grant import EXPLICIT_GRANT_KEYS
 
 logger = logging.getLogger(__name__)
 
 ADMIN_ROLE = "admin"
 BASELINE_ROLE = "personel"
-SUPPORT_ALL_KEY = "support_all"
 # Read only: holders of these explicit grants are protected; this module never writes them.
-PROTECTED_GRANT_KEYS: tuple[str, ...] = (PERSONNEL_READ_ALL_KEY, SUPPORT_ALL_KEY)
+# One source (S): the explicit grant keys of personnel_read_grant (personnel_read_all, support_all).
+PROTECTED_GRANT_KEYS: tuple[str, ...] = tuple(EXPLICIT_GRANT_KEYS)
 
 REFUSAL_MESSAGE = "Bu hesap değişikliği (rol, şifre veya aktiflik) yalnız sistem admini tarafından yapılabilir."
 MANAGER_CHAIN_REFUSAL_MESSAGE = (
     "Bu hesabın amir zinciri yalnız sistem admini tarafından değiştirilebilir; kendinizi bir personelin amiri yapamazsınız."
 )
 ROLE_REFUSAL_MESSAGE = "Rol ataması ve rol değişikliği yalnız sistem admini tarafından yapılabilir."
+ADMIN_CONTINUITY_MESSAGE = (
+    "Bu işlem yapılmadı: admin kendi admin rolünü düşüremez veya kendi hesabını pasifleştiremez ve "
+    "sistemde en az bir aktif admin kalmalıdır."
+)
 
 
 def is_real_admin(actor: Any) -> bool:
@@ -74,32 +88,19 @@ def holds_protected_grant(user: Any) -> bool:
         return True
 
 
-def holds_support_all_row(user: Any) -> bool:
-    """A visible ``support_all`` row of any source (fails closed). Full matrix saves also store
-    invisible rows for every menu key, so an invisible row is not a holder."""
-    user_id = getattr(user, "id", None)
-    if user_id is None:
-        return True
-    try:
-        from app.models import UserMenuPermission
-
-        return (
-            UserMenuPermission.query.filter_by(user_id=user_id, menu_key=SUPPORT_ALL_KEY, is_visible=True).first()
-            is not None
-        )
-    except SQLAlchemyError:
-        logger.exception("BYS360 R05 support_all lookup failed; treating the account as protected.")
-        _safe_rollback()
-        return True
+def is_protected_role(role: Any) -> bool:
+    """Every stored role other than the baseline (admin, leadership, technical, unknown, blank)."""
+    return normalize_role_name(role) != BASELINE_ROLE
 
 
 def is_protected_account(target: Any, actor: Any) -> bool:
-    """The accounts a non-admin editor may not take over or switch on/off."""
+    """The accounts a non-admin editor may not take over, switch on/off or re-scope (K1): their
+    own, a protected role, or a holder of a visible explicit grant row of any source."""
     if target is None or getattr(target, "id", None) is None:
         return True
     if getattr(actor, "id", None) is not None and getattr(target, "id", None) == getattr(actor, "id", None):
         return True
-    if normalize_role_name(getattr(target, "role", "")) != BASELINE_ROLE:
+    if is_protected_role(getattr(target, "role", "")):
         return True
     return holds_protected_grant(target)
 
@@ -161,6 +162,118 @@ def may_change_manager_chain(actor: Any, target: Any, new_sicils: Any) -> bool:
         return False
     actor_sicil = _sicil(getattr(actor, "sicil_no", None))
     return not actor_sicil or actor_sicil in old or actor_sicil not in new
+
+
+# --------------------------------------------------------------------------------------------
+# R05c: menu/access matrices (/settings, assistant matrices, file center) and admin continuity.
+# Each check returns None when the change is allowed, otherwise the refusal reason to audit.
+# --------------------------------------------------------------------------------------------
+
+class ChangeRefused(Exception):
+    """A pre-write authority check refused the change; the caller audits ``reason``."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+# K4: the admin role profile always keeps these keys, and no other layer hides them from an
+# active admin (see effective_menu's lockout floor).
+LOCKOUT_CRITICAL_ADMIN_KEYS: tuple[str, ...] = ("admin_users", "settings")
+
+
+def role_profile_change_refusal(actor: Any, role: Any, *, before: Any, after: Any) -> str | None:
+    """Role defaults (R05-1, R05-3, K4): nobody removes a lockout key from the admin role; a
+    non-admin changes the baseline role only."""
+    before_keys, after_keys = set(before or ()), set(after or ())
+    if before_keys == after_keys:
+        return None
+    is_admin_role = normalize_role_name(role) == ADMIN_ROLE
+    if not is_real_admin(actor) and is_protected_role(role):
+        return "settings_admin_role_profile" if is_admin_role else "settings_role_profile"
+    if is_admin_role and any(key in before_keys and key not in after_keys for key in LOCKOUT_CRITICAL_ADMIN_KEYS):
+        return "admin_role_lockout_keys"
+    return None
+
+
+def unit_profile_change_refusal(actor: Any) -> str | None:
+    """K2 / N3: unit rows override the role defaults of every member, admins included."""
+    return None if is_real_admin(actor) else "settings_unit_profile"
+
+
+def user_matrix_change_refusal(actor: Any, target: Any) -> str | None:
+    """Per-user matrix (R05-2, K1, K3): a non-admin never changes its own matrix nor that of a
+    protected account."""
+    if is_real_admin(actor):
+        return None
+    actor_id = getattr(actor, "id", None)
+    if target is not None and actor_id is not None and getattr(target, "id", None) == actor_id:
+        return "settings_own_matrix"
+    return "settings_user_matrix" if is_protected_account(target, actor) else None
+
+
+def role_membership_change_refusal(actor: Any, *, before: Any, after: Any, reason: str) -> str | None:
+    """Settings that list roles (assistant visibility): a non-admin adds or removes the baseline
+    role only."""
+    if is_real_admin(actor):
+        return None
+    changed = {normalize_role_name(role) for role in set(before or ()) ^ set(after or ())}
+    return reason if any(is_protected_role(role) for role in changed) else None
+
+
+def split_bulk_targets(actor: Any, targets: Any) -> tuple[list[Any], list[Any]]:
+    """F3: a bulk change never touches a protected account, whoever runs it (single-account
+    admin edits stay possible and audited)."""
+    allowed: list[Any] = []
+    skipped: list[Any] = []
+    for target in targets or ():
+        (skipped if is_protected_account(target, actor) else allowed).append(target)
+    return allowed, skipped
+
+
+def active_admin_lock_statement() -> Any:
+    """Every active account whose role may be ``admin``, row-locked in a fixed order.
+
+    PostgreSQL READ COMMITTED: a second transaction blocks here until the first commits, then
+    re-checks the WHERE clause on the new row versions, so a just-demoted or deactivated admin
+    drops out. The order avoids deadlocks; an inserted admin only adds an admin (safe).
+    """
+    from sqlalchemy import func, select
+
+    from app.models import User
+
+    return (
+        select(User.id, User.role)
+        .where(User.is_active.is_(True), func.lower(User.role).contains(ADMIN_ROLE))
+        .order_by(User.id)
+        .with_for_update()
+    )
+
+
+def lock_active_admin_ids() -> set[int]:
+    """Ids of the active real admins, locked until the caller's transaction ends."""
+    from app.extensions import db
+
+    rows = db.session.execute(active_admin_lock_statement()).all()
+    return {int(row.id) for row in rows if normalize_role_name(row.role) == ADMIN_ROLE}
+
+
+def admin_continuity_refusal(actor: Any, target: Any, *, new_role: Any, new_active: Any) -> str | None:
+    """K4 / R05-5 / C: an admin never demotes or deactivates itself and the last active admin is
+    never removed. Call before writing the change, inside the transaction that commits it."""
+    if normalize_role_name(new_role) == ADMIN_ROLE and bool(new_active):
+        return None
+    target_id = getattr(target, "id", None)
+    if target_id is None:
+        return None
+    locked = lock_active_admin_ids()
+    if int(target_id) not in locked:
+        return None
+    if getattr(actor, "id", None) == target_id:
+        return "admin_self_demotion"
+    if not locked - {int(target_id)}:
+        return "last_active_admin"
+    return None
 
 
 def end_other_sessions(target: Any) -> None:

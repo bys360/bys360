@@ -291,15 +291,45 @@ def assistant_role_matrix_v10_save_endpoint():
             flash("Sanal Asistan Rol Matrisi kaydedilemedi: DB oturumu bulunamadı.", "danger")
         return redirect(request.referrer or "/settings")
 
+    # R05c / N4: a non-admin changes the baseline column only (every other role is protected);
+    # the save is all-or-nothing and audited.
+    from app.services.account_change_guard import audit_refusal, is_protected_role, is_real_admin
+    from app.services.audit_service import write_audit_log
+
+    current = get_assistant_role_matrix_v10()["matrix"]
+    planned = {
+        (feature_key, role_key): f"assistant_matrix__{feature_key}__{role_key}" in request.form
+        for feature_key, _, _ in ASSISTANT_FEATURE_ROWS
+        for role_key, _ in ASSISTANT_ROLE_COLUMNS
+    }
+    diff = {key: visible for key, visible in planned.items() if bool(current.get(key[0], {}).get(key[1], False)) != visible}
+    protected_roles = sorted({role_key for _feature, role_key in diff if is_protected_role(role_key)})
+    if protected_roles and not is_real_admin(current_user):
+        audit_refusal(None, "assistant_role_matrix_v10:" + ",".join(protected_roles))
+        if flash:  # type: ignore[truthy-function]
+            flash("Sanal Asistan rol matrisinde personel dışındaki rollerin sütunları yalnız sistem admini tarafından değiştirilebilir.", "danger")
+        return redirect(request.referrer or "/settings")
+
     changed = 0
-    for feature_key, _, _ in ASSISTANT_FEATURE_ROWS:
-        for role_key, _ in ASSISTANT_ROLE_COLUMNS:
-            field = f"assistant_matrix__{feature_key}__{role_key}"
-            visible = field in request.form
-            if _set_db_value(session, role_key, feature_key, visible):
-                changed += 1
+    failed = False
+    for (feature_key, role_key), visible in planned.items():
+        if _set_db_value(session, role_key, feature_key, visible):
+            changed += 1
+        else:
+            failed = True
+            break
 
     try:
+        if failed:
+            raise RuntimeError("assistant role matrix v10: a cell could not be written; nothing is saved")
+        write_audit_log(
+            "settings.assistant_role_matrix_v10_save",
+            "role_menu_default",
+            None,
+            old_data={f"{feature}:{role}": not visible for (feature, role), visible in diff.items()},
+            new_data={f"{feature}:{role}": visible for (feature, role), visible in diff.items()},
+            summary=f"assistant role matrix v10: {len(diff)} cell(s) changed",
+        )
         session.commit()
         if flash:  # type: ignore[truthy-function]
             flash(f"Sanal Asistan Rol Matrisi kaydedildi. Güncellenen alan: {changed}", "success")

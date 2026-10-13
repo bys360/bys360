@@ -115,6 +115,29 @@ def save_system_settings_from_form_handler(
     return changed
 
 
+def module_settings_state_from_form_handler(
+    form: FormLike | Mapping[str, Any],
+    *,
+    iter_live_module_setting_definitions: ModuleDefinitionIterator,
+    value_to_storage: ValueToStorageFn,
+) -> dict[str, dict[str, str]]:
+    """The module state ``save_module_settings_from_form_handler`` would store, without writing.
+
+    R05c uses it to check role-authority settings before the save runs (the save commits).
+    """
+    state: dict[str, dict[str, str]] = {}
+    for definition in iter_live_module_setting_definitions():
+        incoming = _incoming_form_value(
+            form,
+            _module_field_name(definition["module_key"], definition["setting_key"]),
+            definition["input_type"],
+        )
+        state.setdefault(definition["module_key"], {})[definition["setting_key"]] = value_to_storage(
+            incoming, definition["value_type"]
+        )
+    return state
+
+
 def save_module_settings_from_form_handler(
     form: FormLike | Mapping[str, Any],
     *,

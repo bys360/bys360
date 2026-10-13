@@ -112,7 +112,8 @@ def safe_delete_user_by_id(
             "touched": [],
         }
 
-    if getattr(user, "role", None) == "admin" and not allow_admin:
+    # R05c / K4: every spelling of the admin role ("Admin", " admin ") is an admin account.
+    if str(getattr(user, "role", None) or "").strip().lower() == "admin" and not allow_admin:
         raise ValueError("Admin kullanıcı güvenli silme servisiyle silinemez.")
 
     touched: list[dict[str, Any]] = []

@@ -254,15 +254,39 @@ def rollback_settings_change_handler(
     snapshot_module_state: SnapshotFn,
     create_change_log: ChangeLogFn = create_settings_change_log,
     deserialize_state: DeserializeFn = deserialize_settings_state,
+    authorize: Callable[[SettingsChangeLog, dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Ayar değişikliğini önceki durumuna alır ve rollback log'u oluşturur.
 
     Commit tek noktada yapılır. Çağıran katman için eski dönüş sözleşmesi korunur:
     ``rolled_back_log_id``, ``new_log_id`` ve ``summary``.
+
+    R05c: ``authorize(row, plan)`` runs before anything is written and raises to refuse. ``plan``
+    holds what the rollback would write: ``role_after`` (visible role keys) and
+    ``live_menu_keys`` for a role log, ``module_after`` (module -> setting -> stored value) for a
+    module-settings log.
     """
     _ensure_change_log_table(table_exists)
     row = _load_target_log(log_id)
     previous_state = deserialize_state(row.previous_state_json) or {}
+
+    if authorize is not None:
+        plan: dict[str, Any] = {}
+        if row.change_scope == "role_menu_defaults":
+            live_keys = _live_menu_keys()
+            plan["live_menu_keys"] = set(live_keys)
+            plan["role_after"] = {key for key in live_keys if bool(previous_state.get(key, False))}
+        elif row.change_scope == "module_settings":
+            module_after: dict[str, dict[str, str]] = {}
+            for definition in iter_live_module_setting_definitions():
+                module_after.setdefault(definition["module_key"], {})[definition["setting_key"]] = (
+                    previous_state.get(definition["module_key"], {}) or {}
+                ).get(
+                    definition["setting_key"],
+                    value_to_storage(definition.get("default"), definition["value_type"]),
+                )
+            plan["module_after"] = module_after
+        authorize(row, plan)
 
     if row.change_scope == "system_settings":
         current_snapshot, new_state, summary = _rollback_system_settings(

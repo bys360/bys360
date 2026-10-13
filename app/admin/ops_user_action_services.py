@@ -15,7 +15,9 @@ from app.extensions import db
 from app.models import User
 from app.route_support import ensure_boolean_toggle, normalize_int_list
 from app.services.account_change_guard import (
+    ADMIN_CONTINUITY_MESSAGE,
     REFUSAL_MESSAGE,
+    admin_continuity_refusal,
     audit_account_change,
     audit_refusal,
     is_real_admin,
@@ -141,6 +143,11 @@ def admin_user_archive_impl(user_id: int):
         if bool(getattr(user, "is_archived", False)) and not bool(getattr(user, "is_active", True)):
             flash("Kullanıcı zaten arşivde.", "warning")
             return redirect(url_for("main.admin_users"))
+        continuity_refusal = admin_continuity_refusal(current_user, user, new_role=user.role, new_active=False)
+        if continuity_refusal:
+            audit_refusal(user, continuity_refusal)
+            flash(ADMIN_CONTINUITY_MESSAGE, "danger")
+            return redirect(url_for("main.admin_users"))
         old_active = bool(user.is_active)
         user.is_active = False
         if hasattr(user, "is_archived"):
@@ -166,6 +173,7 @@ def admin_users_bulk_archive_impl():
 
     updated = 0
     refused = []
+    continuity_refused = []
     for user_id in ids:
         user = db.session.get(User, user_id)
         if not user or user.id == current_user.id:
@@ -175,6 +183,9 @@ def admin_users_bulk_archive_impl():
             refused.append(user.id)
             continue
         if bool(getattr(user, "is_archived", False)) and not bool(getattr(user, "is_active", True)):
+            continue
+        if admin_continuity_refusal(current_user, user, new_role=user.role, new_active=False):
+            continuity_refused.append(user.id)
             continue
         old_active = bool(user.is_active)
         user.is_active = False
@@ -187,6 +198,7 @@ def admin_users_bulk_archive_impl():
 
     db.session.commit()
     _report_bulk_refusals(refused, "bulk_archive")
+    _report_continuity_refusals(continuity_refused, "bulk_archive")
     flash(f"Toplu arşivleme tamamlandı. Güncellenen kayıt: {updated}", "success")
     return redirect(url_for("main.admin_users"))
 
@@ -225,6 +237,7 @@ def admin_users_bulk_passive_impl():
 
     updated = 0
     refused = []
+    continuity_refused = []
     for user_id in ids:
         user = db.session.get(User, user_id)
         if not user or user.id == current_user.id:
@@ -235,12 +248,16 @@ def admin_users_bulk_passive_impl():
             continue
         if not bool(getattr(user, "is_active", False)):
             continue
+        if admin_continuity_refusal(current_user, user, new_role=user.role, new_active=False):
+            continuity_refused.append(user.id)
+            continue
         user.is_active = False
         record_account_changes(user, old_role=user.role, old_active=True)
         updated += 1
 
     db.session.commit()
     _report_bulk_refusals(refused, "bulk_passive")
+    _report_continuity_refusals(continuity_refused, "bulk_passive")
     flash(f"Toplu pasif yapma tamamlandı. Güncellenen kayıt: {updated}", "success")
     return redirect(url_for("main.admin_users"))
 
@@ -256,7 +273,13 @@ def admin_user_toggle_active_impl(user_id: int):
             flash(REFUSAL_MESSAGE, "danger")
             return redirect(url_for("main.admin_users"))
         old_active = bool(user.is_active)
-        user.is_active = ensure_boolean_toggle(current_value=getattr(user, "is_active", False), entity_label="Kullanıcı", requested_state=request.form.get("target_state"))
+        new_active = ensure_boolean_toggle(current_value=getattr(user, "is_active", False), entity_label="Kullanıcı", requested_state=request.form.get("target_state"))
+        continuity_refusal = admin_continuity_refusal(current_user, user, new_role=user.role, new_active=new_active)
+        if continuity_refusal:
+            audit_refusal(user, continuity_refusal)
+            flash(ADMIN_CONTINUITY_MESSAGE, "danger")
+            return redirect(url_for("main.admin_users"))
+        user.is_active = new_active
         record_account_changes(user, old_role=user.role, old_active=old_active)
         db.session.commit()
         flash("Kullanıcı durumu güncellendi.", "success")
@@ -285,6 +308,13 @@ def admin_users_reset_all_impl():
         flash("Sıfırlama işlemi sırasında hata oluştu.", "danger")
 
     return redirect(url_for("main.admin_users"))
+
+
+def _report_continuity_refusals(refused_ids, reason: str) -> None:
+    if not refused_ids:
+        return
+    audit_refusal(None, f"{reason}:last_active_admin:" + ",".join(str(user_id) for user_id in refused_ids[:50]))
+    flash(f"{len(refused_ids)} admin hesabı işlem dışında bırakıldı. {ADMIN_CONTINUITY_MESSAGE}", "warning")
 
 
 def _report_bulk_refusals(refused_ids, reason: str) -> None:

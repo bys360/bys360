@@ -34,9 +34,11 @@ from app.security import (
     validate_excel_file,
 )
 from app.services.account_change_guard import (
+    ADMIN_CONTINUITY_MESSAGE,
     MANAGER_CHAIN_REFUSAL_MESSAGE,
     REFUSAL_MESSAGE,
     ROLE_REFUSAL_MESSAGE,
+    admin_continuity_refusal,
     audit_account_change,
     audit_refusal,
     is_real_admin,
@@ -623,6 +625,12 @@ def admin_user_edit(user_id):
                 flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
                 return redirect(url_for("main.admin_user_edit", user_id=user_id))
             role = kept_role(old_role, role)
+            # R05-5 / K4 / C: no self-demotion or self-deactivation, never the last active admin.
+            continuity_refusal = admin_continuity_refusal(current_user, user, new_role=role, new_active=is_active)
+            if continuity_refusal:
+                audit_refusal(user, continuity_refusal)
+                flash(ADMIN_CONTINUITY_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_edit", user_id=user_id))
 
             user.ad = ad
             user.soyad = soyad
@@ -930,6 +938,12 @@ def personnel_edit(user_id):
                 flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
                 return redirect(url_for("main.personnel_edit", user_id=user_id))
             payload = dataclasses.replace(payload, role_value=kept_role(user.role, payload.role_value or current_role or "Personel"))
+            # R05-5 / K4 / C: no self-demotion or self-deactivation, never the last active admin.
+            continuity_refusal = admin_continuity_refusal(current_user, user, new_role=payload.role_value, new_active=new_is_active)
+            if continuity_refusal:
+                audit_refusal(user, continuity_refusal)
+                flash(ADMIN_CONTINUITY_MESSAGE, "danger")
+                return redirect(url_for("main.personnel_edit", user_id=user_id))
 
             password_reset_applied = update_existing_personnel_user_from_payload(
                 user=user,
@@ -1117,6 +1131,12 @@ def personnel_excel_upload():
                 ):
                     audit_refusal(user, "excel_identity_change")
                     flash(f"Satır {row_number}: {REFUSAL_MESSAGE} Dosyadaki hiçbir kayıt yazılmadı.", "danger")
+                    return redirect(url_for("main.personnel_excel_upload"))
+                # R05-5 / K4: an Excel file never changes an admin account's role (one such row
+                # refuses the file); admin role changes go through the single-account edit.
+                if user and update_existing and is_real_admin(user) and role_changes(user.role, role_value or "personel"):
+                    audit_refusal(user, "excel_admin_role_change")
+                    flash(f"Satır {row_number}: {ADMIN_CONTINUITY_MESSAGE} Admin hesaplarının rolü Excel ile değiştirilemez. Dosyadaki hiçbir kayıt yazılmadı.", "danger")
                     return redirect(url_for("main.personnel_excel_upload"))
 
                 if user:

@@ -36,7 +36,9 @@ from app.route_support import (  # noqa: E402 - deferred import (staged facade/r
     menu_key_required,
 )
 from app.services.account_change_guard import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
+    ADMIN_CONTINUITY_MESSAGE,
     REFUSAL_MESSAGE,
+    admin_continuity_refusal,
     audit_account_change,
     audit_refusal,
     may_change_account_state,
@@ -230,6 +232,13 @@ def personnel_toggle_active(user_id: int):
     if not may_change_account_state(current_user, user):
         audit_refusal(user, "activation_change")
         flash(REFUSAL_MESSAGE, "danger")
+        return redirect(url_for("main.personnel_list"))
+
+    # R05-5 / K4 / C: an admin never deactivates itself; never the last active admin.
+    continuity_refusal = admin_continuity_refusal(current_user, user, new_role=user.role, new_active=not bool(user.is_active))
+    if continuity_refusal:
+        audit_refusal(user, continuity_refusal)
+        flash(ADMIN_CONTINUITY_MESSAGE, "danger")
         return redirect(url_for("main.personnel_list"))
 
     try:

@@ -88,6 +88,17 @@ def _parse_roles(value: Any) -> set[str]:
     return {role for role in roles if role}
 
 
+def visible_roles_for_value(value: Any) -> set[str]:
+    """The roles a stored ``visible_roles`` value opens, read as get_assistant_settings reads it
+    (blank means the allowed roles; ``__none__`` opens none). R05c compares these sets."""
+    roles = _parse_roles(value) or set(ASSISTANT_ALLOWED_ROLES)
+    return {role for role in roles if role != "__none__"}
+
+
+def current_visible_roles() -> set[str]:
+    return visible_roles_for_value(_setting_rows().get("visible_roles"))
+
+
 def get_assistant_settings() -> dict[str, Any]:
     rows = _setting_rows()
     merged = dict(ASSISTANT_DEFAULT_SETTINGS)

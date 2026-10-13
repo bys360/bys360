@@ -297,3 +297,24 @@ build_menu_visibility_map = apply_admin_period_reminder_public_build_wrapper(
     _bys360_admin_period_reminder_is_admin_v1,
 )
 # BYS360_ADMIN_PERIOD_REMINDER_ACCESS_FIX_V1_END
+
+
+# BYS360_R05C_ADMIN_LOCKOUT_FLOOR_BEGIN
+# R05c / K4 (owner decision 2026-10-13): no role default, unit profile or per-user override hides
+# the lockout keys (admin_users, settings) from an active real admin (stored role exactly
+# "admin"), so the system can never lock out its own administrators. Final layer.
+def _apply_r05c_admin_lockout_floor(previous_build_menu_visibility_map):
+    def build_menu_visibility_map(user, *args, **kwargs):
+        from app.services.account_change_guard import LOCKOUT_CRITICAL_ADMIN_KEYS, is_real_admin
+
+        visibility = dict(previous_build_menu_visibility_map(user, *args, **kwargs) or {})
+        if bool(getattr(user, "is_active", False)) and is_real_admin(user):
+            for key in LOCKOUT_CRITICAL_ADMIN_KEYS:
+                visibility[key] = True
+        return visibility
+
+    return build_menu_visibility_map
+
+
+build_menu_visibility_map = _apply_r05c_admin_lockout_floor(build_menu_visibility_map)
+# BYS360_R05C_ADMIN_LOCKOUT_FLOOR_END
