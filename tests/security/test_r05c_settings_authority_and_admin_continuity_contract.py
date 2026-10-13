@@ -268,6 +268,12 @@ def test_guard_non_admin_still_saves_module_foundation_without_authority_setting
         key: _module_setting(env, "identity_access", key) for key in ("use_role_based_visibility", "allow_user_override")
     }
     form = {"form_action": "save_module_foundation", "module__assistant__enabled": "on"}
+    # R05d protects these activation flags too. An unchanged real form posts their current
+    # checked values; omitting them would ask the full-form writer to disable the assistant.
+    for key in ("enabled", "widget_enabled", "panel_enabled"):
+        value = _module_setting(env, "ai_agent", key)
+        if value is None or value[0] == "true":
+            form[f"module__ai_agent__{key}"] = "on"
     for key, value in current_identity.items():
         if value is None or value[0] == "true":
             form[f"module__identity_access__{key}"] = "on"

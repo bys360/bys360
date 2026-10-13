@@ -161,29 +161,28 @@ def _role_defaults_columns(session):
 def _get_db_value(session, role: str, feature_key: str) -> bool | None:
     if text is None:
         return None
-    role_col, key_col, value_col, _ = _role_defaults_columns(session)
+    role_col, key_col, value_col, cols = _role_defaults_columns(session)
     if not role_col or not key_col or not value_col:
         return None
 
-    candidates = {
-        feature_key,
-        f"assistant.{feature_key}",
-        f"sanal_asistan.{feature_key}",
-        "assistant_module" if feature_key == "assistant_module" else feature_key,
-        "sanal_asistan" if feature_key == "assistant_module" else feature_key,
-    }
+    from app.services.assistant_settings_service import (
+        assistant_feature_aliases,
+        assistant_feature_row_priority,
+    )
+
+    candidates = assistant_feature_aliases(feature_key)
+    source = "source_type" if "source_type" in cols else "NULL"
     try:
         stmt = text(f"""
-            select {value_col}
+            select id, {key_col} as permission_key, {value_col} as visible, {source} as source_type
             from role_menu_defaults
             where lower(cast({role_col} as text)) = lower(:role)
               and lower(cast({key_col} as text)) in :keys
-            order by id desc
-            limit 1
         """).bindparams(bindparam("keys", expanding=True))
-        row = session.execute(stmt, {"role": role, "keys": tuple(_normalize(x) for x in candidates)}).fetchone()
-        if row:
-            return _truthy(row[0])
+        rows = session.execute(stmt, {"role": role, "keys": tuple(candidates)}).all()
+        if rows:
+            row = min(rows, key=lambda item: (assistant_feature_row_priority(item.permission_key, item.source_type, feature_key), -item.id))
+            return _truthy(row.visible)
     except Exception:
         logger.exception("BYS360 V6B guarded exception | file=app/services/assistant_role_matrix_v10.py | line=161")
         return None
@@ -325,9 +324,8 @@ def assistant_role_matrix_v10_save_endpoint():
     }
 
     def _current(feature_key, role_key):
-        # The row the save would write; without one, the value the page showed.
-        exact = _get_exact_db_value(session, role_key, feature_key)
-        return bool(displayed.get(feature_key, {}).get(role_key, False)) if exact is None else bool(exact)
+        # Save compares the same manual/seed and exact/alias resolution shown on the page.
+        return bool(displayed.get(feature_key, {}).get(role_key, False))
 
     # Only changed cells are written (review L1: an unchanged form writes nothing).
     diff = {key: visible for key, visible in planned.items() if _current(*key) != visible}

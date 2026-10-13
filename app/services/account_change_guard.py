@@ -215,21 +215,28 @@ def lockout_revocation_refusal(actor: Any, target: Any, *, revoked_keys: Any) ->
     target_id = getattr(target, "id", None)
     if target_id is None or not (bool(getattr(target, "is_active", False)) and is_real_admin(target)):
         return None
+    others = lock_active_admin_ids() - {int(target_id)}
+    return None if _admins_with_critical_access(others) else "last_admin_with_access"
+
+
+def _admins_with_critical_access(admin_ids: set[int]) -> set[int]:
+    """Called after locking active admins in id order, in the write transaction. Shared role
+    and unit floors keep critical keys; explicit per-user denials remain authoritative.
+    """
     from app.extensions import db
     from app.models import UserMenuPermission
 
-    others = lock_active_admin_ids() - {int(target_id)}
-    if not others:
-        return "last_admin_with_access"
+    if not admin_ids:
+        return set()
     revoked_ids = {
         int(row.user_id)
         for row in db.session.query(UserMenuPermission.user_id).filter(
-            UserMenuPermission.user_id.in_(others),
+            UserMenuPermission.user_id.in_(admin_ids),
             UserMenuPermission.menu_key.in_(LOCKOUT_CRITICAL_ADMIN_KEYS),
             UserMenuPermission.is_visible.is_(False),
         )
     }
-    return None if others - revoked_ids else "last_admin_with_access"
+    return admin_ids - revoked_ids
 
 
 def unit_profile_change_refusal(actor: Any) -> str | None:
@@ -289,9 +296,19 @@ def active_admin_lock_statement() -> Any:
 def lock_active_admin_ids() -> set[int]:
     """Ids of the active real admins, locked until the caller's transaction ends."""
     from app.extensions import db
+    from app.models import User
 
-    rows = db.session.execute(active_admin_lock_statement()).all()
-    return {int(row.id) for row in rows if normalize_role_name(row.role) == ADMIN_ROLE}
+    with db.session.no_autoflush:
+        rows = db.session.execute(active_admin_lock_statement()).all()
+    locked = {int(row.id) for row in rows if normalize_role_name(row.role) == ADMIN_ROLE}
+    # A bulk operation can already have demoted/deactivated another loaded admin in this
+    # transaction. Do not flush before acquiring locks, and do not count its old SQL version.
+    removed = {
+        int(user.id) for user in db.session.dirty
+        if isinstance(user, User) and user.id is not None
+        and (not bool(user.is_active) or normalize_role_name(user.role) != ADMIN_ROLE)
+    }
+    return locked - removed
 
 
 def admin_continuity_refusal(actor: Any, target: Any, *, new_role: Any, new_active: Any) -> str | None:
@@ -309,6 +326,8 @@ def admin_continuity_refusal(actor: Any, target: Any, *, new_role: Any, new_acti
         return "admin_self_demotion"
     if not locked - {int(target_id)}:
         return "last_active_admin"
+    if not _admins_with_critical_access(locked - {int(target_id)}):
+        return "last_admin_with_access"
     return None
 
 

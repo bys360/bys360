@@ -8,7 +8,7 @@ and app/main_handlers/account_communication_helpers.py
 
 Canonical behavior decisions locked by this consolidation (see
 tests/behavior/test_assistant_role_matrix_behavior_contract.py):
-  - Missing or empty-string stored visible_roles configuration (including a
+  - Missing stored visible_roles configuration (including a
     settings-fetch failure) falls back to ASSISTANT_DEFAULT_VISIBLE_ROLES --
     matches the confirmed-live settings-side behavior and the shared
     assistant-settings service's own default-role intent.
@@ -88,16 +88,9 @@ def _assistant_visible_roles_from_settings() -> set[str]:
         logger.exception("BYS360 assistant role-matrix: get_assistant_settings() failed, falling back to recommended defaults")
         data = {}
 
-    raw = str(data.get("visible_roles") or "").strip()
-    if not raw:
-        raw = ",".join(sorted(ASSISTANT_DEFAULT_VISIBLE_ROLES))
+    from app.services.assistant_settings_service import visible_roles_for_value
 
-    roles = {
-        _normalize_role_token(item)
-        for item in raw.replace(";", ",").replace("\n", ",").split(",")
-        if str(item or "").strip()
-    }
-    return {role for role in roles if role and role != "__none__"}
+    return visible_roles_for_value(data.get("visible_roles"))
 
 
 def build_assistant_role_matrix() -> dict[str, Any]:

@@ -8,11 +8,14 @@ been deleted; this file asserts the single canonical implementation's
 resolved contract, including the two explicit product decisions made during
 consolidation:
 
-  DIV-1 (missing/empty configuration): resolved to "fall back to the 7
+  DIV-1 (missing configuration): resolved to "fall back to the 7
   recommended default roles" -- matching the confirmed-live settings-side
   behavior (see module docstring in assistant_role_matrix_service.py).
   An explicit "__none__" sentinel remains distinct and always resolves to
   an empty role set.
+
+  PR #70 R05d: an explicitly empty configuration grants nothing, matching the live
+  consumer and the authority guard. Never-configured installs retain their defaults.
 
   DIV-2 (error-boundary behavior): a recoverable settings-row *lookup*
   failure degrades safely (falls through to "create a new row"); a real
@@ -136,14 +139,13 @@ def test_div1_missing_configuration_falls_back_to_recommended_defaults(app, monk
         assert _assistant_visible_roles_from_settings() == ASSISTANT_DEFAULT_VISIBLE_ROLES
 
 
-def test_div1_empty_string_configuration_falls_back_to_recommended_defaults(app, monkeypatch):
+def test_div1_explicit_empty_configuration_grants_no_roles(app, monkeypatch):
     with app.app_context():
         from app.services.assistant_role_matrix_service import (
-            ASSISTANT_DEFAULT_VISIBLE_ROLES,
             _assistant_visible_roles_from_settings,
         )
         _mock_get_assistant_settings(monkeypatch, {"visible_roles": ""})
-        assert _assistant_visible_roles_from_settings() == ASSISTANT_DEFAULT_VISIBLE_ROLES
+        assert _assistant_visible_roles_from_settings() == set()
 
 
 def test_div1_settings_fetch_exception_falls_back_to_recommended_defaults(app, monkeypatch):

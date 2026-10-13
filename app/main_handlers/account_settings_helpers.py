@@ -178,6 +178,11 @@ _AUTHORITY_FLAG_SETTINGS: tuple[tuple[str, str], ...] = (
     ("identity_access", "use_role_based_visibility"),
     ("identity_access", "allow_user_override"),
     ("assistant", "enabled"),
+    ("assistant", "active"),
+    ("ai_agent", "enabled"),
+    ("ai_agent", "active"),
+    ("ai_agent", "widget_enabled"),
+    ("ai_agent", "panel_enabled"),
 )
 
 
@@ -210,18 +215,19 @@ def _module_authority_refusal(before_state, after_state):
     """Module settings that carry authority: assistant visibility per role, identity_access flags."""
     if is_real_admin(current_user):
         return None
-    if "assistant" in after_state:
-        reason = role_membership_change_refusal(
-            current_user,
-            before=current_visible_roles(),
-            after=visible_roles_for_value((after_state.get("assistant") or {}).get("visible_roles")),
-            reason="settings_assistant_roles",
-        )
-        if reason:
-            return reason
+    for module_key in ("assistant", "ai_agent"):
+        if "visible_roles" in (after_state.get(module_key) or {}):
+            reason = role_membership_change_refusal(
+                current_user,
+                before=visible_roles_for_value((before_state.get(module_key) or {}).get("visible_roles")),
+                after=visible_roles_for_value(after_state[module_key]["visible_roles"] or ""),
+                reason="settings_assistant_roles",
+            )
+            if reason:
+                return reason
     for module_key, setting_key in _AUTHORITY_FLAG_SETTINGS:
         if module_key in after_state and (before_state.get(module_key) or {}).get(setting_key) != (after_state.get(module_key) or {}).get(setting_key):
-            return "settings_identity_access"
+            return "settings_assistant_enabled" if module_key in {"assistant", "ai_agent"} else "settings_identity_access"
     return None
 
 

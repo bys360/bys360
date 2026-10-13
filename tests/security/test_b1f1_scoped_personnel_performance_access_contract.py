@@ -1418,13 +1418,13 @@ def test_guard_r07_only_the_grant_paths_reference_the_grant_key():
     root = Path(__file__).resolve().parents[2] / "app"
     quoted_key = re.compile(r"""["']personnel_read_all["']""")
     literal_files = sorted(
-        str(path.relative_to(root.parent)) for path in root.rglob("*.py") if quoted_key.search(path.read_text(encoding="utf-8"))
+        path.relative_to(root.parent).as_posix() for path in root.rglob("*.py") if quoted_key.search(path.read_text(encoding="utf-8"))
     )
     assert literal_files == ["app/services/personnel_read_grant.py"], literal_files
     # K5-Q2: the settings guards now take EXPLICIT_GRANT_KEYS (personnel_read_all, support_all);
     # the same reviewed files are the only ones that may use either constant.
     constant_files = sorted(
-        str(path.relative_to(root.parent))
+        path.relative_to(root.parent).as_posix()
         for path in root.rglob("*.py")
         if any(name in path.read_text(encoding="utf-8") for name in ("PERSONNEL_READ_ALL_KEY", "EXPLICIT_GRANT_KEYS"))
     )

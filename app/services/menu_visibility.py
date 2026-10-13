@@ -164,6 +164,11 @@ def _bys360_assistant_default_map_for_role(role_key):
 
 
 def _bys360_assistant_collect_from_db(user, menu_map):
+    from app.services.assistant_settings_service import (
+        assistant_feature_row_priority,
+        canonical_assistant_feature_key,
+    )
+
     db = _bys360_assistant_get_db()
     if db is None:
         return
@@ -204,28 +209,43 @@ def _bys360_assistant_collect_from_db(user, menu_map):
         if not where:
             continue
         try:
-            stmt = text(f"SELECT menu_key, is_visible FROM {table} WHERE " + " AND ".join(where))
+            source = "source_type" if "source_type" in cols else "NULL"
+            stmt = text(f"SELECT id, menu_key, is_visible, {source} AS source_type FROM {table} WHERE " + " AND ".join(where) + " ORDER BY id ASC")
             if "roles" in params:
                 stmt = stmt.bindparams(bindparam("roles", expanding=True))
             rows = db.session.execute(stmt, params).mappings().all()
         except Exception:
             __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: except bloğu loglandı (app/services/menu_visibility.py:312)")
             continue
+        resolved: dict[str, tuple[tuple[int, int], Any]] = {}
         for row in rows:
-            _bys360_assistant_apply_key(menu_map, row.get("menu_key"), row.get("is_visible"))
+            feature = canonical_assistant_feature_key(row.get("menu_key"))
+            if feature not in _BYS360_ASSISTANT_ALL_TAB_KEYS:
+                _bys360_assistant_apply_key(menu_map, row.get("menu_key"), row.get("is_visible"))
+                continue
+            rank = (assistant_feature_row_priority(row.get("menu_key"), row.get("source_type"), feature), -row["id"])
+            if feature not in resolved or rank < resolved[feature][0]:
+                resolved[feature] = (rank, row)
+        # Master last: no child or alias can reopen a resolved denial.
+        for feature in sorted(resolved, key=lambda key: (key == "assistant_module", key)):
+            _bys360_assistant_apply_key(menu_map, feature, resolved[feature][1].get("is_visible"))
 
     # Eski module_settings visible_roles desteği korunur; ama rol_menu_defaults kapalı satırı varsa yukarıdaki değer sonradan ezmez.
     try:
         if "module_settings" in table_names:
+            from app.services.assistant_settings_service import assistant_enabled_for_value
+
             rows = db.session.execute(text("SELECT setting_key, value_text, is_active FROM module_settings WHERE module_key in ('assistant','ai_agent')")).mappings().all()
             for row in rows:
                 setting = _bys360_assistant_norm(row.get("setting_key"))
                 if setting == "visible_roles":
-                    visible_roles = {_bys360_assistant_norm(v).replace(" ", "_") for v in str(row.get("value_text") or "").replace(";", ",").split(",") if v.strip()}
+                    from app.services.assistant_settings_service import visible_roles_for_value
+
+                    visible_roles = visible_roles_for_value(row.get("value_text") or "")
                     if role_values and not (set(role_values) & visible_roles):
                         menu_map["assistant_module"] = False
                         menu_map["ai_agent_panel"] = False
-                elif setting in {"enabled", "active"} and not _bys360_assistant_truthy(row.get("value_text")):
+                elif setting in {"enabled", "active"} and not assistant_enabled_for_value(row.get("value_text")):
                     menu_map["assistant_module"] = False
                     menu_map["ai_agent_panel"] = False
     except Exception:
