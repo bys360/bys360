@@ -634,3 +634,107 @@ def test_another_users_support_export_row_count_is_not_exposed(env, who):
                  "/communication/faz4/support/analytics"):
         body = _web(env, who).get(path).get_data(as_text=True)
         assert file_name not in body, path
+
+
+# --- owner decision (2026-10-13): the report template never falls back to unfiltered stored data ---
+
+
+def test_the_report_template_without_a_filtered_view_shows_no_stored_report_content(env):
+    """Rendered without ``report_view`` (the filtered view), the template must fail closed."""
+    from flask import render_template
+    from flask_login import login_user
+
+    from app.extensions import db
+    from app.models.communication_phase4_models import CommunicationExecutiveReport
+
+    report_id, figure = _report_for(env, "holder")
+    with env.app.app_context():
+        row = db.session.get(CommunicationExecutiveReport, report_id)
+        assert row is not None
+        stored = [row.summary_text] + list(row.recommendations_json or [])
+        with env.app.test_request_context(f"/communication/faz4/reports/{report_id}"):
+            login_user(_user(env, "colleague"))
+            html = render_template("communication/phase4_report_detail.html", row=row, status_labels={})
+    text = _text(html)
+    assert [item for item in stored if item and item in html] == []
+    assert _hides_support(text, figure)
+
+
+def test_every_render_of_the_report_template_passes_the_filtered_view():
+    """Static guard: each call site that renders the report detail template passes ``report_view``."""
+    import ast
+    from pathlib import Path
+
+    calls = []
+    for path in Path("app").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and any(
+                isinstance(arg, ast.Constant) and arg.value == "communication/phase4_report_detail.html" for arg in node.args
+            ):
+                calls.append((str(path), {kw.arg for kw in node.keywords}))
+    assert calls, "the report detail template is rendered somewhere"
+    assert all("report_view" in keywords for _path, keywords in calls), calls
+
+
+# --- owner decision (2026-10-13): a reassigned ticket leaves the author's report figures -----------
+
+
+def _assign(env, ticket_no, who):
+    from app.extensions import db
+    from app.models import SupportTicket
+
+    with env.app.app_context():
+        ticket = SupportTicket.query.filter_by(ticket_no=ticket_no).one()
+        ticket.assigned_to_user_id = env.ids[who] if who else None
+        db.session.commit()
+
+
+def _make_private_elsewhere(env, ticket_no, unit):
+    from app.extensions import db
+    from app.models import SupportTicket
+
+    with env.app.app_context():
+        ticket = SupportTicket.query.filter_by(ticket_no=ticket_no).one()
+        ticket.is_private = True
+        ticket.unit_name_snapshot = unit
+        db.session.commit()
+
+
+def test_an_author_no_longer_sees_figures_of_a_ticket_reassigned_away(env):
+    _assign(env, "K5QF-OTHER-05", "colleague")
+    report_id, figure = _report_for(env, "colleague")  # own scope: the assigned ticket only
+    assert figure == 1
+    assert _shows_support(_report_text(env, "colleague", report_id), figure)
+    _assign(env, "K5QF-OTHER-05", "sysadm")
+    assert _hides_support(_report_text(env, "colleague", report_id), figure)
+
+
+def test_an_author_keeps_figures_while_every_counted_ticket_is_still_in_scope(env):
+    _assign(env, "K5QF-OTHER-05", "colleague")
+    report_id, figure = _report_for(env, "colleague")
+    _assign(env, "K5QF-OTHER-06", "sysadm")  # a ticket outside the report changes hands
+    assert _shows_support(_report_text(env, "colleague", report_id), figure)
+
+
+def test_a_holder_author_no_longer_sees_figures_once_a_counted_ticket_is_private_elsewhere(env):
+    report_id, figure = _report_for(env, "holder")
+    _make_private_elsewhere(env, "K5QF-OTHER-05", "Birim-Q")
+    assert _hides_support(_report_text(env, "holder", report_id), figure)
+    assert _shows_support(_report_text(env, "admin_holder", report_id), figure)  # unrestricted still reads it
+
+
+def test_a_report_recording_a_scope_but_no_ticket_ids_hides_figures_from_its_author(env):
+    from app.extensions import db
+    from app.models.communication_phase4_models import CommunicationExecutiveReport
+
+    report_id, figure = _report_for(env, "holder")
+    with env.app.app_context():
+        row = db.session.get(CommunicationExecutiveReport, report_id)
+        assert row is not None
+        metrics = dict(row.metrics_json)
+        metrics.pop("support_ticket_ids", None)
+        metrics["support_scope"] = "author_scope_v2"
+        row.metrics_json = metrics
+        db.session.commit()
+    assert _hides_support(_report_text(env, "holder", report_id), figure)

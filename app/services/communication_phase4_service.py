@@ -177,11 +177,13 @@ def _load_surveys(days: int = 90):
 SUPPORT_METRIC_GROUP = "support"
 SUPPORT_HEADLINE_KEYS = frozenset({"open_tickets", "overdue_first_response", "overdue_resolution"})
 SUPPORT_REPORT_KEYS = frozenset({"support_rows", "risk_support_rows", "support_status_breakdown"})
-# Marks a report whose support figures were computed in its author's scope and records that scope
-# (K5 F4, I-2). A report without both was stored before the rule and cannot be verified.
+# Marks a report whose support figures were computed in its author's scope and records that scope and
+# the tickets counted (K5 F4, I-2). A report without all three was stored before the rule and cannot
+# be verified.
 REPORT_SUPPORT_SCOPE_KEY = "support_scope"
-REPORT_SUPPORT_SCOPE_AUTHOR = "author_scope_v2"
+REPORT_SUPPORT_SCOPE_AUTHOR = "author_scope_v3"
 REPORT_SUPPORT_SCOPE_FINGERPRINT_KEY = "support_scope_fingerprint"
+REPORT_SUPPORT_TICKET_IDS_KEY = "support_ticket_ids"
 
 
 def _load_tickets(days: int = 90, *, viewer: Any):
@@ -596,10 +598,15 @@ def create_executive_report(actor_user: Any, report_type: str = "weekly_summary"
     from app.services.support_ticket_access import support_scope_fingerprint
 
     clean_days = sanitize_days(days)
+    # K5 F4: record every ticket the figures can count (the widest window the two snapshots load),
+    # read before and after them, so the author's later view can be checked ticket by ticket.
+    ticket_window = max(clean_days, 90)
+    counted_ids = {ticket.id for ticket in _load_tickets(ticket_window, viewer=actor_user)}
     # K5: the stored report carries only the ticket rows inside its author's scope.
     payload = executive_summary_snapshot(clean_days, viewer=actor_user)
     survey_payload = survey_analytics_snapshot(max(clean_days, 30))
     support_payload = support_analytics_snapshot(max(clean_days, 30), viewer=actor_user)
+    counted_ids |= {ticket.id for ticket in _load_tickets(ticket_window, viewer=actor_user)}
     today = _now().date().isoformat()
     title = f"İletişim ve Anket Yönetimi {REPORT_TYPE_LABELS.get(report_type, 'Bilinmiyor')} Raporu"
     summary_text = (
@@ -620,6 +627,7 @@ def create_executive_report(actor_user: Any, report_type: str = "weekly_summary"
             "support": support_payload,
             REPORT_SUPPORT_SCOPE_KEY: REPORT_SUPPORT_SCOPE_AUTHOR,
             REPORT_SUPPORT_SCOPE_FINGERPRINT_KEY: support_scope_fingerprint(actor_user),
+            REPORT_SUPPORT_TICKET_IDS_KEY: sorted(counted_ids),
         }),
         recommendations_json=payload.get("recommendations", []),
         created_by_user_id=getattr(actor_user, "id", None),
@@ -635,12 +643,15 @@ def executive_report_view(row: Any, viewer: Any) -> dict[str, Any]:
     The support figures in a report were computed in its author's ticket scope. They are shown to a
     viewer whose scope covers every ticket, and to the author only while the author's current scope
     still covers the scope recorded with the report (I-2: a revoked grant or a move to another unit
-    hides them). Any other reader, and the author of a report whose scope cannot be verified, gets the
-    report without its support figures, trend, summary sentences or support recommendations.
+    hides them) and the author can still see every ticket the figures counted (a ticket reassigned
+    away, made private elsewhere or deleted hides them). Any other reader, and the author of a report
+    that cannot be verified, gets the report without its support figures, trend, summary sentences or
+    support recommendations.
     """
     from app.services.support_ticket_access import (
         support_scope_covers,
         support_scope_is_unrestricted,
+        support_tickets_all_visible,
     )
 
     metrics = dict(getattr(row, "metrics_json", None) or {})
@@ -652,12 +663,14 @@ def executive_report_view(row: Any, viewer: Any) -> dict[str, Any]:
         is_author
         and metrics.get(REPORT_SUPPORT_SCOPE_KEY) == REPORT_SUPPORT_SCOPE_AUTHOR
         and support_scope_covers(viewer, metrics.get(REPORT_SUPPORT_SCOPE_FINGERPRINT_KEY))
+        and support_tickets_all_visible(viewer, metrics.get(REPORT_SUPPORT_TICKET_IDS_KEY))
     )
     if support_scope_is_unrestricted(viewer) or author_scope_holds:
         return {"metrics": metrics, "recommendations": recommendations, "summary_text": summary_text, "support_hidden": False}
 
     metrics.pop("support", None)
     metrics.pop(REPORT_SUPPORT_SCOPE_FINGERPRINT_KEY, None)
+    metrics.pop(REPORT_SUPPORT_TICKET_IDS_KEY, None)
     headline_payload = dict(metrics.get("headline") or {})
     headline = {key: value for key, value in dict(headline_payload.get("headline") or {}).items() if key not in SUPPORT_HEADLINE_KEYS}
     for key in SUPPORT_REPORT_KEYS:

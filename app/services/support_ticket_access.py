@@ -80,6 +80,29 @@ def support_scope_covers(user: Any, recorded: Any) -> bool:
     return set(recorded.get("units") or []) <= set(current["units"])
 
 
+def support_tickets_all_visible(user: Any, ticket_ids: Any) -> bool:
+    """K5 F4: can ``user`` still see every one of ``ticket_ids`` under the current access rule?
+
+    Used before showing figures that were computed over those tickets earlier: a ticket reassigned
+    away, made private in another unit or deleted since then fails the check (fail closed).
+    """
+    from app.models import SupportTicket
+
+    if not isinstance(ticket_ids, list | tuple):
+        return False
+    try:
+        wanted = sorted({int(value) for value in ticket_ids})
+    except (TypeError, ValueError):
+        return False
+    clause = support_ticket_visibility_clause(user)
+    for start in range(0, len(wanted), 500):
+        chunk = wanted[start:start + 500]
+        visible = SupportTicket.query.filter(SupportTicket.id.in_(chunk), clause).count()
+        if visible != len(chunk):
+            return False
+    return True
+
+
 def support_ticket_visibility_clause(user: Any) -> Any:
     """K5 (2026-10-10): the SQL form of ``can_view_support_ticket`` for every list and counter.
 

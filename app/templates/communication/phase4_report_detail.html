@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Rapor Detayı{% endblock %}
-{% set report_view = report_view if report_view is defined else {'metrics': row.metrics_json or {}, 'recommendations': row.recommendations_json or [], 'summary_text': row.summary_text, 'support_hidden': False} %}
+{# K5 F4: stored report content is shown only through the filtered report_view; without it, fail closed. #}
+{% set report_view = report_view if report_view is defined and report_view else {'metrics': {}, 'recommendations': [], 'summary_text': None, 'support_hidden': True} %}
 {% set metrics = report_view.metrics or {} %}
 {% set support_hidden = report_view.support_hidden %}
 {% set headline = metrics.get('headline', {}).get('headline', {}) if metrics.get('headline') else {} %}
