@@ -18,9 +18,13 @@ from app.services.performance.history import humanize_workflow_status
 
 logger = logging.getLogger(__name__)
 
+# F06b (D2, approved 2026-10-09/10): the technical roles (system_admin, sistem_yoneticisi) keep their
+# technical administration but get no institution-wide view of scorecards or interim notes here, and
+# are not managers on this page either; they see their own records.
 GLOBAL_ROLES = {
-    "admin", "super_admin", "system_admin", "sistem_yoneticisi", "baskan", "baskan_yardimcisi"
+    "admin", "super_admin", "baskan", "baskan_yardimcisi"
 }
+TECHNICAL_ROLES = {"system_admin", "sistem_yoneticisi"}
 MANAGER_ROLES = GLOBAL_ROLES | {
     "grup_baskani", "mali_musavir", "koordinator", "birim_sorumlusu", "yonetici", "manager"
 }
@@ -143,6 +147,8 @@ def _role_value(role: str | None) -> str:
 
 
 def is_global_user(role: str | None, *, is_admin: bool = False, is_superuser: bool = False) -> bool:
+    if _role_value(role) in TECHNICAL_ROLES:
+        return False
     return bool(is_admin or is_superuser or _role_value(role) in GLOBAL_ROLES)
 
 
@@ -569,8 +575,8 @@ def build_summary(scorecards: list[dict[str, Any]], notes: list[dict[str, Any]],
 
 
 def build_integration_context(*, current_user_id: int | None, current_user_role: str | None, is_admin: bool = False, is_superuser: bool = False, employee_id: int | None = None, period_id: int | None = None) -> dict[str, Any]:
-    people = list_people(current_user_id=current_user_id, current_user_role=current_user_role, is_admin=is_admin, is_superuser=is_superuser)
-    if employee_id and not _allowed_employee(employee_id, people, current_user_id=current_user_id, current_user_role=current_user_role, is_admin=is_admin, is_superuser=is_superuser):
+    people = list_people(current_user_id=current_user_id, current_user_role=current_user_role, is_admin=is_admin, is_superuser=is_superuser) if current_user_id and current_user_id > 0 else []
+    if not current_user_id or not people or (employee_id and not _allowed_employee(employee_id, people, current_user_id=current_user_id, current_user_role=current_user_role, is_admin=is_admin, is_superuser=is_superuser)):
         return {
             "access_denied": True,
             "people": people,
