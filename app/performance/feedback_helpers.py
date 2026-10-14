@@ -4,6 +4,7 @@ import logging
 
 from flask import current_app, request, url_for
 from flask_login import current_user
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
@@ -77,6 +78,46 @@ def _feedback_manager_ids(feedback_request) -> set[int]:
     return ids
 
 
+def _request_visible_to_user(feedback_request, user_id: int | None) -> bool:
+    """#57: a request reaches its employee and the managers it names (level 1-3); no role widens it."""
+    if not feedback_request or user_id is None:
+        return False
+    return user_id in {
+        getattr(feedback_request, "employee_id", None),
+        getattr(feedback_request, "level_1_manager_id", None),
+        getattr(feedback_request, "level_2_manager_id", None),
+        getattr(feedback_request, "level_3_manager_id", None),
+    }
+
+
+def _request_relation_clause(user_id: int | None):
+    """SQL form of ``_request_visible_to_user``."""
+    uid = int(user_id or 0)
+    return or_(
+        FeedbackRequest.employee_id == uid,
+        FeedbackRequest.level_1_manager_id == uid,
+        FeedbackRequest.level_2_manager_id == uid,
+        FeedbackRequest.level_3_manager_id == uid,
+    )
+
+
+def _meeting_relation_clause(user_id: int | None):
+    """SQL form of ``_meeting_visible_to_user``: parties, or a manager the meeting's request names."""
+    uid = int(user_id or 0)
+    return or_(
+        FeedbackMeeting.employee_id == uid,
+        FeedbackMeeting.manager_id == uid,
+        FeedbackMeeting.feedback_request.has(
+            or_(
+                FeedbackRequest.level_1_manager_id == uid,
+                FeedbackRequest.level_2_manager_id == uid,
+                FeedbackRequest.level_3_manager_id == uid,
+                FeedbackRequest.scheduled_by_id == uid,
+            )
+        ),
+    )
+
+
 def _meeting_visible_to_user(meeting, user_id: int) -> bool:
     if not meeting or user_id is None:
         return False
@@ -110,6 +151,10 @@ def _load_scoped_feedback_data(
         joinedload(FeedbackMeeting.feedback_request).joinedload(FeedbackRequest.level_3_manager),  # type: ignore[arg-type]
     )
 
+    # #57: every page built on this loader shows only the records the user has a duty relation to;
+    # the role scope ("all", "team", unit) can only narrow that set, never widen it.
+    requests_query = requests_query.filter(_request_relation_clause(current_user.id))
+    meetings_query = meetings_query.filter(_meeting_relation_clause(current_user.id))
     if selected_scope != "mine" and scope_employee_ids:
         requests_query = requests_query.filter(FeedbackRequest.employee_id.in_(scope_employee_ids))
         meetings_query = meetings_query.filter(FeedbackMeeting.employee_id.in_(scope_employee_ids))
@@ -127,12 +172,7 @@ def _load_scoped_feedback_data(
     meetings = meetings_query.order_by(*meeting_order).all()
 
     if selected_scope == "mine":
-        requests_list = [
-            req for req in requests_list
-            if current_user.role == "admin"
-            or current_user.id == req.employee_id
-            or current_user.id in {req.level_1_manager_id, req.level_2_manager_id, req.level_3_manager_id}
-        ]
+        requests_list = [req for req in requests_list if _request_visible_to_user(req, current_user.id)]
         meetings = [meeting for meeting in meetings if _meeting_visible_to_user(meeting, current_user.id)]
 
     return requests_list, meetings
@@ -505,6 +545,7 @@ __all__ = [
     "_find_feedback_meeting_conflict",
     "_get_scope_context",
     "_load_scoped_feedback_data",
+    "_meeting_relation_clause",
     "_meeting_visible_to_user",
     "_notify_feedback_meeting_created",
     "_notify_feedback_meeting_updated",
@@ -513,6 +554,8 @@ __all__ = [
     "_record_feedback_digest_audit",
     "_record_meeting_alert_audit",
     "_record_request_alert_audit",
+    "_request_relation_clause",
+    "_request_visible_to_user",
     "_resolve_feedback_managers",
     "_scope_render_kwargs",
     "_serialize_feedback_meeting_state",

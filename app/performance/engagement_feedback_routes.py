@@ -74,6 +74,7 @@ from .feedback_helpers import (
     _find_feedback_meeting_conflict,
     _get_scope_context,
     _load_scoped_feedback_data,
+    _meeting_relation_clause,
     _meeting_visible_to_user,
     _notify_feedback_meeting_created,
     _notify_feedback_meeting_updated,
@@ -82,6 +83,8 @@ from .feedback_helpers import (
     _record_feedback_digest_audit,
     _record_meeting_alert_audit,
     _record_request_alert_audit,
+    _request_relation_clause,
+    _request_visible_to_user,
     _resolve_feedback_managers,
     _scope_render_kwargs,
     _serialize_feedback_meeting_state,
@@ -174,18 +177,12 @@ def performance_feedback_request(period_id):
 def manager_feedback_requests():
     scope_ctx, selected_scope, scope_employee_ids = _get_scope_context()
 
+    # #57: only the requests the user has a duty relation to; the role scope can only narrow that.
     query = FeedbackRequest.query.options(
         joinedload(FeedbackRequest.employee),  # type: ignore[arg-type]
         joinedload(FeedbackRequest.period),  # type: ignore[arg-type]
-    )
-    if selected_scope == "mine":
-        query = query.filter(
-            (FeedbackRequest.level_1_manager_id == current_user.id)
-            | (FeedbackRequest.level_2_manager_id == current_user.id)
-            | (FeedbackRequest.level_3_manager_id == current_user.id)
-            | (FeedbackRequest.employee_id == current_user.id)
-        )
-    elif scope_employee_ids:
+    ).filter(_request_relation_clause(current_user.id))
+    if selected_scope != "mine" and scope_employee_ids:
         query = query.filter(FeedbackRequest.employee_id.in_(scope_employee_ids))
 
     requests_list = query.order_by(FeedbackRequest.requested_at.desc(), FeedbackRequest.id.desc()).limit(120).all()
@@ -592,8 +589,9 @@ def manager_feedback_request_detail(request_id):
 
     scope_ctx, _, _ = _get_scope_context()
     allowed_manager_ids = {req.level_1_manager_id, req.level_2_manager_id, req.level_3_manager_id}
-    can_manage_request = current_user.role == "admin" or current_user.id in allowed_manager_ids
-    can_view_request = can_manage_request or current_user.id == req.employee_id
+    # #57: the named managers manage the request, its employee reads it; no role shortcut.
+    can_manage_request = current_user.id in allowed_manager_ids
+    can_view_request = _request_visible_to_user(req, current_user.id)
     if not can_view_request:
         flash("Bu talebe erişim yetkiniz yok.", "danger")
         return redirect(url_for("main.manager_feedback_requests", scope=scope_ctx.get("selected_scope")))
@@ -670,7 +668,7 @@ def manager_feedback_request_schedule_preview(request_id):
         return jsonify({"ok": False, "message": "Talep bulunamadı."}), 404
 
     allowed_manager_ids = {req.level_1_manager_id, req.level_2_manager_id, req.level_3_manager_id}
-    can_manage_request = current_user.role == "admin" or current_user.id in allowed_manager_ids
+    can_manage_request = current_user.id in allowed_manager_ids  # #57: duty relation, no role shortcut
     if not can_manage_request:
         return jsonify({"ok": False, "message": "Bu talep için randevu planlama yetkiniz yok."}), 403
 
@@ -729,7 +727,7 @@ def manager_feedback_request_schedule(request_id):
 
     scope_ctx, _, _ = _get_scope_context()
     allowed_manager_ids = {req.level_1_manager_id, req.level_2_manager_id, req.level_3_manager_id}
-    can_manage_request = current_user.role == "admin" or current_user.id in allowed_manager_ids
+    can_manage_request = current_user.id in allowed_manager_ids  # #57: duty relation, no role shortcut
     if not can_manage_request:
         flash("Bu talep için randevu oluşturma yetkiniz yok.", "danger")
         return redirect(url_for("main.manager_feedback_requests", scope=scope_ctx.get("selected_scope")))
@@ -844,14 +842,14 @@ def feedback_meeting_detail(meeting_id):
 
     scope_ctx, _, _ = _get_scope_context()
     allowed_ids = {meeting.employee_id, meeting.manager_id} | _feedback_manager_ids(getattr(meeting, "feedback_request", None))
-    scope_employee_ids = set(scope_ctx.get("employee_ids") or [])
-    if current_user.id not in allowed_ids and meeting.employee_id not in scope_employee_ids:
+    # #57: the parties and the managers the request names; the role scope never opens a meeting.
+    if current_user.id not in allowed_ids:
         flash("Bu randevuya erişim yetkiniz yok.", "danger")
         return redirect(url_for("main.dashboard"))
 
     response_text = get_feedback_response_text(meeting.feedback_request) if meeting.feedback_request else ""  # type: ignore[arg-type]
     meeting_timeline = get_feedback_meeting_timeline(meeting.id)
-    can_manage_meeting = current_user.role == "admin" or current_user.id in allowed_ids
+    can_manage_meeting = current_user.id in allowed_ids
     return safe_render(
         "feedback_meeting_detail.html",
         "<h3>Randevu Detayı</h3>",
@@ -871,7 +869,10 @@ def feedback_meeting_detail(meeting_id):
 def feedback_meetings_list():
     scope_ctx, selected_scope, scope_employee_ids = _get_scope_context()
 
-    meetings_query = FeedbackMeeting.query.options(joinedload(FeedbackMeeting.feedback_request))  # type: ignore[arg-type]
+    # #57: only the meetings the user is a party to or named on; the role scope can only narrow that.
+    meetings_query = FeedbackMeeting.query.options(joinedload(FeedbackMeeting.feedback_request)).filter(  # type: ignore[arg-type]
+        _meeting_relation_clause(current_user.id)
+    )
     if selected_scope != "mine" and scope_employee_ids:
         meetings_query = meetings_query.filter(FeedbackMeeting.employee_id.in_(scope_employee_ids))
 
@@ -985,7 +986,7 @@ def feedback_meeting_update(meeting_id):
 
     scope_ctx, _, _ = _get_scope_context()
     allowed_ids = {meeting.manager_id} | _feedback_manager_ids(getattr(meeting, "feedback_request", None))
-    can_manage_meeting = current_user.role == "admin" or current_user.id in allowed_ids
+    can_manage_meeting = current_user.id in allowed_ids  # #57: duty relation, no role shortcut
     if not can_manage_meeting:
         flash("Bu randevuyu güncelleme yetkiniz yok.", "danger")
         return redirect(url_for("main.feedback_meetings_list", scope=scope_ctx.get("selected_scope")))
