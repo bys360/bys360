@@ -12,9 +12,9 @@ from collections.abc import Callable
 from typing import Any
 
 from flask import jsonify, request
-from sqlalchemy import or_
 
 from app.models import User
+from app.services.account_lookup import find_user_by_login_identifier
 
 
 def _user_payload(user: User, full_name: Callable[[Any], str]) -> dict[str, Any]:
@@ -44,7 +44,7 @@ def mobile_login_response(
     if not username or not password:
         return jsonify({"message": "Kullanıcı adı/sicil ve şifre zorunludur."}), 400
 
-    user = User.query.filter(or_(User.sicil_no == username, User.email == username)).first()
+    user = find_user_by_login_identifier(username)  # same lookup as the web login and /forgot-password
     if not user or not user.check_password(password) or not getattr(user, "is_active", True):
         return jsonify({"message": "Kullanıcı adı/sicil veya şifre hatalı."}), 401
 

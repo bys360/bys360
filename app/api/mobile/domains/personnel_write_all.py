@@ -18,6 +18,7 @@ from app.api.mobile.shared import (
     require_mobile_user,
 )
 from app.route_support import ADMIN_FAMILY_ROLES, is_admin_family_user, normalize_role_name
+from app.services.account_lookup import email_matches, sicil_matches
 
 # Admin family plus the admin aliases the code treats as admin-level (routes_president_scorecard_v2.py,
 # feedback_aftercare_phase7.py, account_communication_helpers.py required_roles).
@@ -145,9 +146,16 @@ def _bys360_legacy_mobile_personnel_create(user: User):
     if normalize_role_name(role) in _ADMIN_LEVEL_ROLES and not is_admin_family_user(user):
         return jsonify({"message": "Bu rolü atama yetkiniz bulunmamaktadır."}), 403
 
-    if User.query.filter(User.sicil_no == sicil_no).first():
+    # Same identity rule as the web forms and the login lookup: e-mail stored lower-case, sicil and
+    # e-mail conflicts compared case-insensitively and reported separately.
+    email = email.lower()
+    sicil_taken = User.query.filter(sicil_matches(User.sicil_no, sicil_no)).first() is not None
+    email_taken = bool(email) and User.query.filter(email_matches(User.email, email)).first() is not None
+    if sicil_taken and email_taken:
+        return jsonify({"message": "Bu Sicil No ve bu e-posta adresiyle kayıtlı personel zaten bulunmaktadır."}), 400
+    if sicil_taken:
         return jsonify({"message": "Bu Sicil No ile kayıtlı personel zaten bulunmaktadır."}), 400
-    if email and User.query.filter(User.email == email).first():
+    if email_taken:
         return jsonify({"message": "Bu e-posta adresiyle kayıtlı personel zaten bulunmaktadır."}), 400
     if yonetici_sicil and not User.query.filter(User.sicil_no == yonetici_sicil).first():
         return jsonify({"message": "Yönetici Sicil No sistemde bulunamadı."}), 400
