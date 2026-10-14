@@ -7,6 +7,7 @@ Bu modül kendi `admin_bp` blueprint'ini canlıda register etmez. Bunun yerine
 """
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections import defaultdict
 
@@ -31,6 +32,25 @@ from app.security import (
     get_default_first_login_password,
     save_profile_photo_to_user,
     validate_excel_file,
+)
+from app.services.account_change_guard import (
+    ADMIN_CONTINUITY_MESSAGE,
+    MANAGER_CHAIN_REFUSAL_MESSAGE,
+    REFUSAL_MESSAGE,
+    ROLE_REFUSAL_MESSAGE,
+    admin_continuity_refusal,
+    audit_account_change,
+    audit_refusal,
+    is_real_admin,
+    kept_role,
+    login_identity_changes,
+    may_assign_role,
+    may_change_account_state,
+    may_change_manager_chain,
+    may_change_role,
+    record_account_changes,
+    role_changes,
+    security_flags_change,
 )
 from app.services.ai import (
     build_admin_user_form_ai_panel,
@@ -335,7 +355,7 @@ def admin_user_create():
             sicil_no = (request.form.get("sicil_no") or "").strip()
             email = (request.form.get("email") or "").strip().lower()
             unvan = (request.form.get("unvan") or "").strip()
-            role = (request.form.get("role") or "personel").strip()
+            role = (request.form.get("role") or "").strip() or "personel"
             birim = (request.form.get("birim") or "").strip()
             ust_birim = (request.form.get("ust_birim") or "").strip()
             yonetici_sicil = (request.form.get("yonetici_sicil") or "").strip() or None
@@ -363,6 +383,17 @@ def admin_user_create():
                     personnel_category_options=get_personnel_category_options(db.session),
                     ai_user_form_panel=create_form_ai_panel,
                 )
+
+            # R05: only a real admin creates an account with a role other than the baseline.
+            if not may_assign_role(current_user, role):
+                audit_refusal(None, "create_role_assign")
+                flash(ROLE_REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_create"))
+            # R05: a non-admin never puts themselves in a new account's manager chain.
+            if not may_change_manager_chain(current_user, None, [yonetici_sicil, ikinci_yonetici_sicil, ucuncu_yonetici_sicil]):
+                audit_refusal(None, "create_manager_chain_self_assign")
+                flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_create"))
 
             identity_conflicts = validate_personnel_identity_uniqueness(
                 user_model=User,
@@ -461,6 +492,7 @@ def admin_user_create():
 
             db.session.add(user)
             db.session.flush()
+            audit_account_change("account.create", user, new={"role": user.role, "is_active": bool(user.is_active)})
 
             photo = request.files.get("profile_photo")
             apply_personnel_profile_photo_action(
@@ -536,7 +568,7 @@ def admin_user_edit(user_id):
             sicil_no = (request.form.get("sicil_no") or "").strip()
             email = (request.form.get("email") or "").strip().lower()
             unvan = (request.form.get("unvan") or "").strip()
-            role = (request.form.get("role") or "personel").strip()
+            role = (request.form.get("role") or "").strip() or "personel"
             birim = (request.form.get("birim") or "").strip()
             ust_birim = (request.form.get("ust_birim") or "").strip()
             yonetici_sicil = (request.form.get("yonetici_sicil") or "").strip() or None
@@ -574,6 +606,32 @@ def admin_user_edit(user_id):
                 flash("Aynı kişi birden fazla amir seviyesinde seçilemez.", "warning")
                 return redirect(url_for("main.admin_user_edit", user_id=user.id))
 
+            # R05: role and activation changes follow the account change rules.
+            old_role, old_active = user.role, bool(user.is_active)
+            if not may_change_role(current_user, user, role):
+                audit_refusal(user, "role_change")
+                flash(ROLE_REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_edit", user_id=user_id))
+            if bool(is_active) != old_active and not may_change_account_state(current_user, user):
+                audit_refusal(user, "activation_change")
+                flash(REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_edit", user_id=user_id))
+            if login_identity_changes(user, sicil_no=sicil_no, email=email) and not may_change_account_state(current_user, user):
+                audit_refusal(user, "identity_change")
+                flash(REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_edit", user_id=user_id))
+            if not may_change_manager_chain(current_user, user, [yonetici_sicil, ikinci_yonetici_sicil, ucuncu_yonetici_sicil]):
+                audit_refusal(user, "manager_chain_change")
+                flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_edit", user_id=user_id))
+            role = kept_role(old_role, role)
+            # R05-5 / K4 / C: no self-demotion or self-deactivation, never the last active admin.
+            continuity_refusal = admin_continuity_refusal(current_user, user, new_role=role, new_active=is_active)
+            if continuity_refusal:
+                audit_refusal(user, continuity_refusal)
+                flash(ADMIN_CONTINUITY_MESSAGE, "danger")
+                return redirect(url_for("main.admin_user_edit", user_id=user_id))
+
             user.ad = ad
             user.soyad = soyad
             user.sicil_no = sicil_no
@@ -605,6 +663,7 @@ def admin_user_edit(user_id):
                 save_photo_func=save_profile_photo_to_user,
             )
 
+            record_account_changes(user, old_role=old_role, old_active=old_active)
             db.session.add(user)
             db.session.commit()
 
@@ -687,6 +746,29 @@ def personnel_add():
                     **form_context,
                 )
 
+            # R05: only a real admin creates an account with a role other than the baseline.
+            if not may_assign_role(current_user, payload.role_value):
+                audit_refusal(None, "create_role_assign")
+                flash(ROLE_REFUSAL_MESSAGE, "danger")
+                return safe_render(
+                    "personnel_add.html",
+                    "<h3>Yeni Personel Ekle</h3>",
+                    **form_context,
+                )
+            # R05: a non-admin never puts themselves in a new account's manager chain.
+            new_manager_sicils = [
+                getattr(db.session.get(User, manager_id), "sicil_no", None) if manager_id else None
+                for manager_id in (payload.manager_1_id, payload.manager_2_id, payload.manager_3_id)
+            ]
+            if not may_change_manager_chain(current_user, None, new_manager_sicils):
+                audit_refusal(None, "create_manager_chain_self_assign")
+                flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
+                return safe_render(
+                    "personnel_add.html",
+                    "<h3>Yeni Personel Ekle</h3>",
+                    **form_context,
+                )
+
             identity_conflicts = validate_personnel_identity_uniqueness(
                 user_model=User,
                 email=email,
@@ -719,6 +801,7 @@ def personnel_add():
 
             db.session.add(user)
             db.session.flush()
+            audit_account_change("account.create", user, new={"role": user.role, "is_active": bool(user.is_active)})
 
             photo = request.files.get("profile_photo")
             apply_personnel_profile_photo_action(
@@ -819,6 +902,49 @@ def personnel_edit(user_id):
                 flash("Yeni şifre alanları eşleşmiyor.", "warning")
                 return redirect(url_for("main.personnel_edit", user_id=user.id))
 
+            # R05: role, password and activation changes follow the account change rules.
+            new_is_active = bool_from_form(request.form.get("is_active"))
+            old_role, old_active = user.role, bool(user.is_active)
+            if not may_change_role(current_user, user, payload.role_value or current_role or "Personel"):
+                audit_refusal(user, "role_change")
+                flash(ROLE_REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.personnel_edit", user_id=user_id))
+            new_must_change_password = bool_from_form(request.form.get("must_change_password"))
+            new_must_set_security_question = bool_from_form(request.form.get("must_set_security_question"))
+            sensitive_change = (
+                ("password_set" if new_password else "")
+                or ("activation_change" if new_is_active != old_active else "")
+                or ("identity_change" if login_identity_changes(user, sicil_no=sicil_no, email=email) else "")
+                or (
+                    "security_flags_change"
+                    if security_flags_change(
+                        user,
+                        must_change_password=new_must_change_password,
+                        must_set_security_question=new_must_set_security_question,
+                    )
+                    else ""
+                )
+            )
+            if sensitive_change and not may_change_account_state(current_user, user):
+                audit_refusal(user, sensitive_change)
+                flash(REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.personnel_edit", user_id=user_id))
+            new_manager_sicils = [
+                getattr(db.session.get(User, manager_id), "sicil_no", None) if manager_id else None
+                for manager_id in (new_manager_1_id, new_manager_2_id, new_manager_3_id)
+            ]
+            if not may_change_manager_chain(current_user, user, new_manager_sicils):
+                audit_refusal(user, "manager_chain_change")
+                flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
+                return redirect(url_for("main.personnel_edit", user_id=user_id))
+            payload = dataclasses.replace(payload, role_value=kept_role(user.role, payload.role_value or current_role or "Personel"))
+            # R05-5 / K4 / C: no self-demotion or self-deactivation, never the last active admin.
+            continuity_refusal = admin_continuity_refusal(current_user, user, new_role=payload.role_value, new_active=new_is_active)
+            if continuity_refusal:
+                audit_refusal(user, continuity_refusal)
+                flash(ADMIN_CONTINUITY_MESSAGE, "danger")
+                return redirect(url_for("main.personnel_edit", user_id=user_id))
+
             password_reset_applied = update_existing_personnel_user_from_payload(
                 user=user,
                 payload=payload,
@@ -827,9 +953,9 @@ def personnel_edit(user_id):
                 db_session=db.session,
                 ensure_unit_exists=ensure_unit_exists_strict,
                 password_hasher=generate_password_hash,
-                is_active=bool_from_form(request.form.get("is_active")),
-                must_change_password=bool_from_form(request.form.get("must_change_password")),
-                must_set_security_question=bool_from_form(request.form.get("must_set_security_question")),
+                is_active=new_is_active,
+                must_change_password=new_must_change_password,
+                must_set_security_question=new_must_set_security_question,
             )
 
             remove_photo = bool_from_form(request.form.get("remove_profile_photo"))
@@ -843,6 +969,7 @@ def personnel_edit(user_id):
                 save_photo_func=save_profile_photo_to_user,
             )
 
+            record_account_changes(user, old_role=old_role, old_active=old_active, password_set=password_reset_applied)
             db.session.commit()
             if password_reset_applied:
                 flash("Personel kaydı güncellendi. Yönetici tarafından yeni geçici şifre tanımlandı; kullanıcı ilk girişte şifre değiştirip gizli sorusunu yeniden tanımlayacak.", "success")
@@ -925,8 +1052,9 @@ def personnel_excel_upload():
             skipped_count = 0
             initial_password = get_default_first_login_password()
             touched_users = []
+            created_users = []
 
-            for row in ws.iter_rows(min_row=2, values_only=True):
+            for row_number, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                 row_payload = build_personnel_excel_row_payload(
                     row,
                     header_idx=header_idx,
@@ -977,11 +1105,46 @@ def personnel_excel_upload():
                 if not user and hasattr(User, "email"):
                     user = User.query.filter_by(email=email).first()
 
+                # R05: a non-admin import never creates a non-baseline role or changes a stored
+                # role (also one inferred from the title or unit); one such row refuses the file.
+                if (user and update_existing and not may_change_role(current_user, user, role_value)) or (
+                    not user and not may_assign_role(current_user, role_value)
+                ):
+                    audit_refusal(user, "excel_role_change" if user else "excel_role_assign")
+                    flash(f"Satır {row_number}: {ROLE_REFUSAL_MESSAGE} Dosyadaki hiçbir kayıt yazılmadı.", "danger")
+                    return redirect(url_for("main.personnel_excel_upload"))
+                # R05: a non-admin import never adds the importer to a manager chain nor changes the
+                # chain of a protected account; one such row refuses the file.
+                if (not user or update_existing) and not may_change_manager_chain(
+                    current_user, user, [yonetici_sicil, ikinci_yonetici_sicil, ucuncu_yonetici_sicil]
+                ):
+                    audit_refusal(user, "excel_manager_chain_change")
+                    flash(f"Satır {row_number}: {MANAGER_CHAIN_REFUSAL_MESSAGE} Dosyadaki hiçbir kayıt yazılmadı.", "danger")
+                    return redirect(url_for("main.personnel_excel_upload"))
+                # R05: a non-admin import never rewrites a protected account matched by another sicil or
+                # changes its e-mail (login identifiers).
+                if (
+                    user
+                    and update_existing
+                    and login_identity_changes(user, sicil_no=sicil_no, email=email)
+                    and not may_change_account_state(current_user, user)
+                ):
+                    audit_refusal(user, "excel_identity_change")
+                    flash(f"Satır {row_number}: {REFUSAL_MESSAGE} Dosyadaki hiçbir kayıt yazılmadı.", "danger")
+                    return redirect(url_for("main.personnel_excel_upload"))
+                # R05-5 / K4: an Excel file never changes an admin account's role (one such row
+                # refuses the file); admin role changes go through the single-account edit.
+                if user and update_existing and is_real_admin(user) and role_changes(user.role, role_value or "personel"):
+                    audit_refusal(user, "excel_admin_role_change")
+                    flash(f"Satır {row_number}: {ADMIN_CONTINUITY_MESSAGE} Admin hesaplarının rolü Excel ile değiştirilemez. Dosyadaki hiçbir kayıt yazılmadı.", "danger")
+                    return redirect(url_for("main.personnel_excel_upload"))
+
                 if user:
                     if not update_existing:
                         skipped_count += 1
                         continue
 
+                    old_role = user.role
                     user.ad = ad
                     user.soyad = soyad
                     if hasattr(user, "email"):
@@ -1007,6 +1170,8 @@ def personnel_excel_upload():
                     if hasattr(user, "organization_unit_id"):
                         user.organization_unit_id = org_unit.id if org_unit else None
                     assign_user_performance_category(user, personnel_category, db_session=db.session)  # BYS360_PHASE2_EXCEL_CATEGORY_EXISTING_BINDING
+                    if role_changes(old_role, user.role):
+                        audit_account_change("account.role_change", user, old={"role": old_role}, new={"role": user.role})
                     updated_count += 1
                     touched_users.append(user)
                 else:
@@ -1060,8 +1225,15 @@ def personnel_excel_upload():
                     db.session.add(user)
                     created_count += 1
                     touched_users.append(user)
+                    created_users.append(user)
 
             db.session.flush()
+            for created_user in created_users:
+                audit_account_change(
+                    "account.create",
+                    created_user,
+                    new={"role": created_user.role, "is_active": bool(created_user.is_active)},
+                )
             has_explicit_manager_columns = has_explicit_personnel_excel_manager_columns(normalized_headers)
             if has_explicit_manager_columns:
                 # BYS360_IMPORT_EXPLICIT_MANAGER_CHAIN_PRESERVE_V1
@@ -1083,6 +1255,7 @@ def personnel_excel_upload():
                     fill_only_missing=True,
                     commit=False,
                     preserve_explicit_chain=True,  # BYS360_EXPLICIT_MANAGER_CHAIN_V2
+                    persist_inferred_roles=is_real_admin(current_user),  # R05
                 )
                 manager_sync_summary = sync_touched_users_manager_ids_from_sicils(
                     touched_users,

@@ -297,3 +297,46 @@ build_menu_visibility_map = apply_admin_period_reminder_public_build_wrapper(
     _bys360_admin_period_reminder_is_admin_v1,
 )
 # BYS360_ADMIN_PERIOD_REMINDER_ACCESS_FIX_V1_END
+
+
+# BYS360_R05C_ADMIN_LOCKOUT_FLOOR_BEGIN
+# R05c / K4 (owner decision 2026-10-13): role defaults and unit profiles (rules that cover many
+# accounts at once) never hide the lockout keys (admin_users, settings) from an active real admin
+# (stored role exactly "admin"), so no shared profile locks the administrators out. An explicit
+# per-user revocation for one admin account stays authoritative (admin routes contract: role
+# "admin" alone is not enough once admin_users is revoked for that user); an admin cannot write
+# such a revocation for itself (see account_change_guard.own_matrix_lockout_refusal). Final layer.
+def _apply_r05c_admin_lockout_floor(previous_build_menu_visibility_map):
+    def build_menu_visibility_map(user, *args, **kwargs):
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.services.account_change_guard import LOCKOUT_CRITICAL_ADMIN_KEYS, is_real_admin
+
+        visibility = dict(previous_build_menu_visibility_map(user, *args, **kwargs) or {})
+        if not (bool(getattr(user, "is_active", False)) and is_real_admin(user)):
+            return visibility
+        try:
+            revoked = {
+                row.menu_key
+                for row in UserMenuPermission.query.filter(
+                    UserMenuPermission.user_id == user.id,
+                    UserMenuPermission.menu_key.in_(LOCKOUT_CRITICAL_ADMIN_KEYS),
+                    UserMenuPermission.is_visible.is_(False),
+                ).all()
+            }
+        except SQLAlchemyError:
+            logging.getLogger(__name__).exception("BYS360 R05c admin lockout floor lookup failed; floor not applied.")
+            from app.extensions import db
+
+            db.session.rollback()
+            return visibility
+        for key in LOCKOUT_CRITICAL_ADMIN_KEYS:
+            if key not in revoked:
+                visibility[key] = True
+        return visibility
+
+    return build_menu_visibility_map
+
+
+build_menu_visibility_map = _apply_r05c_admin_lockout_floor(build_menu_visibility_map)
+# BYS360_R05C_ADMIN_LOCKOUT_FLOOR_END

@@ -106,11 +106,31 @@ from app.main_handlers.account_visibility_helpers import (
     utc_now,
 )
 from app.route_support import normalize_role_name
+from app.services.account_change_guard import (
+    ChangeRefused,
+    audit_refusal,
+    is_real_admin,
+    lockout_revocation_refusal,
+    own_matrix_lockout_refusal,
+    role_membership_change_refusal,
+    role_profile_change_refusal,
+    split_bulk_targets,
+    unit_profile_change_refusal,
+    user_matrix_change_refusal,
+)
 from app.services.assistant_role_matrix_service import (
+    assistant_default_visible_roles_value,
+    assistant_visible_roles_value_from_form,
     build_assistant_role_matrix,
     reset_assistant_role_matrix_defaults,
     save_assistant_role_matrix_from_form,
 )
+from app.services.assistant_settings_service import (
+    current_visible_roles,
+    get_assistant_settings,
+    visible_roles_for_value,
+)
+from app.services.audit_service import write_audit_log
 from app.services.personnel_read_grant import (
     PERSONNEL_READ_ALL_KEY,
     PERSONNEL_READ_ALL_MENU_ITEM,
@@ -118,6 +138,7 @@ from app.services.personnel_read_grant import (
     has_personnel_read_all_grant,
     has_support_all_grant,
 )
+from app.services.settings_service import module_settings_state_from_form, snapshot_module_settings
 
 # B1-F1, K5-Q2: only an admin may assign or remove the explicit grants (personnel_read_all,
 # support_all), and never on their own account; the rest of the admin family keeps the other
@@ -139,6 +160,115 @@ def _can_change_explicit_grants(actor, target) -> bool:
         and getattr(target, "id", None) != actor_id
         and normalize_role_name(getattr(actor, "role", "")) in _EXPLICIT_GRANT_ADMIN_ROLES
     )
+
+
+# ---------------------------------------------------------------------------
+# R05c: every /settings write that changes role defaults, unit profiles, per-user matrices or
+# role-membership settings is checked against account_change_guard BEFORE anything is written;
+# a refusal writes nothing, is audited (account.change_refused) and is flashed.
+# ---------------------------------------------------------------------------
+
+_LOCKOUT_REFUSAL_MESSAGE = (
+    "Kullanıcı Yönetimi (admin_users) ve Ayarlar (settings) yetkileri admin rol profilinden ve adminin kendi "
+    "hesabından kaldırılamaz; bu, sistemin kendi yöneticilerini kilitlemesini önler."
+)
+# identity_access.* flags describe how authority is resolved, and assistant.enabled opens or closes
+# the assistant for every role; a non-admin never changes them.
+_AUTHORITY_FLAG_SETTINGS: tuple[tuple[str, str], ...] = (
+    ("identity_access", "use_role_based_visibility"),
+    ("identity_access", "allow_user_override"),
+    ("assistant", "enabled"),
+    ("assistant", "active"),
+    ("ai_agent", "enabled"),
+    ("ai_agent", "active"),
+    ("ai_agent", "widget_enabled"),
+    ("ai_agent", "panel_enabled"),
+)
+
+
+def _settings_redirect(keep_user_id=None, **kwargs):
+    return redirect(url_for("main.settings_page", user_id=keep_user_id, **kwargs) if keep_user_id else url_for("main.settings_page", **kwargs))
+
+
+def _refuse_settings_change(target, reason, *, keep_user_id=None, **redirect_kwargs):
+    audit_refusal(target, reason)
+    flash(_LOCKOUT_REFUSAL_MESSAGE if "lockout_keys" in reason else _PROTECTED_MATRIX_REFUSAL_MESSAGE, "danger")
+    return _settings_redirect(keep_user_id, **redirect_kwargs)
+
+
+def _role_plan_refusal(plan, all_menu_keys):
+    """``plan`` = [(role, visible keys now, visible keys after)]: one refusal for the whole request."""
+    live = set(all_menu_keys)
+    refused = []
+    for role_key, before, after in plan:
+        reason = role_profile_change_refusal(current_user, role_key, before=set(before) & live, after=set(after) & live)
+        if reason:
+            refused.append((role_key, reason))
+    if not refused:
+        return None
+    if any(reason == "admin_role_lockout_keys" for _role, reason in refused):
+        return "admin_role_lockout_keys"
+    return "settings_role_profile:" + ",".join(role_key for role_key, _reason in refused)
+
+
+def _module_authority_refusal(before_state, after_state):
+    """Module settings that carry authority: assistant visibility per role, identity_access flags."""
+    if is_real_admin(current_user):
+        return None
+    for module_key in ("assistant", "ai_agent"):
+        if "visible_roles" in (after_state.get(module_key) or {}):
+            reason = role_membership_change_refusal(
+                current_user,
+                before=visible_roles_for_value((before_state.get(module_key) or {}).get("visible_roles")),
+                after=visible_roles_for_value(after_state[module_key]["visible_roles"] or ""),
+                reason="settings_assistant_roles",
+            )
+            if reason:
+                return reason
+    for module_key, setting_key in _AUTHORITY_FLAG_SETTINGS:
+        if module_key in after_state and (before_state.get(module_key) or {}).get(setting_key) != (after_state.get(module_key) or {}).get(setting_key):
+            return "settings_assistant_enabled" if module_key in {"assistant", "ai_agent"} else "settings_identity_access"
+    return None
+
+
+def _user_matrix_refusal(target, visible_keys, flat_menu_items):
+    """Per-user matrix save: R05-2/K1/K3, then the admin self-lockout guard (K4). A full save
+    stores every listed key, so an unchecked key is a revocation."""
+    refusal = user_matrix_change_refusal(current_user, target)
+    if refusal:
+        return refusal
+    listed = {str((item or {}).get("key") or "").strip() for item in flat_menu_items or []}
+    revoked = listed - set(visible_keys or ())
+    return own_matrix_lockout_refusal(current_user, target, revoked_keys=revoked) or lockout_revocation_refusal(
+        current_user, target, revoked_keys=revoked
+    )
+
+
+def _authorize_rollback(row, plan):
+    """N1: a rollback is a write like any other; the same rules apply to what it would restore."""
+    scope = row.change_scope
+    if scope == "role_menu_defaults":
+        live = plan.get("live_menu_keys") or set()
+        role_key = (row.target_role_name or "").strip().lower()
+        reason = role_profile_change_refusal(
+            current_user, role_key, before=set(get_role_default_menu_keys(role_key)) & live, after=plan.get("role_after") or set()
+        )
+    elif scope == "unit_menu_profiles":
+        reason = unit_profile_change_refusal(current_user)
+    elif scope == "user_menu_overrides":
+        target = db.session.get(User, row.target_user_id) if row.target_user_id else None
+        revoked = plan.get("user_revoked") or set()
+        reason = (
+            user_matrix_change_refusal(current_user, target)
+            or own_matrix_lockout_refusal(current_user, target, revoked_keys=revoked)
+            or lockout_revocation_refusal(current_user, target, revoked_keys=revoked)
+        )
+    elif scope == "module_settings":
+        reason = _module_authority_refusal(snapshot_module_settings(), plan.get("module_after") or {})
+    else:
+        reason = None
+    if reason:
+        raise ChangeRefused(reason if "lockout_keys" in reason else f"settings_rollback:{reason}")
 
 
 # BYS360_PERSONNEL_FEATURE_MATRIX_V1_4_HELPER_DEDUP_AND_FULL_SAVE
@@ -414,6 +544,10 @@ def _handle_save_system_foundation():
 
 
 def _handle_save_module_foundation():
+    keep_user_id = request.form.get("keep_user_id", type=int)
+    refusal = _module_authority_refusal(snapshot_module_settings(), module_settings_state_from_form(request.form))
+    if refusal:
+        return _refuse_settings_change(None, refusal, keep_user_id=keep_user_id)
     try:
         changed = save_module_settings_from_form(request.form, updated_by_user_id=getattr(current_user, "id", None))
         flash(f"Modül ayar omurgası kaydedildi. Güncellenen alan: {changed}", "success")
@@ -441,10 +575,15 @@ def _handle_save_role_matrix_group(form_action, grouped_menu_definitions, flat_m
     try:
         config, policy_items = _get_role_matrix_policy_items_or_raise(matrix_key, grouped_menu_definitions, flat_menu_items)
         scoped_keys = {item["key"] for item in policy_items}
+        plan = []
         for role_key, _role_label in COMMUNICATION_POLICY_ROLE_OPTIONS:
             current_visible = set(get_role_default_menu_keys(role_key))
             scoped_visible = _collect_role_matrix_visible_keys_from_form(matrix_key, role_key, scoped_keys)
-            merged_visible = (current_visible - scoped_keys) | scoped_visible
+            plan.append((role_key, current_visible, (current_visible - scoped_keys) | scoped_visible))
+        refusal = _role_plan_refusal(plan, all_menu_keys)
+        if refusal:
+            return _refuse_settings_change(None, refusal, keep_user_id=request.form.get("keep_user_id", type=int), section=config["section_id"])
+        for role_key, _current_visible, merged_visible in plan:
             changed_total += save_role_menu_defaults(role_key, all_menu_keys, merged_visible, updated_by_user_id=getattr(current_user, "id", None))
         flash(f"{config['title']} kaydedildi. İşlenen satır: {changed_total}", "success")
         section_id = config["section_id"]
@@ -463,12 +602,17 @@ def _handle_reset_role_matrix_group(form_action, grouped_menu_definitions, flat_
     try:
         config, policy_items = _get_role_matrix_policy_items_or_raise(matrix_key, grouped_menu_definitions, flat_menu_items)
         scoped_keys = {item["key"] for item in policy_items}
+        plan = []
         for role_key, _role_label in COMMUNICATION_POLICY_ROLE_OPTIONS:
             current_visible = set(get_role_default_menu_keys(role_key))
             static_visible = set(get_role_default_menu_keys(role_key, prefer_database=False))
             if matrix_key == "assistant":
                 static_visible |= get_assistant_role_matrix_recommended_keys(role_key)
-            merged_visible = (current_visible - scoped_keys) | (static_visible & scoped_keys)
+            plan.append((role_key, current_visible, (current_visible - scoped_keys) | (static_visible & scoped_keys)))
+        refusal = _role_plan_refusal(plan, all_menu_keys)
+        if refusal:
+            return _refuse_settings_change(None, refusal, keep_user_id=request.form.get("keep_user_id", type=int), section=config["section_id"])
+        for role_key, _current_visible, merged_visible in plan:
             changed_total += save_role_menu_defaults(role_key, all_menu_keys, merged_visible, updated_by_user_id=getattr(current_user, "id", None))
         flash(f"{config['title']} önerilen rol politikasına döndürüldü. İşlenen satır: {changed_total}", "success")
         section_id = config["section_id"]
@@ -486,6 +630,7 @@ def _handle_save_communication_role_matrix(grouped_menu_definitions, flat_menu_i
     communication_keys = {item["key"] for item in communication_policy_items}
     changed_total = 0
     try:
+        plan = []
         for role_key, _role_label in COMMUNICATION_POLICY_ROLE_OPTIONS:
             current_visible = set(get_role_default_menu_keys(role_key))
             scoped_visible = {
@@ -493,7 +638,11 @@ def _handle_save_communication_role_matrix(grouped_menu_definitions, flat_menu_i
                 for item_key in communication_keys
                 if request.form.get(f"role_policy__{role_key}__{item_key}")
             }
-            merged_visible = (current_visible - communication_keys) | scoped_visible
+            plan.append((role_key, current_visible, (current_visible - communication_keys) | scoped_visible))
+        refusal = _role_plan_refusal(plan, all_menu_keys)
+        if refusal:
+            return _refuse_settings_change(None, refusal, keep_user_id=request.form.get("keep_user_id", type=int), section="communication-role-policy")
+        for role_key, _current_visible, merged_visible in plan:
             changed_total += save_role_menu_defaults(role_key, all_menu_keys, merged_visible, updated_by_user_id=getattr(current_user, "id", None))
         flash(f"İletişim ve anket rol matrisi kaydedildi. İşlenen satır: {changed_total}", "success")
     except Exception as exc:
@@ -509,10 +658,15 @@ def _handle_reset_communication_role_matrix(grouped_menu_definitions, flat_menu_
     communication_keys = {item["key"] for item in communication_policy_items}
     changed_total = 0
     try:
+        plan = []
         for role_key, _role_label in COMMUNICATION_POLICY_ROLE_OPTIONS:
             current_visible = set(get_role_default_menu_keys(role_key))
             static_visible = set(get_role_default_menu_keys(role_key, prefer_database=False))
-            merged_visible = (current_visible - communication_keys) | (static_visible & communication_keys)
+            plan.append((role_key, current_visible, (current_visible - communication_keys) | (static_visible & communication_keys)))
+        refusal = _role_plan_refusal(plan, all_menu_keys)
+        if refusal:
+            return _refuse_settings_change(None, refusal, keep_user_id=request.form.get("keep_user_id", type=int), section="communication-role-policy")
+        for role_key, _current_visible, merged_visible in plan:
             changed_total += save_role_menu_defaults(role_key, all_menu_keys, merged_visible, updated_by_user_id=getattr(current_user, "id", None))
         flash(f"İletişim ve anket rol matrisi önerilen kurala döndürüldü. İşlenen satır: {changed_total}", "success")
     except Exception as exc:
@@ -523,8 +677,34 @@ def _handle_reset_communication_role_matrix(grouped_menu_definitions, flat_menu_
     return redirect(url_for("main.settings_page", user_id=keep_user_id, section="communication-role-policy") if keep_user_id else url_for("main.settings_page", section="communication-role-policy"))
 
 
+def _audit_assistant_roles(action, before, after):
+    write_audit_log(
+        action,
+        "module_setting",
+        None,
+        old_data={"visible_roles": sorted(before)},
+        new_data={"visible_roles": sorted(after)},
+        summary=f"{action}: {','.join(sorted(after)) or '-'}",
+    )
+
+
+def _assistant_roles_refusal(after_value):
+    before = current_visible_roles()
+    after = visible_roles_for_value(after_value)
+    refusal = role_membership_change_refusal(current_user, before=before, after=after, reason="settings_assistant_roles")
+    # The matrix save and reset also set assistant.enabled=true: a non-admin never re-enables an
+    # assistant a real admin disabled (it would reopen it for every protected role).
+    if not refusal and not is_real_admin(current_user) and not bool(get_assistant_settings().get("enabled", True)):
+        refusal = "settings_assistant_roles:enabled"
+    return before, after, refusal
+
+
 def _handle_save_assistant_role_matrix():
+    before, after, refusal = _assistant_roles_refusal(assistant_visible_roles_value_from_form(request.form))
+    if refusal:
+        return _refuse_settings_change(None, refusal, keep_user_id=request.form.get("keep_user_id", type=int), section="assistant-role-policy")
     try:
+        _audit_assistant_roles("settings.assistant_role_matrix_save", before, after)  # committed by the save below
         selected_count = save_assistant_role_matrix_from_form(request.form, updated_by_user_id=getattr(current_user, "id", None))
         flash(f"Sanal Asistan rol matrisi kaydedildi. Açık rol sayısı: {selected_count}", "success")
     except Exception as exc:
@@ -536,7 +716,11 @@ def _handle_save_assistant_role_matrix():
 
 
 def _handle_reset_assistant_role_matrix():
+    before, after, refusal = _assistant_roles_refusal(assistant_default_visible_roles_value())
+    if refusal:
+        return _refuse_settings_change(None, refusal, keep_user_id=request.form.get("keep_user_id", type=int), section="assistant-role-policy")
     try:
+        _audit_assistant_roles("settings.assistant_role_matrix_reset", before, after)  # committed by the reset below
         selected_count = reset_assistant_role_matrix_defaults(updated_by_user_id=getattr(current_user, "id", None))
         flash(f"Sanal Asistan rol matrisi önerilen politikaya döndürüldü. Açık rol sayısı: {selected_count}", "success")
     except Exception as exc:
@@ -554,8 +738,10 @@ def _handle_rollback_settings_change_entry():
         flash("Geri alınacak ayar değişikliği kaydı belirtilmedi.", "danger")
     else:
         try:
-            result = rollback_settings_change(log_id, actor_user_id=getattr(current_user, "id", None))
+            result = rollback_settings_change(log_id, actor_user_id=getattr(current_user, "id", None), authorize=_authorize_rollback)
             flash(result.get("summary") or "Ayar değişikliği geri alındı.", "success")
+        except ChangeRefused as refused:
+            return _refuse_settings_change(None, refused.reason, keep_user_id=keep_user_id)
         except Exception as exc:
             logger.exception("Beklenmeyen hata: %s", exc)
             db.session.rollback()
@@ -584,6 +770,10 @@ def _handle_bulk_apply_profile(users, grouped_menu_definitions, flat_menu_items)
     if not profile_key:
         flash("Toplu uygulama için bir profil seçiniz.", "warning")
         return redirect(url_for("main.settings_page", user_id=keep_user_id) if keep_user_id else url_for("main.settings_page"))
+    # F3: a bulk profile never changes a protected account, whoever runs it.
+    target_users, skipped_users = split_bulk_targets(current_user, target_users)
+    if skipped_users:
+        flash(f"{len(skipped_users)} korumalı hesap (yönetici, başkanlık, teknik roller, açık yetki sahipleri veya kendi hesabınız) toplu işlem dışında bırakıldı.", "warning")
     if not target_users:
         flash("Seçilen kapsamda güncellenecek kullanıcı bulunamadı.", "warning")
         return redirect(url_for("main.settings_page", user_id=keep_user_id) if keep_user_id else url_for("main.settings_page"))
@@ -592,6 +782,22 @@ def _handle_bulk_apply_profile(users, grouped_menu_definitions, flat_menu_items)
         for user in target_users:
             visible_keys = set(_resolve_bulk_profile_keys(profile_key, user, grouped_menu_definitions))
             _apply_visibility_keys_to_user(user, flat_menu_items, visible_keys)
+        write_audit_log(
+            "settings.bulk_profile_apply",
+            "user",
+            None,
+            new_data={
+                "profile_key": profile_key,
+                "scope_type": scope_type,
+                "scope_role": scope_role,
+                "scope_birim": scope_birim,
+                "applied": len(target_users),
+                "skipped_protected": len(skipped_users),
+                "applied_user_ids": [user.id for user in target_users][:500],
+                "skipped_user_ids": [user.id for user in skipped_users][:500],
+            },
+            summary=f"bulk profile {profile_key}: applied={len(target_users)} skipped_protected={len(skipped_users)}",
+        )
         db.session.commit()
         bulk_summary = _build_bulk_result_summary(profile_key, scope_type, scope_role, scope_birim, target_users, grouped_menu_definitions)
         flash(f"{len(target_users)} kullanıcı için profil uygulandı.", "success")
@@ -634,6 +840,9 @@ def _handle_import_visibility_template(flat_menu_items):
     if not import_user:
         flash("İçe aktarma için kullanıcı seçiniz.", "warning")
         return redirect(url_for("main.settings_page"))
+    refusal = user_matrix_change_refusal(current_user, import_user)
+    if refusal:
+        return _refuse_settings_change(import_user, refusal, keep_user_id=import_user.id)
     raw_payload = (request.form.get("import_template_json") or "").strip()
     upload = request.files.get("import_template_file")
     if not raw_payload and upload and upload.filename:
@@ -646,6 +855,9 @@ def _handle_import_visibility_template(flat_menu_items):
         visible_keys = _extract_visible_keys_from_template_payload(payload, flat_menu_items)
         if not visible_keys and not isinstance(payload.get("effective_rule_map"), dict):
             raise ValueError("Şablonda görünür menü anahtarları bulunamadı.")
+        lockout = _user_matrix_refusal(import_user, visible_keys, flat_menu_items)
+        if lockout:
+            return _refuse_settings_change(import_user, lockout, keep_user_id=import_user.id)
         result = save_user_menu_overrides(import_user, flat_menu_items, visible_keys, updated_by_user_id=getattr(current_user, "id", None))
         flash(f"Yetki şablonu içe aktarıldı. Aktif override: {result['override_count']}", "success")
     except Exception as exc:
@@ -661,6 +873,9 @@ def _handle_save_named_archive(flat_menu_items):
     if not selected_user:
         flash("Şablon arşivi kaydetmek için kullanıcı seçiniz.", "warning")
         return redirect(url_for("main.settings_page"))
+    # R05c review L4: shared archives are applied by admins, so only a real admin writes them.
+    if not is_real_admin(current_user):
+        return _refuse_settings_change(selected_user, "settings_archive_write", keep_user_id=selected_user.id)
     archive_name = (request.form.get("archive_name") or "").strip()
     archive_scope = (request.form.get("archive_scope") or "general").strip()
     archive_description = (request.form.get("archive_description") or "").strip()
@@ -678,6 +893,13 @@ def _handle_save_named_archive(flat_menu_items):
             target_birim=archive_birim_target,
             source_user=selected_user,
             updated_by_user_id=getattr(current_user, "id", None),
+        )
+        write_audit_log(
+            "settings.archive_save",
+            "system_setting",
+            None,
+            new_data={"setting_key": result["setting_key"], "visible_count": result["visible_count"], "scope": archive_scope},
+            summary=f"settings archive saved: {result['setting_key']}",
         )
         db.session.commit()
         flash(f"Şablon arşivi kaydedildi: {result['archive_name']} · Açık sekme: {result['visible_count']}", "success")
@@ -702,6 +924,19 @@ def _handle_apply_named_archive(all_menu_keys, flat_menu_items):
     target_role = (request.form.get("archive_apply_role") or archive.get("target_role") or getattr(selected_user, "role", "") or "").strip()
     target_birim = (request.form.get("archive_apply_birim") or archive.get("target_birim") or getattr(selected_user, "birim", "") or "").strip()
     visible_keys = set(archive.get("visible_keys") or [])
+    if apply_mode == "role_profile":
+        refusal = role_profile_change_refusal(
+            current_user,
+            target_role,
+            before=set(get_role_default_menu_keys(target_role)) & set(all_menu_keys),
+            after=visible_keys & set(all_menu_keys),
+        )
+    elif apply_mode == "unit_profile":
+        refusal = unit_profile_change_refusal(current_user)
+    else:
+        refusal = _user_matrix_refusal(selected_user, visible_keys, flat_menu_items)
+    if refusal:
+        return _refuse_settings_change(selected_user, refusal, keep_user_id=selected_user_id, archive_key=archive_key)
     try:
         if apply_mode == "role_profile":
             if not target_role:
@@ -729,8 +964,11 @@ def _handle_apply_named_archive(all_menu_keys, flat_menu_items):
 def _handle_delete_named_archive():
     selected_user_id = request.form.get("user_id", type=int)
     archive_key = (request.form.get("archive_key") or "").strip()
+    if not is_real_admin(current_user):  # R05c review L4
+        return _refuse_settings_change(None, "settings_archive_write", keep_user_id=selected_user_id)
     try:
         result = _delete_settings_template_archive(archive_key)
+        write_audit_log("settings.archive_delete", "system_setting", None, old_data={"setting_key": archive_key}, summary=f"settings archive deleted: {archive_key}")
         db.session.commit()
         flash(f"Şablon arşivi silindi: {result['archive_name']}", "success")
     except Exception as exc:
@@ -740,6 +978,13 @@ def _handle_delete_named_archive():
     return redirect(url_for("main.settings_page", user_id=selected_user_id) if selected_user_id else url_for("main.settings_page"))
 
 
+_PROTECTED_MATRIX_REFUSAL_MESSAGE = (
+    "Bu yetki değişikliği yalnız sistem admini tarafından yapılabilir: korumalı hesapların (yönetici, başkanlık veya "
+    "teknik roller, açık yetki sahipleri) ve kendi hesabınızın sekme yetkileri, personel dışındaki rol profilleri ve "
+    "birim profilleri."
+)
+
+
 def _handle_user_scoped_profile_action(form_action, flat_menu_items, all_menu_keys):
     selected_user_id = request.form.get("user_id", type=int)
     selected_user = db.session.get(User, selected_user_id)
@@ -747,8 +992,27 @@ def _handle_user_scoped_profile_action(form_action, flat_menu_items, all_menu_ke
         flash("Personel seçiniz.", "warning")
         return redirect(url_for("main.settings_page"))
 
-    visible_keys = _collect_form_visible_keys(request.form, flat_menu_items)
     keep_user_id = selected_user.id
+    visible_keys = _collect_form_visible_keys(request.form, flat_menu_items)
+    # R05 / R05c: role profiles (non-admin: baseline role only; K4 lockout keys for everyone),
+    # unit profiles (K2: real admin only) and per-user matrices (K1 protected accounts, K3 own).
+    if form_action == "save_role_profile":
+        target_role = (request.form.get("profile_role_target") or selected_user.role or "").strip()
+        refusal = role_profile_change_refusal(
+            current_user,
+            target_role,
+            before=set(get_role_default_menu_keys(target_role)) & set(all_menu_keys),
+            after=set(visible_keys) & set(all_menu_keys),
+        )
+    elif form_action == "save_unit_profile":
+        refusal = unit_profile_change_refusal(current_user)
+    elif form_action == "reset_user_overrides":
+        refusal = user_matrix_change_refusal(current_user, selected_user)
+    else:
+        refusal = _user_matrix_refusal(selected_user, visible_keys, flat_menu_items)
+    if refusal:
+        return _refuse_settings_change(selected_user, refusal, keep_user_id=keep_user_id)
+
     try:
         if form_action == "save_role_profile":
             target_role = (request.form.get("profile_role_target") or selected_user.role or "").strip()

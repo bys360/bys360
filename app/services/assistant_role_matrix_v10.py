@@ -161,33 +161,50 @@ def _role_defaults_columns(session):
 def _get_db_value(session, role: str, feature_key: str) -> bool | None:
     if text is None:
         return None
-    role_col, key_col, value_col, _ = _role_defaults_columns(session)
+    role_col, key_col, value_col, cols = _role_defaults_columns(session)
     if not role_col or not key_col or not value_col:
         return None
 
-    candidates = {
-        feature_key,
-        f"assistant.{feature_key}",
-        f"sanal_asistan.{feature_key}",
-        "assistant_module" if feature_key == "assistant_module" else feature_key,
-        "sanal_asistan" if feature_key == "assistant_module" else feature_key,
-    }
+    from app.services.assistant_settings_service import (
+        assistant_feature_aliases,
+        assistant_feature_row_priority,
+    )
+
+    candidates = assistant_feature_aliases(feature_key)
+    source = "source_type" if "source_type" in cols else "NULL"
     try:
         stmt = text(f"""
-            select {value_col}
+            select id, {key_col} as permission_key, {value_col} as visible, {source} as source_type
             from role_menu_defaults
             where lower(cast({role_col} as text)) = lower(:role)
               and lower(cast({key_col} as text)) in :keys
-            order by id desc
-            limit 1
         """).bindparams(bindparam("keys", expanding=True))
-        row = session.execute(stmt, {"role": role, "keys": tuple(_normalize(x) for x in candidates)}).fetchone()
-        if row:
-            return _truthy(row[0])
+        rows = session.execute(stmt, {"role": role, "keys": tuple(candidates)}).all()
+        if rows:
+            row = min(rows, key=lambda item: (assistant_feature_row_priority(item.permission_key, item.source_type, feature_key), -item.id))
+            return _truthy(row.visible)
     except Exception:
         logger.exception("BYS360 V6B guarded exception | file=app/services/assistant_role_matrix_v10.py | line=161")
         return None
     return None
+
+
+def _get_exact_db_value(session, role: str, feature_key: str) -> bool | None:
+    """The row ``_set_db_value`` writes (exact key, no aliases); None when there is none."""
+    if text is None:
+        return None
+    role_col, key_col, value_col, _ = _role_defaults_columns(session)
+    if not role_col or not key_col or not value_col:
+        return None
+    row = session.execute(text(f"""
+        select {value_col}
+        from role_menu_defaults
+        where lower(cast({role_col} as text)) = lower(:role)
+          and lower(cast({key_col} as text)) = lower(:key)
+        order by id desc
+        limit 1
+    """), {"role": role, "key": feature_key}).fetchone()
+    return None if row is None else _truthy(row[0])
 
 
 def _set_db_value(session, role: str, feature_key: str, visible: bool) -> bool:
@@ -209,13 +226,16 @@ def _set_db_value(session, role: str, feature_key: str, visible: bool) -> bool:
         """), {"role": role, "key": key}).fetchone()
 
         if row:
+            # R05c review M3: a matrix save is a manual value; a "seed" row would be reset to its
+            # static default by the per-request settings seed.
+            set_parts = [f"{value_col} = :visible"]
+            if "source_type" in cols:
+                set_parts.append("source_type = 'manual'")
+            if "updated_at" in cols:
+                set_parts.append("updated_at = :updated_at")
             session.execute(text(f"""
                 update role_menu_defaults
-                set {value_col} = :visible, updated_at = :updated_at
-                where id = :id
-            """) if "updated_at" in cols else text(f"""
-                update role_menu_defaults
-                set {value_col} = :visible
+                set {", ".join(set_parts)}
                 where id = :id
             """), {"visible": visible, "id": row[0], "updated_at": utc_now()})
             return True
@@ -231,7 +251,7 @@ def _set_db_value(session, role: str, feature_key: str, visible: bool) -> bool:
         if "source_type" in cols:
             insert_cols.append("source_type")
             insert_placeholders.append(":source_type")
-            insert_params["source_type"] = "user_override"
+            insert_params["source_type"] = "manual"
         if "created_at" in cols:
             insert_cols.append("created_at")
             insert_placeholders.append(":created_at")
@@ -291,15 +311,51 @@ def assistant_role_matrix_v10_save_endpoint():
             flash("Sanal Asistan Rol Matrisi kaydedilemedi: DB oturumu bulunamadı.", "danger")
         return redirect(request.referrer or "/settings")
 
+    # R05c / N4: a non-admin changes the baseline column only (every other role is protected);
+    # the save is all-or-nothing and audited.
+    from app.services.account_change_guard import audit_refusal, is_protected_role, is_real_admin
+    from app.services.audit_service import write_audit_log
+
+    displayed = get_assistant_role_matrix_v10()["matrix"]
+    planned = {
+        (feature_key, role_key): f"assistant_matrix__{feature_key}__{role_key}" in request.form
+        for feature_key, _, _ in ASSISTANT_FEATURE_ROWS
+        for role_key, _ in ASSISTANT_ROLE_COLUMNS
+    }
+
+    def _current(feature_key, role_key):
+        # Save compares the same manual/seed and exact/alias resolution shown on the page.
+        return bool(displayed.get(feature_key, {}).get(role_key, False))
+
+    # Only changed cells are written (review L1: an unchanged form writes nothing).
+    diff = {key: visible for key, visible in planned.items() if _current(*key) != visible}
+    protected_roles = sorted({role_key for _feature, role_key in diff if is_protected_role(role_key)})
+    if protected_roles and not is_real_admin(current_user):
+        audit_refusal(None, "assistant_role_matrix_v10:" + ",".join(protected_roles))
+        if flash:  # type: ignore[truthy-function]
+            flash("Sanal Asistan rol matrisinde personel dışındaki rollerin sütunları yalnız sistem admini tarafından değiştirilebilir.", "danger")
+        return redirect(request.referrer or "/settings")
+
     changed = 0
-    for feature_key, _, _ in ASSISTANT_FEATURE_ROWS:
-        for role_key, _ in ASSISTANT_ROLE_COLUMNS:
-            field = f"assistant_matrix__{feature_key}__{role_key}"
-            visible = field in request.form
-            if _set_db_value(session, role_key, feature_key, visible):
-                changed += 1
+    failed = False
+    for (feature_key, role_key), visible in diff.items():
+        if _set_db_value(session, role_key, feature_key, visible):
+            changed += 1
+        else:
+            failed = True
+            break
 
     try:
+        if failed:
+            raise RuntimeError("assistant role matrix v10: a cell could not be written; nothing is saved")
+        write_audit_log(
+            "settings.assistant_role_matrix_v10_save",
+            "role_menu_default",
+            None,
+            old_data={f"{feature}:{role}": not visible for (feature, role), visible in diff.items()},
+            new_data={f"{feature}:{role}": visible for (feature, role), visible in diff.items()},
+            summary=f"assistant role matrix v10: {len(diff)} cell(s) changed",
+        )
         session.commit()
         if flash:  # type: ignore[truthy-function]
             flash(f"Sanal Asistan Rol Matrisi kaydedildi. Güncellenen alan: {changed}", "success")

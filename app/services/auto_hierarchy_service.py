@@ -8,6 +8,7 @@ from app.extensions import db
 from app.models import User
 from app.services.explicit_manager_chain_service import has_explicit_manager_fields
 from app.services.hierarchy_rulebook_service import (
+    _norm as _norm_role,
     build_lookup,
     infer_role_from_profile as _infer_role_from_profile,
     is_system_user,
@@ -38,6 +39,13 @@ except Exception:  # pragma: no cover
         return ROLE_DISPLAY_LABELS.get(role, UNKNOWN_ROLE_DISPLAY_LABEL)
 
 
+# The role spellings infer_role_from_profile maps from the role alone (hierarchy_rulebook_service).
+_RECOGNIZED_ROLE_SPELLINGS = frozenset({
+    'admin', 'baskan', 'baskan yardimcisi', 'grup baskani', 'mali musavir',
+    'koordinator', 'birim sorumlusu', 'personel',
+})
+
+
 @dataclass(slots=True)
 class AutoHierarchyResult:
     updated_count: int = 0
@@ -50,34 +58,57 @@ def infer_role_from_profile(*, raw_role: str | None = None, unvan: str | None = 
     return canonical_role_value(role_value), canonical_role_label(role_value)
 
 
+def _audit_inferred_role_change(user: User, old_role: Any) -> None:
+    from flask import has_request_context
+
+    from app.services.account_change_guard import record_account_changes
+
+    if has_request_context():
+        record_account_changes(user, old_role=old_role, old_active=None)
+
+
+def _is_recognized_role(raw_role: Any) -> bool:
+    """A stored role that infer_role_from_profile resolves from the role alone (no title)."""
+    return bool(str(raw_role or '').strip()) and _norm_role(raw_role) in _RECOGNIZED_ROLE_SPELLINGS
+
+
 def auto_apply_manager_chains(
     scope_users: Iterable[User] | None = None,
     *,
     fill_only_missing: bool = True,
     commit: bool = False,
     preserve_explicit_chain: bool = True,
+    persist_inferred_roles: bool = False,
 ) -> dict[str, Any]:
+    """Rebuild manager chains.
+
+    R05: with ``persist_inferred_roles=True`` (a real admin) the stored role of a user in
+    ``scope_users`` is rewritten only to the canonical spelling of the role it already holds;
+    the title, unit or role_label never creates or changes a stored role (an account whose
+    title a non-admin edited is not promoted, a technical account is not demoted). Every such
+    change is audited. Otherwise the chains are built from the stored roles and no role changes.
+    """
     users = User.query.order_by(User.id.asc()).all()
+    scope_list = list(scope_users) if scope_users is not None else None
+    persist_ids = {getattr(u, 'id', None) for u in scope_list} if scope_list is not None else set()
     normalized_targets = []
     for user in users:
-        try:
-            role_value, role_label = infer_role_from_profile(
-                raw_role=getattr(user, 'role', None) or getattr(user, 'role_label', None),
-                unvan=getattr(user, 'unvan', None),
-                birim=getattr(user, 'birim', None),
-                ust_birim=getattr(user, 'ust_birim', None),
-            )
-            if hasattr(user, 'role') and user.role != role_value:
-                user.role = role_value
-            if hasattr(user, 'role_label') and user.role_label != role_label:
-                user.role_label = role_label
-        except Exception:
-            import logging
-            logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/auto_hierarchy_service.py")
+        if persist_inferred_roles and getattr(user, 'id', None) in persist_ids and _is_recognized_role(getattr(user, 'role', None)):
+            try:
+                role_value, role_label = infer_role_from_profile(raw_role=getattr(user, 'role', None))
+                old_role = getattr(user, 'role', None)
+                if hasattr(user, 'role') and user.role != role_value:
+                    user.role = role_value
+                if hasattr(user, 'role_label') and user.role_label != role_label:
+                    user.role_label = role_label
+                _audit_inferred_role_change(user, old_role)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/auto_hierarchy_service.py")
         normalized_targets.append(user)
     db.session.flush()
     lookup = build_lookup(normalized_targets)
-    target_users = list(scope_users) if scope_users is not None else list(lookup.users)
+    target_users = scope_list if scope_list is not None else list(lookup.users)
 
     updated_count = 0
     skipped_count = 0

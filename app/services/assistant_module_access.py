@@ -201,6 +201,8 @@ def _table_columns(session, table_name: str) -> set[str]:
 
 
 def _candidate_keys() -> set[str]:
+    from app.services.assistant_settings_service import assistant_feature_aliases
+
     keys = set(ASSISTANT_MASTER_KEYS)
     for k in list(ASSISTANT_MASTER_KEYS):
         nk = _normalize(k)
@@ -209,7 +211,22 @@ def _candidate_keys() -> set[str]:
         keys.add(f"menu_{nk}")
         keys.add(f"role_matrix_{nk}")
     keys.update(ASSISTANT_SHORTCUT_KEYS)
-    return {_normalize(k) for k in keys if k}
+    normalized = {_normalize(k) for k in keys if k}
+    normalized.update(assistant_feature_aliases("assistant_module"))
+    return normalized
+
+
+def _master_permission_row(rows):
+    from app.services.assistant_settings_service import (
+        assistant_feature_aliases,
+        assistant_feature_row_priority,
+    )
+
+    master_keys = assistant_feature_aliases("assistant_module")
+    return min(rows, key=lambda item: (
+        assistant_feature_row_priority(item.permission_key, item.source_type, "assistant_module") if str(item.permission_key).lower() in master_keys else 4,
+        -item.id,
+    ))
 
 
 def _query_role_menu_defaults(session, role: str) -> bool | None:
@@ -229,21 +246,21 @@ def _query_role_menu_defaults(session, role: str) -> bool | None:
     role_col, key_col, value_col = role_cols[0], key_cols[0], value_cols[0]
     roles = {_normalize(role), role, role.replace("_", " ")}
     keys = _candidate_keys()
+    source = "source_type" if "source_type" in cols else "NULL"
 
     try:
         sql = text(f"""
-            select {value_col}
+            select id, {key_col} as permission_key, {value_col} as visible, {source} as source_type
             from role_menu_defaults
             where lower(cast({role_col} as text)) in :roles
               and lower(cast({key_col} as text)) in :keys
-            order by id desc
-            limit 1
         """)
         sql = sql.bindparams(bindparam("roles", expanding=True), bindparam("keys", expanding=True))
         sql = sql.bindparams(bindparam("roles", expanding=True), bindparam("keys", expanding=True))
-        row = session.execute(sql, {"roles": tuple(roles), "keys": tuple(keys)}).fetchone()
-        if row:
-            return _truthy(row[0])
+        rows = session.execute(sql, {"roles": tuple(roles), "keys": tuple(keys)}).all()
+        if rows:
+            row = _master_permission_row(rows)
+            return _truthy(row.visible)
     except Exception:
         logger.exception("BYS360 V6B guarded exception | file=app/services/assistant_module_access.py | line=246")
         return None
@@ -272,21 +289,20 @@ def _query_user_menu_permissions(session) -> bool | None:
 
     user_col, key_col, value_col = user_cols[0], key_cols[0], value_cols[0]
     keys = _candidate_keys()
+    source = "source_type" if "source_type" in cols else "NULL"
 
     try:
         sql = text(f"""
-            select {value_col}
+            select id, {key_col} as permission_key, {value_col} as visible, {source} as source_type
             from user_menu_permissions
             where {user_col} = :uid
               and lower(cast({key_col} as text)) in :keys
-            order by id desc
-            limit 1
         """)
         sql = sql.bindparams(bindparam("keys", expanding=True))
         sql = sql.bindparams(bindparam("keys", expanding=True))
-        row = session.execute(sql, {"uid": user_id, "keys": tuple(keys)}).fetchone()
-        if row:
-            return _truthy(row[0])
+        rows = session.execute(sql, {"uid": user_id, "keys": tuple(keys)}).all()
+        if rows:
+            return _truthy(_master_permission_row(rows).visible)
     except Exception:
         logger.exception("BYS360 V6B guarded exception | file=app/services/assistant_module_access.py | line=286")
         return None

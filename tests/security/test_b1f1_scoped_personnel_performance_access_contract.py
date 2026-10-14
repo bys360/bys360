@@ -482,6 +482,15 @@ def _change_logs(env, who):
         ]
 
 
+def _refusal_audited(env, reason) -> bool:
+    from app.models import AuditLog
+
+    with env.app.app_context():
+        return any(
+            reason in (row.summary or "") for row in AuditLog.query.filter_by(action="account.change_refused").all()
+        )
+
+
 def _settings(env, actor, data, client=None):
     client = client or _web(env, actor)
     return client.post("/settings", data=data)
@@ -1040,10 +1049,16 @@ def test_rollback_of_the_revocation_never_restores_an_active_grant(env):
 
 @pytest.mark.parametrize("form_action", ["save_user_visibility", "save_personnel_feature_matrix_full", "contract_unknown_action"])
 def test_guard_admin_family_self_grant_is_refused(env, form_action):
-    """Guard: an admin-family user saving its OWN matrix never grants itself."""
+    """Guard: an admin-family user saving its OWN matrix never grants itself.
+
+    R05c / K3 (owner decision 2026-10-13): a non-admin no longer changes its own matrix at all,
+    so the self save is refused and audited instead of running without the grant (the earlier
+    pin "the self save must have run" is replaced by the refusal; the grant assertions stay).
+    """
     before = len(_change_logs(env, "mali_musavir"))
     _grant_via_settings(env, "mali_musavir", actor="mali_musavir", form_action=form_action)
-    assert len(_change_logs(env, "mali_musavir")) == before + 1, "the self save must have run"
+    assert len(_change_logs(env, "mali_musavir")) == before, "K3: the self save is refused, nothing is written"
+    assert _refusal_audited(env, "settings_own_matrix")
     assert not _has_active_grant_row(env, "mali_musavir")
     _assert_self_only(env, "mali_musavir", "/api/mobile/personnel/list")
 
@@ -1403,19 +1418,21 @@ def test_guard_r07_only_the_grant_paths_reference_the_grant_key():
     root = Path(__file__).resolve().parents[2] / "app"
     quoted_key = re.compile(r"""["']personnel_read_all["']""")
     literal_files = sorted(
-        str(path.relative_to(root.parent)) for path in root.rglob("*.py") if quoted_key.search(path.read_text(encoding="utf-8"))
+        path.relative_to(root.parent).as_posix() for path in root.rglob("*.py") if quoted_key.search(path.read_text(encoding="utf-8"))
     )
     assert literal_files == ["app/services/personnel_read_grant.py"], literal_files
     # K5-Q2: the settings guards now take EXPLICIT_GRANT_KEYS (personnel_read_all, support_all);
     # the same reviewed files are the only ones that may use either constant.
     constant_files = sorted(
-        str(path.relative_to(root.parent))
+        path.relative_to(root.parent).as_posix()
         for path in root.rglob("*.py")
         if any(name in path.read_text(encoding="utf-8") for name in ("PERSONNEL_READ_ALL_KEY", "EXPLICIT_GRANT_KEYS"))
     )
+    # R05 (account_change_guard.py) only reads the key to protect grant holders from takeover.
     assert constant_files == [
         "app/main_handlers/account_settings_helpers.py",
         "app/main_handlers/account_visibility_helpers.py",
+        "app/services/account_change_guard.py",
         "app/services/personnel_read_grant.py",
         "app/services/settings/rollback_handler.py",
         "app/services/settings_service.py",
@@ -1469,11 +1486,14 @@ def test_guard_mobile_settings_counters_stay_restricted_for_other_roles(env, who
 
 @pytest.mark.parametrize("actor", ["baskan", "mali_musavir"])
 def test_guard_f04_non_admin_reset_keeps_the_grant(env, actor):
+    """R05c / K1 (owner decision 2026-10-13): the grant holder is a protected account, so a
+    non-admin's reset of its matrix is refused and audited (it used to run and keep the grant)."""
     _grant_via_settings(env, "holder")
     assert _has_active_grant_row(env, "holder")
     response = _settings(env, actor, {"form_action": "reset_user_overrides", "user_id": str(env.ids["holder"])})
     assert response.status_code == 302
-    assert any(log.action == "clear" for log in _change_logs(env, "holder")), "the reset must have run"
+    assert not any(log.action == "clear" for log in _change_logs(env, "holder")), "K1: the reset is refused"
+    assert _refusal_audited(env, "settings_user_matrix")
     assert _has_active_grant_row(env, "holder"), "only an admin may remove the grant"
     _assert_institution_wide(env, "holder", "/api/mobile/personnel/list")
 
@@ -1497,5 +1517,12 @@ def test_guard_f04_settings_rollback_never_touches_the_grant(env, actor):
         {"form_action": "rollback_settings_change_entry", "change_log_id": str(grant_log.id), "keep_user_id": str(env.ids["holder"])},
     )
     assert response.status_code == 302
-    assert any(log.action == "rollback" for log in _change_logs(env, "holder")), "rollback must have run"
+    rolled_back = any(log.action == "rollback" for log in _change_logs(env, "holder"))
+    if actor == "admin":
+        assert rolled_back, "rollback must have run"
+    else:
+        # R05c / K1 + N1 (owner decision 2026-10-13): a non-admin's rollback of a protected
+        # account's matrix is refused and audited (it used to run without touching the grant).
+        assert not rolled_back, "K1/N1: the non-admin rollback is refused"
+        assert _refusal_audited(env, "settings_rollback")
     assert _has_active_grant_row(env, "holder"), "a menu rollback neither restores nor removes the grant"

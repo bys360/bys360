@@ -18,6 +18,7 @@ from flask import (  # noqa: E402 - deferred import (staged facade/route-registr
     url_for,
 )
 from flask_login import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
+    current_user,
     login_required,  # noqa: E402 - deferred import (staged facade/route-registration architecture)
 )
 
@@ -33,6 +34,15 @@ from app.route_registry import (  # noqa: E402 - deferred import (staged facade/
 from app.route_support import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
     admin_required,
     menu_key_required,
+)
+from app.services.account_change_guard import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
+    ADMIN_CONTINUITY_MESSAGE,
+    REFUSAL_MESSAGE,
+    admin_continuity_refusal,
+    audit_account_change,
+    audit_refusal,
+    may_change_account_state,
+    record_account_changes,
 )
 
 from .ops_health_services import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
@@ -218,9 +228,24 @@ def personnel_toggle_active(user_id: int):
         flash("Personel kaydı bulunamadı.", "danger")
         return redirect(url_for("main.personnel_list"))
 
+    # R05: a non-admin editor never switches a protected account on or off.
+    if not may_change_account_state(current_user, user):
+        audit_refusal(user, "activation_change")
+        flash(REFUSAL_MESSAGE, "danger")
+        return redirect(url_for("main.personnel_list"))
+
+    # R05-5 / K4 / C: an admin never deactivates itself; never the last active admin.
+    continuity_refusal = admin_continuity_refusal(current_user, user, new_role=user.role, new_active=not bool(user.is_active))
+    if continuity_refusal:
+        audit_refusal(user, continuity_refusal)
+        flash(ADMIN_CONTINUITY_MESSAGE, "danger")
+        return redirect(url_for("main.personnel_list"))
+
     try:
         if hasattr(user, "is_active"):
-            user.is_active = not bool(user.is_active)
+            old_active = bool(user.is_active)
+            user.is_active = not old_active
+            record_account_changes(user, old_role=user.role, old_active=old_active)
             db.session.commit()
             flash("Personel aktiflik durumu güncellendi.", "success")
         else:
@@ -243,7 +268,18 @@ def personnel_delete(user_id: int):
         flash("Personel kaydı bulunamadı.", "danger")
         return redirect(url_for("main.personnel_list"))
 
+    # R05: a non-admin editor never deletes a protected account (their own included).
+    if not may_change_account_state(current_user, user):
+        audit_refusal(user, "delete")
+        flash(REFUSAL_MESSAGE, "danger")
+        return redirect(url_for("main.personnel_list"))
+
     try:
+        audit_account_change(
+            "account.delete",
+            user,
+            old={"role": user.role, "is_active": bool(user.is_active), "sicil_no": user.sicil_no},
+        )
         safe_delete_user_by_id(getattr(user, "id", user), commit=False)
         db.session.commit()
         flash("Personel kaydı silindi.", "success")

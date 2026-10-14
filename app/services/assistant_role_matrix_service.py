@@ -8,7 +8,7 @@ and app/main_handlers/account_communication_helpers.py
 
 Canonical behavior decisions locked by this consolidation (see
 tests/behavior/test_assistant_role_matrix_behavior_contract.py):
-  - Missing or empty-string stored visible_roles configuration (including a
+  - Missing stored visible_roles configuration (including a
     settings-fetch failure) falls back to ASSISTANT_DEFAULT_VISIBLE_ROLES --
     matches the confirmed-live settings-side behavior and the shared
     assistant-settings service's own default-role intent.
@@ -88,16 +88,9 @@ def _assistant_visible_roles_from_settings() -> set[str]:
         logger.exception("BYS360 assistant role-matrix: get_assistant_settings() failed, falling back to recommended defaults")
         data = {}
 
-    raw = str(data.get("visible_roles") or "").strip()
-    if not raw:
-        raw = ",".join(sorted(ASSISTANT_DEFAULT_VISIBLE_ROLES))
+    from app.services.assistant_settings_service import visible_roles_for_value
 
-    roles = {
-        _normalize_role_token(item)
-        for item in raw.replace(";", ",").replace("\n", ",").split(",")
-        if str(item or "").strip()
-    }
-    return {role for role in roles if role and role != "__none__"}
+    return visible_roles_for_value(data.get("visible_roles"))
 
 
 def build_assistant_role_matrix() -> dict[str, Any]:
@@ -177,16 +170,25 @@ def _upsert_assistant_module_setting(setting_key, label, value_text, value_type=
     return row
 
 
-def save_assistant_role_matrix_from_form(form, *, updated_by_user_id=None):
-    from app.extensions import db
-
+def assistant_visible_roles_value_from_form(form) -> str:
+    """The stored ``visible_roles`` value a matrix form saves (R05c compares it before saving)."""
     selected_roles = []
     for role_key, _role_label in ASSISTANT_POLICY_ROLE_OPTIONS:
         field_name = f"assistant_role_policy__{role_key}__assistant_module"
         if form.get(field_name):
             selected_roles.append(role_key)
+    return ",".join(selected_roles) if selected_roles else "__none__"
 
-    visible_roles_value = ",".join(selected_roles) if selected_roles else "__none__"
+
+def assistant_default_visible_roles_value() -> str:
+    return ",".join(sorted(ASSISTANT_DEFAULT_VISIBLE_ROLES))
+
+
+def save_assistant_role_matrix_from_form(form, *, updated_by_user_id=None):
+    from app.extensions import db
+
+    visible_roles_value = assistant_visible_roles_value_from_form(form)
+    selected_roles = [] if visible_roles_value == "__none__" else visible_roles_value.split(",")
 
     _upsert_assistant_module_setting(
         "enabled",
@@ -211,7 +213,7 @@ def save_assistant_role_matrix_from_form(form, *, updated_by_user_id=None):
 def reset_assistant_role_matrix_defaults(*, updated_by_user_id=None):
     from app.extensions import db
 
-    visible_roles_value = ",".join(sorted(ASSISTANT_DEFAULT_VISIBLE_ROLES))
+    visible_roles_value = assistant_default_visible_roles_value()
 
     _upsert_assistant_module_setting(
         "enabled",

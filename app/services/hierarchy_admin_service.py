@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, cast
 
 from flask import current_app
-from sqlalchemy import inspect as sa_inspect, or_, text
+from sqlalchemy import bindparam, inspect as sa_inspect, or_, text
 
 from app.core.datetime_utils import utc_now
 from app.extensions import db
@@ -421,9 +421,19 @@ def _user_fk_references_to_existing_tables() -> list[dict[str, Any]]:
     return refs
 
 
-def _detach_non_admin_user_fk_references() -> list[dict[str, Any]]:
+def _non_admin_user_ids() -> list[int]:
+    from app.route_support import normalize_role_name
+
+    return [int(row.id) for row in db.session.query(User.id, User.role).all() if normalize_role_name(row.role) != "admin"]
+
+
+def _detach_non_admin_user_fk_references(non_admin_ids: list[int] | None = None) -> list[dict[str, Any]]:
     """Admin disindaki kullanicilar silinmeden once users.id baglantilarini temizler."""
+    if non_admin_ids is None:
+        non_admin_ids = _non_admin_user_ids()
     touched: list[dict[str, Any]] = []
+    if not non_admin_ids:
+        return touched
     for ref in _user_fk_references_to_existing_tables():
         table_name = ref["table"]
         column_name = ref["column"]
@@ -432,7 +442,7 @@ def _detach_non_admin_user_fk_references() -> list[dict[str, Any]]:
                 f"UPDATE {_q(table_name)} "
                 f"SET {_q(column_name)} = NULL "
                 f"WHERE {_q(column_name)} IN ("
-                f"SELECT id FROM {_q('users')} WHERE role != :admin_role"
+                f"SELECT id FROM {_q('users')} WHERE id IN :non_admin_ids"
                 f")"
             )
             action = "null"
@@ -440,11 +450,11 @@ def _detach_non_admin_user_fk_references() -> list[dict[str, Any]]:
             sql = text(
                 f"DELETE FROM {_q(table_name)} "
                 f"WHERE {_q(column_name)} IN ("
-                f"SELECT id FROM {_q('users')} WHERE role != :admin_role"
+                f"SELECT id FROM {_q('users')} WHERE id IN :non_admin_ids"
                 f")"
             )
             action = "delete"
-        result = db.session.execute(sql, {"admin_role": "admin"})
+        result = db.session.execute(sql.bindparams(bindparam("non_admin_ids", expanding=True)), {"non_admin_ids": non_admin_ids})
         rowcount = int(result.rowcount or 0)  # type: ignore[attr-defined]
         if rowcount:
             touched.append({"table": table_name, "column": column_name, "action": action, "rowcount": rowcount})
@@ -460,6 +470,10 @@ def _delete_models_in_dependency_order(*models) -> None:
             model.query.delete(synchronize_session=False)
 
 def reset_all_personnel_and_related_data() -> None:
+    from app.services.account_change_guard import lock_active_admin_ids
+
+    lock_active_admin_ids()
+    non_admin_ids = _non_admin_user_ids()
     _delete_models_in_dependency_order(
         PerformanceEvaluationItem,
         PerformanceEvaluation,
@@ -525,10 +539,11 @@ def reset_all_personnel_and_related_data() -> None:
             synchronize_session=False,
         )
 
-    _detach_non_admin_user_fk_references()
+    _detach_non_admin_user_fk_references(non_admin_ids)
 
     db.session.execute(
-        text('DELETE FROM "users" WHERE role != :admin_role'),
-        {"admin_role": "admin"},
+        # Python strip handles tabs, line breaks and Unicode whitespace identically to the guard.
+        text('DELETE FROM "users" WHERE id IN :non_admin_ids').bindparams(bindparam("non_admin_ids", expanding=True)),
+        {"non_admin_ids": non_admin_ids},
     )
     OrganizationUnit.query.delete(synchronize_session=False)

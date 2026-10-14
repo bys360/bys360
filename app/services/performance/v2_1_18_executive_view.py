@@ -49,7 +49,8 @@ def collect_user_role_terms(user: Any) -> list[str]:
     terms: list[str] = []
     if user is None:
         return terms
-    for attr in ["role", "role_name", "user_role", "title", "unvan", "position", "gorev", "authority_level"]:
+    # R05/R1: authority comes from the stored role only; title, unvan, position or gorev never add a term.
+    for attr in ["role", "role_name", "user_role", "authority_level"]:
         try:
             value = getattr(user, attr, None)
             terms.extend(_term_from_obj(value))

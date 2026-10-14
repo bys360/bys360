@@ -203,11 +203,18 @@ def test_is_president_user_recognizes_role_field_with_turkish_diacritic() -> Non
     assert approvals.is_president_user(user) is True
 
 
-def test_is_president_user_recognizes_english_title_field() -> None:
-    # Any of role/role_name/user_type/unvan/title can carry the value --
-    # here it's the job-title field, not `role`, that is president-shaped.
-    user = SimpleNamespace(role="calisan", role_name=None, user_type=None, unvan=None, title="President")
+def test_is_president_user_recognizes_english_value_in_a_stored_role_field() -> None:
+    # The stored role fields (role/role_name/user_type) can carry the English value.
+    user = SimpleNamespace(role="calisan", role_name="President", user_type=None, unvan=None, title=None)
     assert approvals.is_president_user(user) is True
+
+
+def test_is_president_user_ignores_the_job_title_fields() -> None:
+    # D3 (HUMAN_POLICY_APPROVED) / R05: a job title (unvan/title) never creates authority; an
+    # editor could otherwise set "Başkan" as a title and open the president approvals.
+    for unvan, title in (("Başkan", None), (None, "President"), ("BAŞKAN", "president")):
+        user = SimpleNamespace(role="calisan", role_name=None, user_type=None, unvan=unvan, title=title)
+        assert approvals.is_president_user(user) is False, (unvan, title)
 
 
 def test_is_president_user_rejects_organization_title_text_containing_but_not_equal_to_baskan() -> None:
