@@ -364,9 +364,15 @@ def test_remaining_hero_action_buttons_are_still_present_and_unchanged() -> None
 #    same ledger file's FORWARD-COMPATIBILITY FOLLOW-UP 9.
 # ---------------------------------------------------------------------------
 
+# FORWARD-COMPATIBILITY FOLLOW-UP 11 (BYS360 UX pilot, support/new.html):
+# the pilot moved support/new.html's single page-level <style> block into
+# the scoped external stylesheet app/static/css/bys360_components.css
+# (0 static attributes, 1 block, 0 dynamic) -- STYLE_BLOCK_TOTAL drops
+# 221 -> 220; ACTIVE_STATIC/DYNAMIC totals are unchanged. See the ledger
+# file's STYLE_MIGRATION_WAVES["ux_pilot_support_new"].
 EXPECTED_ACTIVE_STYLE_TOTAL = 1032
 EXPECTED_DYNAMIC_STYLE_TOTAL = 64
-EXPECTED_STYLE_BLOCK_TOTAL = 221
+EXPECTED_STYLE_BLOCK_TOTAL = 220
 
 
 def test_canonical_style_and_handler_inventory_is_unchanged() -> None:
