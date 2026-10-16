@@ -23,6 +23,7 @@ from app.services.account_change_guard import (
     is_real_admin,
     may_change_account_state,
     record_account_changes,
+    split_bulk_targets,
 )
 from app.services.hierarchy_admin_service import reset_all_personnel_and_related_data
 from app.services.profile_photo_service import (
@@ -46,39 +47,82 @@ def _audit_deletion(user) -> None:
         old={"role": user.role, "is_active": bool(user.is_active), "sicil_no": user.sicil_no},
     )
 
+BULK_PROTECTED_MESSAGE = (
+    "korumalı hesap toplu işlemden çıkarıldı. Kendi hesabınız, personel dışındaki roller ve özel "
+    "yetki sahipleri toplu işlemle silinemez veya arşivlenemez."
+)
+
+
+def _posted_bulk_user_ids() -> list[int]:
+    """The selection of a bulk form: repeated ``user_ids`` fields (``/admin/users`` contract) or
+    one comma-joined value (the personnel list script joins the ticked ids); ``selected_ids`` is
+    that page's previous field name, still posted by a tab opened before the change. Blanks,
+    non-numbers and repeats are dropped."""
+    parts: list[str] = []
+    for field in ("user_ids", "selected_ids"):
+        for value in request.form.getlist(field):
+            parts.extend(part for part in str(value).split(",") if part.strip())
+    return normalize_int_list(parts)
+
+
+def _split_bulk_selection(ids: list[int]) -> tuple[list[User], list[User], int]:
+    """(allowed, protected, not_found) in the posted order. F3: a bulk change never touches a
+    protected account, whoever runs it (own account, any role but ``personel``, explicit-grant
+    holders); single-account edits stay the place for those."""
+    found: list[User] = []
+    missing = 0
+    for user_id in ids:
+        user = db.session.get(User, user_id)
+        if user is None:
+            missing += 1
+        else:
+            found.append(user)
+    allowed, protected = split_bulk_targets(current_user, found)
+    return allowed, protected, missing
+
+
+def _report_bulk_selection(protected_count: int, missing: int) -> None:
+    if protected_count:
+        flash(f"{protected_count} {BULK_PROTECTED_MESSAGE}", "warning")
+    if missing:
+        flash(f"{missing} seçili kayıt bulunamadı ve işlem dışında kaldı.", "warning")
+
+
 def admin_users_bulk_delete_impl():
-    ids = normalize_int_list(request.form.getlist("user_ids"))
+    ids = _posted_bulk_user_ids()
     if not ids:
         flash("Lütfen en az bir personel seçin.", "warning")
         return redirect(url_for("main.admin_users"))
 
-    deleted_count = 0
-    blocked_count = 0
+    allowed, protected, missing = _split_bulk_selection(ids)
+    allowed_ids = [int(user.id) for user in allowed]
+    # R05 / F3: every skipped account is audited, each in its own transaction, before any delete.
+    for refused_user in protected:
+        audit_refusal(refused_user, "bulk_delete")
 
-    for user_id in ids:
+    deleted_count = 0
+    blocked_count = len(protected)
+
+    for user_id in allowed_ids:
         user = db.session.get(User, user_id)
         if not user:
             continue
-        if user.id == current_user.id:
-            blocked_count += 1
-            continue
-        # R05: a non-admin editor never deletes a protected account.
-        if not may_change_account_state(current_user, user):
-            audit_refusal(user, "bulk_delete")
-            blocked_count += 1
-            continue
-
+        # One account per transaction: a failure rolls back that account and its audit row only.
         try:
             _audit_deletion(user)
-            safe_delete_user_by_id(getattr(user, "id", user), commit=False)
+            safe_delete_user_by_id(user_id, commit=False)
             db.session.commit()
             deleted_count += 1
         except IntegrityError:
             db.session.rollback()
+            logger.warning("BYS360 bulk delete: user %s kept (integrity error).", user_id)
             blocked_count += 1
         except Exception:
             db.session.rollback()
+            logger.warning("BYS360 bulk delete: user %s kept (delete failed).", user_id, exc_info=True)
             blocked_count += 1
+
+    _report_bulk_selection(len(protected), missing)
 
     if blocked_count > 0:
         flash(
@@ -166,22 +210,17 @@ def admin_user_archive_impl(user_id: int):
     return redirect(url_for("main.admin_users"))
 
 def admin_users_bulk_archive_impl():
-    ids = normalize_int_list(request.form.getlist("user_ids"))
+    ids = _posted_bulk_user_ids()
     if not ids:
         flash("Lütfen en az bir personel seçin.", "warning")
         return redirect(url_for("main.admin_users"))
 
+    allowed, protected, missing = _split_bulk_selection(ids)
+    # R05 / F3: protected accounts (own included) are skipped for every actor and audited below.
+    refused = [int(user.id) for user in protected]
     updated = 0
-    refused = []
     continuity_refused = []
-    for user_id in ids:
-        user = db.session.get(User, user_id)
-        if not user or user.id == current_user.id:
-            continue
-        # R05: a non-admin editor never archives a protected account.
-        if not may_change_account_state(current_user, user):
-            refused.append(user.id)
-            continue
+    for user in allowed:
         if bool(getattr(user, "is_archived", False)) and not bool(getattr(user, "is_active", True)):
             continue
         if admin_continuity_refusal(current_user, user, new_role=user.role, new_active=False):
@@ -197,7 +236,8 @@ def admin_users_bulk_archive_impl():
         updated += 1
 
     db.session.commit()
-    _report_bulk_refusals(refused, "bulk_archive")
+    _audit_bulk_refusals(refused, "bulk_archive")
+    _report_bulk_selection(len(refused), missing)
     _report_continuity_refusals(continuity_refused, "bulk_archive")
     flash(f"Toplu arşivleme tamamlandı. Güncellenen kayıt: {updated}", "success")
     return redirect(url_for("main.admin_users"))
@@ -317,8 +357,13 @@ def _report_continuity_refusals(refused_ids, reason: str) -> None:
     flash(f"{len(refused_ids)} admin hesabı işlem dışında bırakıldı. {ADMIN_CONTINUITY_MESSAGE}", "warning")
 
 
+def _audit_bulk_refusals(refused_ids, reason: str) -> None:
+    if refused_ids:
+        audit_refusal(None, f"{reason}:" + ",".join(str(user_id) for user_id in refused_ids[:50]))
+
+
 def _report_bulk_refusals(refused_ids, reason: str) -> None:
     if not refused_ids:
         return
-    audit_refusal(None, f"{reason}:" + ",".join(str(user_id) for user_id in refused_ids[:50]))
+    _audit_bulk_refusals(refused_ids, reason)
     flash(f"{len(refused_ids)} korumalı hesap işlem dışında bırakıldı. {REFUSAL_MESSAGE}", "warning")
