@@ -680,6 +680,16 @@ def test_disjoint_reclaims_never_count_the_same_removal_kind_twice() -> None:
         assert STYLE_MIGRATION_WAVES[later]["removed_static"] == 0, (template, later)
 
 
+def test_disjoint_reclaims_is_pinned_to_the_single_reviewed_exception() -> None:
+    """The owner approved the reclaim exception for exactly one template and
+    one wave pair (PR #75 review). Any other template or wave pair must be
+    reviewed and added here explicitly; it cannot ride on this exception."""
+    assert DISJOINT_RECLAIMS == {
+        "app/templates/support/new.html": ("style2a", "ux_pilot_support_new"),
+    }
+    assert STYLE_MIGRATION_WAVES["ux_pilot_support_new"]["templates"] == ("app/templates/support/new.html",)
+
+
 @pytest.mark.parametrize(
     "relative_path",
     sorted({t for w in DELETED_TEMPLATE_WAVES.values() for t in w["templates"]}),

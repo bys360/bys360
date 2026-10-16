@@ -767,6 +767,19 @@ SUPPORT_NEW_GENERIC_ERROR = (
     "Sorun sürerse sistem yöneticisine bildirin."
 )
 SUPPORT_NEW_RESELECT_MESSAGE = "Güvenlik nedeniyle seçtiğiniz dosya korunamadı. Gönderirken dosyayı yeniden seçin."
+SUPPORT_NEW_UPLOAD_RESELECT_MESSAGE = (
+    "Dosya talebe eklenmedi. Göndermek için izin verilen türde bir dosyayı yeniden seçin "
+    "veya dosya alanını boş bırakın."
+)
+
+
+def _support_new_reselect_message(field_errors: dict, previous_attachment_name: str) -> str:
+    """D3: dosya tarayıcıda korunamaz; yeniden seçim gerekiyorsa bunu açıkça söyle."""
+    if "attachment" in field_errors:
+        return SUPPORT_NEW_UPLOAD_RESELECT_MESSAGE
+    if previous_attachment_name:
+        return SUPPORT_NEW_RESELECT_MESSAGE
+    return ""
 
 
 def _support_new_form_values() -> dict:
@@ -893,11 +906,7 @@ def support_new():
         field_errors=field_errors,
         form_error=form_error,
         previous_attachment_name=previous_attachment_name,
-        attachment_reselect_message=(
-            SUPPORT_NEW_RESELECT_MESSAGE
-            if previous_attachment_name and "attachment" not in field_errors
-            else ""
-        ),
+        attachment_reselect_message=_support_new_reselect_message(field_errors, previous_attachment_name),
     )
 
 

@@ -50,6 +50,10 @@ VISIBLE_FIELD_IDS = (
 )
 GENERIC_ERROR = "Talebiniz kaydedilemedi. Girdiğiniz bilgiler korundu; lütfen tekrar deneyin. Sorun sürerse sistem yöneticisine bildirin."
 RESELECT_MESSAGE = "Güvenlik nedeniyle seçtiğiniz dosya korunamadı. Gönderirken dosyayı yeniden seçin."
+UPLOAD_RESELECT_MESSAGE = (
+    "Dosya talebe eklenmedi. Göndermek için izin verilen türde bir dosyayı yeniden seçin "
+    "veya dosya alanını boş bırakın."
+)
 
 _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "audit_tmp" / "ux_pilot_support_new" / "test_dbs"
 
@@ -397,10 +401,72 @@ def test_d3_reselect_message_when_a_file_was_chosen(app, client) -> None:
     assert "sahte-ek.pdf" in html
 
 
+def _summary_html(html: str) -> str:
+    match = re.search(r'<div[^>]*id="bysErrorSummary".*?</ul>', html, re.DOTALL)
+    assert match, "Hata özeti yok"
+    return match.group(0)
+
+
+def _field_paragraph(html: str, paragraph_id: str) -> str:
+    match = re.search(rf'<p[^>]*id="{paragraph_id}"[^>]*>.*?</p>', html, re.DOTALL)
+    assert match, f"#{paragraph_id} alan mesajı yok"
+    return match.group(0)
+
+
+def test_d3_reselect_message_is_in_summary_and_linked_on_the_field(app, client) -> None:
+    _logged_in(app, client)
+    data = _valid_form(title="")
+    data["attachment"] = (io.BytesIO(b"%PDF-1.4 sahte"), "sahte-ek.pdf")
+    html = client.post("/support/new", data=data, content_type="multipart/form-data").get_data(as_text=True)
+    scan = _scan(html)
+
+    summary = _summary_html(html)
+    assert RESELECT_MESSAGE in summary
+    assert 'href="#ticket-attachment"' in summary
+    assert RESELECT_MESSAGE in _field_paragraph(html, "ticket-attachment-reselect")
+    control = _control(scan, "ticket-attachment")
+    assert "ticket-attachment-reselect" in control.get("aria-describedby", "").split()
+    # Dosyanın kendisi hatalı değil; yalnız konu alanı hatalı.
+    assert "aria-invalid" not in control
+    assert "ticket-attachment-error" not in scan.ids
+    assert "Talep kaydedilemedi: 1 alanı düzeltin" in html
+
+
+def test_d3_upload_rejection_keeps_security_message_and_asks_to_reselect(app, client) -> None:
+    _logged_in(app, client)
+    before = _ticket_counts(app)
+    data = _valid_form()
+    data["attachment"] = (io.BytesIO(b"MZ sahte"), "sahte.exe")
+    html = client.post("/support/new", data=data, content_type="multipart/form-data").get_data(as_text=True)
+    assert _ticket_counts(app) == before
+    scan = _scan(html)
+
+    security_message = "Riskli dosya uzantısı kabul edilmedi: .exe"
+    # Alan altında: güvenlik hatası ve yeniden seçim talimatı ayrı, ikisi de bağlı.
+    assert security_message in _field_paragraph(html, "ticket-attachment-error")
+    assert UPLOAD_RESELECT_MESSAGE in _field_paragraph(html, "ticket-attachment-reselect")
+    control = _control(scan, "ticket-attachment")
+    described_by = control.get("aria-describedby", "").split()
+    assert described_by == ["ticket-attachment-help", "ticket-attachment-error", "ticket-attachment-reselect"]
+    assert control.get("aria-invalid") == "true"
+
+    # Hata özetinde: tek madde, ikisi birlikte, dosya alanına bağlı.
+    summary = _summary_html(html)
+    assert summary.count('href="#ticket-attachment"') == 1
+    assert security_message in summary
+    assert UPLOAD_RESELECT_MESSAGE in summary
+    assert "Talep kaydedilemedi: 1 alanı düzeltin" in html
+    # Genel tarayıcı mesajı bu durumda kullanılmaz; dosya adı kullanıcıya geri gösterilir (kaçışlı).
+    assert RESELECT_MESSAGE not in html
+    assert "Önceki seçim: sahte.exe" in html
+
+
 def test_d3_no_reselect_message_without_file(app, client) -> None:
     _logged_in(app, client)
     html = client.post("/support/new", data=_valid_form(title="")).get_data(as_text=True)
     assert RESELECT_MESSAGE not in html
+    assert UPLOAD_RESELECT_MESSAGE not in html
+    assert "ticket-attachment-reselect" not in html
 
 
 def test_d3_upload_validation_message_is_shown_on_the_file_field(app, client) -> None:

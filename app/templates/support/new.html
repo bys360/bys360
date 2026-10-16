@@ -38,8 +38,8 @@
                 {% set summary_items = [] %}
                 {% if errors.get('title') %}{% set _ = summary_items.append(('ticket-title', errors.get('title'))) %}{% endif %}
                 {% if errors.get('description') %}{% set _ = summary_items.append(('ticket-description', errors.get('description'))) %}{% endif %}
-                {% if errors.get('attachment') %}{% set _ = summary_items.append(('ticket-attachment', errors.get('attachment'))) %}{% endif %}
-                {% if attachment_reselect_message %}{% set _ = summary_items.append(('ticket-attachment', attachment_reselect_message)) %}{% endif %}
+                {% if errors.get('attachment') %}{% set _ = summary_items.append(('ticket-attachment', errors.get('attachment') ~ ((' ' ~ attachment_reselect_message) if attachment_reselect_message else ''))) %}
+                {% elif attachment_reselect_message %}{% set _ = summary_items.append(('ticket-attachment', attachment_reselect_message)) %}{% endif %}
                 {% set error_count = errors|length %}
                 {{ ui.error_summary(('Talep kaydedilemedi: ' ~ error_count ~ ' alanı düzeltin') if error_count else 'Talep kaydedilemedi', summary_items, form_error) }}
             {% endif %}
