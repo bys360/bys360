@@ -576,12 +576,19 @@ def test_role_matrix_support_tabs_and_neighbour_screens_are_unchanged(app, clien
     assert tabs[:3] == ["Yardım Merkezi", "Yeni Talep Aç", "Taleplerim"]
     assert ("Bana Atananlar" in tabs) is assigned_visible
 
-    for path in ("/support", "/support/my-tickets"):
-        neighbour = client.get(path)
-        assert neighbour.status_code == 200, path
-        neighbour_html = neighbour.get_data(as_text=True)
-        assert "bys360_components.css" not in neighbour_html, path
-        assert "bys360_ui_form.js" not in neighbour_html, path
+    # /support (Yardım Merkezi) henüz tasarım sistemine geçmedi: pilot varlıkları sızmamalı.
+    neighbour = client.get("/support")
+    assert neighbour.status_code == 200
+    neighbour_html = neighbour.get_data(as_text=True)
+    assert "bys360_components.css" not in neighbour_html
+    assert "bys360_ui_form.js" not in neighbour_html
+    # /support/my-tickets dalga 2'de tasarım sistemine geçti (DESIGN_SYSTEM_TEMPLATES);
+    # form betiği yine yalnız pilot formunda yüklenir.
+    my_tickets = client.get("/support/my-tickets")
+    assert my_tickets.status_code == 200
+    my_tickets_html = my_tickets.get_data(as_text=True)
+    assert "bys360_components.css" in my_tickets_html
+    assert "bys360_ui_form.js" not in my_tickets_html
     assert client.get("/support/assigned").status_code == (200 if assigned_visible else 403)
 
 
@@ -693,11 +700,20 @@ def test_k5_component_css_selectors_are_all_bys_prefixed_and_scoped() -> None:
         assert selector.startswith(".bys-ui"), f"Kapsam dışı bileşen seçicisi: {selector!r}"
 
 
+# Tasarım sistemi dalga dalga yayılır; her yeni şablon burada açıkça listelenir
+# ve kendi sözleşme testini taşır (dalga 2: tests/behavior/test_ux_wave2_support_list_contract.py).
+DESIGN_SYSTEM_TEMPLATES = {
+    TEMPLATE,
+    MACROS,
+    REPO_ROOT / "app/templates/support/list.html",
+}
+
+
 def test_k5_new_assets_are_loaded_only_by_the_pilot_template() -> None:
     names = ("bys360_tokens.css", "bys360_components.css", "bys360_ui_form.js", "_ui_form.html")
     offenders: list[str] = []
     for path in (REPO_ROOT / "app" / "templates").rglob("*.html"):
-        if path in {TEMPLATE, MACROS}:
+        if path in DESIGN_SYSTEM_TEMPLATES:
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         offenders.extend(f"{path.relative_to(REPO_ROOT)}:{name}" for name in names if name in text)
@@ -797,6 +813,7 @@ UI_ACRONYM_EXCEPTIONS: dict[str, str] = {
     "DOCX": "Dosya biçimi adı; yanında Türkçe açıklama/ürün adı (Word) verilir.",
     "XLSX": "Dosya biçimi adı; yanında Türkçe açıklama/ürün adı (Excel) verilir.",
     "TXT": "Dosya biçimi adı; yanında 'metin' açıklaması verilir.",
+    "DTY": "Destek talebi başvuru numarasının Türkçe öneki (DTY-YYYYAAGG-XXXXXX); kaydın kimliğidir.",
 }
 
 _UI_TEXT_ATTRS = ("placeholder", "title", "aria-label", "alt", "data-bys-busy-text")

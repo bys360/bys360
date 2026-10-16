@@ -13,6 +13,7 @@
 
 /* ---- Sayfa kabuğu ------------------------------------------------------ */
 .bys-ui.bys-page {
+  display: grid;
   gap: var(--bys-space-5);
   font-family: var(--bys-font);
   color: var(--bys-text);
@@ -659,6 +660,290 @@
   opacity: 0.75;
 }
 
+/* ---- Liste ekranı: özet, arama, tablo, kart, boş durum (dalga 2) -------- */
+.bys-ui .bys-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--bys-space-3);
+}
+
+.bys-ui .bys-stat {
+  display: grid;
+  gap: 2px;
+  padding: var(--bys-space-4) var(--bys-space-5);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface);
+}
+
+.bys-ui .bys-stat__value {
+  font-size: var(--bys-fs-xl);
+  font-weight: var(--bys-fw-bold);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-stat__label {
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-list-card {
+  display: grid;
+  gap: var(--bys-space-5);
+  padding: var(--bys-space-5);
+}
+
+.bys-ui .bys-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--bys-space-3);
+}
+
+.bys-ui .bys-toolbar__search {
+  flex: 1 1 280px;
+}
+
+.bys-ui .bys-toolbar__status {
+  flex: 0 1 240px;
+}
+
+.bys-ui .bys-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bys-space-2);
+}
+
+.bys-ui .bys-list-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--bys-space-2);
+  margin: 0;
+  font-size: var(--bys-fs-md);
+  font-weight: var(--bys-fw-bold);
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-list-title__count {
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-regular);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-md);
+}
+
+.bys-ui .bys-table-wrap:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+.bys-ui .bys-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bys-surface);
+  font-size: var(--bys-fs-sm);
+}
+
+.bys-ui .bys-table th {
+  padding: var(--bys-space-3) var(--bys-space-4);
+  border-bottom: 1px solid var(--bys-border-subtle);
+  background: var(--bys-surface-subtle);
+  color: var(--bys-text-secondary);
+  font-size: var(--bys-fs-xs);
+  font-weight: var(--bys-fw-semibold);
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bys-ui .bys-table td {
+  padding: var(--bys-space-3) var(--bys-space-4);
+  border-bottom: 1px solid var(--bys-border-subtle);
+  color: var(--bys-text);
+  vertical-align: top;
+}
+
+.bys-ui .bys-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.bys-ui .bys-table tbody tr:hover {
+  background: var(--bys-surface-brand);
+}
+
+.bys-ui .bys-table__primary {
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text);
+  text-decoration: none;
+}
+
+.bys-ui .bys-table__primary:hover {
+  color: var(--bys-brand);
+  text-decoration: underline;
+}
+
+.bys-ui .bys-table__primary:focus-visible,
+.bys-ui .bys-ticket-card__title:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+.bys-ui .bys-table__strong {
+  display: block;
+  font-weight: var(--bys-fw-medium);
+}
+
+.bys-ui .bys-table__meta {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: var(--bys-fs-xs);
+  font-weight: var(--bys-fw-semibold);
+  white-space: nowrap;
+}
+
+.bys-ui .bys-chip--info {
+  background: var(--bys-info-bg);
+  color: var(--bys-info);
+}
+
+.bys-ui .bys-chip--warning {
+  background: var(--bys-warning-bg);
+  color: var(--bys-warning);
+}
+
+.bys-ui .bys-chip--success {
+  background: var(--bys-success-bg);
+  color: var(--bys-success);
+}
+
+.bys-ui .bys-chip--danger {
+  background: var(--bys-danger-bg);
+  color: var(--bys-danger);
+}
+
+.bys-ui .bys-chip--neutral {
+  background: var(--bys-surface-subtle);
+  color: var(--bys-text-secondary);
+  box-shadow: inset 0 0 0 1px var(--bys-border-subtle);
+}
+
+.bys-ui .bys-ticket-cards {
+  display: none;
+  gap: var(--bys-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bys-ui .bys-ticket-card {
+  display: grid;
+  gap: var(--bys-space-2);
+  padding: var(--bys-space-4);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface);
+}
+
+.bys-ui .bys-ticket-card__top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bys-space-2);
+}
+
+.bys-ui .bys-ticket-card__title {
+  font-size: var(--bys-fs-md);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.bys-ui .bys-ticket-card__meta {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-ticket-card__facts {
+  display: grid;
+  gap: var(--bys-space-1);
+  margin: var(--bys-space-1) 0 0;
+  padding-top: var(--bys-space-2);
+  border-top: 1px solid var(--bys-border-subtle);
+  font-size: var(--bys-fs-sm);
+}
+
+.bys-ui .bys-ticket-card__facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--bys-space-3);
+}
+
+.bys-ui .bys-ticket-card__facts dt {
+  font-weight: var(--bys-fw-regular);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-ticket-card__facts dd {
+  margin: 0;
+  font-weight: var(--bys-fw-medium);
+  color: var(--bys-text);
+  text-align: right;
+}
+
+.bys-ui .bys-empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--bys-space-2);
+  padding: var(--bys-space-6) var(--bys-space-4);
+  border: 1px dashed var(--bys-border);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface-subtle);
+  text-align: center;
+}
+
+.bys-ui .bys-empty__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--bys-surface);
+  color: var(--bys-brand);
+  box-shadow: var(--bys-shadow-1);
+}
+
+.bys-ui .bys-empty__title {
+  margin: var(--bys-space-2) 0 0;
+  font-weight: var(--bys-fw-bold);
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-empty__text {
+  margin: 0 0 var(--bys-space-2);
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
 /* ---- Duyarlı düzen ----------------------------------------------------- */
 @media (max-width: 1199.98px) {
   .bys-ui .bys-request-layout {
@@ -733,6 +1018,41 @@
   .bys-ui .bys-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .bys-ui .bys-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--bys-space-2);
+  }
+
+  .bys-ui .bys-stat {
+    padding: var(--bys-space-3);
+  }
+
+  .bys-ui .bys-stat__value {
+    font-size: var(--bys-fs-lg);
+  }
+
+  .bys-ui .bys-stat__label {
+    font-size: var(--bys-fs-xs);
+  }
+
+  .bys-ui .bys-list-card {
+    padding: var(--bys-space-4);
+  }
+
+  .bys-ui .bys-toolbar__search,
+  .bys-ui .bys-toolbar__status,
+  .bys-ui .bys-toolbar__actions {
+    flex: 1 1 100%;
+  }
+
+  .bys-ui .bys-table-wrap {
+    display: none;
+  }
+
+  .bys-ui .bys-ticket-cards {
+    display: grid;
   }
 
   .bys-ui .bys-btn {

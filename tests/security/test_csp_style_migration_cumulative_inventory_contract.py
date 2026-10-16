@@ -402,6 +402,19 @@ STYLE_MIGRATION_WAVES: dict[str, _WaveManifestEntry] = {
         "removed_static": 0,
         "removed_blocks": 1,
     },
+    # FORWARD-COMPATIBILITY FOLLOW-UP 12 (BYS360 UX wave 2, Destek ->
+    # Taleplerim / Bana Atananlar / Tüm Talepler): support/list.html's single
+    # page-level <style> block was moved into the scoped external stylesheet
+    # app/static/css/bys360_components.css. 0 static attributes (the template
+    # never had any), 1 block. First claim of this template -- no reclaim.
+    # Evidence: tests/behavior/test_ux_wave2_support_list_contract.py.
+    "ux_wave2_support_list": {
+        "templates": (
+            "app/templates/support/list.html",
+        ),
+        "removed_static": 0,
+        "removed_blocks": 1,
+    },
 }
 
 # A template may be claimed by a second edit-in-place wave ONLY when the two
