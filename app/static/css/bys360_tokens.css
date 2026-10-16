@@ -1,0 +1,73 @@
+/*
+ * BYS360 tasarım tokenları (UX pilotu, 2026-10).
+ *
+ * Kapsam kuralı: tokenlar yalnız `.bys-ui` kapsayıcısı altında tanımlanır.
+ * Belge kökü (root) seçicisi kullanılmaz; bu dosya yalnız pilot ekranı (support/new.html)
+ * tarafından yüklenir ve başka hiçbir ekranı etkilemez.
+ * Kurumsal bordo değerleri base.html'deki mevcut --bys-red / --bys-red-dark /
+ * --bys-red-soft değişkenleriyle aynıdır.
+ * Kontrast değerleri tests/behavior/test_pilot_support_new_ux_contract.py
+ * içinde WCAG formülüyle doğrulanır.
+ */
+.bys-ui {
+  /* Marka */
+  --bys-brand: #8B0000;          /* beyaz üzerinde 10,0:1 */
+  --bys-brand-hover: #690000;    /* beyaz üzerinde 13,1:1 */
+  --bys-brand-soft: #F8EDED;
+  --bys-on-brand: #FFFFFF;
+
+  /* Metin ve yüzey */
+  --bys-text: #111827;           /* 17,7:1 */
+  --bys-text-secondary: #475467; /* 7,7:1 */
+  --bys-text-muted: #667085;     /* 4,97:1 — yalnız >= 14 px */
+  --bys-surface: #FFFFFF;
+  --bys-surface-subtle: #F8FAFC;
+
+  /* Kenarlık */
+  --bys-border: #D0D5DD;         /* yalnız dekoratif ayırıcı */
+  --bys-border-control: #667085; /* form denetimleri, >= 3:1 */
+
+  /* Durum */
+  --bys-success: #067647;
+  --bys-success-bg: #ECFDF3;
+  --bys-warning: #B54708;
+  --bys-warning-bg: #FFFAEB;
+  --bys-danger: #B42318;
+  --bys-danger-bg: #FEF3F2;
+  --bys-info: #175CD3;
+  --bys-info-bg: #EFF8FF;
+
+  /* Odak */
+  --bys-focus: #175CD3;
+  --bys-focus-ring: 0 0 0 2px #FFFFFF, 0 0 0 5px #175CD3;
+
+  /* Tipografi: yazı tipi değiştirilmez, sayfanın mevcut ailesi kullanılır */
+  --bys-font: inherit;
+  --bys-fs-xs: 0.75rem;   /* 12 px */
+  --bys-fs-sm: 0.875rem;  /* 14 px */
+  --bys-fs-md: 1rem;      /* 16 px */
+  --bys-fs-lg: 1.25rem;   /* 20 px */
+  --bys-fs-xl: 1.5rem;    /* 24 px */
+  --bys-fw-regular: 400;
+  --bys-fw-medium: 500;
+  --bys-fw-semibold: 600;
+  --bys-fw-bold: 700;
+  --bys-lh: 1.5;
+
+  /* Boşluk (4 px tabanı) */
+  --bys-space-1: 4px;
+  --bys-space-2: 8px;
+  --bys-space-3: 12px;
+  --bys-space-4: 16px;
+  --bys-space-5: 24px;
+  --bys-space-6: 32px;
+
+  /* Köşe ve gölge */
+  --bys-radius-sm: 6px;
+  --bys-radius-md: 10px;
+  --bys-radius-lg: 16px;
+  --bys-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+
+  /* Dokunma hedefi */
+  --bys-target: 44px;
+}

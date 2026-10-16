@@ -1,0 +1,340 @@
+/*
+ * BYS360 ortak form bileşenleri (UX pilotu, 2026-10).
+ *
+ * Kapsam kuralı: her seçici `.bys-ui` ile başlar; dosya yalnız pilot ekranı
+ * (support/new.html) tarafından yüklenir. Önem bayrağı ve belge kökü seçicisi kullanılmaz.
+ * Değerler bys360_tokens.css içindeki tokenlardan okunur.
+ */
+
+/* ---- Sayfa düzeni: Destek -> Yeni Talep Aç ---------------------------- */
+.bys-ui.bys-request-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--bys-space-5);
+  align-items: start;
+  font-family: var(--bys-font);
+  color: var(--bys-text);
+  line-height: var(--bys-lh);
+}
+
+.bys-ui .bys-card {
+  background: var(--bys-surface);
+  border: 1px solid rgba(139, 0, 0, 0.08);
+  border-radius: var(--bys-radius-lg);
+  box-shadow: var(--bys-shadow-1);
+  padding: var(--bys-space-5);
+}
+
+.bys-ui .bys-request-side {
+  position: sticky;
+  top: 86px;
+  display: grid;
+  gap: var(--bys-space-3);
+}
+
+.bys-ui .bys-help-card {
+  background: var(--bys-surface);
+  border: 1px solid rgba(139, 0, 0, 0.08);
+  border-radius: var(--bys-radius-lg);
+  padding: var(--bys-space-4);
+}
+
+.bys-ui .bys-help-card h2 {
+  margin: 0 0 var(--bys-space-2);
+  font-size: var(--bys-fs-md);
+  font-weight: var(--bys-fw-bold);
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-help-card p,
+.bys-ui .bys-help-card ul {
+  margin: 0;
+  color: var(--bys-text-secondary);
+  font-size: var(--bys-fs-sm);
+}
+
+.bys-ui .bys-help-card ul {
+  padding-left: 18px;
+}
+
+.bys-ui .bys-help-card li {
+  padding: 2px 0;
+}
+
+.bys-ui .privacy-box {
+  margin-top: var(--bys-space-3);
+  padding: var(--bys-space-3) var(--bys-space-4);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface-subtle);
+  border: 1px solid var(--bys-border);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .privacy-box strong {
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-required-note {
+  margin: 0 0 var(--bys-space-4);
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+/* ---- Form ızgarası ve alan --------------------------------------------- */
+.bys-ui .bys-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--bys-space-4);
+}
+
+.bys-ui .bys-field {
+  display: grid;
+  gap: var(--bys-space-2);
+  align-content: start;
+  min-width: 0;
+}
+
+.bys-ui .bys-field--wide {
+  grid-column: 1 / -1;
+}
+
+.bys-ui .bys-field__label {
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-field__req {
+  font-weight: var(--bys-fw-regular);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-field__help {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-field__error {
+  display: flex;
+  gap: var(--bys-space-2);
+  align-items: flex-start;
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-danger);
+}
+
+.bys-ui .bys-field__previous {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.bys-ui .bys-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--bys-target);
+  padding: 10px 12px;
+  border: 1px solid var(--bys-border-control);
+  border-radius: var(--bys-radius-sm);
+  background: var(--bys-surface);
+  color: var(--bys-text);
+  font: inherit;
+  font-size: var(--bys-fs-md);
+  line-height: var(--bys-lh);
+}
+
+.bys-ui textarea.bys-input {
+  min-height: 180px;
+  resize: vertical;
+}
+
+.bys-ui .bys-input[type="file"] {
+  padding: 8px;
+}
+
+.bys-ui .bys-input:focus,
+.bys-ui .bys-input:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+  border-color: var(--bys-focus);
+}
+
+.bys-ui .bys-input[aria-invalid="true"] {
+  border: 2px solid var(--bys-danger);
+}
+
+.bys-ui .bys-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bys-space-2);
+  min-height: var(--bys-target);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-check input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--bys-brand);
+}
+
+.bys-ui .bys-check input:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+/* ---- Hata özeti ve form mesajı ----------------------------------------- */
+.bys-ui .bys-error-summary {
+  margin: 0 0 var(--bys-space-5);
+  padding: var(--bys-space-4);
+  border: 2px solid var(--bys-danger);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-danger-bg);
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-error-summary:focus {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+.bys-ui .bys-error-summary__title {
+  display: flex;
+  gap: var(--bys-space-2);
+  align-items: center;
+  margin: 0 0 var(--bys-space-2);
+  font-size: var(--bys-fs-md);
+  font-weight: var(--bys-fw-bold);
+  color: var(--bys-danger);
+}
+
+.bys-ui .bys-error-summary__list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.bys-ui .bys-error-summary__list li {
+  padding: 2px 0;
+}
+
+.bys-ui .bys-error-summary__list a {
+  color: var(--bys-danger);
+  font-weight: var(--bys-fw-semibold);
+  text-decoration: underline;
+}
+
+.bys-ui .bys-error-summary__list a:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+/* ---- Butonlar ---------------------------------------------------------- */
+.bys-ui .bys-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bys-space-3);
+  margin-top: var(--bys-space-5);
+}
+
+.bys-ui .bys-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--bys-space-2);
+  min-height: var(--bys-target);
+  padding: 10px 18px;
+  border-radius: var(--bys-radius-sm);
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: var(--bys-fs-md);
+  font-weight: var(--bys-fw-semibold);
+  line-height: 1.25;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.bys-ui .bys-btn--primary {
+  background: var(--bys-brand);
+  border-color: var(--bys-brand);
+  color: var(--bys-on-brand);
+}
+
+.bys-ui .bys-btn--primary:hover {
+  background: var(--bys-brand-hover);
+  border-color: var(--bys-brand-hover);
+  color: var(--bys-on-brand);
+}
+
+.bys-ui .bys-btn--secondary {
+  background: var(--bys-surface);
+  border-color: var(--bys-brand);
+  color: var(--bys-brand);
+}
+
+.bys-ui .bys-btn--secondary:hover {
+  background: var(--bys-brand-soft);
+  color: var(--bys-brand);
+}
+
+.bys-ui .bys-btn:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+.bys-ui .bys-btn[disabled],
+.bys-ui .bys-btn[aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+/* ---- Duyarlı düzen ----------------------------------------------------- */
+@media (max-width: 1060px) {
+  .bys-ui.bys-request-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bys-ui .bys-request-side {
+    position: static;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .bys-ui .bys-card {
+    padding: var(--bys-space-4);
+  }
+
+  .bys-ui .bys-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bys-ui .bys-actions {
+    flex-direction: column;
+  }
+
+  .bys-ui .bys-btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bys-ui .bys-btn,
+  .bys-ui .bys-input {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .bys-ui .bys-input,
+  .bys-ui .bys-error-summary,
+  .bys-ui .bys-btn {
+    border: 1px solid CanvasText;
+  }
+
+  .bys-ui .bys-input[aria-invalid="true"] {
+    border: 2px solid CanvasText;
+  }
+}
