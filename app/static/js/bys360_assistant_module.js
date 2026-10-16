@@ -963,7 +963,7 @@
     root.setAttribute('data-bys360-assistant-bölüm', VERSION);
     root.setAttribute('aria-live', 'polite');
     root.innerHTML = '' +
-      '<button class="bys360-am-launcher" type="button" aria-expanded="false" aria-controls="bys360-am-panel" data-launcher="true" data-drag-handle="true" title="BYS360 Asistanı">' +
+      '<button class="bys360-am-launcher" type="button" aria-expanded="false" aria-controls="bys360-am-panel" aria-label="' + MODULE_NAME + '" data-launcher="true" data-drag-handle="true" title="' + MODULE_NAME + '">' +
         '<span class="bys360-am-launcher-icon">' + iconSpark() + '</span>' +
         '<span class="bys360-am-launcher-text"><strong>' + MODULE_NAME + '</strong><span>Tam BYS360 rehberi hazır</span></span>' +
         '<span class="bys360-am-launcher-dot" aria-hidden="true"></span>' +
@@ -1117,12 +1117,42 @@
     }
   }
 
+  // BYS360_ASSISTANT_MOBILE_LAUNCHER_FIX_2026_10: ekran klavyesi açıldığında görünür
+  // alan küçülür. Yüksekliği ve klavye payını CSS değişkeni olarak yazar; mobil
+  // CSS paneli bu alana sığdırır, odaktaki mesaj alanı görünür kalır.
+  function bindVisualViewport(root) {
+    var vv = window.visualViewport;
+    if (!vv || !root) return;
+    var pending = false;
+    function update() {
+      pending = false;
+      var keyboard = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      root.style.setProperty('--bys360-am-vvh', Math.round(vv.height) + 'px');
+      root.style.setProperty('--bys360-am-kb', keyboard + 'px');
+      var active = document.activeElement;
+      if (active && root.contains(active) && /^(TEXTAREA|INPUT)$/.test(active.tagName) && typeof active.scrollIntoView === 'function') {
+        active.scrollIntoView({ block: 'nearest' });
+      }
+    }
+    function schedule() {
+      if (pending) return;
+      pending = true;
+      (window.requestAnimationFrame || window.setTimeout)(update);
+    }
+    vv.addEventListener('resize', schedule);
+    vv.addEventListener('scroll', schedule);
+    update();
+  }
+
   function setOpen(root, open) {
     var launcher = qs('.bys360-am-launcher', root);
     var panel = qs('.bys360-am-panel', root);
     if (!launcher || !panel) return;
+    var focusWasInside = !open && panel.contains(document.activeElement);
     panel.hidden = !open;
     launcher.setAttribute('aria-expanded', open ? 'true' : 'false');
+    // Panel kapanırken odak paneldeyse düğmeye döner (mobilde düğme açıkken gizlidir).
+    if (focusWasInside && typeof launcher.focus === 'function') launcher.focus();
     try { localStorage.setItem(STORAGE_OPEN, open ? '1' : '0'); } catch (e) {}
   }
 
@@ -1378,6 +1408,7 @@
     activeRoot = root;
     saveCurrentPageContext();
     restorePosition(root);
+    bindVisualViewport(root);
     var dragController = null;
     renderGuide(root, '');
     renderSummary(root, null);
