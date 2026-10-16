@@ -18,27 +18,25 @@
 } %}
 {% set module_options = [] %}
 {% for item in modules %}{% set _ = module_options.append((item, module_display_labels.get(item, item))) %}{% endfor %}
-<div class="support-learning-shell help-center-v2">
+<div class="support-learning-shell help-center-v2 bys-ui bys-page">
     {% set current_view_key = 'support_new' %}
-    {% include 'support/_tabs.html' %}
+    <nav class="bys-tabs skip-mobile-normalize" aria-label="Destek bölümleri">{% include 'support/_tabs.html' %}</nav>
 
     {% if not is_support_ready %}
     <div class="warn-box">Destek modülü tabloları kurulmadan kayıt açılamaz. Yetkili kullanıcı kurulum ekranından modülü aktifleştirebilir.</div>
     {% endif %}
 
-    <section class="support-hero support-hero-compact">
-        <div>
-            <span class="support-kicker"><i class="fa-solid fa-ticket" aria-hidden="true"></i> Kayıtlı destek süreci</span>
-            <h2 class="support-title">Talebi net yazarsanız çözüm daha hızlı ilerler.</h2>
-            <p class="support-text">Ekran adresi, işlem adımı, beklenen sonuç, görülen hata ve varsa ekran görüntüsü talebin doğru kişiye yönlenmesini kolaylaştırır.</p>
+    <header class="bys-page-header">
+        <div class="bys-page-header__text">
+            <p class="bys-eyebrow">Kayıtlı destek süreci</p>
+            <h2 class="bys-page-title">Destek talebi oluşturun</h2>
+            <p class="bys-page-lead">Sorunu veya ihtiyacınızı üç adımda anlatın. Talebiniz kayıt altına alınır ve doğru ekibe yönlendirilir; durumunu Taleplerim ekranından izleyebilirsiniz.</p>
         </div>
-        <aside class="support-hero-side">
-            <div class="support-note"><h4>Önce rehbere bakın</h4><p>Benzer konu için hazırlanmış bir yardım makalesi varsa talep açmadan işlem adımlarını kontrol edin.</p></div>
-        </aside>
-    </section>
+        <a class="bys-link-button" href="{{ url_for('main.support_help_article', article_slug='destek-talebi-nasil-acilir') }}"><i class="fa-solid fa-book-open" aria-hidden="true"></i> Talep açma rehberi</a>
+    </header>
 
-    <div class="bys-ui bys-request-layout">
-        <div class="bys-card">
+    <div class="bys-request-layout skip-mobile-normalize">
+        <div class="bys-card bys-form-card">
             {% if errors or form_error %}
                 {% set summary_items = [] %}
                 {% if errors.get('title') %}{% set _ = summary_items.append(('ticket-title', errors.get('title'))) %}{% endif %}
@@ -50,69 +48,76 @@
             {% endif %}
 
             <form id="supportNewForm" method="post" enctype="multipart/form-data" data-bys-submit-guard>
-
-                <div class="privacy-box section-spacing-bottom-md">
-                    <strong>Nasıl doldurulur?</strong>
-                    <div class="field-helper-text">Talep Türü = işlem nedeni. Talep Konusu / İlgili Alan = hangi ekran veya süreçle ilgili olduğu. Kategori ayrıca seçilmez; sistem bunu talep türüne göre otomatik belirler.</div>
-                </div>
-                <p class="bys-required-note">Zorunlu alanlar “(zorunlu)” ile işaretlidir.</p>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="bys-form-grid">
-                    {{ ui.select_field('ticket-type', 'ticket_type', 'Talep Türü', ticket_types, selected=values.get('ticket_type', ''),
-                        help='Hata, kullanım desteği, yetki veya geliştirme ihtiyacını doğru ayırır.') }}
-                    {{ ui.select_field('ticket-module', 'module_name', 'Talep Konusu / İlgili Alan', module_options, selected=values.get('module_name', ''),
-                        help='Talebin hangi ekran veya süreçle ilgili olduğunu seçin.') }}
-                    {{ ui.select_field('ticket-priority', 'priority', 'Öncelik', priorities, selected=values.get('priority', ''),
-                        help='Kritik öncelik yalnızca işlem yapılamaması, güvenlik veya veri riski durumunda seçilmelidir.') }}
-                    {{ ui.text_field('ticket-title', 'title', 'Konu', value=values.get('title', ''), required=true, maxlength=255, wide=true,
-                        help='Kısa ve açıklayıcı yazın (en fazla 255 karakter).',
-                        placeholder='Örn. Performans karne ekranında yayın durumu görünmüyor',
-                        error=errors.get('title', '')) }}
-                    {{ ui.textarea_field('ticket-description', 'description', 'Açıklama', value=values.get('description', ''), required=true, maxlength=4000,
-                        help='Hangi sayfada, hangi işlemden sonra, ne beklerken ne gördüğünüzü yazın. Varsa hata mesajını aynen ekleyin (en fazla 4.000 karakter).',
-                        error=errors.get('description', '')) }}
-                    {{ ui.text_field('ticket-page-url', 'page_url', 'İlgili Sayfa Adresi', value=values.get('page_url', ''), maxlength=255,
-                        help='Sorunun görüldüğü sayfanın adresi; tarayıcının adres çubuğundan kopyalayabilirsiniz (isteğe bağlı).') }}
-                    {{ ui.file_field('ticket-attachment', 'attachment', 'Ek Dosya / Ekran Görüntüsü',
-                        accept='.png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,.webp',
-                        help='İsteğe bağlı. İzin verilen dosya türleri: resim (PNG, JPG, WEBP), PDF, Word (DOCX), Excel (XLSX) ve metin (TXT). Gereksiz kişisel veri içeren görüntüleri paylaşmadan önce kırpın.',
-                        error=errors.get('attachment', ''),
-                        previous_name=previous_attachment_name,
-                        reselect_message=attachment_reselect_message) }}
-                </div>
-                <div class="privacy-box">
-                    <label class="checkbox-inline checkbox-inline--emphasis"><input type="checkbox" id="ticket-private" name="is_private" value="1" aria-describedby="ticket-private-help"{% if values.get('is_private') %} checked{% endif %}> Sadece yetkili kullanıcılar görsün</label>
-                    <div class="field-helper-text" id="ticket-private-help">Performans, personel, güvenlik veya hassas kurum içi bilgi içeren kayıtlar için bu seçenek kullanılmalıdır.</div>
-                </div>
+                <p class="bys-required-note">Zorunlu alanlar “(zorunlu)” ile işaretlidir.</p>
+
+                <fieldset class="bys-section">
+                    <legend class="bys-section__head"><span class="bys-section__step" aria-hidden="true">1</span><span class="bys-section__title">Talep bilgileri</span></legend>
+                    <div class="field-helper-text">Talebin türünü ve ilgili alanı seçin. Kategori bu seçimlere göre otomatik belirlenir.</div>
+                    <div class="bys-form-grid">
+                        {{ ui.select_field('ticket-type', 'ticket_type', 'Talep Türü', ticket_types, selected=values.get('ticket_type', ''),
+                            help='Hata, destek, yetki veya geliştirme.') }}
+                        {{ ui.select_field('ticket-priority', 'priority', 'Öncelik', priorities, selected=values.get('priority', ''),
+                            help='“Kritik”: işlem yapılamıyor veya veri riski var.') }}
+                        {{ ui.select_field('ticket-module', 'module_name', 'Talep Konusu / İlgili Alan', module_options, selected=values.get('module_name', ''),
+                            help='Sorunun yaşandığı ekran veya süreç.', wide=true) }}
+                    </div>
+                </fieldset>
+
+                <fieldset class="bys-section">
+                    <legend class="bys-section__head"><span class="bys-section__step" aria-hidden="true">2</span><span class="bys-section__title">Sorunun açıklaması</span></legend>
+                    <div class="bys-form-grid">
+                        {{ ui.text_field('ticket-title', 'title', 'Konu', value=values.get('title', ''), required=true, maxlength=255, wide=true,
+                            help='Kısa ve açıklayıcı bir başlık yazın (en fazla 255 karakter).',
+                            placeholder='Örn. Performans karne ekranında yayın durumu görünmüyor',
+                            error=errors.get('title', '')) }}
+                        {{ ui.textarea_field('ticket-description', 'description', 'Açıklama', value=values.get('description', ''), required=true, maxlength=4000, counter=true,
+                            help='Hangi sayfada, hangi adımdan sonra, ne beklerken ne gördüğünüzü yazın. Varsa hata mesajını aynen ekleyin (en fazla 4.000 karakter).',
+                            error=errors.get('description', '')) }}
+                        {{ ui.text_field('ticket-page-url', 'page_url', 'İlgili Sayfa Adresi', value=values.get('page_url', ''), maxlength=255, wide=true,
+                            help='Sorunun görüldüğü sayfanın adresi; tarayıcının adres çubuğundan kopyalayabilirsiniz (isteğe bağlı).') }}
+                    </div>
+                </fieldset>
+
+                <fieldset class="bys-section">
+                    <legend class="bys-section__head"><span class="bys-section__step" aria-hidden="true">3</span><span class="bys-section__title">Ekler ve gizlilik</span></legend>
+                    <div class="bys-form-grid">
+                        {{ ui.file_field('ticket-attachment', 'attachment', 'Ek Dosya / Ekran Görüntüsü',
+                            accept='.png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,.webp',
+                            help='İsteğe bağlı. İzin verilen dosya türleri: resim (PNG, JPG, WEBP), PDF, Word (DOCX), Excel (XLSX) ve metin (TXT). Gereksiz kişisel veri içeren görüntüleri paylaşmadan önce kırpın.',
+                            error=errors.get('attachment', ''),
+                            previous_name=previous_attachment_name,
+                            reselect_message=attachment_reselect_message,
+                            wide=true) }}
+                    </div>
+                    <div class="privacy-box section-spacing-bottom-md">
+                        <label class="checkbox-inline checkbox-inline--emphasis"><input type="checkbox" id="ticket-private" name="is_private" value="1" aria-describedby="ticket-private-help"{% if values.get('is_private') %} checked{% endif %}> Sadece yetkili kullanıcılar görsün</label>
+                        <div class="field-helper-text" id="ticket-private-help">Performans, personel, güvenlik veya hassas kurum içi bilgi içeren talepler için işaretleyin.</div>
+                    </div>
+                </fieldset>
+
                 <div class="bys-actions">
                     <button type="submit" class="bys-btn bys-btn--primary" data-bys-submit-button data-bys-busy-text="Kaydediliyor…"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i> <span data-bys-submit-label>Talebi Kaydet</span></button>
-                    <a href="{{ url_for('main.support_my_tickets') }}" class="bys-btn bys-btn--secondary"><i class="fa-solid fa-folder-open" aria-hidden="true"></i> Taleplerime Git</a>
-                    <a href="{{ url_for('main.support_help_article', article_slug='destek-talebi-nasil-acilir') }}" class="bys-btn bys-btn--secondary"><i class="fa-solid fa-book-open" aria-hidden="true"></i> Talep Açma Rehberi</a>
+                    <a href="{{ url_for('main.support_my_tickets') }}" class="bys-btn bys-btn--ghost">Taleplerime dön</a>
                 </div>
             </form>
         </div>
+
         <aside class="bys-request-side" aria-label="Talep yazma ipuçları">
-            <div class="bys-help-card">
-                <h2>İyi talep örneği</h2>
-                <p>“Performans gösterge panelinde dönem filtresini seçince grafik boş geliyor. Aynı dönem rapor ekranında veri var. Ekran görüntüsü ektedir.”</p>
-            </div>
-            <div class="bys-help-card">
-                <h2>Eksik talep örneği</h2>
-                <p>“Sistem çalışmıyor.” Bu ifade tek başına yeterli değildir; sayfa, işlem adımı ve beklenen sonuç yazılmalıdır.</p>
-            </div>
-            <div class="bys-help-card">
-                <h2>Kontrol listesi</h2>
-                <ul>
-                    <li>Sayfa adresini ekledim.</li>
-                    <li>Hangi adımda kaldığımı yazdım.</li>
-                    <li>Hata mesajını aynen belirttim.</li>
-                    <li>Önceliği iş etkisine göre seçtim.</li>
-                    <li>Gerekliyse ekran görüntüsü ekledim.</li>
+            <div class="bys-tips">
+                <h2 class="bys-tips__title">İyi bir talep için</h2>
+                <ul class="bys-checklist">
+                    <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>Sorunun görüldüğü sayfayı belirtin.</span></li>
+                    <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>Hangi adımda kaldığınızı yazın.</span></li>
+                    <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>Hata mesajını aynen ekleyin.</span></li>
+                    <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>Önceliği iş etkisine göre seçin.</span></li>
                 </ul>
-            </div>
-            <div class="bys-help-card">
-                <h2>Güvenli veri notu</h2>
-                <p>Kişisel veri, performans görüşü, puan, anket cevabı veya özel personel bilgisi içeren dosyaları yalnızca gerçekten gerekliyse ve yetkili kapsamda paylaşın.</p>
+                <details class="bys-example">
+                    <summary>Örnek talep metni</summary>
+                    <p><strong>İyi:</strong> “Performans gösterge panelinde dönem filtresini seçince grafik boş geliyor. Aynı dönem rapor ekranında veri var. Ekran görüntüsü ektedir.”</p>
+                    <p><strong>Eksik:</strong> “Sistem çalışmıyor.” Sayfa, işlem adımı ve beklenen sonuç yazılmalıdır.</p>
+                </details>
+                <p class="bys-tips__note"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>Kişisel veri, performans görüşü veya puan içeren dosyaları yalnız gerçekten gerekliyse ekleyin.</span></p>
             </div>
         </aside>
     </div>

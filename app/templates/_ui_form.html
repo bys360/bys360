@@ -34,11 +34,12 @@
 </div>
 {%- endmacro %}
 
-{% macro textarea_field(id, name, label, value='', required=false, help='', error='', maxlength=none, placeholder='', rows=8, wide=true) -%}
+{% macro textarea_field(id, name, label, value='', required=false, help='', error='', maxlength=none, placeholder='', rows=8, wide=true, counter=false) -%}
+{# counter: bys360_ui_form.js alanın altına görsel karakter sayacı ekler (ekran okuyucudan gizli; sınır yardım metninde yazılıdır). #}
 <div class="bys-field{% if wide %} bys-field--wide{% endif %}">
     {{ _label(id, label, required) }}
     {{ _help_and_error(id, help, error) }}
-    <textarea class="bys-input" id="{{ id }}" name="{{ name }}" rows="{{ rows }}"{% if maxlength %} maxlength="{{ maxlength }}"{% endif %}{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}{% if required %} required aria-required="true"{% endif %}{% if help or error %} aria-describedby="{{ _described_by(id, help, error)|trim }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}>{{ value or '' }}</textarea>
+    <textarea class="bys-input" id="{{ id }}" name="{{ name }}" rows="{{ rows }}"{% if counter and maxlength %} data-bys-counter{% endif %}{% if maxlength %} maxlength="{{ maxlength }}"{% endif %}{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}{% if required %} required aria-required="true"{% endif %}{% if help or error %} aria-describedby="{{ _described_by(id, help, error)|trim }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}>{{ value or '' }}</textarea>
 </div>
 {%- endmacro %}
 
@@ -54,13 +55,22 @@
 {%- endmacro %}
 
 {% macro file_field(id, name, label, help='', error='', accept='', previous_name='', reselect_message='', wide=false) -%}
-{# Yükleme hatası (`<id>-error`) ve yeniden seçim talimatı (`<id>-reselect`) ayrı metinlerdir; ikisi de alana bağlanır. #}
+{# Yükleme hatası (`<id>-error`) ve yeniden seçim talimatı (`<id>-reselect`) ayrı metinlerdir; ikisi de alana bağlanır.
+   Dosya alanı: gerçek <input type="file"> korunur. JavaScript açıkken alan bırakma bölgesini kaplar (tıklama, klavye ve
+   sürükle-bırak doğrudan girdiye gider; tarayıcının kendi düğme yazısı görünmez). JavaScript kapalıyken girdi olduğu gibi görünür. #}
 <div class="bys-field{% if wide %} bys-field--wide{% endif %}">
     {{ _label(id, label, false) }}
     {{ _help_and_error(id, help, error) }}
     {% if reselect_message %}<p class="bys-field__error" id="{{ id }}-reselect"><i class="fa-solid fa-rotate" aria-hidden="true"></i><span>{{ reselect_message }}</span></p>{% endif %}
+    <div class="bys-dropzone{% if error %} bys-dropzone--invalid{% endif %}" data-bys-dropzone>
+        <input class="bys-input bys-dropzone__input" type="file" id="{{ id }}" name="{{ name }}"{% if accept %} accept="{{ accept }}"{% endif %}{% if help or error or reselect_message %} aria-describedby="{{ (_described_by(id, help, error)|trim ~ ((' ' ~ id ~ '-reselect') if reselect_message else ''))|trim }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}>
+        <div class="bys-dropzone__body" aria-hidden="true">
+            <span class="bys-dropzone__icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+            <span class="bys-dropzone__cta"><span class="bys-dropzone__button">Dosya seçin</span> veya buraya sürükleyin</span>
+            <span class="bys-dropzone__file" data-bys-file-name data-bys-empty-text="Henüz dosya seçilmedi">Henüz dosya seçilmedi</span>
+        </div>
+    </div>
     {% if previous_name %}<p class="bys-field__previous">Önceki seçim: {{ previous_name|truncate(120, true, '…') }}</p>{% endif %}
-    <input class="bys-input" type="file" id="{{ id }}" name="{{ name }}"{% if accept %} accept="{{ accept }}"{% endif %}{% if help or error or reselect_message %} aria-describedby="{{ (_described_by(id, help, error)|trim ~ ((' ' ~ id ~ '-reselect') if reselect_message else ''))|trim }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}>
 </div>
 {%- endmacro %}
 

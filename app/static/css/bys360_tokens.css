@@ -25,6 +25,8 @@
 
   /* Kenarlık */
   --bys-border: #D0D5DD;         /* yalnız dekoratif ayırıcı */
+  --bys-border-subtle: #EAECF0;  /* kart kenarı ve bölüm ayırıcı (dekoratif) */
+  --bys-surface-brand: #FCF8F8;  /* bordo tonlu açık yüzey: ipucu kartı, bırakma bölgesi */
   --bys-border-control: #667085; /* form denetimleri, >= 3:1 */
 
   /* Durum */
@@ -67,6 +69,7 @@
   --bys-radius-md: 10px;
   --bys-radius-lg: 16px;
   --bys-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --bys-shadow-2: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px -12px rgba(16, 24, 40, 0.12);
 
   /* Dokunma hedefi */
   --bys-target: 44px;
