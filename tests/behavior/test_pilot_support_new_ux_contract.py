@@ -260,7 +260,7 @@ def test_e1_every_visible_control_has_programmatic_label(app, client) -> None:
     assert response.status_code == 200
     scan = _scan(response.get_data(as_text=True))
 
-    ids = [c.get("id") for c in scan.controls]
+    ids = [str(c.get("id") or "") for c in scan.controls]
     assert sorted(ids) == sorted(VISIBLE_FIELD_IDS), f"Beklenmeyen görünür denetim kümesi: {ids!r}"
     unlabeled = [
         c.get("id")
@@ -526,6 +526,74 @@ def test_d5_reflected_values_are_escaped(app, client) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Rol matrisi: pilot yalnız personel ile değil, birim sorumlusu ve admin ile de
+# aynı davranır; rol bazlı sekmeler ve diğer destek ekranları değişmedi.
+# Menü izinleri bu PR'da değişmez; testler yalnız mevcut davranışı sabitler.
+# ---------------------------------------------------------------------------
+PILOT_ROLES = ("personel", "birim_sorumlusu", "admin")
+
+
+def _support_tabs(html: str) -> list[str]:
+    match = re.search(r'<div class="support-tabs">(.*?)</div>', html, re.DOTALL)
+    assert match, "Destek sekmeleri yok"
+    return re.findall(r"</i> ([^<]+)</a>", match.group(1))
+
+
+@pytest.mark.parametrize("role", PILOT_ROLES)
+def test_role_matrix_form_renders_validates_and_submits(app, client, role) -> None:
+    _logged_in(app, client, sicil_no=f"TEST-{role.upper()}-01", role=role)
+
+    response = client.get("/support/new")
+    assert response.status_code == 200
+    scan = _scan(response.get_data(as_text=True))
+    assert {c.get("id") for c in scan.controls} == set(VISIBLE_FIELD_IDS)
+
+    invalid = client.post("/support/new", data=_valid_form(title=""))
+    assert invalid.status_code == 200
+    invalid_html = invalid.get_data(as_text=True)
+    assert "Konu alanını doldurun." in _summary_html(invalid_html)
+    assert _control(_scan(invalid_html), "ticket-title").get("aria-invalid") == "true"
+
+    rejected = _valid_form()
+    rejected["attachment"] = (io.BytesIO(b"MZ sahte"), "sahte.exe")
+    rejected_html = client.post("/support/new", data=rejected, content_type="multipart/form-data").get_data(as_text=True)
+    assert UPLOAD_RESELECT_MESSAGE in _summary_html(rejected_html)
+
+    before = _ticket_counts(app)
+    created = client.post("/support/new", data=_valid_form())
+    assert created.status_code == 302
+    assert re.fullmatch(r"/support/\d+", created.headers["Location"])
+    assert _ticket_counts(app) == (before[0] + 1, before[1] + 1, before[2] + 1)
+
+
+@pytest.mark.parametrize(
+    ("role", "assigned_visible"),
+    (("personel", False), ("birim_sorumlusu", True), ("admin", True)),
+)
+def test_role_matrix_support_tabs_and_neighbour_screens_are_unchanged(app, client, role, assigned_visible) -> None:
+    _logged_in(app, client, sicil_no=f"TEST-{role.upper()}-02", role=role)
+    tabs = _support_tabs(client.get("/support/new").get_data(as_text=True))
+    assert tabs[:3] == ["Yardım Merkezi", "Yeni Talep Aç", "Taleplerim"]
+    assert ("Bana Atananlar" in tabs) is assigned_visible
+
+    for path in ("/support", "/support/my-tickets"):
+        neighbour = client.get(path)
+        assert neighbour.status_code == 200, path
+        neighbour_html = neighbour.get_data(as_text=True)
+        assert "bys360_components.css" not in neighbour_html, path
+        assert "bys360_ui_form.js" not in neighbour_html, path
+    assert client.get("/support/assigned").status_code == (200 if assigned_visible else 403)
+
+
+def test_role_matrix_personel_cannot_reach_staff_support_screens(app, client) -> None:
+    _logged_in(app, client, sicil_no="TEST-PERSONEL-03", role="personel")
+    tabs = _support_tabs(client.get("/support/new").get_data(as_text=True))
+    assert tabs == ["Yardım Merkezi", "Yeni Talep Aç", "Taleplerim"]
+    for path in ("/support/assigned", "/support/all", "/support/help-admin"):
+        assert client.get(path).status_code == 403, path
+
+
+# ---------------------------------------------------------------------------
 # D6-D8: mevcut kayıt, CSRF ve yetki davranışı değişmedi
 # ---------------------------------------------------------------------------
 def test_d6_valid_submit_still_creates_ticket_and_redirects(app, client) -> None:
@@ -542,6 +610,7 @@ def test_d6_valid_submit_still_creates_ticket_and_redirects(app, client) -> None
 
     with app.app_context():
         ticket = db.session.query(SupportTicket).order_by(SupportTicket.id.desc()).first()
+        assert ticket is not None
         assert ticket.title == _valid_form()["title"]
         assert ticket.ticket_type == "bug"
         assert ticket.priority == "high"
