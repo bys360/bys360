@@ -2,7 +2,8 @@
 
 Defect (2026-10-16)
 -------------------
-``/admin/users`` renders ``personnel_list.html``. Its "Toplu Sil" / "Toplu Arşivle" forms put
+``/personnel`` renders ``personnel_list.html``. Its "Toplu Sil" / "Toplu Arşivle" forms (posting to
+``/admin/users/bulk-delete`` / ``bulk-archive``) put
 the ticked ids into ONE hidden field ``selected_ids`` as a comma-joined string (``"12,15,18"``),
 while ``admin_users_bulk_delete_impl`` / ``admin_users_bulk_archive_impl`` read only
 ``request.form.getlist("user_ids")``. The selection therefore always arrived empty and both
@@ -19,9 +20,13 @@ Contract
 --------
 - the page posts ``user_ids``; the endpoints accept repeated ``user_ids`` fields (the existing
   format), a comma-joined value, and the previous field name ``selected_ids`` (an open tab);
-- blanks, non-numbers and repeats are dropped; unknown ids are reported, never counted;
+- only positive ids count: blanks, non-numbers, signs and repeats are dropped; unknown ids are
+  reported, never counted; more than ``MAX_BULK_SELECTION`` ids change nothing;
+- the personnel list sends ``return_to=personnel_list`` and comes back to ``/personnel``; every
+  other caller still lands on ``/admin/users`` (allowlist, no open redirect);
 - protected accounts are skipped for every actor, audited (``account.change_refused``) and
   reported; nothing outside the selection changes;
+- protection is checked again right before each deletion;
 - a failed deletion rolls back that account only (no orphan ``account.delete`` row).
 
 Tests named ``test_guard_*`` also pass on the pre-fix code (77b2f6d9); every other test fails
@@ -83,12 +88,13 @@ def _messages(flashes: list[tuple[str, str]]) -> str:
 
 def test_personnel_list_bulk_forms_post_user_ids(env):
     client = r05._web(env, "admin")
-    response = client.get("/admin/users")
+    response = client.get("/personnel")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'name="user_ids" id="bulkArchiveIds"' in html
     assert 'name="user_ids" id="bulkDeleteIds"' in html
     assert 'name="selected_ids"' not in html
+    assert html.count('name="return_to" value="personnel_list"') == 2
     # the forms keep their CSRF field and the selection script
     assert html.count('name="csrf_token"') >= 2
     assert "function fillBulkIds(targetId, confirmText)" in html
@@ -158,10 +164,10 @@ def test_bulk_delete_drops_invalid_and_repeated_ids_and_reports_unknown_ones(env
     _response, flashes = _post(
         r05._web(env, "admin"),
         "/admin/users/bulk-delete",
-        {"user_ids": f"{plain}, abc,{plain},,999999,-3", "selected_ids": plain},
+        {"user_ids": f"{plain}, abc,{plain},,999999,-3,+{plain},0", "selected_ids": plain},
     )
     assert flashes[-1] == ("success", "Toplu silme tamamlandı. Silinen kayıt: 1")
-    assert "2 seçili kayıt bulunamadı" in _messages(flashes)
+    assert "1 seçili kayıt bulunamadı" in _messages(flashes)
     _unchanged_except(env, before, {"plain"})
     assert [row.entity_id for row in r05._audit_rows(env, "account.delete")] == [env.ids["plain"]]
 
@@ -212,7 +218,7 @@ def test_guard_bulk_endpoints_reject_a_non_admin_family_user(env, path):
     _unchanged_except(env, before, set())
 
 
-def test_bulk_delete_failure_rolls_back_only_that_account(env, monkeypatch):
+def test_guard_bulk_delete_failure_rolls_back_only_that_account(env, monkeypatch):
     from app.admin import ops_user_action_services as services
 
     real_delete = services.safe_delete_user_by_id
@@ -226,7 +232,9 @@ def test_bulk_delete_failure_rolls_back_only_that_account(env, monkeypatch):
 
     monkeypatch.setattr(services, "safe_delete_user_by_id", _failing_delete)
     before = _snapshot(env)
-    _response, flashes = _post(r05._web(env, "admin"), "/admin/users/bulk-delete", {"user_ids": _csv(env, "plain", "plain2")})
+    _response, flashes = _post(
+        r05._web(env, "admin"), "/admin/users/bulk-delete", {"user_ids": [str(env.ids["plain"]), str(failing_id)]}
+    )
     assert flashes[-1] == ("warning", f"Toplu silme tamamlandı. Silinen: 1, silinemeyen: 1. {SUMMARY_WARNING_TAIL}")
     assert r05._state(env, "plain") is None
     assert r05._state(env, "plain2") == before["plain2"]
@@ -289,3 +297,83 @@ def test_f3_real_admin_bulk_archive_skips_every_protected_account(env):
         reason = str((row.new or {}).get("reason", ""))
         audited.update(int(part) for part in reason.rsplit(":", 1)[-1].split(",") if part.strip().isdigit())
     assert audited == {env.ids[key] for key in ("admin", "admin2", "koordinator", "sysadm", "pra_holder", "sup_holder")}
+
+
+# --------------------------------------------------------------------------------------
+# F3 in the existing repeated ``user_ids`` format (fails on the base for the F3 reason)
+# --------------------------------------------------------------------------------------
+
+_PROTECTED_FOR_ADMIN = ("admin2", "koordinator", "sysadm", "pra_holder", "sup_holder")
+
+
+def test_f3_real_admin_bulk_delete_repeated_user_ids_keeps_protected_accounts(env):
+    before = _snapshot(env)
+    data = {"user_ids": [str(env.ids[key]) for key in (*_PROTECTED_FOR_ADMIN, "plain")]}
+    _response, flashes = _post(r05._web(env, "admin"), "/admin/users/bulk-delete", data)
+    assert flashes[-1] == ("warning", f"Toplu silme tamamlandı. Silinen: 1, silinemeyen: 5. {SUMMARY_WARNING_TAIL}")
+    _unchanged_except(env, before, {"plain"})
+    assert {row.entity_id for row in _refusal_rows(env, "bulk_delete")} == {env.ids[key] for key in _PROTECTED_FOR_ADMIN}
+
+
+def test_f3_real_admin_bulk_archive_repeated_user_ids_keeps_protected_accounts(env):
+    before = _snapshot(env)
+    data = {"user_ids": [str(env.ids[key]) for key in (*_PROTECTED_FOR_ADMIN, "plain")]}
+    _response, flashes = _post(r05._web(env, "admin"), "/admin/users/bulk-archive", data)
+    assert flashes[-1] == ("success", "Toplu arşivleme tamamlandı. Güncellenen kayıt: 1")
+    _unchanged_except(env, before, {"plain"})
+    assert r05._state(env, "plain").is_active is False
+
+
+def test_bulk_delete_rechecks_protection_right_before_deleting(env, monkeypatch):
+    """A grant given to a selected account after the split (here: while the first refusal is
+    being audited) still protects it."""
+    from app.admin import ops_user_action_services as services
+    from app.extensions import db
+    from app.models import UserMenuPermission
+
+    real_audit = services.audit_refusal
+    target_id = env.ids["plain2"]
+
+    def _audit_then_grant(target: Any, reason: str, **kwargs: Any) -> None:
+        real_audit(target, reason, **kwargs)
+        if not UserMenuPermission.query.filter_by(user_id=target_id, menu_key="personnel_read_all").first():
+            db.session.add(
+                UserMenuPermission(user_id=target_id, menu_key="personnel_read_all", is_visible=True, source_type="user_override")
+            )
+            db.session.commit()
+
+    monkeypatch.setattr(services, "audit_refusal", _audit_then_grant)
+    data = {"user_ids": [str(env.ids["koordinator"]), str(target_id), str(env.ids["plain"])]}
+    _response, flashes = _post(r05._web(env, "admin"), "/admin/users/bulk-delete", data)
+    assert flashes[-1] == ("warning", f"Toplu silme tamamlandı. Silinen: 1, silinemeyen: 2. {SUMMARY_WARNING_TAIL}")
+    assert r05._state(env, "plain2") is not None
+    assert r05._state(env, "koordinator") is not None
+    assert r05._state(env, "plain") is None
+
+
+@pytest.mark.parametrize("path", ["/admin/users/bulk-delete", "/admin/users/bulk-archive"])
+def test_bulk_selection_above_the_limit_changes_nothing(env, path):
+    from app.admin.ops_user_action_services import MAX_BULK_SELECTION
+
+    before = _snapshot(env)
+    ids = [str(env.ids["plain"])] + [str(10_000_000 + n) for n in range(MAX_BULK_SELECTION)]
+    _response, flashes = _post(r05._web(env, "admin"), path, {"user_ids": ",".join(ids)})
+    assert flashes[-1] == ("warning", f"Tek seferde en fazla {MAX_BULK_SELECTION} personel seçilebilir; işlem yapılmadı.")
+    _unchanged_except(env, before, set())
+
+
+@pytest.mark.parametrize("path", ["/admin/users/bulk-delete", "/admin/users/bulk-archive"])
+def test_personnel_list_bulk_forms_return_to_the_personnel_list(env, path):
+    response, _flashes = _post(
+        r05._web(env, "admin"), path, {"user_ids": str(env.ids["plain"]), "return_to": "personnel_list"}
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/personnel")
+
+
+@pytest.mark.parametrize("return_to", ["", "https://example.com/", "//evil.example/", "admin_users"])
+def test_guard_bulk_redirect_ignores_any_other_return_to(env, return_to):
+    response, _flashes = _post(
+        r05._web(env, "admin"), "/admin/users/bulk-archive", {"user_ids": [str(env.ids["plain"])], "return_to": return_to}
+    )
+    assert response.headers["Location"].endswith("/admin/users")

@@ -5,6 +5,7 @@ Route decorators stay in ops_routes.py. This module contains implementation bodi
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from flask import flash, redirect, request, url_for
 from flask_login import current_user
@@ -20,6 +21,7 @@ from app.services.account_change_guard import (
     admin_continuity_refusal,
     audit_account_change,
     audit_refusal,
+    is_protected_account,
     is_real_admin,
     may_change_account_state,
     record_account_changes,
@@ -47,6 +49,7 @@ def _audit_deletion(user) -> None:
         old={"role": user.role, "is_active": bool(user.is_active), "sicil_no": user.sicil_no},
     )
 
+MAX_BULK_SELECTION = 500
 BULK_PROTECTED_MESSAGE = (
     "korumalı hesap toplu işlemden çıkarıldı. Kendi hesabınız, personel dışındaki roller ve özel "
     "yetki sahipleri toplu işlemle silinemez veya arşivlenemez."
@@ -61,8 +64,29 @@ def _posted_bulk_user_ids() -> list[int]:
     parts: list[str] = []
     for field in ("user_ids", "selected_ids"):
         for value in request.form.getlist(field):
-            parts.extend(part for part in str(value).split(",") if part.strip())
-    return normalize_int_list(parts)
+            parts.extend(part.strip() for part in str(value).split(","))
+    # Positive database ids only (no sign, at most 18 digits); anything else is not an id.
+    return normalize_int_list(part for part in parts if part.isdigit() and len(part) <= 18 and int(part) > 0)
+
+
+def _bulk_redirect():
+    """Back to the page the form came from: the personnel list sends ``return_to``; anything
+    else (or an unknown value) goes to ``/admin/users`` as before. Allowlisted, no open redirect."""
+    if request.form.get("return_to") == "personnel_list":
+        return redirect(url_for("main.personnel_list"))
+    return redirect(url_for("main.admin_users"))
+
+
+def _bulk_selection_or_refusal() -> tuple[list[int], Any]:
+    """(ids, None) for a usable selection, otherwise ([], redirect response) after a warning."""
+    ids = _posted_bulk_user_ids()
+    if not ids:
+        flash("Lütfen en az bir personel seçin.", "warning")
+        return [], _bulk_redirect()
+    if len(ids) > MAX_BULK_SELECTION:
+        flash(f"Tek seferde en fazla {MAX_BULK_SELECTION} personel seçilebilir; işlem yapılmadı.", "warning")
+        return [], _bulk_redirect()
+    return ids, None
 
 
 def _split_bulk_selection(ids: list[int]) -> tuple[list[User], list[User], int]:
@@ -89,10 +113,9 @@ def _report_bulk_selection(protected_count: int, missing: int) -> None:
 
 
 def admin_users_bulk_delete_impl():
-    ids = _posted_bulk_user_ids()
-    if not ids:
-        flash("Lütfen en az bir personel seçin.", "warning")
-        return redirect(url_for("main.admin_users"))
+    ids, refusal = _bulk_selection_or_refusal()
+    if refusal is not None:
+        return refusal
 
     allowed, protected, missing = _split_bulk_selection(ids)
     allowed_ids = [int(user.id) for user in allowed]
@@ -106,6 +129,11 @@ def admin_users_bulk_delete_impl():
     for user_id in allowed_ids:
         user = db.session.get(User, user_id)
         if not user:
+            continue
+        # Re-read after the refusal commits: a role or grant given meanwhile still protects.
+        if is_protected_account(user, current_user):
+            audit_refusal(user, "bulk_delete")
+            blocked_count += 1
             continue
         # One account per transaction: a failure rolls back that account and its audit row only.
         try:
@@ -133,7 +161,7 @@ def admin_users_bulk_delete_impl():
     else:
         flash(f"Toplu silme tamamlandı. Silinen kayıt: {deleted_count}", "success")
 
-    return redirect(url_for("main.admin_users"))
+    return _bulk_redirect()
 
 def admin_user_change_photo_impl(user_id: int):
     user = db.session.get(User, user_id)
@@ -210,10 +238,9 @@ def admin_user_archive_impl(user_id: int):
     return redirect(url_for("main.admin_users"))
 
 def admin_users_bulk_archive_impl():
-    ids = _posted_bulk_user_ids()
-    if not ids:
-        flash("Lütfen en az bir personel seçin.", "warning")
-        return redirect(url_for("main.admin_users"))
+    ids, refusal = _bulk_selection_or_refusal()
+    if refusal is not None:
+        return refusal
 
     allowed, protected, missing = _split_bulk_selection(ids)
     # R05 / F3: protected accounts (own included) are skipped for every actor and audited below.
@@ -240,7 +267,7 @@ def admin_users_bulk_archive_impl():
     _report_bulk_selection(len(refused), missing)
     _report_continuity_refusals(continuity_refused, "bulk_archive")
     flash(f"Toplu arşivleme tamamlandı. Güncellenen kayıt: {updated}", "success")
-    return redirect(url_for("main.admin_users"))
+    return _bulk_redirect()
 
 def admin_user_delete_impl(user_id: int):
     user = db.session.get(User, user_id)
