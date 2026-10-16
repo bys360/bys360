@@ -601,7 +601,8 @@
   justify-content: center;
   gap: var(--bys-space-2);
   min-height: 48px;
-  padding: 0 var(--bys-space-5);
+  /* Yükseklik padding ile de sağlanır: bazı küresel mobil stiller min-height'ı 42 px'e zorlar. */
+  padding: 13px var(--bys-space-5);
   border-radius: var(--bys-radius-md);
   border: 1px solid transparent;
   font: inherit;
@@ -737,6 +738,8 @@
   .bys-ui .bys-btn {
     width: 100%;
     min-height: 52px;
+    padding-top: 15px;
+    padding-bottom: 15px;
   }
 }
 
