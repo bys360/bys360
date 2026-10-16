@@ -11,8 +11,13 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
 {% set values = form_values or {} %}
 {% set errors = field_errors or {} %}
+{# Türkçe arayüz standardı: kayıtlı değer (value) aynen kalır; yalnız kullanıcıya görünen ad Türkçeleştirilir. #}
+{% set module_display_labels = {
+    'Raporlama ve Dashboard': 'Raporlama ve Gösterge Paneli',
+    'KPI / Hedef Yönetimi': 'Performans Göstergesi (KPI) / Hedef Yönetimi',
+} %}
 {% set module_options = [] %}
-{% for item in modules %}{% set _ = module_options.append((item, item)) %}{% endfor %}
+{% for item in modules %}{% set _ = module_options.append((item, module_display_labels.get(item, item))) %}{% endfor %}
 <div class="support-learning-shell help-center-v2">
     {% set current_view_key = 'support_new' %}
     {% include 'support/_tabs.html' %}
@@ -66,11 +71,11 @@
                     {{ ui.textarea_field('ticket-description', 'description', 'Açıklama', value=values.get('description', ''), required=true, maxlength=4000,
                         help='Hangi sayfada, hangi işlemden sonra, ne beklerken ne gördüğünüzü yazın. Varsa hata mesajını aynen ekleyin (en fazla 4.000 karakter).',
                         error=errors.get('description', '')) }}
-                    {{ ui.text_field('ticket-page-url', 'page_url', 'İlgili Sayfa URL', value=values.get('page_url', ''), maxlength=255,
-                        help='Sorunun görüldüğü sayfanın adresi, örn. /performance/dashboard (isteğe bağlı).') }}
+                    {{ ui.text_field('ticket-page-url', 'page_url', 'İlgili Sayfa Adresi', value=values.get('page_url', ''), maxlength=255,
+                        help='Sorunun görüldüğü sayfanın adresi; tarayıcının adres çubuğundan kopyalayabilirsiniz (isteğe bağlı).') }}
                     {{ ui.file_field('ticket-attachment', 'attachment', 'Ek Dosya / Ekran Görüntüsü',
                         accept='.png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,.webp',
-                        help='İsteğe bağlı. PNG, JPG, PDF, DOCX, XLSX, TXT veya WEBP. Gereksiz kişisel veri içeren görüntüleri paylaşmadan önce kırpın.',
+                        help='İsteğe bağlı. İzin verilen dosya türleri: resim (PNG, JPG, WEBP), PDF, Word (DOCX), Excel (XLSX) ve metin (TXT). Gereksiz kişisel veri içeren görüntüleri paylaşmadan önce kırpın.',
                         error=errors.get('attachment', ''),
                         previous_name=previous_attachment_name,
                         reselect_message=attachment_reselect_message) }}
@@ -89,7 +94,7 @@
         <aside class="bys-request-side" aria-label="Talep yazma ipuçları">
             <div class="bys-help-card">
                 <h2>İyi talep örneği</h2>
-                <p>“/performance/dashboard sayfasında dönem filtresini seçince grafik boş geliyor. Aynı dönem rapor ekranında veri var. Ekran görüntüsü ektedir.”</p>
+                <p>“Performans gösterge panelinde dönem filtresini seçince grafik boş geliyor. Aynı dönem rapor ekranında veri var. Ekran görüntüsü ektedir.”</p>
             </div>
             <div class="bys-help-card">
                 <h2>Eksik talep örneği</h2>

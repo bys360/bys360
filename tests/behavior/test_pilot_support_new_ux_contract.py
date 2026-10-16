@@ -752,3 +752,195 @@ def test_brand_color_is_the_existing_corporate_bordo() -> None:
     text = TOKENS_CSS.read_text(encoding="utf-8")
     assert _token(text, "--bys-brand").upper() == "#8B0000"
     assert _token(text, "--bys-brand-hover").upper() == "#690000"
+
+
+# ---------------------------------------------------------------------------
+# TR: Zorunlu Türkçe arayüz standardı (proje sahibi kuralı, 16 Ekim 2026).
+# Kullanıcıya görünen hiçbir metin İngilizce kelime içermez. Kapsam: pilot
+# şablonun ürettiği alan (.support-learning-shell), metin düğümleri ve
+# kullanıcıya görünen/okunan öznitelikler. Kod adları, URL'ler, alan adları ve
+# kayıtlı değerler (option value) denetlenmez ve değiştirilmez.
+#
+# Tarayıcıya ait yerel dosya seçme düğmesinin yazısı ("Dosya Seç") HTML'de
+# yoktur; kullanıcının tarayıcı/işletim sistemi diline göre çizilir ve bu
+# testin kapsamı dışındadır.
+# ---------------------------------------------------------------------------
+UI_ENGLISH_DENYLIST = frozenset(
+    (
+        "about", "account", "accounts", "action", "actions", "add", "admin", "ai", "alert", "all", "analytics",
+        "and", "apply", "approval", "approve", "archive", "archived", "assistant", "attachment", "attachments",
+        "back", "browse", "button", "cancel", "card", "category", "change", "chat", "checkbox", "choose", "chosen",
+        "clear", "click", "close", "confirm", "copy", "create", "dashboard", "date", "delete", "description",
+        "detail", "details", "download", "draft", "drop", "dropdown", "edit", "email", "error", "event", "events",
+        "export", "faq", "favorites", "feedback", "field", "fields", "file", "files", "filter", "filters", "for",
+        "goal", "goals", "guide", "help", "history", "home", "info", "import", "invalid", "label", "learn",
+        "learning", "list", "loading", "log", "login", "logout", "logs", "manager", "menu", "message", "messages",
+        "meeting", "meetings", "modal", "module", "name", "new", "next", "notification", "notifications", "open",
+        "optional", "overview", "page", "password", "pending", "performance", "placeholder", "please", "poll",
+        "popup", "preview", "previous", "print", "priority", "profile", "publish", "published", "pulse", "reject",
+        "report", "reports", "required", "reset", "result", "results", "role", "save", "score", "search", "select",
+        "send", "settings", "share", "status", "submit", "success", "summary", "support", "survey", "surveys",
+        "table", "target", "task", "tasks", "team", "teams", "the", "this", "ticket", "tickets", "time", "title",
+        "toast", "toggle", "tooltip", "training", "tutorial", "type", "update", "upload", "url", "user", "username",
+        "users", "valid", "view", "warning", "welcome", "widget", "with", "you", "your",
+    )
+)
+
+# Büyük harfli kısaltmalar yalnız burada gerekçesiyle listelenirse kabul edilir.
+UI_ACRONYM_EXCEPTIONS: dict[str, str] = {
+    "BYS360": "Ürün adı (Bütünleşik Yönetim Sistemi 360).",
+    "KPI": "Kurumda yerleşik kısaltma; pilotta Türkçe açıklamasıyla birlikte gösterilir: 'Performans Göstergesi (KPI)'.",
+    "PNG": "Dosya biçimi adı; kullanıcı dosyasının uzantısında aynen görür.",
+    "JPG": "Dosya biçimi adı; kullanıcı dosyasının uzantısında aynen görür.",
+    "WEBP": "Dosya biçimi adı; kullanıcı dosyasının uzantısında aynen görür.",
+    "PDF": "Dosya biçimi adı; Türkçede de aynen kullanılır.",
+    "DOCX": "Dosya biçimi adı; yanında Türkçe açıklama/ürün adı (Word) verilir.",
+    "XLSX": "Dosya biçimi adı; yanında Türkçe açıklama/ürün adı (Excel) verilir.",
+    "TXT": "Dosya biçimi adı; yanında 'metin' açıklaması verilir.",
+}
+
+_UI_TEXT_ATTRS = ("placeholder", "title", "aria-label", "alt", "data-bys-busy-text")
+_UI_WORD = re.compile(r"[A-Za-zÇĞİÖŞÜçğıöşüÂÎÛâîû0-9]+")
+_UI_ACRONYM = re.compile(r"^[A-Z]{2,}[0-9]*$")
+_UI_URL_PATH = re.compile(r"(?<![\w.])/[a-z][a-z0-9_-]*/[a-z0-9_/-]+", re.IGNORECASE)
+
+
+class _VisibleUiText(HTMLParser):
+    """Kök sınıfın altındaki görünür metin ve kullanıcıya okunan öznitelikler."""
+
+    def __init__(self, root_class: str):
+        super().__init__(convert_charrefs=True)
+        self.root_class = root_class
+        self.depth = 0
+        self.skip = 0
+        self.strings: list[str] = []
+
+    def handle_starttag(self, tag, attrs_list):
+        attrs = {k: (v or "") for k, v in attrs_list}
+        if not self.depth:
+            if self.root_class in attrs.get("class", "").split():
+                self.depth = 1
+            return
+        if tag not in _VOID:
+            self.depth += 1
+        if tag in {"script", "style", "template"}:
+            self.skip += 1
+        for name in _UI_TEXT_ATTRS:
+            if attrs.get(name):
+                self.strings.append(attrs[name])
+        if tag == "input" and attrs.get("type", "").lower() in {"submit", "button", "reset"} and attrs.get("value"):
+            self.strings.append(attrs["value"])
+
+    def handle_endtag(self, tag):
+        if not self.depth or tag in _VOID:
+            return
+        if tag in {"script", "style", "template"}:
+            self.skip -= 1
+        self.depth -= 1
+
+    def handle_data(self, data):
+        if self.depth and not self.skip and data.strip():
+            self.strings.append(" ".join(data.split()))
+
+
+def _english_ui_findings(strings: list[str]) -> list[str]:
+    findings: list[str] = []
+    for text in strings:
+        for path in _UI_URL_PATH.findall(text):
+            findings.append(f"URL yolu görünür metinde: {path!r} <- {text!r}")
+        for word in _UI_WORD.findall(text):
+            if word.lower() in UI_ENGLISH_DENYLIST:
+                findings.append(f"İngilizce kelime: {word!r} <- {text!r}")
+            elif _UI_ACRONYM.match(word) and word not in UI_ACRONYM_EXCEPTIONS:
+                findings.append(f"Gerekçesiz kısaltma: {word!r} <- {text!r}")
+    return findings
+
+
+def _pilot_ui_strings(html: str) -> list[str]:
+    scanner = _VisibleUiText("support-learning-shell")
+    scanner.feed(html)
+    assert scanner.strings, "Pilot alanı (.support-learning-shell) yanıtta yok"
+    return scanner.strings
+
+
+def test_tr_language_checker_detects_english_and_unlisted_acronyms() -> None:
+    """Denetleyici boş geçmesin: bilinen İngilizce örnekleri yakalamalı."""
+    sample = (
+        '<div class="support-learning-shell"><h2>Dashboard</h2><button>Save</button>'
+        '<input placeholder="Search"><p>İlgili Sayfa URL</p><p>örn. /performance/dashboard</p>'
+        '<span aria-label="AI destekli">x</span><p>Talebi Kaydet</p></div>'
+    )
+    findings = _english_ui_findings(_pilot_ui_strings(sample))
+    joined = "\n".join(findings)
+    for expected in ("'Dashboard'", "'Save'", "'Search'", "'URL'", "/performance/dashboard", "'AI'"):
+        assert expected in joined, f"Denetleyici {expected} örneğini yakalamadı:\n{joined}"
+    assert not _english_ui_findings(["Talebi Kaydet", "Gösterge Paneli", "PDF, Word (DOCX)"])
+
+
+def test_tr_language_exceptions_are_justified() -> None:
+    for acronym, reason in UI_ACRONYM_EXCEPTIONS.items():
+        assert _UI_ACRONYM.match(acronym), f"{acronym!r} kısaltma biçiminde değil"
+        assert len(reason.strip()) >= 15, f"{acronym!r} için gerekçe yok veya yetersiz"
+    assert not (set(map(str.lower, UI_ACRONYM_EXCEPTIONS)) & UI_ENGLISH_DENYLIST)
+
+
+@pytest.mark.parametrize("state", ["normal", "validation", "upload_rejected", "unexpected_error"])
+def test_tr_pilot_screen_has_no_english_ui_text(app, client, monkeypatch, state) -> None:
+    _logged_in(app, client)
+    if state == "normal":
+        html = client.get("/support/new").get_data(as_text=True)
+    elif state == "validation":
+        html = client.post("/support/new", data=_valid_form(title="", description="")).get_data(as_text=True)
+    elif state == "upload_rejected":
+        data = _valid_form()
+        data["attachment"] = (io.BytesIO(b"MZ sahte"), "ornek.exe")
+        html = client.post("/support/new", data=data, content_type="multipart/form-data").get_data(as_text=True)
+    else:
+        import app.support.routes as support_routes
+
+        def _boom(*_args, **_kwargs):
+            raise RuntimeError("OperationalError: no such table users_hidden")
+
+        monkeypatch.setattr(support_routes, "notify_support_ticket_created", _boom)
+        html = client.post("/support/new", data=_valid_form()).get_data(as_text=True)
+        assert GENERIC_ERROR in html
+    findings = _english_ui_findings(_pilot_ui_strings(html))
+    assert findings == [], "Kullanıcıya görünen İngilizce metin:\n" + "\n".join(findings)
+
+
+def test_tr_document_title_and_busy_text_are_turkish(app, client) -> None:
+    _logged_in(app, client)
+    html = client.get("/support/new").get_data(as_text=True)
+    title = re.search(r"<title>(.*?)</title>", html, re.DOTALL)
+    assert title and not _english_ui_findings([title.group(1)]), title
+    assert "'Kaydediliyor…'" in UI_FORM_JS.read_text(encoding="utf-8")
+
+
+def test_tr_upload_security_messages_shown_on_the_pilot_are_turkish() -> None:
+    source = (REPO_ROOT / "app/security/upload_security.py").read_text(encoding="utf-8")
+    messages = re.findall(r'UploadValidationError\(\s*f?"([^"]+)"', source)
+    assert len(messages) >= 10, "UploadValidationError mesajları bulunamadı"
+    findings = _english_ui_findings([re.sub(r"\{[^}]*\}", "", m) for m in messages])
+    assert findings == [], "\n".join(findings)
+
+
+def test_tr_module_display_labels_keep_stored_values(app, client) -> None:
+    """Görünen ad Türkçeleşir; kayıtlı değer ve mevcut veriler değişmez."""
+    _logged_in(app, client)
+    html = client.get("/support/new").get_data(as_text=True)
+    assert re.search(r'<option value="Raporlama ve Dashboard">Raporlama ve Gösterge Paneli</option>', html)
+    assert re.search(r'<option value="KPI / Hedef Yönetimi">Performans Göstergesi \(KPI\) / Hedef Yönetimi</option>', html)
+
+    response = client.post("/support/new", data=_valid_form(module_name="Raporlama ve Dashboard"))
+    assert response.status_code == 302
+
+    from app.extensions import db
+    from app.models import SupportTicket
+
+    with app.app_context():
+        ticket = db.session.query(SupportTicket).order_by(SupportTicket.id.desc()).first()
+        assert ticket is not None
+        assert ticket.module_name == "Raporlama ve Dashboard"
+
+    invalid = client.post("/support/new", data=_valid_form(title="", module_name="Raporlama ve Dashboard")).get_data(as_text=True)
+    assert re.search(r'<option value="Raporlama ve Dashboard"\s+selected>Raporlama ve Gösterge Paneli</option>', invalid)
