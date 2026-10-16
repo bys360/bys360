@@ -66,7 +66,7 @@ def _posted_bulk_user_ids() -> list[int]:
         for value in request.form.getlist(field):
             parts.extend(part.strip() for part in str(value).split(","))
     # Positive database ids only (no sign, at most 18 digits); anything else is not an id.
-    return normalize_int_list(part for part in parts if part.isdigit() and len(part) <= 18 and int(part) > 0)
+    return normalize_int_list(part for part in parts if part.isascii() and part.isdigit() and len(part) <= 18 and int(part) > 0)
 
 
 def _bulk_redirect():

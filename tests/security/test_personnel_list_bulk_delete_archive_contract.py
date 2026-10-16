@@ -146,8 +146,8 @@ def test_guard_bulk_delete_single_selection(env):
 
 @pytest.mark.parametrize(
     "data",
-    [{}, {"user_ids": ""}, {"selected_ids": ""}, {"user_ids": " , ,"}, {"user_ids": "abc"}],
-    ids=["missing", "empty", "empty-legacy", "only-separators", "not-a-number"],
+    [{}, {"user_ids": ""}, {"selected_ids": ""}, {"user_ids": " , ,"}, {"user_ids": "abc"}, {"user_ids": "\u00b2"}],
+    ids=["missing", "empty", "empty-legacy", "only-separators", "not-a-number", "unicode-digit"],
 )
 def test_guard_bulk_delete_without_a_valid_selection_changes_nothing(env, data):
     before = _snapshot(env)
@@ -357,7 +357,7 @@ def test_bulk_selection_above_the_limit_changes_nothing(env, path):
 
     before = _snapshot(env)
     ids = [str(env.ids["plain"])] + [str(10_000_000 + n) for n in range(MAX_BULK_SELECTION)]
-    _response, flashes = _post(r05._web(env, "admin"), path, {"user_ids": ",".join(ids)})
+    _response, flashes = _post(r05._web(env, "admin"), path, {"user_ids": ids})
     assert flashes[-1] == ("warning", f"Tek seferde en fazla {MAX_BULK_SELECTION} personel seçilebilir; işlem yapılmadı.")
     _unchanged_except(env, before, set())
 
