@@ -240,6 +240,16 @@ def sync_organization_units_from_users(commit: bool = False):
     return created_or_linked
 
 
+def _has_value(value: Any) -> bool:
+    """Bir organizasyon alanı (birim, üst birim, sicil) yetki üretmeye uygun mu?
+
+    NULL, boş ve yalnız boşluk değerleri yetki üretmez: SQL'de ``= NULL`` yerine
+    ``IS NULL``, ``= ''`` ve ``= '   '`` karşılaştırmaları, aynı biçimde boş alanı olan
+    herkesi kapsama alırdı. Dolu değerlerin karşılaştırması aynen korunur.
+    """
+    return bool(str(value or "").strip())
+
+
 def get_manager_scope_users(user: User):
     if not user:
         return []
@@ -255,6 +265,8 @@ def get_manager_scope_users(user: User):
         )
 
     if role in {"grup_baskani", "mali_musavir"}:
+        if not _has_value(user.birim):
+            return [user]
         return (
             User.query
             .filter(
@@ -269,15 +281,18 @@ def get_manager_scope_users(user: User):
         )
 
     if role in {"koordinator", "birim_sorumlusu"}:
+        conditions = []
+        if _has_value(user.sicil_no):
+            conditions += [User.yonetici_sicil == user.sicil_no, User.ikinci_yonetici_sicil == user.sicil_no]
+        if _has_value(user.birim):
+            conditions.append(User.birim == user.birim)
+        if not conditions:
+            return [user]
         return (
             User.query
             .filter(
                 User.role != "admin",
-                or_(
-                    User.yonetici_sicil == user.sicil_no,
-                    User.ikinci_yonetici_sicil == user.sicil_no,
-                    User.birim == user.birim,
-                ),
+                or_(*conditions),
             )
             .order_by(User.ad.asc(), User.soyad.asc())
             .all()
@@ -300,48 +315,29 @@ def get_hierarchy_scope_users(user: User):
             .all()
         )
 
+    conditions = [User.id == user.id]
     if role in {"grup_baskani", "mali_musavir"}:
-        return (
-            User.query
-            .filter(
-                User.role != "admin",
-                or_(
-                    User.birim == user.birim,
-                    User.ust_birim == user.birim,
-                    User.birim == user.ust_birim,
-                    User.ust_birim == user.ust_birim,
-                )
-            )
-            .order_by(User.ust_birim.asc(), User.birim.asc(), User.ad.asc(), User.soyad.asc())
-            .all()
-        )
-
-    if role in {"koordinator", "birim_sorumlusu"}:
-        return (
-            User.query
-            .filter(
-                User.role != "admin",
-                or_(
-                    User.sicil_no == user.sicil_no,
-                    User.birim == user.birim,
-                    User.ust_birim == user.birim,
-                    User.yonetici_sicil == user.sicil_no,
-                    User.ikinci_yonetici_sicil == user.sicil_no,
-                    User.ucuncu_yonetici_sicil == user.sicil_no,
-                )
-            )
-            .order_by(User.ust_birim.asc(), User.birim.asc(), User.ad.asc(), User.soyad.asc())
-            .all()
-        )
+        if _has_value(user.birim):
+            conditions += [User.birim == user.birim, User.ust_birim == user.birim]
+        if _has_value(user.ust_birim):
+            conditions += [User.birim == user.ust_birim, User.ust_birim == user.ust_birim]
+    elif role in {"koordinator", "birim_sorumlusu"}:
+        if _has_value(user.birim):
+            conditions += [User.birim == user.birim, User.ust_birim == user.birim]
+        if _has_value(user.sicil_no):
+            conditions += [
+                User.yonetici_sicil == user.sicil_no,
+                User.ikinci_yonetici_sicil == user.sicil_no,
+                User.ucuncu_yonetici_sicil == user.sicil_no,
+            ]
+    elif _has_value(user.birim):
+        conditions.append(User.birim == user.birim)
 
     return (
         User.query
         .filter(
             User.role != "admin",
-            or_(
-                User.sicil_no == user.sicil_no,
-                User.birim == user.birim,
-            )
+            or_(*conditions),
         )
         .order_by(User.ust_birim.asc(), User.birim.asc(), User.ad.asc(), User.soyad.asc())
         .all()
