@@ -1,0 +1,394 @@
+﻿modul,rota,endpoint,sablon,menu_anahtari,roller,durum
+Ana sayfa ve gösterge panelleri,/dashboard/kurumsal-bilgilendirme,main.corporate_information_center_overview,corporate_information_center/overview.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Ana sayfa ve gösterge panelleri,/dashboard/kurumsal-bilgilendirme/alicilar,main.corporate_information_center_recipients,corporate_information_center/recipients.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Ana sayfa ve gösterge panelleri,/dashboard/kurumsal-bilgilendirme/gorevler,main.corporate_information_center_tasks,corporate_information_center/tasks.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Ana sayfa ve gösterge panelleri,/dashboard/kurumsal-bilgilendirme/kutlamalar,main.corporate_information_center_celebrations,corporate_information_center/celebrations.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Ana sayfa ve gösterge panelleri,/dashboard/kurumsal-bilgilendirme/loglar,main.corporate_information_center_logs,corporate_information_center/logs.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Ana sayfa ve gösterge panelleri,/dashboard/kurumsal-bilgilendirme/sablonlar,main.corporate_information_center_templates,corporate_information_center/templates.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Ana sayfa ve gösterge panelleri,/dashboard/kurumsal-bilgilendirme/sistem,main.corporate_information_center_system,corporate_information_center/system.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Ana sayfa ve gösterge panelleri,/dashboard/kurumsal-bilgilendirme/test,main.corporate_information_center_test,corporate_information_center/test.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Ana sayfa ve gösterge panelleri,/dashboard/yonetici-ozeti,executive_summary.yonetici_ozeti,executive_summary/yonetici_ozeti.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+BYS360 Sanal Asistanı,/ai-agent/knowledge,ai_agent.ag5_knowledge_center,ai_agent/knowledge.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+BYS360 Sanal Asistanı,/ai-agent/panel,ai_agent.ai_agent_panel,ai_agent/panel.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+BYS360 Sanal Asistanı,/ai-agent/teaching-center,ai_agent.assistant_teaching_center,assistant_training_bank.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Destek ve Talep Yönetimi,/support,main.support_index,support/index.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Destek ve Talep Yönetimi,/support/<int:ticket_id>,main.support_detail,support/detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Destek ve Talep Yönetimi,/support/all,main.support_all,support/list.html,,(dekoratör yok / herkese açık olabilir),"Test Edildi (PR #77; yerel ortamda 403, yalnız şablon testi)"
+Destek ve Talep Yönetimi,/support/assigned,main.support_assigned,support/list.html,,(dekoratör yok / herkese açık olabilir),Sahip Onayı Bekliyor (PR #77)
+Destek ve Talep Yönetimi,/support/help-admin,main.support_help_admin,support/help_admin_list.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Destek ve Talep Yönetimi,/support/help-admin/<int:article_id>/edit,main.support_help_admin_edit,support/help_admin_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Destek ve Talep Yönetimi,/support/help-admin/new,main.support_help_admin_new,support/help_admin_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Destek ve Talep Yönetimi,/support/help/article/<string:article_slug>,main.support_help_article,support/help_article.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Destek ve Talep Yönetimi,/support/help/category/<string:category_slug>,main.support_help_category,support/help_category.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Destek ve Talep Yönetimi,/support/help/role/<string:role_slug>,main.support_help_role,support/help_role.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Destek ve Talep Yönetimi,/support/help/search,main.support_help_search,support/help_search.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Destek ve Talep Yönetimi,/support/my-tickets,main.support_my_tickets,support/list.html,,(dekoratör yok / herkese açık olabilir),Sahip Onayı Bekliyor (PR #77)
+Destek ve Talep Yönetimi,/support/new,main.support_new,support/new.html,,(dekoratör yok / herkese açık olabilir),"Sahip Onayı Bekliyor (görsel onay verildi, PR #75)"
+Destek ve Talep Yönetimi,/support/setup,main.support_setup,support/setup.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center,main.file_center_home,file_center/index.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center/admin,main.file_center_admin_dashboard,file_center/admin.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center/chunk-upload,main.file_center_chunk_upload,file_center/chunk_upload.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center/logs,main.file_center_logs,file_center/logs.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center/maintenance,main.file_center_maintenance,file_center/maintenance.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center/quota,main.file_center_quota,file_center/quota.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center/requests,main.file_center_requests,file_center/requests.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center/security,main.file_center_security,file_center/security.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center/settings,main.file_center_settings,file_center/settings.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center/settings/roles,main.file_center_role_matrix,file_center/role_matrix.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Dosya Merkezi,/file-center/transfers,main.file_center_transfers,file_center/transfers.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Duyurular ve bildirimler,/announcements,main.announcements_list,announcements_list.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Duyurular ve bildirimler,/announcements/manage,main.announcement_popup_manage,communication/announcement_popup_manage.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Duyurular ve bildirimler,/announcements/manage/<int:announcement_id>/edit,main.announcement_popup_edit,communication/announcement_popup_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Duyurular ve bildirimler,/announcements/manage/<int:announcement_id>/report,main.announcement_popup_report,communication/announcement_popup_report.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Duyurular ve bildirimler,/announcements/manage/new,main.announcement_popup_new,communication/announcement_popup_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Duyurular ve bildirimler,/announcements/popup,main.announcement_popup_manage,communication/announcement_popup_manage.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Duyurular ve bildirimler,/announcements/popup/<int:announcement_id>/edit,main.announcement_popup_edit,communication/announcement_popup_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Duyurular ve bildirimler,/announcements/popup/<int:announcement_id>/report,main.announcement_popup_report,communication/announcement_popup_report.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Duyurular ve bildirimler,/announcements/popup/manage,main.announcement_popup_manage,communication/announcement_popup_manage.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Duyurular ve bildirimler,/announcements/popup/new,main.announcement_popup_new,communication/announcement_popup_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Kurumsal Portal,/portal,main.portal_feed,portal/feed.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Kurumsal Portal,/portal/groups,main.portal_groups,portal/groups.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Kurumsal Portal,/portal/groups/<int:group_id>,main.portal_group_detail,portal/group_detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Kurumsal Portal,/portal/moderation,main.portal_moderation,portal/moderation.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Kurumsal Portal,/portal/people,main.portal_people,portal/people.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Kurumsal Portal,/portal/press-news,main.portal_press_news_review,portal/press_news_review_v3a.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Kurumsal Portal,/portal/profile/<int:user_id>,main.portal_profile,portal/profile.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Misafir / dış erişim,/guest/files/<token>,main.file_center_guest_download,file_center/guest_download.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Misafir / dış erişim,/guest/upload/<token>,main.file_center_guest_upload,file_center/guest_upload.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Oturum, hesap ve sistem sayfaları",/offline,pwa.pwa_offline,pwa/offline.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/archive,main.performance_archive,performance/archive/index.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/archive/<int:result_id>,main.performance_archive_detail,performance/archive/detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/archive/import,main.performance_archive_import,performance/archive/import.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/archive/new,main.performance_archive_new,performance/archive/form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/assignments/generate,main.performance_generate_assignments,assignment_generate.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/assignments/rule-audit,main.performance_assignment_rule_audit,assignment_rule_audit.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/competencies,main.sp1_competency_library,strategic_performance/competency_library.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/core-health,main.performance_core_health,performance_core_health.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/criteria,main.performance_criteria,criteria.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/evaluation-tasks,main.performance_evaluation_tasks,evaluation_tasks.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/evaluation-tasks/generate,main.performance_generate_assignments,assignment_generate.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/evaluation-tasks/rule-audit,main.performance_assignment_rule_audit,assignment_rule_audit.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/evaluations/<int:evaluation_id>/history,main.performance_evaluation_history,performance_evaluation_history.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-aftercare,main.performance_feedback_aftercare,performance/feedback_aftercare.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-aftercare/<int:meeting_id>,main.performance_feedback_aftercare_detail,performance/feedback_aftercare.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-aftercare/new,main.performance_feedback_aftercare_new,performance/feedback_aftercare_new.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-audit,main.feedback_audit_dashboard,feedback_audit_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-corporate-cleanup,main.performance_feedback_corporate_cleanup,performance/feedback_corporate_cleanup_phase6.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-executive-summary,main.feedback_executive_summary_dashboard,feedback_executive_summary_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-final-gate,main.performance_feedback_final_gate,performance/feedback_final_gate_phase5.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-followup,main.performance_feedback_followup,performance/feedback_followup_phase4.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-integration,main.performance_feedback_integration,performance/feedback_integration_phase3.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-meeting-guide,main.performance_feedback_meeting_guide,performance/feedback_meeting_guide.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-meetings,main.feedback_meetings_list,feedback_meetings_list.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-meetings/<int:meeting_id>,main.feedback_meeting_detail,feedback_meeting_detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-ops,main.feedback_operations_dashboard,feedback_operations_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-pipeline,main.performance_feedback_pipeline,performance/feedback_pipeline.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-reports,main.performance_feedback_reports,performance_feedback_reports.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-request/<int:period_id>,main.performance_feedback_request,performance_feedback_request.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-requests,main.manager_feedback_requests,manager_feedback_requests.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-requests/<int:request_id>,main.manager_feedback_request_detail,manager_feedback_request_detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-requests/<int:request_id>/schedule,main.manager_feedback_request_schedule,manager_feedback_request_schedule.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/feedback-watch,main.feedback_watch_dashboard,feedback_watch_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/go-live-center,main.performance_go_live_center,feedback_go_live_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/go-live-center/smoke-test,main.performance_go_live_smoke_test,feedback_go_live_smoke.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/go-live-center/uat,main.performance_go_live_uat,feedback_go_live_uat.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/hierarchy-assignments,main.performance_hierarchy_assignments,hierarchy_assignments.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/hierarchy-assignments-legacy,main.hierarchy_assignments,hierarchy_assignments.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/hierarchy-assignments-live,main.performance_hierarchy_assignments_live,hierarchy_assignments.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/hierarchy-assignments/<int:user_id>/edit,main.performance_hierarchy_assignment_edit,hierarchy_assignment_edit.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/hierarchy-settings,main.performance_hierarchy_settings,hierarchy_settings.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/hierarchy-tree,main.performance_hierarchy_tree,hierarchy_tree.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/hierarchy-tree-live,main.performance_hierarchy_tree_live,hierarchy_tree.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/hierarchy/settings,main.performance_hierarchy_settings,hierarchy_settings.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/hierarchy/tree,main.performance_hierarchy_tree,hierarchy_tree.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/import/history/<int:batch_id>,main.performance_history_import_detail,performance_history_import_detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/interim-notes,main.performance_interim_notes,performance/interim_notes_manager.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/kpi/ai-analysis,main.sp1_ai_kpi_analysis,strategic_performance/ai_kpi_analysis.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/kpi/dashboard,main.sp1_kpi_dashboard,strategic_performance/kpi_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/kpi/targets,main.sp1_kpi_targets,strategic_performance/target_list.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/kpi/targets/<int:target_id>/duzenle,main.sp1_kpi_target_edit_tr,strategic_performance/target_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/kpi/targets/<int:target_id>/edit,main.sp1_kpi_target_edit,strategic_performance/target_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/kpi/targets/new,main.sp1_kpi_target_create,strategic_performance/target_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/kpi/targets/yeni,main.sp1_kpi_target_create_tr,strategic_performance/target_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/low-score-processes,main.performance_low_score_processes,performance_low_score_processes.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/mail-reminders,main.performance_mail_reminders,performance_mail_reminders.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/mail-reminders/templates,main.performance_mail_templates,performance_mail_templates.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development,main.performance_meeting_development,performance/meeting_development.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development/faz10,main.performance_meeting_p4_development_guidance,performance/meeting_development_faz10.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development/faz3,main.performance_meeting_development_faz3,performance/meeting_development_faz3.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development/faz9,main.performance_meeting_p3_reminders,performance/meeting_p3_reminders.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development/final-closure,main.performance_meeting_final_closure,performance/meeting_final_closure.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development/final-gate,main.performance_meeting_final_gate,performance/meeting_development_faz4.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development/p0,main.performance_meeting_p0_completion,performance/meeting_p0_completion.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development/p1,main.performance_meeting_p1_scope,performance/meeting_p1_scope.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development/p2,main.performance_meeting_p2_archive_notes,performance/meeting_p2_archive_notes.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development/rules,main.performance_meeting_rule_enforcement,performance/meeting_rule_enforcement.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/meeting-development/test-scenarios,main.performance_meeting_test_scenarios,performance/meeting_development_scenarios.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/my-comparison,main.my_performance_comparison,my_performance_comparison.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/operations-center,main.performance_operations_center,performance_operations_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/periods,main.performance_periods,periods.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/periods/<int:period_id>/edit,main.performance_period_edit,period_edit.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/periods/create,main.performance_period_create,period_create.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/personel-analizi,main.performance_team_compare,team_compare.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/personnel-analysis,main.performance_team_compare,team_compare.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/personnel-support-publish-approvals,main.performance_personnel_support_publish_approvals,performance/personnel_support_publish_approvals.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/pilot-simulation-center,main.performance_pilot_simulation_center,performance_pilot_simulation_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/president-approvals,main.performance_president_approvals,performance/process_engine_president_approvals.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/president-approvals/<int:approval_id>/card,main.performance_president_card_review,performance/president_card_review.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/president-approvals/<int:approval_id>/scorecard,main.performance_president_approval_scorecard,performance/president_approval_scorecard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/president-approvals/<int:approval_id>/scorecard,main.performance_president_card_review,performance/president_card_review.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/process-reports,main.performance_process_reports,performance/process_reports_advanced.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/process-tracking,main.performance_process_tracking,performance/process_engine_tracking.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/reports,main.performance_reports,reports.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/reports/export/pdf,main.performance_reports_export_pdf,reports_pdf.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/reports/print,main.performance_reports_print,performance_reports_print.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/scorecard/<int:evaluation_id>,main.performance_scorecard_detail,performance_scorecard_detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/scorecard/<int:evaluation_id>/pdf,main.performance_scorecard_pdf,scorecard_pdf.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/self-review,main.sp1_self_review,strategic_performance/self_review_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/task-management,main.performance_task_management,task_management.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/task-management/audit,main.performance_task_management_audit_detail,assignment_audit_detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/task-management/health,main.performance_task_management_health,performance_task_health.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/task-management/preflight,main.performance_task_management_preflight,performance_task_preflight.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/task-management/recommendations,main.performance_task_management_recommendations,assignment_recommendations.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/team-compare,main.performance_team_compare,team_compare.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/team-comparison,main.performance_team_compare,team_compare.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/team-comparison-history,main.team_performance_comparison_history,team_performance_comparison_history.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2-1-1-rule-settings,main.performance_v2_1_1_rule_settings,performance/v2_1_1_rule_settings.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2-1-10-evaluation-live-tracking,main.performance_v2_1_10_evaluation_live_tracking,performance/v2_1_10_evaluation_live_tracking.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2-1-11-evaluator-reminder-center,main.performance_v2_1_11_evaluator_reminder_center,performance/v2_1_11_evaluator_reminder_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2-1-2-categories,main.performance_v2_1_2_categories,performance/v2_1_2_categories.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2-1-3-personnel-category-card,main.performance_v2_1_3_personnel_category_card,performance/v2_1_3_personnel_category_card.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2-1-4-category-scope,main.performance_v2_1_4_category_scope,performance/v2_1_4_category_scope.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2-1-5-category-period-scope,main.performance_v2_1_5_category_period_scope,performance/v2_1_5_category_period_scope.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2-1-6-category-period-integration,main.performance_v2_1_6_category_period_integration,performance/v2_1_6_category_period_integration.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2-1-7-period-management-center,main.performance_v2_1_7_period_management_center,performance/v2_1_7_period_management_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz1,main.performance_v2_phase1_dashboard,performance_v2_phase1.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz2,main.performance_v2_phase2_dashboard,performance_v2_phase2.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz3,main.performance_v2_phase3_dashboard,performance_v2_phase3.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz3/assignment/<int:assignment_id>,main.performance_v2_phase3_assignment,performance_v2_phase3_assignment.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz3/board,main.performance_v2_phase3_board,performance_v2_phase3.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz5,main.performance_v2_phase5_dashboard,performance_v2_phase5_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz5/publish,main.performance_v2_phase5_publish,performance_v2_phase5_publish.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz5/publish/preflight,main.performance_v2_phase5_publish_preflight,performance_publish_preflight.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz5/scorecard,main.performance_v2_phase5_scorecard,performance_v2_phase5_scorecard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz6,main.performance_v2_phase6_dashboard,performance_v2_phase6_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performance/v2/faz6/print,main.performance_v2_phase6_print,performance_v2_phase6_print.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/70-alti-surecler,main.performance_low_score_processes,performance_low_score_processes.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/amir-hatirlatma-merkezi,main.performance_v2_1_11_evaluator_reminder_center,performance/v2_1_11_evaluator_reminder_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/baskan-onaylari,main.performance_president_approvals,performance/process_engine_president_approvals.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/baskan-onaylari,main.performance_president_approvals,performance/process_engine_president_approvals.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/baskan-onaylari/<int:approval_id>/karne,main.performance_president_approval_scorecard,performance/president_approval_scorecard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/baskan-onaylari/<int:approval_id>/karne,main.performance_president_card_review,performance/president_card_review.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/canli-degerlendirme-takibi,main.performance_v2_1_10_evaluation_live_tracking,performance/v2_1_10_evaluation_live_tracking.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/cekirdek-saglik,main.performance_core_health,performance_core_health.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/donem-ici-notlar,main.performance_interim_notes_tr,performance/interim_notes_manager.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/donem-yonetim-merkezi,main.performance_v2_1_7_period_management_center,performance/v2_1_7_period_management_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/dusuk-performans-surecleri,main.performance_low_score_processes,performance_low_score_processes.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/eylem-plani-takibi,main.performance_feedback_followup_tr,performance/feedback_followup_phase4.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/gecmis-karne-arsivi,main.performance_archive,performance/archive/index.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/gecmis-karne-arsivi/<int:result_id>,main.performance_archive_detail,performance/archive/detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/gecmis-karne-arsivi/excel,main.performance_archive_import,performance/archive/import.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/gecmis-karne-arsivi/yeni,main.performance_archive_new,performance/archive/form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/geri-bildirim-canli-kontrol,main.performance_feedback_corporate_cleanup_tr,performance/feedback_corporate_cleanup_phase6.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/geri-bildirim-final-kontrol,main.performance_feedback_final_gate_tr,performance/feedback_final_gate_phase5.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/geri-bildirim-gorusme-rehberi,main.performance_feedback_meeting_guide_tr,performance/feedback_meeting_guide.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/geri-bildirim-surec-hatti,main.performance_feedback_pipeline_tr,performance/feedback_pipeline.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/gorusme-entegrasyonu,main.performance_feedback_integration_tr,performance/feedback_integration_phase3.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/gorusme-sonrasi-notlar,main.performance_feedback_aftercare_tr,performance/feedback_aftercare.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/gorusme-sonrasi-notlar/<int:meeting_id>,main.performance_feedback_aftercare_detail_tr,performance/feedback_aftercare.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/gorusme-sonrasi-notlar/yeni,main.performance_feedback_aftercare_new_tr,performance/feedback_aftercare_new.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/operasyon-merkezi,main.performance_operations_center,performance_operations_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/personel-destek-yayin-onayi,main.performance_personnel_support_publish_approvals,performance/personnel_support_publish_approvals.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/ai-kpi-analiz,main.sp1_ai_kpi_analysis_tr,strategic_performance/ai_kpi_analysis.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/ai-kpi-analiz,strategic_performance.ai_kpi_analysis,strategic_performance/ai_kpi_analysis.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/hedefler,main.sp1_kpi_targets_tr,strategic_performance/target_list.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/hedefler,strategic_performance.target_list,strategic_performance/target_list.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/hedefler/<int:target_id>/duzenle,strategic_performance.target_edit,strategic_performance/target_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/hedefler/yeni,strategic_performance.target_create,strategic_performance/target_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/kpi-analiz,strategic_performance.ai_kpi_analysis,strategic_performance/ai_kpi_analysis.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/kpi-dashboard,main.sp1_kpi_dashboard_tr,strategic_performance/kpi_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/kpi-dashboard,strategic_performance.kpi_dashboard,strategic_performance/kpi_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/oz-degerlendirme,main.sp1_self_review_tr,strategic_performance/self_review_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/oz-degerlendirme,strategic_performance.self_review,strategic_performance/self_review_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/yetkinlik-kutuphanesi,main.sp1_competency_library_tr,strategic_performance/competency_library.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/stratejik/yetkinlik-kutuphanesi,strategic_performance.competency_library,strategic_performance/competency_library.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/surec-raporlari,main.performance_process_reports,performance/process_reports_advanced.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/surec-takibi,main.performance_process_tracking,performance/process_engine_tracking.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-gelistirme,main.performance_meeting_development_tr,performance/meeting_development.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-gelistirme/derinlestirme,main.performance_meeting_development_faz3_tr,performance/meeting_development_faz3.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-gelistirme/faz10-gelisim-rehberi,main.performance_meeting_p4_development_guidance_tr,performance/meeting_development_faz10.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-gelistirme/faz9-hatirlatma,main.performance_meeting_p3_reminders_tr,performance/meeting_p3_reminders.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-gelistirme/final-kapanis,main.performance_meeting_final_closure_tr,performance/meeting_final_closure.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-gelistirme/final-kontrol,main.performance_meeting_final_gate_tr,performance/meeting_development_faz4.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-gelistirme/kurallar,main.performance_meeting_rule_enforcement_tr,performance/meeting_rule_enforcement.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-gelistirme/p0-tamamlama,main.performance_meeting_p0_completion_tr,performance/meeting_p0_completion.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-gelistirme/p1-gelistirme,main.performance_meeting_p1_scope_tr,performance/meeting_p1_scope.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-gelistirme/p2-arsiv-ara-not,main.performance_meeting_p2_archive_notes_tr,performance/meeting_p2_archive_notes.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/toplanti-test-senaryolari,main.performance_meeting_test_scenarios_tr,performance/meeting_development_scenarios.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz1,main.performance_v2_phase1_dashboard,performance_v2_phase1.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz2,main.performance_v2_phase2_dashboard,performance_v2_phase2.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz3,main.performance_v2_phase3_dashboard,performance_v2_phase3.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz3/assignment/<int:assignment_id>,main.performance_v2_phase3_assignment,performance_v2_phase3_assignment.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz3/board,main.performance_v2_phase3_board,performance_v2_phase3.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz5,main.performance_v2_phase5_dashboard,performance_v2_phase5_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz5/publish,main.performance_v2_phase5_publish,performance_v2_phase5_publish.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz5/publish/preflight,main.performance_v2_phase5_publish_preflight,performance_publish_preflight.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz5/scorecard,main.performance_v2_phase5_scorecard,performance_v2_phase5_scorecard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz6,main.performance_v2_phase6_dashboard,performance_v2_phase6_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans Yönetimi,/performans/v2/faz6/print,main.performance_v2_phase6_print,performance_v2_phase6_print.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback,main.feedback_dashboard,feedback/dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/actions,main.feedback_actions,feedback/action_list.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/admin/campaigns,main.feedback_campaign_manage,feedback/campaign_manage.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/admin/campaigns/new,main.feedback_campaign_new,feedback/campaign_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/campaigns,main.feedback_campaigns,feedback/campaign_list.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/campaigns/<int:campaign_id>,main.feedback_campaign_detail,feedback/campaign_take.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/gonder,main.bys360_feedback_new,feedback/quick_feedback.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/gonderildi/<int:ticket_id>,main.bys360_feedback_success,feedback/quick_feedback_success.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/manager,main.feedback_manager,feedback/manager_view.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/pulse,main.feedback_pulse,feedback/pulse_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/pulse/history,main.feedback_pulse_history,feedback/pulse_history.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Performans · Amir değerlendirme ve geri bildirim toplantıları,/feedback/results,main.feedback_results,feedback/results.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management,main.hr_management,hr_management.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/attendance,main.hr_attendance_management,hr_attendance.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/leave,main.hr_leave_management,hr_leave.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/leaves,main.hr_leave_management,hr_leave.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations,main.hr_personnel_operations,hr_personnel_operations.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/approval-stations,main.hr_personnel_approval_station_center,hr_personnel_approval_station_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/assets,main.hr_personnel_assets_center,hr_personnel_assets_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/assets/transfers,main.hr_personnel_asset_transfer_center,hr_personnel_asset_transfer_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/checklists,main.hr_personnel_checklist_center,hr_personnel_checklist_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/clearance-board,main.hr_personnel_clearance_board,hr_personnel_clearance_board.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/dashboard,main.hr_personnel_dashboard,hr_personnel_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/digital-handover-documents,main.hr_personnel_digital_handover_documents,hr_personnel_digital_handover_documents.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/exit-interviews,main.hr_personnel_exit_interviews,hr_personnel_exit_interviews.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/exit-risk-center,main.hr_personnel_exit_risk_center,hr_personnel_exit_risk_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/handover-center,main.hr_personnel_handover_center,hr_personnel_handover_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/lifecycle,main.hr_personnel_lifecycle_center,hr_personnel_lifecycle_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/lifecycle-board,main.hr_personnel_lifecycle_board,hr_personnel_lifecycle_board.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/reminders,main.hr_personnel_reminder_center,hr_personnel_reminder_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/renewal-calendar,main.hr_personnel_renewal_calendar,hr_personnel_renewal_calendar.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/request-analytics,main.hr_personnel_request_analytics,hr_personnel_request_analytics.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/request-reports,main.hr_personnel_request_reports,hr_personnel_request_reports.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/request-sla-policies,main.hr_personnel_request_sla_policies,hr_personnel_request_sla_policies.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/request-tasks,main.hr_personnel_request_tasks,hr_personnel_request_tasks.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/requests,main.hr_personnel_request_review_index,hr_personnel_request_review.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/personnel-operations/validity-center,main.hr_personnel_validity_center,hr_personnel_validity_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/reports,main.hr_reports,hr_reports.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/reports/print,main.hr_reports_print,hr_reports_print.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/hr-management/self-service/requests,main.hr_self_service_requests,hr_self_service_requests.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/org-units,main.org_units_list,org_units_list.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/org-units/<int:unit_id>/edit,main.org_unit_edit,org_unit_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/org-units/add,main.org_unit_add,org_unit_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/personnel,main.personnel_list,personnel_list.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/personnel/<int:user_id>/edit,main.personnel_edit,personnel_edit.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/personnel/add,main.personnel_add,personnel_add.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Personel Yönetimi,/personnel/excel-upload,main.personnel_excel_upload,personnel_excel_upload.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Raporlama ve analiz,/executive-summary/daily-weather-mail,main.daily_weather_mail_settings,executive_summary/mail_center/overview.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Raporlama ve analiz,/yonetici-ozeti/gunluk-hava-maili,main.daily_weather_mail_settings,executive_summary/mail_center/overview.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-acceptance-pack,main.admin_ai_acceptance_pack,admin_ai_acceptance_pack.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-center,main.admin_ai_center,admin_ai_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-decision-history,main.admin_ai_decision_history,admin_ai_decision_history.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-excel-preview,main.admin_analysis_center_excel_preview,admin_analysis_excel_preview.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-executive-brief,main.admin_ai_executive_brief,admin_ai_executive_brief.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-executive-report,main.admin_ai_executive_report,admin_ai_executive_report.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-feedback,main.admin_ai_feedback,admin_ai_feedback.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-final-live-hardening,main.admin_ai_final_live_hardening,admin_ai_final_live_hardening.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-go-live-readiness,main.admin_ai_go_live_readiness,admin_ai_go_live_readiness.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-governance-hub,main.admin_ai_governance_hub,admin_ai_governance_hub.html;admin_ai_schema_not_ready.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-governance-settings,main.admin_ai_governance_settings,admin_ai_governance_settings.html;admin_ai_schema_not_ready.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-management-pack,main.admin_ai_management_pack,admin_ai_management_pack.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-module-health,main.admin_ai_module_health,admin_ai_module_health.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-notification-priority,main.admin_ai_notification_priority,admin_ai_notification_priority.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-operations-report,main.admin_ai_operations_report,admin_ai_operations_report.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-preflight,main.admin_ai_preflight,admin_ai_preflight.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-prompt-compare,main.admin_ai_prompt_compare,admin_ai_prompt_compare.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-quality-hub,main.admin_ai_quality_hub,admin_ai_quality_hub.html;admin_ai_schema_not_ready.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-recommendation-priority,main.admin_ai_recommendation_priority,admin_analysis_recommendation_priority.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-recommendations,main.admin_ai_recommendations,admin_ai_recommendations.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-redaction-rules,main.admin_ai_redaction_rules,admin_ai_redaction_rules.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-requests,main.admin_ai_requests,admin_ai_requests.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-review-queue,main.admin_ai_review_queue,admin_ai_review_queue.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-settings,main.admin_ai_settings,admin_ai_settings.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-share-export-hub,main.admin_ai_share_export_hub,admin_ai_share_export_hub.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-smoke,main.admin_ai_smoke,admin_ai_smoke.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-visibility-gate,main.admin_ai_visibility_gate,admin_ai_visibility_gate.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-visual-reports,main.admin_ai_visual_reports,admin_ai_schema_not_ready.html;admin_analysis_visual_reports.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/ai-weekly-summary,main.admin_ai_weekly_summary,admin_ai_schema_not_ready.html;admin_ai_weekly_summary.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/analysis-center/excel-preview,main.admin_analysis_center_excel_preview,admin_analysis_excel_preview.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/analysis-center/executive-report,main.admin_ai_executive_report,admin_ai_executive_report.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/analysis-center/final-live-hardening,main.admin_ai_final_live_hardening,admin_ai_final_live_hardening.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/analysis-center/recommendation-priority,main.admin_ai_recommendation_priority,admin_analysis_recommendation_priority.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/analysis-center/visibility-gate,main.admin_ai_visibility_gate,admin_ai_visibility_gate.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/analysis-center/visual-reports,main.admin_ai_visual_reports,admin_ai_schema_not_ready.html;admin_analysis_visual_reports.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/dashboard,main.admin_dashboard,admin_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/go-live-readiness,main.admin_go_live_readiness,admin_go_live_readiness.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/org-units/<int:unit_id>/edit,main.admin_org_unit_edit,org_unit_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/org-units/create,main.admin_org_unit_create,org_unit_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/role-matrix,main.admin_role_matrix_center,admin/role_matrix_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/users,main.admin_users,admin_users.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/users/<int:user_id>/edit,main.admin_user_edit,admin_user_edit.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/admin/users/create,main.admin_user_create,admin_user_create.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+"Sistem ayarları · Kullanıcı, rol, yetki",/settings-center,main.settings_center_home,settings_center/home.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Yapay Zekâ Karar Destek,/ai/decision-support/faz1/health,main.ai_decision_faz1_health,ai_decision/faz1_health_layout.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+Yapay Zekâ Karar Destek,/ai/decision-support/faz1/health.json,main.ai_decision_faz1_health,ai_decision/faz1_health_layout.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/daily-weather-mail,main.daily_weather_mail_settings,executive_summary/mail_center/overview.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz1,main.communication_phase1_dashboard_view,communication/phase1_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz1/bulletins,main.communication_phase1_bulletins,communication/phase1_bulletins.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz1/bulletins/<int:bulletin_id>,main.communication_phase1_bulletin_detail,communication/phase1_bulletin_detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz1/bulletins/new,main.communication_phase1_bulletin_new,communication/phase1_bulletin_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz1/support,main.communication_phase1_support_center,communication/phase1_support_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz1/surveys,main.communication_phase1_survey_center,communication/phase1_survey_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2,main.communication_phase2_dashboard_view,communication/phase2_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2/bulletins/<int:bulletin_id>/edit,main.communication_phase2_bulletin_edit,communication/phase2_bulletin_edit.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2/bulletins/<int:bulletin_id>/history,main.communication_phase2_bulletin_history,communication/phase2_bulletin_history.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2/surveys,main.communication_phase2_surveys,communication/phase2_survey_manager.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2/surveys/<int:survey_id>,main.communication_phase2_survey_detail,communication/phase2_survey_detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2/surveys/<int:survey_id>/edit,main.communication_phase2_survey_edit,communication/phase2_survey_builder.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2/surveys/<int:survey_id>/results,main.communication_phase2_survey_results,communication/phase2_survey_results.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2/surveys/new,main.communication_phase2_survey_new,communication/phase2_survey_builder.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2/templates,main.communication_phase2_survey_templates,communication/phase2_survey_templates.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2/templates/<int:template_id>/edit,main.communication_phase2_survey_template_edit,communication/phase2_survey_template_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz2/templates/new,main.communication_phase2_survey_template_new,communication/phase2_survey_template_form.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz3,main.communication_phase3_dashboard_view,communication/phase3_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz3/help,main.communication_phase3_help_center,communication/phase3_help_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz3/help/<slug>,main.communication_phase3_help_article,communication/phase3_help_article.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz3/notifications,main.communication_phase3_notifications,communication/phase3_notifications.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz3/support/<int:ticket_id>,main.communication_phase3_support_detail,communication/phase3_support_detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz3/support/queue,main.communication_phase3_support_queue,communication/phase3_support_queue.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz3/surveys/<int:survey_id>/take,main.communication_phase3_survey_take,communication/phase3_survey_take.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz3/surveys/my,main.communication_phase3_my_surveys,communication/phase3_my_surveys.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz4,main.communication_phase4_dashboard_view,communication/phase4_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz4/export-center,main.communication_phase4_export_center,communication/phase4_export_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz4/governance,main.communication_phase4_governance,communication/phase4_governance.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz4/reports,main.communication_phase4_reports_view,communication/phase4_reports.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz4/reports/<int:report_id>,main.communication_phase4_report_detail,communication/phase4_report_detail.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz4/support/analytics,main.communication_phase4_support_analytics,communication/phase4_support_analytics.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz4/surveys/analytics,main.communication_phase4_survey_analytics,communication/phase4_survey_analytics.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz5,main.communication_phase5_dashboard_view,communication/phase5_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz5/audit-logs,main.communication_phase5_audit_logs,communication/phase5_audit_logs.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz5/automation-center,main.communication_phase5_automation_center,communication/phase5_automation_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz5/escalations,main.communication_phase5_escalations,communication/phase5_escalation_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz5/health,main.communication_phase5_health,communication/phase5_operational_health.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz5/preferences,main.communication_phase5_preferences,communication/phase5_preferences.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz5/retention,main.communication_phase5_retention,communication/phase5_retention_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz5/support-operations,main.communication_phase5_support_operations,communication/phase5_support_operations.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz8,main.communication_phase8_dashboard,communication/phase8_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz8/cutover,main.communication_phase8_cutover,communication/phase8_cutover_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz8/readiness,main.communication_phase8_readiness,communication/phase8_readiness_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9,main.communication_phase9_dashboard,communication/phase9_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9/first-72,main.communication_phase9_first72,communication/phase9_first72_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9/release-center,main.communication_phase9_release_center,communication/phase9_release_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9a,main.communication_phase9a_dashboard,communication/phase9a_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9a/backup,main.communication_phase9a_backup_center,communication/phase9a_backup_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9a/preflight,main.communication_phase9a_preflight_center,communication/phase9a_preflight_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9b,main.communication_phase9b_dashboard,communication/phase9b_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9b/transition-center,main.communication_phase9b_transition_center,communication/phase9b_transition_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9c,main.communication_phase9c_dashboard,communication/phase9c_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9c/pilot-opening,main.communication_phase9c_pilot_opening_center,communication/phase9c_pilot_opening_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9d,main.communication_phase9d_dashboard,communication/phase9d_dashboard.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/communication/faz9d/stabilization-center,main.communication_phase9d_stabilization_center,communication/phase9d_stabilization_center.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/iletisim/gunluk-hava-maili,main.daily_weather_mail_settings,executive_summary/mail_center/overview.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/survey-create,main.survey_create,survey_create.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/survey-edit/<int:survey_id>,main.survey_edit,survey_edit.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/survey-manage,main.survey_manage,survey_manage.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
+İletişim ve Anket Yönetimi,/survey-results,main.survey_results,survey_results.html,,(dekoratör yok / herkese açık olabilir),İncelenmedi
