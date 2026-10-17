@@ -47,7 +47,7 @@ GitHub CI (`Run tests / quality-gate`, ~3 saat):
 
 ## 5. Kaç hata düzeltildi?
 
-**22 hata** (hepsi testle sabitlendi):
+**21 hata** (hepsi testle sabitlendi):
 
 1. Yeni Talep Aç: geçersiz dosya sonrası "dosya seçili" sanılması (D3) — yeniden seçim mesajı + önceki seçimin adı.
 2. Yeni Talep Aç: İngilizce görünen metinler; "Raporlama ve Dashboard" → ekranda "Raporlama ve Gösterge Paneli" (kayıtlı değer aynı).
@@ -69,8 +69,7 @@ GitHub CI (`Run tests / quality-gate`, ~3 saat):
 18. Rehber arama: etiketsiz kutu, "#AI özet" / "#CSRF" önerileri ve sonuç yokken İngilizce anahtar kelime listesi — Türkçe öneriler aynı rehberleri buluyor.
 19. Rehber makale: mobilde araç çubuğu düğmeleri 42 px (44 px hedefin altında).
 20. Rehber formu: etiketler alanlara bağlı değildi; "slug" İngilizce etiketleri.
-21. Rehber formu: (yeni tasarımda ortaya çıkabilecek) sıra değeri 0'ın boş görünmesi önlendi ve testlendi.
-22. Türkçe testleri talep numarasının rastgele onaltılık sonekini (ör. `DB7034`) kısaltma sayıp ara sıra kırılıyordu (CI riski) — #77'de düzeltildi, üst dallara birleştirmeyle taşındı.
+21. Türkçe testleri talep numarasının rastgele onaltılık sonekini (ör. `DB7034`) kısaltma sayıp ara sıra kırılıyordu (CI riski) — #77'de düzeltildi, üst dallara birleştirmeyle taşındı.
 
 ## 6. Kaç hata hâlâ açık?
 
