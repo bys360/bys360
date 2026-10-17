@@ -727,6 +727,7 @@ DESIGN_SYSTEM_TEMPLATES = {
     REPO_ROOT / "app/templates/support/setup.html",
     REPO_ROOT / "app/templates/support/help_admin_list.html",
     REPO_ROOT / "app/templates/home.html",
+    REPO_ROOT / "app/templates/dashboard.html",
 }
 
 
