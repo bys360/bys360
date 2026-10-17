@@ -14,7 +14,7 @@
  *   ekler (ekran okuyucudan gizli; sınır yardım metninde yazılıdır).
  *
  * JavaScript kapalıysa form ve hata özeti yine çalışır. Satır içi işleyici
- * kullanılmaz (CSP). Yalnız support/new.html bu dosyayı yükler.
+ * kullanılmaz (CSP). Yükleyen şablonlar: support/new.html, support/detail.html.
  */
 (function () {
   'use strict';

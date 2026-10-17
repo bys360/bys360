@@ -701,11 +701,13 @@ def test_k5_component_css_selectors_are_all_bys_prefixed_and_scoped() -> None:
 
 
 # Tasarım sistemi dalga dalga yayılır; her yeni şablon burada açıkça listelenir
-# ve kendi sözleşme testini taşır (dalga 2: tests/behavior/test_ux_wave2_support_list_contract.py).
+# ve kendi sözleşme testini taşır (dalga 2: tests/behavior/test_ux_wave2_support_list_contract.py,
+# dalga 3: tests/behavior/test_ux_wave3_support_detail_contract.py).
 DESIGN_SYSTEM_TEMPLATES = {
     TEMPLATE,
     MACROS,
     REPO_ROOT / "app/templates/support/list.html",
+    REPO_ROOT / "app/templates/support/detail.html",
 }
 
 
