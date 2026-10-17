@@ -33,11 +33,14 @@ GLOBAL_ROLES = {
     "başkan",
     "baskan_yardimcisi",
     "başkan_yardımcısı",
-    "mali_musavir",
-    "mali_müşavir",
 }
 
-MANAGER_ROLES = GLOBAL_ROLES | {
+# Hukuk Müşaviri kayıtlarda "mali_musavir" anahtarıyla tutulur. Proje sahibi kararı:
+# gösterge panelinde kurum geneli yetkisi yoktur; kişi kapsamı get_manager_scope_users
+# (kendi birimi ve alt birimleri) ile belirlenir. Yönetici kısayolları korunur.
+LEGAL_COUNSEL_ROLES = {"mali_musavir", "mali_müşavir"}
+
+MANAGER_ROLES = GLOBAL_ROLES | LEGAL_COUNSEL_ROLES | {
     "grup_baskani",
     "grup_başkanı",
     "koordinator",

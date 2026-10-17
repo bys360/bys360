@@ -8,7 +8,10 @@ from app.services.ai.dashboard_panels import (
     build_dashboard_ai_operations_bridge,
     build_dashboard_ai_panel,
 )
-from app.services.dashboard_rebuild_service import build_dashboard_rebuild_context
+from app.services.dashboard_rebuild_service import (
+    LEGAL_COUNSEL_ROLES,
+    build_dashboard_rebuild_context,
+)
 from app.services.live_surface_service import build_live_dashboard_surface_context
 from app.services.runtime_cache import get_or_set as cache_get_or_set
 from app.view_helpers import build_dashboard_context, build_db_check_context
@@ -54,7 +57,9 @@ def _build_dashboard_heavy_context(user) -> dict:
     # Yapay zekâ yönetişim sayaçları (istek, açık öneri, olumsuz geri bildirim, maskelenmemiş
     # istek) /admin/ai-center ile aynı kurala bağlıdır: admin_required VE "ai_center" menü izni.
     # Kural sağlanmazsa veri hiç üretilmez; şablon korumalı mod metnini gösterir.
-    admin_family = user_has_any_role(user, ADMIN_FAMILY_ROLES)
+    # Hukuk Müşaviri (mali_musavir) yönetim ailesinde olsa da gösterge panelinde kurum geneli
+    # veri almaz (proje sahibi kararı); bu iki kurum geneli panel ona da üretilmez.
+    admin_family = user_has_any_role(user, ADMIN_FAMILY_ROLES) and not user_has_any_role(user, LEGAL_COUNSEL_ROLES)
     can_view_admin_ai = admin_family and can_access_menu(user, "ai_center")
     context["ai_operations_bridge"] = build_dashboard_ai_operations_bridge(can_view_admin_ai=True) if can_view_admin_ai else None
     context["can_view_admin_ai"] = can_view_admin_ai
