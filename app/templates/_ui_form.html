@@ -1,0 +1,86 @@
+{#
+  BYS360 erişilebilir form makroları (UX pilotu, 2026-10).
+
+  Sözleşme:
+  - Her alanın <label for> ile bağlı bir etiketi vardır.
+  - Yardım metni `<id>-help`, hata metni `<id>-error` kimliğini taşır ve
+    alana aria-describedby ile bağlanır.
+  - Hatalı alan aria-invalid="true" taşır; hatasız alan bu özniteliği taşımaz.
+  - Zorunlu alan hem "(zorunlu)" metniyle hem required + aria-required ile
+    işaretlenir.
+  - Değerler Jinja otomatik kaçışıyla yazılır; kaçışı kapatan filtre kullanılmaz.
+  - Satır içi stil özniteliği, sayfa içi stil bloğu veya olay işleyici yoktur (CSP).
+  İçe aktaran şablonlar: support/new.html, support/detail.html, support/help_admin_form.html.
+#}
+
+{% macro _described_by(id, help, error) -%}
+{{ ((id ~ '-help') if help else '') ~ ((' ' ~ id ~ '-error') if error else '') }}
+{%- endmacro %}
+
+{% macro _label(id, label, required) -%}
+<label class="bys-field__label" for="{{ id }}">{{ label }}{% if required %} <span class="bys-field__req">(zorunlu)</span>{% endif %}</label>
+{%- endmacro %}
+
+{% macro _help_and_error(id, help, error) -%}
+{% if help %}<p class="bys-field__help" id="{{ id }}-help">{{ help }}</p>{% endif %}
+{% if error %}<p class="bys-field__error" id="{{ id }}-error"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span><span class="visually-hidden">Hata: </span>{{ error }}</span></p>{% endif %}
+{%- endmacro %}
+
+{% macro text_field(id, name, label, value='', required=false, help='', error='', maxlength=none, placeholder='', autocomplete='', wide=false, input_type='text') -%}
+<div class="bys-field{% if wide %} bys-field--wide{% endif %}">
+    {{ _label(id, label, required) }}
+    {{ _help_and_error(id, help, error) }}
+    <input class="bys-input" type="{{ input_type }}" id="{{ id }}" name="{{ name }}" value="{{ value or '' }}"{% if maxlength %} maxlength="{{ maxlength }}"{% endif %}{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}{% if autocomplete %} autocomplete="{{ autocomplete }}"{% endif %}{% if required %} required aria-required="true"{% endif %}{% if help or error %} aria-describedby="{{ _described_by(id, help, error)|trim }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}>
+</div>
+{%- endmacro %}
+
+{% macro textarea_field(id, name, label, value='', required=false, help='', error='', maxlength=none, placeholder='', rows=8, wide=true, counter=false) -%}
+{# counter: bys360_ui_form.js alanın altına görsel karakter sayacı ekler (ekran okuyucudan gizli; sınır yardım metninde yazılıdır). #}
+<div class="bys-field{% if wide %} bys-field--wide{% endif %}">
+    {{ _label(id, label, required) }}
+    {{ _help_and_error(id, help, error) }}
+    <textarea class="bys-input" id="{{ id }}" name="{{ name }}" rows="{{ rows }}"{% if counter and maxlength %} data-bys-counter{% endif %}{% if maxlength %} maxlength="{{ maxlength }}"{% endif %}{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}{% if required %} required aria-required="true"{% endif %}{% if help or error %} aria-describedby="{{ _described_by(id, help, error)|trim }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}>{{ value or '' }}</textarea>
+</div>
+{%- endmacro %}
+
+{% macro select_field(id, name, label, options, selected='', required=false, help='', error='', wide=false) -%}
+{# options: (değer, görünen ad) çiftleri. Yalnız listede olan değer seçili gösterilir. #}
+<div class="bys-field{% if wide %} bys-field--wide{% endif %}">
+    {{ _label(id, label, required) }}
+    {{ _help_and_error(id, help, error) }}
+    <select class="bys-input" id="{{ id }}" name="{{ name }}"{% if required %} required aria-required="true"{% endif %}{% if help or error %} aria-describedby="{{ _described_by(id, help, error)|trim }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}>
+        {% for value, text in options %}<option value="{{ value }}"{% if selected and value == selected %} selected{% endif %}>{{ text }}</option>{% endfor %}
+    </select>
+</div>
+{%- endmacro %}
+
+{% macro file_field(id, name, label, help='', error='', accept='', previous_name='', reselect_message='', wide=false) -%}
+{# Yükleme hatası (`<id>-error`) ve yeniden seçim talimatı (`<id>-reselect`) ayrı metinlerdir; ikisi de alana bağlanır.
+   Dosya alanı: gerçek <input type="file"> korunur. JavaScript açıkken alan bırakma bölgesini kaplar (tıklama, klavye ve
+   sürükle-bırak doğrudan girdiye gider; tarayıcının kendi düğme yazısı görünmez). JavaScript kapalıyken girdi olduğu gibi görünür. #}
+<div class="bys-field{% if wide %} bys-field--wide{% endif %}">
+    {{ _label(id, label, false) }}
+    {{ _help_and_error(id, help, error) }}
+    {% if reselect_message %}<p class="bys-field__error" id="{{ id }}-reselect"><i class="fa-solid fa-rotate" aria-hidden="true"></i><span>{{ reselect_message }}</span></p>{% endif %}
+    <div class="bys-dropzone{% if error %} bys-dropzone--invalid{% endif %}" data-bys-dropzone>
+        <input class="bys-input bys-dropzone__input" type="file" id="{{ id }}" name="{{ name }}"{% if accept %} accept="{{ accept }}"{% endif %}{% if help or error or reselect_message %} aria-describedby="{{ (_described_by(id, help, error)|trim ~ ((' ' ~ id ~ '-reselect') if reselect_message else ''))|trim }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}>
+        <div class="bys-dropzone__body" aria-hidden="true">
+            <span class="bys-dropzone__icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+            <span class="bys-dropzone__cta"><span class="bys-dropzone__button">Dosya seçin</span> veya buraya sürükleyin</span>
+            <span class="bys-dropzone__file" data-bys-file-name data-bys-empty-text="Henüz dosya seçilmedi">Henüz dosya seçilmedi</span>
+        </div>
+    </div>
+    {% if previous_name %}<p class="bys-field__previous">Önceki seçim: {{ previous_name|truncate(120, true, '…') }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro error_summary(title, items=(), form_error='') -%}
+{# items: (alan kimliği, mesaj) çiftleri. Özet, sayfa yüklenince bys360_ui_form.js tarafından odaklanır. #}
+<div class="bys-error-summary" id="bysErrorSummary" role="alert" tabindex="-1" aria-labelledby="bysErrorSummaryTitle">
+    <h2 class="bys-error-summary__title" id="bysErrorSummaryTitle"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>{{ title }}</span></h2>
+    <ul class="bys-error-summary__list">
+        {% if form_error %}<li>{{ form_error }}</li>{% endif %}
+        {% for field_id, message in items %}<li><a href="#{{ field_id }}" data-bys-focus-target="{{ field_id }}">{{ message }}</a></li>{% endfor %}
+    </ul>
+</div>
+{%- endmacro %}
