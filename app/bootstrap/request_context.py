@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from flask import g, request
@@ -20,14 +21,23 @@ def client_ip() -> str:
         return "-"
 
 
+# Misafir dosya bağlantılarında yoldaki belirteç bağlantının tek sırrıdır; günlüğe maskeli yazılır.
+_SECRET_PATH_SEGMENT = re.compile(r"^(/guest/(?:files|upload)/)[^/?]+")
+
+
+def redact_log_path(path: str | None) -> str:
+    """Günlük için yol: misafir bağlantı belirteci ``***`` olur, diğer yollar aynen kalır."""
+    return _SECRET_PATH_SEGMENT.sub(r"\1***", str(path or ""))
+
+
 def request_log_context() -> dict[str, Any]:
     """Guvenlik ve operasyon loglari icin standart istek baglami."""
     try:
         return {
             "request_id": getattr(g, "request_id", "-"),
             "method": request.method,
-            "path": request.path,
-            "full_path": request.full_path,
+            "path": redact_log_path(request.path),
+            "full_path": redact_log_path(request.full_path),
             "endpoint": request.endpoint,
             "ip": client_ip(),
             "remote_addr": request.remote_addr or "-",

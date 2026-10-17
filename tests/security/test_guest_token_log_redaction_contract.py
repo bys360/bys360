@@ -102,3 +102,22 @@ def test_other_paths_are_logged_unchanged(app) -> None:
         context = request_log_context()
     assert context["path"] == "/support/my-tickets"
     assert context["full_path"] == "/support/my-tickets?status=open"
+
+
+def test_security_audit_records_mask_the_guest_token(app) -> None:
+    """record_security_event isteğin yolunu audit_logs tablosuna kalıcı yazar."""
+    import json
+
+    from app.extensions import db
+    from app.models import AuditLog
+    from app.services.audit_event_service import record_security_event
+
+    token = secrets.token_urlsafe(32)
+    with app.test_request_context(f"/guest/files/{token}", method="POST"):
+        record_security_event("guest_link_test_event", summary="sahte olay")
+    with app.app_context():
+        rows = db.session.query(AuditLog).filter_by(action="guest_link_test_event").all()
+        stored = json.dumps([row.new_data_json or "" for row in rows], ensure_ascii=False)
+    assert rows, "denetim kaydı oluşmadı"
+    assert token not in stored
+    assert "/guest/files/***" in stored
