@@ -27,6 +27,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "bys360-ci.yml"
 
@@ -42,8 +44,61 @@ def test_ci_workflow_file_exists() -> None:
     assert CI_WORKFLOW.exists(), f"{CI_WORKFLOW} not found."
 
 
-_JOB_TIMEOUT_RE = re.compile(r"timeout-minutes:\s*(\d+)")
 _MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES = 40
+_KEY_LINE_RE = re.compile(r"^(?P<indent> *)(?P<key>[A-Za-z0-9_-]+):(?P<rest>.*)$")
+
+
+def _job_level_timeout_minutes(text: str, job: str = "quality-gate") -> int:
+    """Read ``jobs.<job>.timeout-minutes`` from the workflow's real YAML keys.
+
+    The previous implementation took the first ``timeout-minutes: <n>``
+    regex match in the job header. That header carries history comments
+    ("cancelled by its own timeout-minutes: 45 ..."), so the guard read 45
+    from a comment and passed even with a real ``timeout-minutes: 10``.
+    This reader skips comment lines, strips trailing comments, and only
+    accepts the key at the job's own property indentation -- so a comment
+    or a step-level ``timeout-minutes`` can never stand in for the job
+    value. A missing, duplicated or non-integer job-level key fails loudly.
+    """
+    lines = [
+        line.rstrip()
+        for line in text.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    jobs_at = next((i for i, line in enumerate(lines) if line == "jobs:"), None)
+    assert jobs_at is not None, "Workflow has no top-level `jobs:` key."
+
+    job_at = job_indent = None
+    for i in range(jobs_at + 1, len(lines)):
+        match = _KEY_LINE_RE.match(lines[i])
+        if not match:
+            continue
+        indent = len(match.group("indent"))
+        if indent == 0:
+            break
+        if match.group("key") == job and match.group("rest").split("#", 1)[0].strip() == "":
+            job_at, job_indent = i, indent
+            break
+    assert job_at is not None and job_indent is not None, f"Workflow has no `jobs.{job}` block."
+
+    body = []
+    for line in lines[job_at + 1 :]:
+        if len(line) - len(line.lstrip(" ")) <= job_indent:
+            break
+        body.append(line)
+    assert body, f"`jobs.{job}` block is empty."
+    property_indent = len(body[0]) - len(body[0].lstrip(" "))
+
+    values = []
+    for line in body:
+        match = _KEY_LINE_RE.match(line)
+        if match and len(match.group("indent")) == property_indent and match.group("key") == "timeout-minutes":
+            values.append(match.group("rest").split("#", 1)[0].strip().strip("'\""))
+    assert len(values) == 1, (
+        f"Expected exactly one job-level `timeout-minutes` in `jobs.{job}`, found {len(values)}."
+    )
+    assert values[0].isdigit(), f"`jobs.{job}.timeout-minutes` is not an integer: {values[0]!r}."
+    return int(values[0])
 
 
 def test_quality_gate_job_timeout_has_an_evidence_backed_floor() -> None:
@@ -54,17 +109,79 @@ def test_quality_gate_job_timeout_has_an_evidence_backed_floor() -> None:
     isn't blocked by an over-fitted exact-match assertion -- but a
     regression back toward the old, proven-insufficient 25 minutes is
     caught immediately."""
-    text = _workflow_text()
-    job_header = text[text.index("runs-on: ubuntu-latest") : text.index("\n    services:")]
-    match = _JOB_TIMEOUT_RE.search(job_header)
-    assert match, "Could not find quality-gate's job-level timeout-minutes."
-    timeout_minutes = int(match.group(1))
+    timeout_minutes = _job_level_timeout_minutes(_workflow_text())
     assert timeout_minutes >= _MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES, (
         f"quality-gate timeout-minutes is {timeout_minutes}; must be at least "
         f"{_MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES} (local measurement: Step2 alone "
         "takes ~26-28 minutes, before checkout/install/Ruff/PostgreSQL/coverage/mypy/"
         "quality9/pip-audit in the same job budget)."
     )
+
+
+_JOB_LEVEL_TIMEOUT_LINE_RE = re.compile(r"^    timeout-minutes: \d+$", re.MULTILINE)
+
+
+def _workflow_with_job_timeout(minutes: int) -> str:
+    """The real workflow text with only the job-level value replaced."""
+    text = _workflow_text()
+    assert len(_JOB_LEVEL_TIMEOUT_LINE_RE.findall(text)) == 1
+    return _JOB_LEVEL_TIMEOUT_LINE_RE.sub(f"    timeout-minutes: {minutes}", text)
+
+
+def test_timeout_reader_returns_the_real_value_not_the_history_comment() -> None:
+    """Negative regression for the false pass: with a real 10-minute value the
+    header comments still say "timeout-minutes: 45"; the reader must return 10
+    and the floor must reject it."""
+    text = _workflow_with_job_timeout(10)
+    assert "timeout-minutes: 45" in text, "premise: the history comment is still there"
+    assert _job_level_timeout_minutes(text) == 10
+    assert _job_level_timeout_minutes(text) < _MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES
+
+
+@pytest.mark.parametrize("minutes", [180, 240])
+def test_timeout_reader_accepts_real_evidence_backed_values(minutes: int) -> None:
+    """Positive regression: the real 180 (base) and 240 (#84) values are read
+    exactly and clear the floor."""
+    value = _job_level_timeout_minutes(_workflow_with_job_timeout(minutes))
+    assert value == minutes
+    assert value >= _MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES
+
+
+_SYNTHETIC_WORKFLOW = """\
+name: t
+on: [push]
+jobs:
+  other-job:
+    runs-on: ubuntu-latest
+    timeout-minutes: 999
+  quality-gate:
+    runs-on: ubuntu-latest
+    # cancelled by its own timeout-minutes: 45 mid-Step2
+    timeout-minutes: {value}
+    steps:
+      - name: slow step
+        timeout-minutes: 500
+        run: echo "timeout-minutes: 600"
+"""
+
+
+def test_timeout_reader_ignores_comments_other_jobs_and_step_level_keys() -> None:
+    assert _job_level_timeout_minutes(_SYNTHETIC_WORKFLOW.format(value="10")) == 10
+    assert _job_level_timeout_minutes(_SYNTHETIC_WORKFLOW.format(value="240  # trailing note")) == 240
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        _SYNTHETIC_WORKFLOW.replace("    timeout-minutes: {value}\n", ""),
+        _SYNTHETIC_WORKFLOW.format(value="10") + "    timeout-minutes: 240\n",
+        _SYNTHETIC_WORKFLOW.format(value="${{ vars.TIMEOUT }}"),
+    ],
+    ids=["missing", "duplicated", "not-an-integer"],
+)
+def test_timeout_reader_fails_loudly_instead_of_guessing(broken: str) -> None:
+    with pytest.raises(AssertionError):
+        _job_level_timeout_minutes(broken)
 
 
 def test_postgres_15_service_is_declared() -> None:
