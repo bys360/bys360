@@ -75,7 +75,7 @@ Bilinen sınırlar:
 
 1. Sahip kararları: #75 merge; #77/#79/#80 görsel onay; #79 stil bloğu taşıma (DISJOINT_RECLAIMS ikinci giriş) onayı; yardım içeriği terimleri ("AI", "Dashboard", "URL", "CSRF", "CAPTCHA").
 2. CI süre bütçesi: ana pytest adımı ~2 sa 53 dk sürüyor, iş sınırı 180 dk; mypy adımı sınıra takılabiliyor (#76). Sınırı veya adım bölmesini sahip belirlemeli (`test_quality_gate_job_timeout_has_an_evidence_backed_floor` koruyor).
-3. Destek ailesinin kalanı: Rehber Yönetimi listesi (stil bloğu kararı gerekli). Rehber araması şapkalı harf eşleme (sunucu tarafı, ayrı PR).
+3. Destek ailesinin kalanı: Rehber Yönetimi listesi (stil bloğu kararı gerekli). Rehber aramasında "yapay zeka" → "AI" eş anlamı yok (terim kararıyla birlikte).
 4. Ana sayfa / gösterge paneli (yüksek görünürlük; ortak bileşen etkisi incelenmeli).
 5. Ortak düzen (`base.html`): global flash mesajlarına `role`, "Dashboard" menü adı, "AI destekli" rozeti — **yüksek risk**, ayrı küçük PR ve kapsamlı regresyon testiyle.
 6. Yapay zekâ özet servisi (`app/services/ai`): talep özetinde ham durum kodu ("open") ve İngilizce alan adı.

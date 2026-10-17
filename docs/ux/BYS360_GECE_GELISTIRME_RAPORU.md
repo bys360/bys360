@@ -85,7 +85,7 @@ GitHub CI (`Run tests / quality-gate`, ~3 saat):
 8. 3 rotada dekoratör görünmüyor (`/guest/files/<token>`, `/guest/upload/<token>`, `/offline`) — muhtemelen tasarım gereği; güvenlik hattında doğrulanmalı.
 9. Talep türü detay ekranında gösterilmiyor (rota tür listesini geçirmiyor).
 10. `base.html` ortak düzeni: "Dashboard" menü adı, "AI destekli" rozeti, flash mesajlarında `role` eksikliği — yüksek risk, ayrı PR.
-11. Rehber araması şapkalı harfi eşlemiyor: "yapay zeka" 0 sonuç, "yapay zekâ" 3 sonuç (sunucu tarafı).
+11. Rehber aramasında "yapay zeka" 0 sonuç veriyor: içerik "AI" terimini kullanıyor ve arama eş anlam listesinde (`SEARCH_ALIASES`) karşılığı yok. Terim kararıyla birlikte çözülmeli. (Gece içinde önce "şapkalı harf eşlenmiyor" diye yanlış teşhis etmiştim; normalleştirme `â→a` yapıyor, sorun eş anlam eksikliği.)
 12. Rehber Yönetimi listesi eski tasarımda: stil bloğu Style-2A sahipliğinde (taşıma ratchet istisnası ister) ve silme onayı işaretlemesi sözleşmelerle sabit — sahip kararı.
 13. Gerçek iPhone/Android ve NVDA/VoiceOver testleri yapılmadı.
 
