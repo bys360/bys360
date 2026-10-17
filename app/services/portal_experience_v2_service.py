@@ -5,6 +5,11 @@ takdir kültürü, duyuru vitrini ve canlı katılım panosuna dönüştürmek.
 Bu servis yeni tablo zorunluluğu getirmez; mevcut PortalPost, PortalProfile,
 PortalPostComment, PortalPostReaction ve User modellerini güvenli şekilde okur.
 Eksik tablo veya model durumunda güvenli varsayılan bağlam döndürür.
+
+Görünürlük: bu bağlam ana sayfada ve portal V2 alanında her kullanıcıya ayrı
+üretilir. Gönderiler portal akışıyla aynı kuraldan (portal_service.can_user_view_post)
+geçer; kişi vitrini Personel Duvarları izniyle (portal_people) sınırlıdır. Kurala
+uymayan kayıt sunucuda elenir, şablona hiç ulaşmaz.
 """
 from __future__ import annotations
 
@@ -17,10 +22,14 @@ from app.core.datetime_utils import utc_now
 from app.extensions import db
 from app.models import PortalPost, PortalPostComment, PortalPostReaction, PortalProfile, User
 from app.route_support import sanitize_free_text
+from app.services.portal_permission_matrix import portal_permission_allowed
+from app.services.portal_service import can_user_view_post
 
 RECOGNITION_TYPES = {"thanks", "success", "best_practice"}
 ANNOUNCEMENT_TYPES = {"corporate_announcement", "event", "training"}
 COMMUNITY_TYPES = RECOGNITION_TYPES | ANNOUNCEMENT_TYPES | {"normal", "daily_note"}
+# Görünürlük süzgecinden önce okunan aday sayısı; portal_service.visible_posts_for_user ile aynı taban.
+CANDIDATE_LIMIT = 120
 
 
 def _safe(factory: Callable[[], Any], default: Any = None) -> Any:
@@ -133,16 +142,32 @@ def _profile_context(user: Any) -> dict[str, Any]:
     }
 
 
-def _recognition_highlights(limit: int = 5) -> list[dict[str, Any]]:
+def _visible_to(user: Any, rows: list[Any], limit: int | None = None) -> list[Any]:
+    """Yalnız kullanıcının portal akışında da görebileceği gönderileri bırakır (hata = görünmez)."""
+    visible: list[Any] = []
+    for row in rows:
+        try:
+            allowed = bool(can_user_view_post(user, row))
+        except Exception:
+            allowed = False
+        if allowed:
+            visible.append(row)
+            if limit is not None and len(visible) >= limit:
+                break
+    return visible
+
+
+def _recognition_highlights(user: Any, limit: int = 5) -> list[dict[str, Any]]:
     if not _portal_tables_ready():
         return []
     rows = _safe(
         lambda: PortalPost.query.filter(
             PortalPost.status == "published",
             PortalPost.post_type.in_(list(RECOGNITION_TYPES)),
-        ).order_by(PortalPost.published_at.desc(), PortalPost.id.desc()).limit(limit).all(),
+        ).order_by(PortalPost.published_at.desc(), PortalPost.id.desc()).limit(CANDIDATE_LIMIT).all(),
         [],
     ) or []
+    rows = _visible_to(user, rows, limit)
     return [
         {
             "title": _post_body(row, limit=120),
@@ -155,16 +180,17 @@ def _recognition_highlights(limit: int = 5) -> list[dict[str, Any]]:
     ]
 
 
-def _featured_announcements(limit: int = 4) -> list[dict[str, Any]]:
+def _featured_announcements(user: Any, limit: int = 4) -> list[dict[str, Any]]:
     if not _portal_tables_ready():
         return []
     rows = _safe(
         lambda: PortalPost.query.filter(
             PortalPost.status == "published",
             PortalPost.post_type.in_(list(ANNOUNCEMENT_TYPES)),
-        ).order_by(PortalPost.published_at.desc(), PortalPost.id.desc()).limit(limit).all(),
+        ).order_by(PortalPost.published_at.desc(), PortalPost.id.desc()).limit(CANDIDATE_LIMIT).all(),
         [],
     ) or []
+    rows = _visible_to(user, rows, limit)
     return [
         {
             "title": sanitize_free_text(getattr(row, "title", ""), limit=130) or _post_body(row, limit=110),
@@ -177,7 +203,7 @@ def _featured_announcements(limit: int = 4) -> list[dict[str, Any]]:
     ]
 
 
-def _community_pulse() -> dict[str, Any]:
+def _community_pulse(user: Any) -> dict[str, Any]:
     if not _portal_tables_ready():
         return {"post_count": 0, "recognition_count": 0, "announcement_count": 0, "reaction_count": 0, "comment_count": 0, "top_type": "Henüz veri yok"}
     since = utc_now() - timedelta(days=30)
@@ -189,6 +215,7 @@ def _community_pulse() -> dict[str, Any]:
         ).all(),
         [],
     ) or []
+    posts = _visible_to(user, posts)
     post_ids = [getattr(row, "id", None) for row in posts if getattr(row, "id", None)]
     counter = Counter(str(getattr(row, "post_type", "normal") or "normal") for row in posts)
     top_type_key = counter.most_common(1)[0][0] if counter else "none"
@@ -218,8 +245,9 @@ def _community_pulse() -> dict[str, Any]:
     }
 
 
-def _people_spotlight(limit: int = 4) -> list[dict[str, str]]:
-    if not _table_exists("users"):
+def _people_spotlight(user: Any, limit: int = 4) -> list[dict[str, str]]:
+    # Personel Duvarları (/portal/people) ile aynı izin ve aynı alanlar: ad, unvan, birim, fotoğraf.
+    if not _table_exists("users") or not _safe(lambda: portal_permission_allowed(user, "portal_people"), False):
         return []
     rows = _safe(
         lambda: User.query.filter_by(is_active=True).order_by(User.updated_at.desc(), User.id.desc()).limit(limit).all(),
@@ -240,7 +268,7 @@ def portal_experience_v2_context(user: Any) -> dict[str, Any]:
     uid = int(getattr(user, "id", 0) or 0) if user else 0
     if uid <= 0:
         return {"portal_v2_enabled": False, "portal_v2": {}}
-    pulse = _community_pulse()
+    pulse = _community_pulse(user)
     profile = _profile_context(user)
     quick_share_cards = [
         {"type": "thanks", "title": "Teşekkür / Takdir", "icon": "fa-solid fa-hands-clapping", "hint": "Emeği görünür kılın", "anchor": "#portal-body"},
@@ -252,9 +280,9 @@ def portal_experience_v2_context(user: Any) -> dict[str, Any]:
         "portal_v2": {
             "profile": profile,
             "pulse": pulse,
-            "recognition_highlights": _recognition_highlights(),
-            "featured_announcements": _featured_announcements(),
-            "people_spotlight": _people_spotlight(),
+            "recognition_highlights": _recognition_highlights(user),
+            "featured_announcements": _featured_announcements(user),
+            "people_spotlight": _people_spotlight(user),
             "quick_share_cards": quick_share_cards,
             "safe_note": "Duyurular, bildirimler, destek talepleri, anketler ve kurumsal paylaşımlar bu alanda bir araya gelir.",
         },
