@@ -388,6 +388,57 @@ STYLE_MIGRATION_WAVES: dict[str, _WaveManifestEntry] = {
         "removed_static": 0,
         "removed_blocks": 8,
     },
+    # FORWARD-COMPATIBILITY FOLLOW-UP 11 (BYS360 UX pilot, Destek -> Yeni Talep
+    # Aç): support/new.html's single page-level <style> block was moved into
+    # the scoped external stylesheet app/static/css/bys360_components.css.
+    # 0 static attributes (style2a already removed the template's last 3),
+    # 1 block. The template is therefore claimed a second time -- see
+    # DISJOINT_RECLAIMS below for why that is not a double count.
+    # Evidence: tests/behavior/test_pilot_support_new_ux_contract.py (K2).
+    "ux_pilot_support_new": {
+        "templates": (
+            "app/templates/support/new.html",
+        ),
+        "removed_static": 0,
+        "removed_blocks": 1,
+    },
+    # FORWARD-COMPATIBILITY FOLLOW-UP 12 (BYS360 UX wave 2, Destek ->
+    # Taleplerim / Bana Atananlar / Tüm Talepler): support/list.html's single
+    # page-level <style> block was moved into the scoped external stylesheet
+    # app/static/css/bys360_components.css. 0 static attributes (the template
+    # never had any), 1 block. First claim of this template -- no reclaim.
+    # Evidence: tests/behavior/test_ux_wave2_support_list_contract.py.
+    "ux_wave2_support_list": {
+        "templates": (
+            "app/templates/support/list.html",
+        ),
+        "removed_static": 0,
+        "removed_blocks": 1,
+    },
+    # FORWARD-COMPATIBILITY FOLLOW-UP 13 (BYS360 UX wave 4, Destek -> Yardım
+    # Merkezi): support/index.html's 13 static style="..." attributes (all
+    # margin/padding spacing) were replaced by classes in the scoped external
+    # stylesheet app/static/css/bys360_components.css. 13 static attributes,
+    # 0 blocks (the template never had one). First claim of this template --
+    # no reclaim. Evidence: tests/behavior/test_ux_wave4_help_center_contract.py.
+    "ux_wave4_help_center": {
+        "templates": (
+            "app/templates/support/index.html",
+        ),
+        "removed_static": 13,
+        "removed_blocks": 0,
+    },
+}
+
+# A template may be claimed by a second edit-in-place wave ONLY when the two
+# waves removed disjoint kinds of debt from it: the earlier wave removed
+# static attributes and no blocks, the later wave removed blocks and no static
+# attributes. Each entry is (earlier wave, later wave). The duplicate-claim
+# guard below allows exactly these pairs and nothing else, and
+# test_disjoint_reclaims_never_count_the_same_removal_kind_twice proves the
+# disjointness from the manifest numbers themselves.
+DISJOINT_RECLAIMS: dict[str, tuple[str, str]] = {
+    "app/templates/support/new.html": ("style2a", "ux_pilot_support_new"),
 }
 
 class _DeletedWaveManifestEntry(TypedDict):
@@ -632,10 +683,37 @@ def test_no_template_is_claimed_by_more_than_one_wave() -> None:
     for wave_name, wave in all_waves.items():
         for template in wave["templates"]:
             if template in seen:
+                if DISJOINT_RECLAIMS.get(template) == (seen[template], wave_name):
+                    continue
                 duplicates.append((template, seen[template], wave_name))
             else:
                 seen[template] = wave_name
     assert duplicates == [], f"Template(s) claimed by more than one wave: {duplicates!r}"
+
+
+def test_disjoint_reclaims_never_count_the_same_removal_kind_twice() -> None:
+    """Every DISJOINT_RECLAIMS exception must name two existing edit-in-place
+    waves that both list the template, the earlier with removed_blocks == 0 and
+    the later with removed_static == 0, so no attribute or block is ever
+    counted twice."""
+    assert DISJOINT_RECLAIMS, "DISJOINT_RECLAIMS should only exist while it has entries"
+    for template, (earlier, later) in DISJOINT_RECLAIMS.items():
+        assert earlier in STYLE_MIGRATION_WAVES and later in STYLE_MIGRATION_WAVES, (template, earlier, later)
+        assert template in STYLE_MIGRATION_WAVES[earlier]["templates"], (template, earlier)
+        assert template in STYLE_MIGRATION_WAVES[later]["templates"], (template, later)
+        assert list(STYLE_MIGRATION_WAVES).index(earlier) < list(STYLE_MIGRATION_WAVES).index(later)
+        assert STYLE_MIGRATION_WAVES[earlier]["removed_blocks"] == 0, (template, earlier)
+        assert STYLE_MIGRATION_WAVES[later]["removed_static"] == 0, (template, later)
+
+
+def test_disjoint_reclaims_is_pinned_to_the_single_reviewed_exception() -> None:
+    """The owner approved the reclaim exception for exactly one template and
+    one wave pair (PR #75 review). Any other template or wave pair must be
+    reviewed and added here explicitly; it cannot ride on this exception."""
+    assert DISJOINT_RECLAIMS == {
+        "app/templates/support/new.html": ("style2a", "ux_pilot_support_new"),
+    }
+    assert STYLE_MIGRATION_WAVES["ux_pilot_support_new"]["templates"] == ("app/templates/support/new.html",)
 
 
 @pytest.mark.parametrize(
