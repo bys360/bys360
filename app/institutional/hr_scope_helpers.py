@@ -229,23 +229,34 @@ def _requested_scope_mode() -> str | None:
     return raw or None
 
 
+def _real_unit_name(user: Any) -> str:
+    """Kullanıcının gerçek birim adı; boş/yalnız boşluk ise "" ("Belirsiz birim" yetki üretmez)."""
+    return _safe_text(getattr(user, "birim", None)) or _safe_text(getattr(user, "ust_birim", None))
+
+
 def _fallback_scope_context() -> dict[str, Any]:
+    # Yalnız kapsam hesaplaması hata verdiğinde çalışır; bu yüzden hiçbir zaman çekirdek
+    # kuraldan (get_manager_scope_users) geniş olamaz. Kurum geneli yalnız üst yönetimde,
+    # birim görünümü yalnız gerçek bir birimi olan yöneticide; geri kalan herkes yalnız kendisi.
     users = _all_personnel()
     role = _role_key(current_user)
     is_manager = role in {"admin", "baskan", "baskan_yardimcisi", "grup_baskani", "mali_musavir", "koordinator", "birim_sorumlusu"}
-    requested = _requested_scope_mode() or ("all" if role in {"admin", "baskan", "baskan_yardimcisi"} else "unit" if is_manager else "personal")
+    top_management = role in {"admin", "baskan", "baskan_yardimcisi"}
+    requested = _requested_scope_mode() or ("all" if top_management else "unit" if is_manager else "personal")
     if requested not in {"personal", "unit", "all"}:
         requested = "personal"
-    if requested == "all" and role not in {"admin", "baskan", "baskan_yardimcisi", "grup_baskani", "mali_musavir"}:
+    if requested == "all" and not top_management:
         requested = "unit" if is_manager else "personal"
     current_id = getattr(current_user, "id", None)
-    current_unit = _unit_name(current_user)
+    current_unit = _real_unit_name(current_user)
+    if requested == "unit" and (not is_manager or not current_unit):
+        requested = "personal"
     if requested == "all":
         scoped = users
         label = "Tüm kurum"
         heading = "Kurumsal görünüm"
     elif requested == "unit":
-        scoped = [u for u in users if _unit_name(u) == current_unit]
+        scoped = [u for u in users if _real_unit_name(u) == current_unit]
         if current_id and not any(getattr(u, "id", None) == current_id for u in scoped):
             scoped.append(current_user)
         label = current_unit
@@ -257,7 +268,7 @@ def _fallback_scope_context() -> dict[str, Any]:
     options = [{"value": "personal", "label": "Kişisel"}]
     if is_manager:
         options.append({"value": "unit", "label": "Birimim"})
-    if role in {"admin", "baskan", "baskan_yardimcisi", "grup_baskani", "mali_musavir"}:
+    if top_management:
         options.append({"value": "all", "label": "Tüm kurum"})
     unit_count = len({_unit_name(u) for u in scoped})
     return {
@@ -294,7 +305,8 @@ def _scope_user_ids(scope: dict[str, Any] | None) -> list[int]:
 
 def _filter_users_in_scope(users: Iterable[Any], scope: dict[str, Any] | None) -> list[Any]:
     ids = set(_scope_user_ids(scope))
-    rows = [u for u in list(users or []) if not ids or getattr(u, "id", None) in ids]
+    # Boş kapsam kimseyi kapsamaz; kurum geneline dönüşmez.
+    rows = [u for u in list(users or []) if getattr(u, "id", None) in ids]
     return sorted(rows, key=lambda u: (_full_name(u).lower(), int(getattr(u, "id", 0) or 0)))
 
 
