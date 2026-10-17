@@ -299,3 +299,110 @@ def test_heavy_panel_context_builds_system_maturity_only_for_admin_family(app, r
             context = _build_dashboard_heavy_context(user)
     assert bool(context.get("live_dashboard_surface")) is expected
     assert bool(context.get("ai_operations_bridge")) is expected
+
+
+# ---------------------------------------------------------------------------
+# Hukuk Müşaviri (kayıtlarda "mali_musavir" anahtarı) — proje sahibi kararı:
+# gösterge panelinde kurum geneli yetki yok; mevcut güvenli kişi kapsamı
+# (get_manager_scope_users: kendi birimi ve alt birimleri) uygulanır. Rol anahtarı
+# değiştirilmez. Yönetici kısayolları (manager_view) grup başkanı gibi korunur.
+# ---------------------------------------------------------------------------
+LEGAL_ROLES = ["mali_musavir", "mali_müşavir"]
+CHART_KEYS = ["performance_distribution", "period_completion", "unit_average", "category_average",
+              "low_score_trend", "support_status", "participation"]
+
+
+def _make_user(app, sicil_no: str, role: str, birim: str | None):
+    from app.extensions import db
+    from app.models import User
+
+    with app.app_context():
+        user = User(sicil_no=sicil_no, email=f"{sicil_no.lower()}@bys360.test", ad="Sahte", soyad="Müşavir", role=role,
+                    birim=birim, is_active=True, must_change_password=False, must_set_security_question=False)
+        user.set_password("UxPilotSahte1!")
+        db.session.add(user)
+        db.session.commit()
+
+
+@pytest.mark.parametrize("role", LEGAL_ROLES)
+def test_legal_counsel_scope_is_not_institution_wide(app, role) -> None:
+    from app.extensions import db
+    from app.models import User
+    from app.services.dashboard_rebuild_service import _resolve_scope_ids
+
+    _make_user(app, "HM-SCOPE", role, "Sahte Hukuk Birimi")
+    with app.app_context():
+        user = db.session.query(User).filter_by(sicil_no="HM-SCOPE").one()
+        assert _resolve_scope_ids(user) == [user.id]
+
+
+def test_legal_counsel_does_not_receive_other_units_across_json_charts_and_html(app) -> None:
+    """Başka birimin performans, görev ve kişi verisi HTML, gömülü JSON, JSON uç ve grafik uçlarında yok."""
+    from test_ux_wave9_dashboard_contract import _seed_evaluations
+
+    _seed_evaluations(app)  # "Sahte Birim"de 4 personel, 3 değerlendirme, 4 görev
+    _seed_surveys(app)
+    _make_user(app, "HM-OTHER", "mali_musavir", "Sahte Hukuk Birimi")
+    client = app.test_client()
+    _login(client, "HM-OTHER", "UxPilotSahte1!")
+
+    dashboard = _payload(client)
+    assert dashboard["scope"]["is_global"] is False
+    assert dashboard["user"]["manager_view"] is True
+    assert dashboard["metrics"]["total_personnel"] == 1
+    assert dashboard["metrics"]["pending_performance"] == 0
+    assert dashboard["charts"]["performance_distribution"]["total"] == 0
+    assert dashboard["charts"]["period_completion"]["total"] == 0
+    assert dashboard["charts"]["unit_average"]["rows"] == []
+    _assert_no_institution_wide_participation(dashboard)
+    text = json.dumps(dashboard, ensure_ascii=False)
+    assert "Sahte Personel" not in text and "Sahte Birim\"" not in text
+
+    for key in CHART_KEYS:
+        chart_text = json.dumps(client.get(f"/dashboard/rebuild-chart/{key}").get_json(), ensure_ascii=False)
+        assert "Sahte Personel" not in chart_text and "Anket katılımı" not in chart_text, key
+    assert client.get("/dashboard/rebuild-chart/participation").get_json()["chart"]["restricted"] is True
+
+    html = client.get("/dashboard").get_data(as_text=True)
+    assert "Sahte Personel" not in html and "Açık Anket" not in html and RESTRICTED_NOTE in html
+    embedded = html.split('<script id="dashboard-rebuild-payload" type="application/json">', 1)[1].split("</script>", 1)[0]
+    assert json.loads(embedded)["metrics"]["total_personnel"] == 1
+
+
+def test_legal_counsel_keeps_their_own_unit(app) -> None:
+    """Pozitif kontrol: kapsam boşaltılmadı; kendi birimindeki personelin verisi görünür."""
+    from test_ux_wave9_dashboard_contract import _seed_evaluations
+
+    _seed_evaluations(app)
+    _make_user(app, "HM-OWN", "mali_musavir", "Sahte Birim")
+    client = app.test_client()
+    _login(client, "HM-OWN", "UxPilotSahte1!")
+    dashboard = _payload(client)
+    assert dashboard["scope"]["is_global"] is False
+    assert dashboard["metrics"]["total_personnel"] == 5  # 4 personel + kendisi
+    assert dashboard["charts"]["performance_distribution"]["total"] == 3
+
+
+def test_heavy_panels_give_legal_counsel_no_institution_wide_ai_or_maturity_data(app) -> None:
+    """Varsayılan menü tanımı bu role ai_center verse de gösterge paneli kurum geneli veri üretmez."""
+    from flask_login import login_user
+
+    from app.extensions import db
+    from app.main_handlers.dashboard_handlers import _build_dashboard_heavy_context
+    from app.models import User
+
+    _make_user(app, "HM-HEAVY", "mali_musavir", "Sahte Hukuk Birimi")
+    client = app.test_client()
+    _login(client, "HM-HEAVY", "UxPilotSahte1!")
+    response = client.get("/dashboard/heavy-panels")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert AI_COUNTERS not in html and "Yönetişim uyarısı" not in html
+    assert "AI operasyon paneli korumalı modda" in html
+    with app.app_context():
+        user = db.session.query(User).filter_by(sicil_no="HM-HEAVY").one()
+        with app.test_request_context("/dashboard/heavy-panels"):
+            login_user(user)
+            context = _build_dashboard_heavy_context(user)
+    assert context.get("ai_operations_bridge") is None
+    assert not context.get("live_dashboard_surface")
