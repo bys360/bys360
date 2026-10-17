@@ -1,6 +1,6 @@
 # BYS360 GECE GELİŞTİRME RAPORU
 
-Gece çalışması: 16–17 Ekim 2026. Son güncelleme: 17 Ekim 2026, 02:15 UTC (05:15 TSİ) — CI sonuçları geldikçe güncellenir. Görsel kanıt: https://claude.ai/artifact/VgkCUVna2ooZnmvEoW8HPc
+Gece çalışması: 16–17 Ekim 2026. Son güncelleme: 17 Ekim 2026, 05:05 UTC (08:05 TSİ). Görsel kanıt: https://claude.ai/artifact/VgkCUVna2ooZnmvEoW8HPc
 Kapsam ve yetki: yalnız Draft PR; merge, canlıya geçiş, gerçek veri ve gerçek kullanıcı hesabı yok. Bütün yerel testler sahte kullanıcı ve sahte veriyle, geçici SQLite veritabanında.
 
 ## 1. Kaç ekran bulundu?
@@ -43,9 +43,10 @@ Yerel (sahte veri) — **hepsi geçti, 0 kaldı**:
 | #82 | 876 geçti (23 dosya) | 37/37 |
 | #83 | 881 geçti (24 dosya) | 21/21 |
 
-GitHub CI (`Run tests / quality-gate`, ~3 saat):
-- `score100-quality-gate`: #75, #76, #77, #78 yeşil; #79, #80 başladı.
-- `quality-gate`: #75 (`5531f4a9`), #77, #78, #79, #80 çalışıyor. #76'nın ilk koşusu **180 dk iş sınırında iptal** oldu: 1112 + 8028 test geçti, 0 hata, migration ve coverage kapıları PASS; yalnız mypy adımı süre dolduğu için kesildi (değişen tek Python dosyasında yerel mypy temiz). Bir kez yeniden çalıştırıldı; PR'a açıklama yazıldı.
+GitHub CI (`Run tests / quality-gate`, ~3 saat), 05:05 UTC durumu:
+- **Yeşil (iki kontrol de geçti):** #75 (`5531f4a9`), #76 (yeniden koşu), #77 (`03e96feb`), #78, #79 (`5da2bbba`), #80 (`8bc98cdc`).
+- #76'nın ilk koşusu 180 dk iş sınırında iptal olmuştu (0 test hatası; yalnız mypy adımı süre dolduğu için kesildi). Yeniden koşu 1 sa 57 dk'da yeşil bitti.
+- **#81, #82, #83 kırmızıydı — benim hatam, düzeltildi, CI yeniden çalışıyor:** `quality-gate` testlere gelmeden Ruff adımında durdu (B007: dalga 5 testinde kullanılmayan döngü değişkeni `section`). #82 ve #83 bu dalın üstüne kurulu olduğu için aynı hatayı miras aldı. Yerel doğrulamamda Ruff'u `tests/` klasörü dahil CI komutuyla çalıştırmamıştım; bu bir süreç açığıydı. Düzeltme: `370d497e` (#81), birleştirme `3b0d5c25` (#82), `edf49eb0` (#83). CI komutu (`ruff check app config.py wsgi.py run.py scripts tests`, ruff 0.16.0) üç dalda da temiz; dalga 5–7 test dosyaları 41/41 geçti. Yeni CI sonuçları henüz gelmedi; bu üç PR **yeşil sayılmamalı**.
 
 ## 5. Kaç hata düzeltildi?
 
