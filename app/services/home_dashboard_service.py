@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import or_
 
@@ -119,9 +120,25 @@ def build_home_summary_context(user: Any) -> dict[str, Any]:
     }
 
 
+_LOCAL_TZ = ZoneInfo("Europe/Istanbul")
+
+
+def _local_time_label(iso_value: Any) -> str:
+    """Hava durumu servisinin UTC ISO zamanını ekranda yerel saat (SS:DD) olarak gösterir."""
+    try:
+        moment = datetime.fromisoformat(str(iso_value))
+    except (TypeError, ValueError):
+        return ""
+    if moment.tzinfo is None:
+        return ""
+    return moment.astimezone(_LOCAL_TZ).strftime("%H:%M")
+
+
 def build_home_page_context(user: Any) -> dict[str, Any]:
     summary = build_home_summary_context(user)
     weather = get_home_weather_context()
+    weather = dict(weather or {})
+    weather["updated_label"] = _local_time_label(weather.get("updated_at"))
     quick_actions = [
         {
             "label": "Görevlerim",
