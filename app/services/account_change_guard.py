@@ -191,6 +191,15 @@ def role_profile_change_refusal(actor: Any, role: Any, *, before: Any, after: An
     is_admin_role = normalize_role_name(role) == ADMIN_ROLE
     if not is_real_admin(actor) and is_protected_role(role):
         return "settings_admin_role_profile" if is_admin_role else "settings_role_profile"
+    if not is_real_admin(actor):
+        # P0 menü matrisi tavanı: rolün kurumsal tanımının vermediği anahtar rol varsayılanına eklenemez.
+        from app.services.settings.menu_grant_ceiling import (
+            GRANT_CEILING_REFUSAL,
+            grant_ceiling_violations,
+        )
+
+        if grant_ceiling_violations(role, after_keys, before_keys):
+            return GRANT_CEILING_REFUSAL
     if is_admin_role and any(key in before_keys and key not in after_keys for key in LOCKOUT_CRITICAL_ADMIN_KEYS):
         return "admin_role_lockout_keys"
     return None

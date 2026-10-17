@@ -8,6 +8,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from app.services.settings.effective_menu_parts.bys360_context import (
+    _bys360_person_matrix_can_open_v1,
+)
+
 RollbackHook = Callable[[], None]
 
 def build_menu_visibility_map(
@@ -225,9 +229,14 @@ def build_menu_visibility_map(
             log.exception("BYS360 effective menu fallback failed | phase=v14_user_state")
             user_state = {}
 
+        v14_items = {str((item or {}).get("key") or "").strip(): item for item in active_menu_items or []}
         for key, is_visible in (user_state or {}).items():
             key = str(key or "").strip()
             if not key or key not in active_keys or is_removed_menu_key(key):
+                continue
+            # P0: kişi bazlı kayıt admin_only bir yönetim ekranını admin olmayana açmaz (canlı yetki
+            # katmanındaki aynı kural; bu katman daha önce onu eziyordu). Kapatma her zaman uygulanır.
+            if is_visible and not _bys360_person_matrix_can_open_v1(key, v14_items.get(key), user):
                 continue
             visibility[key] = bool(is_visible)
 

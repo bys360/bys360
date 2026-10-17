@@ -288,6 +288,7 @@ def rollback_settings_change_handler(
             plan["module_after"] = module_after
         elif row.change_scope == "user_menu_overrides":
             plan["user_revoked"] = {key for key, visible in (previous_state or {}).items() if not bool(visible)}
+            plan["user_granted"] = {key for key, visible in (previous_state or {}).items() if bool(visible)}
         authorize(row, plan)
 
     if row.change_scope == "system_settings":

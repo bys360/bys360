@@ -105,7 +105,7 @@ from app.main_handlers.account_visibility_helpers import (
     url_for,
     utc_now,
 )
-from app.route_support import normalize_role_name
+from app.route_support import build_menu_visibility_map, normalize_role_name, render_access_denied
 from app.services.account_change_guard import (
     ChangeRefused,
     audit_refusal,
@@ -138,6 +138,7 @@ from app.services.personnel_read_grant import (
     has_personnel_read_all_grant,
     has_support_all_grant,
 )
+from app.services.settings.menu_grant_ceiling import GRANT_CEILING_REFUSAL, grant_ceiling_violations
 from app.services.settings_service import module_settings_state_from_form, snapshot_module_settings
 
 # B1-F1, K5-Q2: only an admin may assign or remove the explicit grants (personnel_read_all,
@@ -192,6 +193,9 @@ def _settings_redirect(keep_user_id=None, **kwargs):
 
 def _refuse_settings_change(target, reason, *, keep_user_id=None, **redirect_kwargs):
     audit_refusal(target, reason)
+    if GRANT_CEILING_REFUSAL in reason:
+        # P0: kurumsal tanımın üstünde yetki açma girişimi; hiçbir şey yazılmadı.
+        return render_access_denied()
     flash(_LOCKOUT_REFUSAL_MESSAGE if "lockout_keys" in reason else _PROTECTED_MATRIX_REFUSAL_MESSAGE, "danger")
     return _settings_redirect(keep_user_id, **redirect_kwargs)
 
@@ -237,11 +241,22 @@ def _user_matrix_refusal(target, visible_keys, flat_menu_items):
     refusal = user_matrix_change_refusal(current_user, target)
     if refusal:
         return refusal
+    if not is_real_admin(current_user) and grant_ceiling_violations(
+        getattr(target, "role", ""), visible_keys, _currently_visible_keys(target)
+    ):
+        return GRANT_CEILING_REFUSAL
     listed = {str((item or {}).get("key") or "").strip() for item in flat_menu_items or []}
     revoked = listed - set(visible_keys or ())
     return own_matrix_lockout_refusal(current_user, target, revoked_keys=revoked) or lockout_revocation_refusal(
         current_user, target, revoked_keys=revoked
     )
+
+
+def _currently_visible_keys(user) -> set[str]:
+    """Hedef hesabın şu anki canlı menüsünde görünen anahtarlar (yeniden kayıt bir istisnayı korur)."""
+    if user is None:
+        return set()
+    return {key for key, visible in (build_menu_visibility_map(user) or {}).items() if visible}
 
 
 def _authorize_rollback(row, plan):
@@ -263,6 +278,10 @@ def _authorize_rollback(row, plan):
             or own_matrix_lockout_refusal(current_user, target, revoked_keys=revoked)
             or lockout_revocation_refusal(current_user, target, revoked_keys=revoked)
         )
+        if not reason and target is not None and not is_real_admin(current_user) and grant_ceiling_violations(
+            getattr(target, "role", ""), plan.get("user_granted") or set(), _currently_visible_keys(target)
+        ):
+            reason = GRANT_CEILING_REFUSAL
     elif scope == "module_settings":
         reason = _module_authority_refusal(snapshot_module_settings(), plan.get("module_after") or {})
     else:
@@ -778,9 +797,13 @@ def _handle_bulk_apply_profile(users, grouped_menu_definitions, flat_menu_items)
         flash("Seçilen kapsamda güncellenecek kullanıcı bulunamadı.", "warning")
         return redirect(url_for("main.settings_page", user_id=keep_user_id) if keep_user_id else url_for("main.settings_page"))
 
+    planned = [(user, set(_resolve_bulk_profile_keys(profile_key, user, grouped_menu_definitions))) for user in target_users]
+    if not is_real_admin(current_user) and any(
+        grant_ceiling_violations(getattr(user, "role", ""), keys, _currently_visible_keys(user)) for user, keys in planned
+    ):
+        return _refuse_settings_change(None, GRANT_CEILING_REFUSAL, keep_user_id=keep_user_id)
     try:
-        for user in target_users:
-            visible_keys = set(_resolve_bulk_profile_keys(profile_key, user, grouped_menu_definitions))
+        for user, visible_keys in planned:
             _apply_visibility_keys_to_user(user, flat_menu_items, visible_keys)
         write_audit_log(
             "settings.bulk_profile_apply",
