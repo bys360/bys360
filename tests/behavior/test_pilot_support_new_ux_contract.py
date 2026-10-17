@@ -821,6 +821,9 @@ UI_ACRONYM_EXCEPTIONS: dict[str, str] = {
 _UI_TEXT_ATTRS = ("placeholder", "title", "aria-label", "alt", "data-bys-busy-text")
 _UI_WORD = re.compile(r"[A-Za-zÇĞİÖŞÜçğıöşüÂÎÛâîû0-9]+")
 _UI_ACRONYM = re.compile(r"^[A-Z]{2,}[0-9]*$")
+# Talep numarası bir veri kimliğidir (DTY-YYYYMMDD-XXXXXX, son kısım rastgele onaltılık):
+# "DTY-20261017-DB7034" gibi bir numaranın "DB7034" parçası kısaltma sanılmamalı.
+_UI_TICKET_NO = re.compile(r"\bDTY-\d{8}-[0-9A-F]{6}\b")
 _UI_URL_PATH = re.compile(r"(?<![\w.])/[a-z][a-z0-9_-]*/[a-z0-9_/-]+", re.IGNORECASE)
 
 
@@ -867,12 +870,18 @@ def _english_ui_findings(strings: list[str]) -> list[str]:
     for text in strings:
         for path in _UI_URL_PATH.findall(text):
             findings.append(f"URL yolu görünür metinde: {path!r} <- {text!r}")
-        for word in _UI_WORD.findall(text):
+        for word in _UI_WORD.findall(_UI_TICKET_NO.sub(" ", text)):
             if word.lower() in UI_ENGLISH_DENYLIST:
                 findings.append(f"İngilizce kelime: {word!r} <- {text!r}")
             elif _UI_ACRONYM.match(word) and word not in UI_ACRONYM_EXCEPTIONS:
                 findings.append(f"Gerekçesiz kısaltma: {word!r} <- {text!r}")
     return findings
+
+
+def test_tr_checker_ignores_random_ticket_number_suffix_but_not_real_acronyms() -> None:
+    assert _english_ui_findings(["Destek talebi · DTY-20261017-DB7034"]) == []
+    assert _english_ui_findings(["DTY-20261017-0A1B2C · Raporlama"]) == []
+    assert _english_ui_findings(["Hata kodu DB7034"]) != [], "Talep numarası dışında kısaltma yine yakalanmalı"
 
 
 def _pilot_ui_strings(html: str) -> list[str]:
