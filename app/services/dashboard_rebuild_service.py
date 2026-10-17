@@ -776,7 +776,7 @@ def _build_ai_summary(metrics: dict[str, int], charts: dict[str, dict[str, Any]]
         actions.append({"label": "Performans Raporları", "url": "/performance/reports", "priority": "Orta"})
     if support_open:
         risks.append({"title": "Açık destek talepleri", "body": f"{support_open} açık destek talebi kullanıcı deneyimi ve canlı kullanım memnuniyetini etkileyebilir."})
-        actions.append({"label": "Destek Talepleri", "url": "/support/tickets", "priority": "Orta"})
+        actions.append({"label": "Destek Talepleri", "url": "/support/my-tickets", "priority": "Orta"})
     if open_feedback:
         recommendations.append({"title": "Geri bildirim aksiyonları", "body": f"{open_feedback} açık geri bildirim veya eylem planı karar takibine bağlanmalı."})
 
@@ -790,9 +790,9 @@ def _build_ai_summary(metrics: dict[str, int], charts: dict[str, dict[str, Any]]
     if not recommendations:
         recommendations.append({"title": "Dönem kontrolü", "body": "Veriler güncellendikçe tamamlanma, destek ve katılım eğilimleri birlikte izlenmeli."})
     if not actions:
-        actions.append({"label": "Dashboard izleme", "url": "/performance/dashboard", "priority": "Normal"})
+        actions.append({"label": "Gösterge panelini izleme", "url": "/performance/dashboard", "priority": "Normal"})
 
-    summary = "Dashboard; performans, destek, anket, geri bildirim ve bildirim kayıtlarını yetki sınırı içinde birleştirerek yöneticiye kısa durum resmi sunar."
+    summary = "Gösterge paneli; performans, destek, anket, geri bildirim ve bildirim kayıtlarını yetki sınırı içinde birleştirerek yöneticiye kısa durum resmi sunar."
     if pending_approval or low_count or pending_tasks:
         summary = "Öncelik performans sürecinde: düşük performans, üst onay ve bekleyen değerlendirme görevleri birlikte takip edilmeli."
     elif support_open or open_feedback:
@@ -805,7 +805,7 @@ def _build_ai_summary(metrics: dict[str, int], charts: dict[str, dict[str, Any]]
         "risks": risks[:4],
         "recommendations": recommendations[:4],
         "actions": actions[:4],
-        "guardrail": "AI karar vermez; yalnızca yetki kapsamındaki verilerden özet, risk farkındalığı ve öneri sunar.",
+        "guardrail": "Bu özet karar vermez; yalnızca yetki kapsamındaki verilerden özet, risk farkındalığı ve öneri sunar.",
     }
 
 
@@ -865,9 +865,9 @@ def build_dashboard_rebuild_context(user: Any) -> dict[str, Any]:
         {"label": "Personel Yönetimi", "url": "/personnel", "icon": "fa-id-card", "manager_only": True},
         {"label": "Dönem İçi Notlar", "url": "/performance/interim-notes", "icon": "fa-clipboard-list", "manager_only": False},
         {"label": "Gelişim Önerileri", "url": "/performance/meeting-development/faz10", "icon": "fa-seedling", "manager_only": False},
-        {"label": "Destek Talepleri", "url": "/support/tickets", "icon": "fa-life-ring", "manager_only": False},
-        {"label": "Anket Yönetimi", "url": "/communication/surveys", "icon": "fa-square-poll-vertical", "manager_only": True},
-        {"label": "AI Karar Destek Merkezi", "url": "/admin/ai/decision-dashboard", "icon": "fa-brain", "manager_only": True},
+        {"label": "Destek Talepleri", "url": "/support/my-tickets", "icon": "fa-life-ring", "manager_only": False},
+        {"label": "Anket Yönetimi", "url": "/survey-manage", "icon": "fa-square-poll-vertical", "manager_only": True},
+        {"label": "Yapay Zekâ Karar Destek Merkezi", "url": "/admin/ai-center", "icon": "fa-brain", "manager_only": True},
     ]
     quick_actions = [item for item in quick_actions if manager_view or not item.get("manager_only")]
 
