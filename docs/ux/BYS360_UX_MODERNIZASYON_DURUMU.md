@@ -17,7 +17,7 @@ Son güncelleme: 17 Ekim 2026, gece çalışması. Bu dosya her çalışma dalga
 | Dosya | İçerik |
 |---|---|
 | `app/static/css/bys360_tokens.css` | Renk, tipografi, boşluk, köşe, gölge, odak tokenları (`.bys-ui` altında) |
-| `app/static/css/bys360_components.css` | Sayfa başlığı, sekmeler, kart, form bölümleri (fieldset/legend), alanlar, seçim kutusu, dosya bırakma bölgesi, hata özeti, düğmeler; dalga 2: özet şeridi, arama çubuğu, tablo, durum/öncelik çipleri, mobil kart listesi, boş durum; dalga 3: iki sütunlu detay düzeni, zaman çizelgesi, tanım listesi, dosya listesi; dalga 4: arama kartı, bağlantı çipleri, bağlantılı sayaçlar, makale listesi, rehber kartları, numaralı/simgeli adımlar, açılır bölüm. Tasarım sistemi sayfalarında sabit asistan düğmesi için 96 px alt boşluk |
+| `app/static/css/bys360_components.css` | Sayfa başlığı, sekmeler, kart, form bölümleri (fieldset/legend), alanlar, seçim kutusu, dosya bırakma bölgesi, hata özeti, düğmeler; dalga 2: özet şeridi, arama çubuğu, tablo, durum/öncelik çipleri, mobil kart listesi, boş durum; dalga 3: iki sütunlu detay düzeni, zaman çizelgesi, tanım listesi, dosya listesi; dalga 4: arama kartı, bağlantı çipleri, bağlantılı sayaçlar, makale listesi, rehber kartları, numaralı/simgeli adımlar, açılır bölüm; dalga 5: okuma kartı (prose), içindekiler, yan kartlar, kart listesi, yazdırma kuralı. Tasarım sistemi sayfalarında sabit asistan düğmesi için 96 px alt boşluk |
 | `app/templates/_ui_form.html` | `text_field`, `textarea_field` (karakter sayacı), `select_field`, `file_field` (bırakma bölgesi, D3 mesajları), `error_summary` |
 | `app/static/js/bys360_ui_form.js` | Hata özetine odak, çift gönderim koruması, dosya adı gösterimi, karakter sayacı (CSP uyumlu) |
 | `app/static/js/bys360_support_detail.js` | Talep detayı: yapay zekâ ön değerlendirmesi (yalnız `textContent`, `aria-live`) |
@@ -26,7 +26,7 @@ Küresel mobil betikler (`mobile_global_hardening.js`) ızgaraları tek sütuna 
 
 ## 3. Açık çalışmalar (Draft PR)
 
-Bağımlılık sırası: #75 → #77 → #79 → #80 (her biri bir öncekinin üstüne kurulu; CI yalnız `assistant-v2-full` tabanlı PR'larda çalıştığı için hepsinin tabanı `assistant-v2-full`). #76 ve #78 bağımsız.
+Bağımlılık sırası: #75 → #77 → #79 → #80 → #81 (her biri bir öncekinin üstüne kurulu; CI yalnız `assistant-v2-full` tabanlı PR'larda çalıştığı için hepsinin tabanı `assistant-v2-full`). #76 ve #78 bağımsız.
 
 | PR | Dal | Konu | Durum |
 |---|---|---|---|
@@ -36,6 +36,7 @@ Bağımlılık sırası: #75 → #77 → #79 → #80 (her biri bir öncekinin ü
 | [#78](https://github.com/bys360/bys360/pull/78) | `docs/ux-modernization-status-2026-10` | Bu belge, ekran envanteri, İngilizce metin aday envanteri, gece raporu | Belge |
 | [#79](https://github.com/bys360/bys360/pull/79) | `ux/wave3-support-detail-2026-10` | Dalga 3: Talep Detayı | Sahip görsel onayı + stil bloğu taşıma kararı (DISJOINT_RECLAIMS) bekliyor |
 | [#80](https://github.com/bys360/bys360/pull/80) | `ux/wave4-help-center-2026-10` | Dalga 4: Yardım Merkezi | Sahip görsel onayı + içerik terimleri kararı bekliyor |
+| [#81](https://github.com/bys360/bys360/pull/81) | `ux/wave5-help-pages-2026-10` | Dalga 5: rehber makale, kategori, rol, arama | Sahip görsel onayı bekliyor |
 
 ## 4. Ekran envanteri
 
@@ -73,7 +74,7 @@ Bilinen sınırlar:
 
 1. Sahip kararları: #75 merge; #77/#79/#80 görsel onay; #79 stil bloğu taşıma (DISJOINT_RECLAIMS ikinci giriş) onayı; yardım içeriği terimleri ("AI", "Dashboard", "URL", "CSRF", "CAPTCHA").
 2. CI süre bütçesi: ana pytest adımı ~2 sa 53 dk sürüyor, iş sınırı 180 dk; mypy adımı sınıra takılabiliyor (#76). Sınırı veya adım bölmesini sahip belirlemeli (`test_quality_gate_job_timeout_has_an_evidence_backed_floor` koruyor).
-3. Rehber alt ekranları: makale, kategori, rol yolu, arama (`support/help_*.html`).
+3. Destek ailesinin kalanı: Rehber Yönetimi listesi/formu ve Destek Kurulumu. Rehber araması şapkalı harf eşleme (sunucu tarafı, ayrı PR).
 4. Ana sayfa / gösterge paneli (yüksek görünürlük; ortak bileşen etkisi incelenmeli).
 5. Ortak düzen (`base.html`): global flash mesajlarına `role`, "Dashboard" menü adı, "AI destekli" rozeti — **yüksek risk**, ayrı küçük PR ve kapsamlı regresyon testiyle.
 6. Yapay zekâ özet servisi (`app/services/ai`): talep özetinde ham durum kodu ("open") ve İngilizce alan adı.

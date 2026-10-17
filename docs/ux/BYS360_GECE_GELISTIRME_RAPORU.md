@@ -1,6 +1,6 @@
 # BYS360 GECE GELİŞTİRME RAPORU
 
-Gece çalışması: 16–17 Ekim 2026. Son güncelleme: 17 Ekim 2026, 01:00 UTC (04:00 TSİ) — CI sonuçları geldikçe güncellenir.
+Gece çalışması: 16–17 Ekim 2026. Son güncelleme: 17 Ekim 2026, 01:40 UTC (04:40 TSİ) — CI sonuçları geldikçe güncellenir. Görsel kanıt: https://claude.ai/artifact/VgkCUVna2ooZnmvEoW8HPc
 Kapsam ve yetki: yalnız Draft PR; merge, canlıya geçiş, gerçek veri ve gerçek kullanıcı hesabı yok. Bütün yerel testler sahte kullanıcı ve sahte veriyle, geçici SQLite veritabanında.
 
 ## 1. Kaç ekran bulundu?
@@ -10,12 +10,12 @@ Kapsam ve yetki: yalnız Draft PR; merge, canlıya geçiş, gerçek veri ve ger�
 
 ## 2. Kaç ekran incelendi?
 
-- **Derinlemesine (kod + tarayıcı + rol):** Destek ailesinin 6 rotası / 4 şablonu — Yeni Talep Aç, Taleplerim, Bana Atananlar, Tüm Talepler, Talep Detayı, Yardım Merkezi — ve her sayfada açılan **BYS360 Asistanı** bileşeni.
+- **Derinlemesine (kod + tarayıcı + rol):** Destek ailesinin 10 rotası / 8 şablonu — Yeni Talep Aç, Taleplerim, Bana Atananlar, Tüm Talepler, Talep Detayı, Yardım Merkezi, rehber makale / kategori / rol / arama — ve her sayfada açılan **BYS360 Asistanı** bileşeni.
 - **Otomatik tarama:** 393 rotanın tamamı envantere girdi (modül, şablon, menü anahtarı, erişim dekoratörleri, durum); pilot dışındaki 326 dosyada **1.796 aday İngilizce görünür metin** listelendi (`docs/ux/BYS360_INGILIZCE_ARAYUZ_ADAY_ENVANTERI.csv`, elle ayıklama gerekir).
 
 ## 3. Kaç ekran gerçekten geliştirildi?
 
-**4 şablon / 6 rota + 1 ortak bileşen:**
+**8 şablon / 10 rota + 1 ortak bileşen:**
 
 | Ekran | PR |
 |---|---|
@@ -23,6 +23,7 @@ Kapsam ve yetki: yalnız Draft PR; merge, canlıya geçiş, gerçek veri ve ger�
 | Destek → Taleplerim / Bana Atananlar / Tüm Talepler (`support/list.html`) | #77 |
 | Destek → Talep Detayı (`/support/<id>`) | #79 |
 | Destek → Yardım Merkezi (`/support`) | #80 |
+| Destek → Rehber makale, kategori, rol yolu, arama (`/support/help/*`) | #81 |
 | BYS360 Asistanı (her sayfa, mobil) | #76 |
 
 ## 4. Kaç ekran otomatik testlerden geçti?
@@ -36,6 +37,7 @@ Yerel (sahte veri) — **hepsi geçti, 0 kaldı**:
 | #77 | 707 geçti (+ `bf467aab` sonrası dalga 2 dosyası 11/11) | 76/76 |
 | #79 | 775 geçti (18 dosya) | 55/55 |
 | #80 | 831 geçti (21 dosya) | 52/52 |
+| #81 | 859 geçti, 2 atlandı (22 dosya) | 82/82 |
 
 GitHub CI (`Run tests / quality-gate`, ~3 saat):
 - `score100-quality-gate`: #75, #76, #77, #78 yeşil; #79, #80 başladı.
@@ -43,7 +45,7 @@ GitHub CI (`Run tests / quality-gate`, ~3 saat):
 
 ## 5. Kaç hata düzeltildi?
 
-**17 hata** (hepsi testle sabitlendi):
+**20 hata** (hepsi testle sabitlendi):
 
 1. Yeni Talep Aç: geçersiz dosya sonrası "dosya seçili" sanılması (D3) — yeniden seçim mesajı + önceki seçimin adı.
 2. Yeni Talep Aç: İngilizce görünen metinler; "Raporlama ve Dashboard" → ekranda "Raporlama ve Gösterge Paneli" (kayıtlı değer aynı).
@@ -62,10 +64,13 @@ GitHub CI (`Run tests / quality-gate`, ~3 saat):
 15. Tasarım sistemi sayfaları: sağ sütunun son düğmesi sabit asistan düğmesinin altında kalıp tıklanamıyordu.
 16. Yardım Merkezi: etiketsiz arama kutusu; tekrarlanan adım numaraları ("1. 1."); 13 satır içi stil.
 17. Envanter belgesinde erişim sütunu ayrıştırma hatası (bütün satırlar "herkese açık olabilir" görünüyordu) — düzeltildi.
+18. Rehber arama: etiketsiz kutu, "#AI özet" / "#CSRF" önerileri ve sonuç yokken İngilizce anahtar kelime listesi — Türkçe öneriler aynı rehberleri buluyor.
+19. Rehber makale: mobilde araç çubuğu düğmeleri 42 px (44 px hedefin altında).
+20. Türkçe testleri talep numarasının rastgele onaltılık sonekini (ör. `DB7034`) kısaltma sayıp ara sıra kırılıyordu (CI riski) — #77'de düzeltildi, üst dallara birleştirmeyle taşındı.
 
 ## 6. Kaç hata hâlâ açık?
 
-**11 açık konu** (bilerek bu PR'lara karıştırılmadı veya karar bekliyor):
+**12 açık konu** (bilerek bu PR'lara karıştırılmadı veya karar bekliyor):
 
 1. Yapay zekâ talep özeti ham durum kodu ve İngilizce alan adı yazıyor ("mevcut durum open") — `app/services/ai`.
 2. Talep notu eklerken dosya reddedilirse yazılan not da kayboluyor (rota davranışı).
@@ -77,7 +82,8 @@ GitHub CI (`Run tests / quality-gate`, ~3 saat):
 8. 3 rotada dekoratör görünmüyor (`/guest/files/<token>`, `/guest/upload/<token>`, `/offline`) — muhtemelen tasarım gereği; güvenlik hattında doğrulanmalı.
 9. Talep türü detay ekranında gösterilmiyor (rota tür listesini geçirmiyor).
 10. `base.html` ortak düzeni: "Dashboard" menü adı, "AI destekli" rozeti, flash mesajlarında `role` eksikliği — yüksek risk, ayrı PR.
-11. Gerçek iPhone/Android ve NVDA/VoiceOver testleri yapılmadı.
+11. Rehber araması şapkalı harfi eşlemiyor: "yapay zeka" 0 sonuç, "yapay zekâ" 3 sonuç (sunucu tarafı).
+12. Gerçek iPhone/Android ve NVDA/VoiceOver testleri yapılmadı.
 
 ## 7. Mobil BYS360 Asistanı sorunu çözüldü mü?
 
@@ -93,18 +99,19 @@ GitHub CI (`Run tests / quality-gate`, ~3 saat):
 | [#78](https://github.com/bys360/bys360/pull/78) | Durum belgesi, envanterler, bu rapor | bağımsız |
 | [#79](https://github.com/bys360/bys360/pull/79) | Dalga 3: Talep Detayı | #77 |
 | [#80](https://github.com/bys360/bys360/pull/80) | Dalga 4: Yardım Merkezi | #79 |
+| [#81](https://github.com/bys360/bys360/pull/81) | Dalga 5: Rehber makale, kategori, rol, arama | #80 |
 
 Hepsi Draft; hiçbiri merge edilmedi, canlıya alınmadı.
 
 ## 9. Hangi PR'lar görsel onay bekliyor?
 
-- **#77, #79, #80** — eski/yeni ekran görüntüleri (1366, 768, 390 px; aynı rol, aynı sahte veri) önizleme sayfasında.
+- **#77, #79, #80, #81** — eski/yeni ekran görüntüleri (1366, 768, 390 px; aynı rol, aynı sahte veri) önizleme sayfasında.
 - **#76** — emülasyon kanıtı hazır; gerçek cihaz kontrolü önerilir.
 - **#75** — görsel onay verildi; merge kararı sizde.
 - Ek kararlar: #79 stil bloğu taşıma (ratchet istisnası), #80 içerik terimleri.
 
 ## 10. Bir sonraki ekran hangisi?
 
-**Destek → Rehber alt ekranları** (makale, kategori, rol yolu, arama: `support/help_article.html`, `help_category.html`, `help_role.html`, `help_search.html`). Yardım Merkezi'nden açılan ekranlar oldukları için dalga 4 ile aynı dili tamamlarlar; `help_article` yazdırma ve bağlantı kopyalama davranışları Wave-7 CSP testleriyle korunuyor.
+**Destek ailesinin kalan iki ekranı:** Rehber Yönetimi listesi ve formu (`support/help_admin_list.html`, `help_admin_form.html`; yalnız içerik yöneticisi) ve Destek Kurulumu (`support/setup.html`). Bunlarla Destek ve Talep Yönetimi modülü tamamen yeni tasarıma geçer.
 
-Sonra: ana sayfa / gösterge paneli (yüksek görünürlük; önce ortak bileşen etkisi incelenecek).
+Sonra: ana sayfa / gösterge paneli (yüksek görünürlük; önce ortak bileşen etkisi incelenecek). Ortak düzen (`base.html`) en son ve ayrı küçük PR olarak.
