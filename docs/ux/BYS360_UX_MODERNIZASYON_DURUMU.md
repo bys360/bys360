@@ -26,7 +26,7 @@ Küresel mobil betikler (`mobile_global_hardening.js`) ızgaraları tek sütuna 
 
 ## 3. Açık çalışmalar (Draft PR)
 
-Bağımlılık sırası: #75 → #77 → #79 → #80 → #81 (her biri bir öncekinin üstüne kurulu; CI yalnız `assistant-v2-full` tabanlı PR'larda çalıştığı için hepsinin tabanı `assistant-v2-full`). #76 ve #78 bağımsız.
+Bağımlılık sırası: #75 → #77 → #79 → #80 → #81 → #82 (her biri bir öncekinin üstüne kurulu; CI yalnız `assistant-v2-full` tabanlı PR'larda çalıştığı için hepsinin tabanı `assistant-v2-full`). #76 ve #78 bağımsız.
 
 | PR | Dal | Konu | Durum |
 |---|---|---|---|
@@ -37,6 +37,7 @@ Bağımlılık sırası: #75 → #77 → #79 → #80 → #81 (her biri bir önce
 | [#79](https://github.com/bys360/bys360/pull/79) | `ux/wave3-support-detail-2026-10` | Dalga 3: Talep Detayı | Sahip görsel onayı + stil bloğu taşıma kararı (DISJOINT_RECLAIMS) bekliyor |
 | [#80](https://github.com/bys360/bys360/pull/80) | `ux/wave4-help-center-2026-10` | Dalga 4: Yardım Merkezi | Sahip görsel onayı + içerik terimleri kararı bekliyor |
 | [#81](https://github.com/bys360/bys360/pull/81) | `ux/wave5-help-pages-2026-10` | Dalga 5: rehber makale, kategori, rol, arama | Sahip görsel onayı bekliyor |
+| [#82](https://github.com/bys360/bys360/pull/82) | `ux/wave6-help-form-setup-2026-10` | Dalga 6: rehber formu ve destek kurulumu (yönetici) | Sahip görsel onayı bekliyor |
 
 ## 4. Ekran envanteri
 
@@ -74,7 +75,7 @@ Bilinen sınırlar:
 
 1. Sahip kararları: #75 merge; #77/#79/#80 görsel onay; #79 stil bloğu taşıma (DISJOINT_RECLAIMS ikinci giriş) onayı; yardım içeriği terimleri ("AI", "Dashboard", "URL", "CSRF", "CAPTCHA").
 2. CI süre bütçesi: ana pytest adımı ~2 sa 53 dk sürüyor, iş sınırı 180 dk; mypy adımı sınıra takılabiliyor (#76). Sınırı veya adım bölmesini sahip belirlemeli (`test_quality_gate_job_timeout_has_an_evidence_backed_floor` koruyor).
-3. Destek ailesinin kalanı: Rehber Yönetimi listesi/formu ve Destek Kurulumu. Rehber araması şapkalı harf eşleme (sunucu tarafı, ayrı PR).
+3. Destek ailesinin kalanı: Rehber Yönetimi listesi (stil bloğu kararı gerekli). Rehber araması şapkalı harf eşleme (sunucu tarafı, ayrı PR).
 4. Ana sayfa / gösterge paneli (yüksek görünürlük; ortak bileşen etkisi incelenmeli).
 5. Ortak düzen (`base.html`): global flash mesajlarına `role`, "Dashboard" menü adı, "AI destekli" rozeti — **yüksek risk**, ayrı küçük PR ve kapsamlı regresyon testiyle.
 6. Yapay zekâ özet servisi (`app/services/ai`): talep özetinde ham durum kodu ("open") ve İngilizce alan adı.

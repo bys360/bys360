@@ -16,15 +16,15 @@ Destek ve Talep Yönetimi,/support/<int:ticket_id>,main.support_detail,support/d
 Destek ve Talep Yönetimi,/support/all,main.support_all,support/list.html,support_all,login_required menu_key_required,"Test Edildi (PR #77; yerel ortamda 403, yalnız şablon testi)"
 Destek ve Talep Yönetimi,/support/assigned,main.support_assigned,support/list.html,support_assigned,login_required menu_key_required,Sahip Onayı Bekliyor (PR #77)
 Destek ve Talep Yönetimi,/support/help-admin,main.support_help_admin,support/help_admin_list.html,support_index,admin_required login_required menu_key_required,İncelenmedi
-Destek ve Talep Yönetimi,/support/help-admin/<int:article_id>/edit,main.support_help_admin_edit,support/help_admin_form.html,support_index,admin_required login_required menu_key_required,İncelenmedi
-Destek ve Talep Yönetimi,/support/help-admin/new,main.support_help_admin_new,support/help_admin_form.html,support_index,admin_required login_required menu_key_required,İncelenmedi
+Destek ve Talep Yönetimi,/support/help-admin/<int:article_id>/edit,main.support_help_admin_edit,support/help_admin_form.html,support_index,admin_required login_required menu_key_required,Sahip Onayı Bekliyor (PR #82)
+Destek ve Talep Yönetimi,/support/help-admin/new,main.support_help_admin_new,support/help_admin_form.html,support_index,admin_required login_required menu_key_required,Sahip Onayı Bekliyor (PR #82)
 Destek ve Talep Yönetimi,/support/help/article/<string:article_slug>,main.support_help_article,support/help_article.html,support_index,login_required menu_key_required,Sahip Onayı Bekliyor (PR #81)
 Destek ve Talep Yönetimi,/support/help/category/<string:category_slug>,main.support_help_category,support/help_category.html,support_index,login_required menu_key_required,Sahip Onayı Bekliyor (PR #81)
 Destek ve Talep Yönetimi,/support/help/role/<string:role_slug>,main.support_help_role,support/help_role.html,support_index,login_required menu_key_required,Sahip Onayı Bekliyor (PR #81)
 Destek ve Talep Yönetimi,/support/help/search,main.support_help_search,support/help_search.html,support_index,login_required menu_key_required,Sahip Onayı Bekliyor (PR #81)
 Destek ve Talep Yönetimi,/support/my-tickets,main.support_my_tickets,support/list.html,support_my_tickets,login_required menu_key_required,Sahip Onayı Bekliyor (PR #77)
 Destek ve Talep Yönetimi,/support/new,main.support_new,support/new.html,support_new,login_required menu_key_required,"Sahip Onayı Bekliyor (görsel onay verildi, PR #75)"
-Destek ve Talep Yönetimi,/support/setup,main.support_setup,support/setup.html,support_index,admin_required login_required menu_key_required,İncelenmedi
+Destek ve Talep Yönetimi,/support/setup,main.support_setup,support/setup.html,support_index,admin_required login_required menu_key_required,Sahip Onayı Bekliyor (PR #82)
 Dosya Merkezi,/file-center,main.file_center_home,file_center/index.html,,login_required,İncelenmedi
 Dosya Merkezi,/file-center/admin,main.file_center_admin_dashboard,file_center/admin.html,,login_required,İncelenmedi
 Dosya Merkezi,/file-center/chunk-upload,main.file_center_chunk_upload,file_center/chunk_upload.html,,login_required,İncelenmedi
