@@ -105,7 +105,7 @@ from app.main_handlers.account_visibility_helpers import (
     url_for,
     utc_now,
 )
-from app.route_support import normalize_role_name
+from app.route_support import normalize_role_name, render_access_denied
 from app.services.account_change_guard import (
     ChangeRefused,
     audit_refusal,
@@ -244,6 +244,9 @@ def _user_matrix_refusal(target, visible_keys, flat_menu_items):
     )
 
 
+SYSTEM_FOUNDATION_REFUSAL = "settings_system_foundation"
+
+
 def _authorize_rollback(row, plan):
     """N1: a rollback is a write like any other; the same rules apply to what it would restore."""
     scope = row.change_scope
@@ -265,6 +268,9 @@ def _authorize_rollback(row, plan):
         )
     elif scope == "module_settings":
         reason = _module_authority_refusal(snapshot_module_settings(), plan.get("module_after") or {})
+    elif scope == "system_settings":
+        # Sistem yapılandırması (güvenlik, bakım modu, denetim kaydı, yükleme) yalnız gerçek admin'e ait.
+        reason = None if is_real_admin(current_user) else SYSTEM_FOUNDATION_REFUSAL
     else:
         reason = None
     if reason:
@@ -531,7 +537,17 @@ def settings_page():
 # ---------------------------------------------------------------------------
 
 
+def _refuse_system_foundation(reason=None):
+    """Kritik sistem yapılandırması isteği: 403, kalıcı red kaydı, hiçbir yazma yok."""
+    audit_refusal(None, reason or SYSTEM_FOUNDATION_REFUSAL)
+    return render_access_denied()
+
+
 def _handle_save_system_foundation():
+    # Sistem güvenlik yapılandırması, bakım modu, denetim kaydı ve yükleme ayarları yalnız gerçek
+    # admin'e aittir (proje sahibi kararı, 17 Ekim 2026); R05c'nin diğer /settings işlemleri değişmez.
+    if not is_real_admin(current_user):
+        return _refuse_system_foundation()
     try:
         changed = save_system_settings_from_form(request.form, updated_by_user_id=getattr(current_user, "id", None))
         flash(f"Genel sistem ayarları kaydedildi. Güncellenen alan: {changed}", "success")
@@ -741,6 +757,8 @@ def _handle_rollback_settings_change_entry():
             result = rollback_settings_change(log_id, actor_user_id=getattr(current_user, "id", None), authorize=_authorize_rollback)
             flash(result.get("summary") or "Ayar değişikliği geri alındı.", "success")
         except ChangeRefused as refused:
+            if SYSTEM_FOUNDATION_REFUSAL in refused.reason:
+                return _refuse_system_foundation(refused.reason)
             return _refuse_settings_change(None, refused.reason, keep_user_id=keep_user_id)
         except Exception as exc:
             logger.exception("Beklenmeyen hata: %s", exc)

@@ -2,12 +2,13 @@
 """Phase 43 modular account, settings and security flow route family."""
 from __future__ import annotations
 
-from flask import current_app, render_template_string
-from flask_login import login_required
+from flask import current_app, render_template_string, request
+from flask_login import current_user, login_required
 
 from app.main_handlers import account_handlers as _handlers
 from app.route_registry import main_bp
-from app.route_support import admin_required
+from app.route_support import admin_required, render_access_denied
+from app.services.account_change_guard import audit_refusal, is_real_admin
 
 LEGACY_SHIM = False
 LEGACY_RUNTIME_STATUS = "active_modular_main_blueprint_routes"
@@ -31,6 +32,11 @@ def enforce_first_login_security_flow():
 @login_required
 @admin_required
 def settings_page():
+    # /admin/settings* adresleri kritik yönetim alanıdır: yalnız gerçek admin. /settings üzerindeki
+    # R05c işlemleri (Başkan'ın sınırlı ayar yetkileri) bu kontrolden etkilenmez.
+    if request.path != "/settings" and not is_real_admin(current_user):
+        audit_refusal(None, "settings_admin_path")
+        return render_access_denied()
     try:
         return _handlers.settings_page()
     except Exception as exc:  # compatibility guard
