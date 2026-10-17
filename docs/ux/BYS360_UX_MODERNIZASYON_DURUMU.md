@@ -17,19 +17,25 @@ Son güncelleme: 17 Ekim 2026, gece çalışması. Bu dosya her çalışma dalga
 | Dosya | İçerik |
 |---|---|
 | `app/static/css/bys360_tokens.css` | Renk, tipografi, boşluk, köşe, gölge, odak tokenları (`.bys-ui` altında) |
-| `app/static/css/bys360_components.css` | Sayfa başlığı, sekmeler, kart, form bölümleri (fieldset/legend), alanlar, seçim kutusu, dosya bırakma bölgesi, hata özeti, düğmeler; dalga 2: özet şeridi, arama çubuğu, tablo, durum/öncelik çipleri, mobil kart listesi, boş durum |
+| `app/static/css/bys360_components.css` | Sayfa başlığı, sekmeler, kart, form bölümleri (fieldset/legend), alanlar, seçim kutusu, dosya bırakma bölgesi, hata özeti, düğmeler; dalga 2: özet şeridi, arama çubuğu, tablo, durum/öncelik çipleri, mobil kart listesi, boş durum; dalga 3: iki sütunlu detay düzeni, zaman çizelgesi, tanım listesi, dosya listesi; dalga 4: arama kartı, bağlantı çipleri, bağlantılı sayaçlar, makale listesi, rehber kartları, numaralı/simgeli adımlar, açılır bölüm. Tasarım sistemi sayfalarında sabit asistan düğmesi için 96 px alt boşluk |
 | `app/templates/_ui_form.html` | `text_field`, `textarea_field` (karakter sayacı), `select_field`, `file_field` (bırakma bölgesi, D3 mesajları), `error_summary` |
 | `app/static/js/bys360_ui_form.js` | Hata özetine odak, çift gönderim koruması, dosya adı gösterimi, karakter sayacı (CSP uyumlu) |
+| `app/static/js/bys360_support_detail.js` | Talep detayı: yapay zekâ ön değerlendirmesi (yalnız `textContent`, `aria-live`) |
 
 Küresel mobil betikler (`mobile_global_hardening.js`) ızgaraları tek sütuna zorlar; tasarım sistemi alanları `skip-mobile-normalize` ile kendi duyarlı düzenini kullanır. Bazı küresel mobil stiller düğmelere `min-height: 42px !important` verir; bileşenler yüksekliği ayrıca padding ile sağlar.
 
 ## 3. Açık çalışmalar (Draft PR)
 
+Bağımlılık sırası: #75 → #77 → #79 → #80 (her biri bir öncekinin üstüne kurulu; CI yalnız `assistant-v2-full` tabanlı PR'larda çalıştığı için hepsinin tabanı `assistant-v2-full`). #76 ve #78 bağımsız.
+
 | PR | Dal | Konu | Durum |
 |---|---|---|---|
-| [#75](https://github.com/bys360/bys360/pull/75) | `ux/pilot-support-new-2026-10` | Destek → Yeni Talep Aç pilotu, Türkçe arayüz, görsel yeniden tasarım, CSP sözleşme testleri | Görsel onay verildi. CI `e23ddff1`: 4 ratchet sabiti kaçmıştı; `5531f4a9` ile düzeltildi, CI yeniden çalışıyor |
-| [#76](https://github.com/bys360/bys360/pull/76) | `fix/mobile-assistant-launcher-2026-10` | Mobil BYS360 Asistanı: boş hap düğme, ekran klavyesi, odak, taşma | Bağımsız; CI çalışıyor |
-| [#77](https://github.com/bys360/bys360/pull/77) | `ux/wave2-support-list-2026-10` | Dalga 2: Taleplerim / Bana Atananlar / Tüm Talepler | #75'e bağımlı; CI çalışıyor; sahip görsel onayı bekliyor |
+| [#75](https://github.com/bys360/bys360/pull/75) | `ux/pilot-support-new-2026-10` | Destek → Yeni Talep Aç pilotu, Türkçe arayüz, görsel yeniden tasarım, CSP sözleşme testleri | Görsel onay verildi. `5531f4a9` CI çalışıyor |
+| [#76](https://github.com/bys360/bys360/pull/76) | `fix/mobile-assistant-launcher-2026-10` | Mobil BYS360 Asistanı: boş hap düğme, ekran klavyesi, odak, taşma | İlk CI 180 dk sınırında iptal (8028 + 1112 test geçti, 0 hata; mypy adımı kesildi); bir kez yeniden çalıştırıldı |
+| [#77](https://github.com/bys360/bys360/pull/77) | `ux/wave2-support-list-2026-10` | Dalga 2: Taleplerim / Bana Atananlar / Tüm Talepler (+ `bf467aab` sekme satırı düzeltmesi) | Sahip görsel onayı bekliyor |
+| [#78](https://github.com/bys360/bys360/pull/78) | `docs/ux-modernization-status-2026-10` | Bu belge, ekran envanteri, İngilizce metin aday envanteri, gece raporu | Belge |
+| [#79](https://github.com/bys360/bys360/pull/79) | `ux/wave3-support-detail-2026-10` | Dalga 3: Talep Detayı | Sahip görsel onayı + stil bloğu taşıma kararı (DISJOINT_RECLAIMS) bekliyor |
+| [#80](https://github.com/bys360/bys360/pull/80) | `ux/wave4-help-center-2026-10` | Dalga 4: Yardım Merkezi | Sahip görsel onayı + içerik terimleri kararı bekliyor |
 
 ## 4. Ekran envanteri
 
@@ -55,7 +61,9 @@ Durum adımları: `İncelenmedi → İncelendi → Geliştirildi → Test Edildi
 | Yapay Zekâ Karar Destek | 2 |
 | Oturum, hesap ve sistem sayfaları | 1 |
 
-Bilinen sınır: envanter rota → şablon eşlemesini kaynak koddan çıkarır; şablonu yardımcı fonksiyonla seçen rotalar (ör. giriş ekranı) eksik sayılmış olabilir.
+Bilinen sınırlar:
+- Envanter rota → şablon eşlemesini kaynak koddan çıkarır; şablonu yardımcı fonksiyonla seçen rotalar (ör. giriş ekranı) eksik sayılmış olabilir.
+- `erisim_dekoratorleri` sütunu görünüm fonksiyonunun dekoratörlerini listeler (rol matrisi değil). İlk sürümde bu sütun ve `menu_anahtari` bir ayrıştırma hatası yüzünden bütün satırlarda boş/yanlış ("herkese açık olabilir") çıkmıştı; düzeltildi. 5 rotada dekoratör görünmüyor; ikisi elle kontrol edildi ve korumalı (`/hr-management/personnel-operations`: `add_url_rule` sarmalı; `/ai-agent/knowledge`: fonksiyon içi + `before_request`). Kalan üçü (`/guest/files/<token>`, `/guest/upload/<token>`, `/offline`) tasarım gereği misafir/çevrimdışı sayfalar olabilir; güvenlik hattında doğrulanmalı.
 
 ## 5. İngilizce metin aday envanteri
 
@@ -63,12 +71,13 @@ Bilinen sınır: envanter rota → şablon eşlemesini kaynak koddan çıkarır;
 
 ## 6. Sıradaki işler (öncelik sırası)
 
-1. PR #75 CI yeşil → sahip merge kararı.
-2. Destek → Talep Detayı (`support/detail.html`): yorum, durum, atama, puanlama, ekler; ayrı dalga.
-3. Destek → Yardım Merkezi (`support/index.html` ve yardım makaleleri).
+1. Sahip kararları: #75 merge; #77/#79/#80 görsel onay; #79 stil bloğu taşıma (DISJOINT_RECLAIMS ikinci giriş) onayı; yardım içeriği terimleri ("AI", "Dashboard", "URL", "CSRF", "CAPTCHA").
+2. CI süre bütçesi: ana pytest adımı ~2 sa 53 dk sürüyor, iş sınırı 180 dk; mypy adımı sınıra takılabiliyor (#76). Sınırı veya adım bölmesini sahip belirlemeli (`test_quality_gate_job_timeout_has_an_evidence_backed_floor` koruyor).
+3. Rehber alt ekranları: makale, kategori, rol yolu, arama (`support/help_*.html`).
 4. Ana sayfa / gösterge paneli (yüksek görünürlük; ortak bileşen etkisi incelenmeli).
 5. Ortak düzen (`base.html`): global flash mesajlarına `role`, "Dashboard" menü adı, "AI destekli" rozeti — **yüksek risk**, ayrı küçük PR ve kapsamlı regresyon testiyle.
-6. Giriş güvenliği G1–G8 ayrı güvenlik hattında (G6 → G1 → G7 → G3); UX PR'larına karıştırılmaz.
+6. Yapay zekâ özet servisi (`app/services/ai`): talep özetinde ham durum kodu ("open") ve İngilizce alan adı.
+7. Giriş güvenliği G1–G8 ayrı güvenlik hattında (G6 → G1 → G7 → G3); UX PR'larına karıştırılmaz.
 
 ## 7. Yapılmayanlar
 
