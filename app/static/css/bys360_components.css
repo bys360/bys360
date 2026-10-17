@@ -1181,9 +1181,11 @@
 
 .bys-ui .bys-btn--compact {
   flex: 0 0 auto;
-  min-height: 40px;
-  padding: 9px var(--bys-space-3);
+  /* Dokunmatik ekranlarda da 44 px hedef: yükseklik dolgu ile de sağlanır (küresel mobil min-height 42 px). */
+  min-height: var(--bys-target);
+  padding: 11px var(--bys-space-3);
   font-size: var(--bys-fs-sm);
+  line-height: 20px;
 }
 
 .bys-ui .bys-triage-output {
@@ -1928,6 +1930,123 @@
   font-size: var(--bys-fs-sm);
 }
 
+/* ---- Dalga 7: Rehber Yönetimi listesi (support/help_admin_list.html) ----------
+   Sayfanın eski stil bloğu (Style-2A sahipliği) duruyor; sözleşmeyle sabit sınıflar
+   (.card, .toolbar, .panel-heading, .panel-subtitle, .search-form, .empty) burada
+   .bys-ui kapsamıyla yeni görünüme getirilir. */
+.bys-ui .bys-admin-list__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--bys-space-4);
+}
+
+.bys-ui .panel-heading {
+  margin: 0;
+  font-size: var(--bys-fs-xl);
+  font-weight: var(--bys-fw-bold);
+  line-height: 1.3;
+  color: var(--bys-text);
+}
+
+.bys-ui .panel-subtitle {
+  margin: 0;
+  max-width: 70ch;
+  font-size: var(--bys-fs-sm);
+  line-height: var(--bys-lh);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .header-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bys-space-2);
+}
+
+.bys-ui .header-actions-row .inline,
+.bys-ui .bys-admin-row__actions .inline {
+  display: inline-flex;
+  margin: 0;
+}
+
+.bys-ui .search-form {
+  display: block;
+  margin-top: var(--bys-space-5);
+  padding-top: var(--bys-space-5);
+  border-top: 1px solid var(--bys-border-subtle);
+}
+
+.bys-ui .bys-admin-rows {
+  display: grid;
+  gap: 0;
+  margin: var(--bys-space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bys-ui .bys-admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--bys-space-3) var(--bys-space-5);
+  padding: var(--bys-space-4) 0;
+  border-top: 1px solid var(--bys-border-subtle);
+}
+
+.bys-ui .bys-admin-row__text {
+  display: grid;
+  flex: 1 1 360px;
+  gap: var(--bys-space-2);
+  min-width: 0;
+}
+
+.bys-ui .bys-admin-row__title {
+  margin: 0;
+  font-size: var(--bys-fs-md);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-admin-row__summary {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-admin-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bys-space-2);
+}
+
+.bys-ui .bys-tag-list code {
+  /* Bootstrap'in pembe kod rengi gri çip üzerinde yetersiz kontrast veriyordu. */
+  color: inherit;
+  font-size: inherit;
+}
+
+.bys-ui .bys-btn--danger {
+  border-color: var(--bys-danger);
+  background: var(--bys-surface);
+  color: var(--bys-danger);
+}
+
+.bys-ui .bys-btn--danger:hover {
+  background: var(--bys-danger-bg);
+}
+
+.bys-ui .empty {
+  margin-top: var(--bys-space-5);
+  padding: var(--bys-space-6) var(--bys-space-4);
+  border: 1px dashed var(--bys-border);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface-subtle);
+  color: var(--bys-text-secondary);
+  text-align: center;
+}
+
 /* ---- Duyarlı düzen ----------------------------------------------------- */
 @media (max-width: 1199.98px) {
   .bys-ui .bys-request-layout {
@@ -2089,6 +2208,13 @@
 
   .bys-ui .bys-prose__title {
     font-size: var(--bys-fs-lg);
+  }
+
+  .bys-ui .header-actions-row,
+  .bys-ui .header-actions-row .inline,
+  .bys-ui .bys-admin-row__actions,
+  .bys-ui .bys-admin-row__actions .inline {
+    width: 100%;
   }
 
   .bys-ui .bys-toolbar__search,

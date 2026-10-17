@@ -711,7 +711,8 @@ def test_k5_component_css_selectors_are_all_bys_prefixed_and_scoped() -> None:
 # dalga 3: tests/behavior/test_ux_wave3_support_detail_contract.py,
 # dalga 4: tests/behavior/test_ux_wave4_help_center_contract.py,
 # dalga 5: tests/behavior/test_ux_wave5_help_pages_contract.py,
-# dalga 6: tests/behavior/test_ux_wave6_help_form_setup_contract.py).
+# dalga 6: tests/behavior/test_ux_wave6_help_form_setup_contract.py,
+# dalga 7: tests/behavior/test_ux_wave7_help_admin_list_contract.py).
 DESIGN_SYSTEM_TEMPLATES = {
     TEMPLATE,
     MACROS,
@@ -724,6 +725,7 @@ DESIGN_SYSTEM_TEMPLATES = {
     REPO_ROOT / "app/templates/support/help_search.html",
     REPO_ROOT / "app/templates/support/help_admin_form.html",
     REPO_ROOT / "app/templates/support/setup.html",
+    REPO_ROOT / "app/templates/support/help_admin_list.html",
 }
 
 
