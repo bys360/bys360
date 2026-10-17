@@ -415,6 +415,19 @@ STYLE_MIGRATION_WAVES: dict[str, _WaveManifestEntry] = {
         "removed_static": 0,
         "removed_blocks": 1,
     },
+    # FORWARD-COMPATIBILITY FOLLOW-UP 13 (BYS360 UX wave 4, Destek -> Yardım
+    # Merkezi): support/index.html's 13 static style="..." attributes (all
+    # margin/padding spacing) were replaced by classes in the scoped external
+    # stylesheet app/static/css/bys360_components.css. 13 static attributes,
+    # 0 blocks (the template never had one). First claim of this template --
+    # no reclaim. Evidence: tests/behavior/test_ux_wave4_help_center_contract.py.
+    "ux_wave4_help_center": {
+        "templates": (
+            "app/templates/support/index.html",
+        ),
+        "removed_static": 13,
+        "removed_blocks": 0,
+    },
 }
 
 # A template may be claimed by a second edit-in-place wave ONLY when the two

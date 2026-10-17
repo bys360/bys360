@@ -848,7 +848,11 @@ def test_repo_wide_inline_handler_and_javascript_url_totals_are_zero() -> None:
 # external stylesheet with no inline style="..." attributes -- 0
 # contribution, total remains 1032. See that same ledger file's
 # FORWARD-COMPATIBILITY FOLLOW-UP 9.
-EXPECTED_ACTIVE_STYLE_TOTAL_AFTER_STYLE3A = 1032
+# FORWARD-COMPATIBILITY FOLLOW-UP 13 (BYS360 UX wave 4, support/index.html --
+# Yardım Merkezi): the help-center template's 13 static style="..." attributes
+# were replaced by classes in bys360_components.css -- 1032 -> 1019 (0 blocks,
+# 0 dynamic). See STYLE_MIGRATION_WAVES["ux_wave4_help_center"].
+EXPECTED_ACTIVE_STYLE_TOTAL_AFTER_STYLE3A = 1019
 EXPECTED_DYNAMIC_STYLE_TOTAL_AFTER_STYLE3A = 64
 
 

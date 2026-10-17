@@ -370,7 +370,11 @@ def test_remaining_hero_action_buttons_are_still_present_and_unchanged() -> None
 # (0 static attributes, 1 block, 0 dynamic) -- STYLE_BLOCK_TOTAL drops
 # 221 -> 220; ACTIVE_STATIC/DYNAMIC totals are unchanged. See the ledger
 # file's STYLE_MIGRATION_WAVES["ux_pilot_support_new"].
-EXPECTED_ACTIVE_STYLE_TOTAL = 1032
+# FORWARD-COMPATIBILITY FOLLOW-UP 13 (BYS360 UX wave 4, support/index.html --
+# Yardım Merkezi): the help-center template's 13 static style="..." attributes
+# were replaced by classes in bys360_components.css -- 1032 -> 1019 (0 blocks,
+# 0 dynamic). See STYLE_MIGRATION_WAVES["ux_wave4_help_center"].
+EXPECTED_ACTIVE_STYLE_TOTAL = 1019
 EXPECTED_DYNAMIC_STYLE_TOTAL = 64
 # FORWARD-COMPATIBILITY FOLLOW-UP 12 (BYS360 UX wave 2, support/list.html):
 # the shared Taleplerim / Bana Atananlar / Tüm Talepler list template moved

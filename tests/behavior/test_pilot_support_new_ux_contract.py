@@ -576,12 +576,18 @@ def test_role_matrix_support_tabs_and_neighbour_screens_are_unchanged(app, clien
     assert tabs[:3] == ["Yardım Merkezi", "Yeni Talep Aç", "Taleplerim"]
     assert ("Bana Atananlar" in tabs) is assigned_visible
 
-    # /support (Yardım Merkezi) henüz tasarım sistemine geçmedi: pilot varlıkları sızmamalı.
-    neighbour = client.get("/support")
+    # Rehber arama ekranı henüz tasarım sistemine geçmedi: pilot varlıkları sızmamalı.
+    # (/support -- Yardım Merkezi -- dalga 4'te geçti; aşağıda ayrıca denetlenir.)
+    neighbour = client.get("/support/help/search?q=talep")
     assert neighbour.status_code == 200
     neighbour_html = neighbour.get_data(as_text=True)
     assert "bys360_components.css" not in neighbour_html
     assert "bys360_ui_form.js" not in neighbour_html
+    help_center = client.get("/support")
+    assert help_center.status_code == 200
+    help_center_html = help_center.get_data(as_text=True)
+    assert "bys360_components.css" in help_center_html
+    assert "bys360_ui_form.js" not in help_center_html
     # /support/my-tickets dalga 2'de tasarım sistemine geçti (DESIGN_SYSTEM_TEMPLATES);
     # form betiği yine yalnız pilot formunda yüklenir.
     my_tickets = client.get("/support/my-tickets")
@@ -702,12 +708,14 @@ def test_k5_component_css_selectors_are_all_bys_prefixed_and_scoped() -> None:
 
 # Tasarım sistemi dalga dalga yayılır; her yeni şablon burada açıkça listelenir
 # ve kendi sözleşme testini taşır (dalga 2: tests/behavior/test_ux_wave2_support_list_contract.py,
-# dalga 3: tests/behavior/test_ux_wave3_support_detail_contract.py).
+# dalga 3: tests/behavior/test_ux_wave3_support_detail_contract.py,
+# dalga 4: tests/behavior/test_ux_wave4_help_center_contract.py).
 DESIGN_SYSTEM_TEMPLATES = {
     TEMPLATE,
     MACROS,
     REPO_ROOT / "app/templates/support/list.html",
     REPO_ROOT / "app/templates/support/detail.html",
+    REPO_ROOT / "app/templates/support/index.html",
 }
 
 

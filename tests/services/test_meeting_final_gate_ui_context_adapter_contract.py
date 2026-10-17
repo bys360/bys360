@@ -729,7 +729,11 @@ def test_url_map_route_count_is_unchanged(final_gate_env) -> None:
 # 20) Style inventory does not worsen; handler/javascript stay 0/0.
 # ---------------------------------------------------------------------------
 
-EXPECTED_ACTIVE_STYLE_TOTAL = 1032
+# FORWARD-COMPATIBILITY FOLLOW-UP 13 (BYS360 UX wave 4, support/index.html --
+# Yardım Merkezi): the help-center template's 13 static style="..." attributes
+# were replaced by classes in bys360_components.css -- 1032 -> 1019 (0 blocks,
+# 0 dynamic). See STYLE_MIGRATION_WAVES["ux_wave4_help_center"].
+EXPECTED_ACTIVE_STYLE_TOTAL = 1019
 EXPECTED_DYNAMIC_STYLE_TOTAL = 64
 # FORWARD-COMPATIBILITY FOLLOW-UP 11 (BYS360 UX pilot, support/new.html):
 # the pilot moved support/new.html's single page-level <style> block into
