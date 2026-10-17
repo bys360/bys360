@@ -563,7 +563,12 @@ def test_daily_weather_mail_service_and_cli_scripts_still_exist_untouched() -> N
 # style="..." attributes were replaced by classes in bys360_components.css --
 # 1019 -> 1010 (0 blocks, 0 dynamic). See
 # STYLE_MIGRATION_WAVES["ux_wave5_help_pages"].
-EXPECTED_ACTIVE_STYLE_TOTAL = 1010
+# FORWARD-COMPATIBILITY FOLLOW-UP 15 (BYS360 UX wave 6, support/help_admin_form.html
+# and support/setup.html): 4 + 3 = 7 static style="..." attributes and both
+# templates' single page-level <style> blocks moved into bys360_components.css --
+# active static 1010 -> 1003, <style> blocks 219 -> 217. See
+# STYLE_MIGRATION_WAVES["ux_wave6_help_form_setup"].
+EXPECTED_ACTIVE_STYLE_TOTAL = 1003
 EXPECTED_DYNAMIC_STYLE_TOTAL = 64
 # FORWARD-COMPATIBILITY FOLLOW-UP 12 (BYS360 UX wave 2, support/list.html):
 # the shared Taleplerim / Bana Atananlar / Tüm Talepler list template moved
@@ -572,7 +577,7 @@ EXPECTED_DYNAMIC_STYLE_TOTAL = 64
 # 0 dynamic) -- STYLE_BLOCK_TOTAL drops 220 -> 219; ACTIVE_STATIC/DYNAMIC
 # totals are unchanged. See the ledger file's
 # STYLE_MIGRATION_WAVES["ux_wave2_support_list"].
-EXPECTED_STYLE_BLOCK_TOTAL = 219
+EXPECTED_STYLE_BLOCK_TOTAL = 217  # FOLLOW-UP 15, see above
 
 
 def test_canonical_style_and_handler_inventory_is_unchanged() -> None:

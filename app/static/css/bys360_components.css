@@ -1847,6 +1847,87 @@
   margin-top: var(--bys-space-1);
 }
 
+/* ---- Dalga 6: rehber formu ve kurulum (support/help_admin_form.html, setup.html) ---- */
+.bys-ui .bys-checks {
+  display: grid;
+  gap: var(--bys-space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.bys-ui .bys-checks > legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 var(--bys-space-2);
+  padding: 0;
+}
+
+.bys-ui .bys-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--bys-space-2);
+}
+
+.bys-ui .bys-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--bys-space-3);
+  min-height: var(--bys-target);
+  padding: var(--bys-space-3);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface);
+  color: var(--bys-text);
+  font-weight: var(--bys-fw-medium);
+  cursor: pointer;
+}
+
+.bys-ui .bys-check:hover {
+  border-color: var(--bys-border-control);
+}
+
+.bys-ui .bys-check input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--bys-brand);
+  cursor: pointer;
+}
+
+.bys-ui .bys-check input[type="checkbox"]:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+.bys-ui .bys-check__hint {
+  display: block;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-regular);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-code-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bys-space-2);
+  margin: var(--bys-space-2) 0 var(--bys-space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.bys-ui .bys-code-list code {
+  display: inline-block;
+  padding: 4px var(--bys-space-2);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-sm);
+  background: var(--bys-surface-subtle);
+  color: var(--bys-text);
+  font-size: var(--bys-fs-sm);
+}
+
 /* ---- Duyarlı düzen ----------------------------------------------------- */
 @media (max-width: 1199.98px) {
   .bys-ui .bys-request-layout {

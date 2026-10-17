@@ -444,6 +444,20 @@ STYLE_MIGRATION_WAVES: dict[str, _WaveManifestEntry] = {
         "removed_static": 9,
         "removed_blocks": 0,
     },
+    # FORWARD-COMPATIBILITY FOLLOW-UP 15 (BYS360 UX wave 6, Destek -> rehber
+    # formu ve kurulum): support/help_admin_form.html (4 static + 1 block) and
+    # support/setup.html (3 static + 1 block) moved to classes in the scoped
+    # external stylesheet app/static/css/bys360_components.css. First claim of
+    # both templates -- no reclaim.
+    # Evidence: tests/behavior/test_ux_wave6_help_form_setup_contract.py.
+    "ux_wave6_help_form_setup": {
+        "templates": (
+            "app/templates/support/help_admin_form.html",
+            "app/templates/support/setup.html",
+        ),
+        "removed_static": 7,
+        "removed_blocks": 2,
+    },
 }
 
 # A template may be claimed by a second edit-in-place wave ONLY when the two

@@ -857,7 +857,12 @@ def test_repo_wide_inline_handler_and_javascript_url_totals_are_zero() -> None:
 # style="..." attributes were replaced by classes in bys360_components.css --
 # 1019 -> 1010 (0 blocks, 0 dynamic). See
 # STYLE_MIGRATION_WAVES["ux_wave5_help_pages"].
-EXPECTED_ACTIVE_STYLE_TOTAL_AFTER_STYLE3A = 1010
+# FORWARD-COMPATIBILITY FOLLOW-UP 15 (BYS360 UX wave 6, support/help_admin_form.html
+# and support/setup.html): 4 + 3 = 7 static style="..." attributes and both
+# templates' single page-level <style> blocks moved into bys360_components.css --
+# active static 1010 -> 1003, <style> blocks 219 -> 217. See
+# STYLE_MIGRATION_WAVES["ux_wave6_help_form_setup"].
+EXPECTED_ACTIVE_STYLE_TOTAL_AFTER_STYLE3A = 1003
 EXPECTED_DYNAMIC_STYLE_TOTAL_AFTER_STYLE3A = 64
 
 
@@ -950,15 +955,18 @@ PRE_STYLE3A_STYLE_BLOCK_TOTAL = 270
 # -1 from the later BYS360 UX wave 2 (support/list.html's page-level
 # <style> block moved to the same scoped external stylesheet -- see
 # STYLE_MIGRATION_WAVES["ux_wave2_support_list"]).
-# 270 - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 - 1 - 1 = 219.
-EXPECTED_STYLE_BLOCK_TOTAL_AFTER_STYLE3A = PRE_STYLE3A_STYLE_BLOCK_TOTAL - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 - 1 - 1
+# -2 from the later BYS360 UX wave 6 (support/help_admin_form.html and
+# support/setup.html page-level <style> blocks moved to the same scoped
+# external stylesheet -- see STYLE_MIGRATION_WAVES["ux_wave6_help_form_setup"]).
+# 270 - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 - 1 - 1 - 2 = 217.
+EXPECTED_STYLE_BLOCK_TOTAL_AFTER_STYLE3A = PRE_STYLE3A_STYLE_BLOCK_TOTAL - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 - 1 - 1 - 2
 
 
 def test_repo_wide_style_block_total_dropped_by_exactly_10() -> None:
     inventory = compute_inventory_from_worktree()
     assert inventory.style_block_total == EXPECTED_STYLE_BLOCK_TOTAL_AFTER_STYLE3A, (
         f"Repo-wide <style> block total is {inventory.style_block_total}; expected "
-        f"{PRE_STYLE3A_STYLE_BLOCK_TOTAL} - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 - 1 - 1 = "
+        f"{PRE_STYLE3A_STYLE_BLOCK_TOTAL} - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 - 1 - 1 - 2 = "
         f"{EXPECTED_STYLE_BLOCK_TOTAL_AFTER_STYLE3A} (Style-3A removed exactly one "
         "<style> block from each of its 10 templates and added none; the later "
         "orphan_mail_cleanup wave deleted 6 more dead templates each with exactly "
