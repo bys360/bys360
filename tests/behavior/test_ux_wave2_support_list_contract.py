@@ -177,3 +177,15 @@ def test_tr_list_screen_has_no_english_ui_text(app, client, state) -> None:
         # Kayıtlı değer aynen kalır, ekranda Türkçe adı görünür.
         assert "Raporlama ve Gösterge Paneli" in html
         assert "Raporlama ve Dashboard" not in html
+
+
+def test_tab_row_layout_does_not_depend_on_the_help_center_stylesheet() -> None:
+    """Liste ve detay şablonları bys360_support_learning.css'i yüklemez; sekme satırının
+    esnek düzeni tasarım sistemi CSS'inde tanımlı olmalı (768 px'te 5+ sekmede satır
+    içi akışa düşüp 22 px yüksekliğe inmesini önler)."""
+    css = (REPO_ROOT / "app/static/css/bys360_components.css").read_text(encoding="utf-8")
+    tabs = re.search(r"^\.bys-ui \.support-tabs \{([^}]*)\}", css, re.MULTILINE)
+    tab = re.search(r"^\.bys-ui \.support-tab \{([^}]*)\}", css, re.MULTILINE)
+    assert tabs and "display: flex" in tabs.group(1) and "flex-wrap: wrap" in tabs.group(1)
+    assert tab and "display: inline-flex" in tab.group(1) and "align-items: center" in tab.group(1)
+    assert "bys360_support_learning.css" not in LIST_TEMPLATE.read_text(encoding="utf-8")

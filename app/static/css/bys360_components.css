@@ -21,12 +21,20 @@
 }
 
 /* Paylaşılan sekme satırı (support/_tabs.html) yalnız bu sayfada sade alt çizgili sekmelere dönüşür. */
+/* Düzen kuralları burada da tanımlı: support/list.html ve support/detail.html, sekme düzenini
+   eskiden kendi <style> bloklarından alıyordu; bys360_support_learning.css'i yüklemezler. */
 .bys-ui .support-tabs {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--bys-space-1);
   border-bottom: 1px solid var(--bys-border-subtle);
 }
 
 .bys-ui .support-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bys-space-2);
+  text-decoration: none;
   min-height: var(--bys-target);
   margin-bottom: -1px;
   padding: 0 var(--bys-space-4);
