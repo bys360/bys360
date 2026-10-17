@@ -344,7 +344,10 @@ def test_the_8_target_templates_active_style_attribute_delta_equals_pre_wave_tot
 EXPECTED_STYLE_BLOCK_COUNT_BY_TARGET_TEMPLATE: dict[str, int] = {
     "app/templates/support/help_admin_list.html": 1,
     "app/templates/support/detail.html": 1,
-    "app/templates/support/new.html": 1,
+    # BYS360 UX PILOT (PR #75, plan K2/K3): tek <style> blogu dis CSS'e tasindi;
+    # bkz. test_csp_style_migration_cumulative_inventory_contract.py,
+    # STYLE_MIGRATION_WAVES["ux_pilot_support_new"] ve DISJOINT_RECLAIMS.
+    "app/templates/support/new.html": 0,
     "app/templates/notifications_list.html": 2,
     "app/templates/hr_attendance.html": 1,
     "app/templates/hr_personnel_dashboard.html": 1,
