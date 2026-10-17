@@ -493,7 +493,15 @@ def _support_status(reader: _Reader, scope_ids: list[int] | None, user: Any) -> 
     return _chart("support_status", "Destek Talepleri", labels, values, "donut")
 
 
-def _participation(reader: _Reader, user: Any) -> dict[str, Any]:
+PARTICIPATION_RESTRICTED_NOTE = "Kurum geneli anket ve geri bildirim katılımı yalnız kurum geneli yetkisi olan yöneticilere gösterilir."
+
+
+def _participation(reader: _Reader, user: Any, scope_ids: list[int] | None) -> dict[str, Any]:
+    # Kaynak tablolar kişi kapsamı taşımaz (atamalar 'all'/'unit'/'role' hedefli); bu yüzden oran
+    # yalnız kurum geneli kapsamda (scope_ids is None) üretilir. Kısıtlı kapsamda hiç sorgulanmaz.
+    if scope_ids is not None:
+        return _chart("participation", "Anket / Geri Bildirim Katılımı", [], [], "bars",
+                      value_suffix="%", restricted=True, note=PARTICIPATION_RESTRICTED_NOTE)
     survey_total = 0
     survey_done = 0
     feedback_total = 0
@@ -825,7 +833,7 @@ def build_dashboard_rebuild_context(user: Any) -> dict[str, Any]:
         "category_average": _category_average(reader, period_id, scope_ids),
         "low_score_trend": _low_score_trend(reader, scope_ids),
         "support_status": _support_status(reader, scope_ids, user),
-        "participation": _participation(reader, user),
+        "participation": _participation(reader, user, scope_ids),
     }
 
     top_metrics = {
@@ -835,21 +843,24 @@ def build_dashboard_rebuild_context(user: Any) -> dict[str, Any]:
         "pending_performance": _pending_assignments(reader, period_id, scope_ids),
         "president_pending": _count_low_processes(reader, period_id, scope_ids),
         "unread_notifications": _count_unread_notifications(reader, user),
-        "open_surveys": _count_open_surveys(reader),
         "open_feedback": _count_open_feedback(reader, scope_ids, user),
         "low_score": _int(charts["performance_distribution"]["values"][0]) if charts["performance_distribution"].get("values") else 0,
     }
+    if scope_ids is None:
+        # Yayındaki anketlerin kurum geneli sayısı; kısıtlı kapsamda üretilmez (kişisel sayı "Bana özel"de).
+        top_metrics["open_surveys"] = _count_open_surveys(reader)
 
-    kpi_cards = [
+    kpi_cards: list[dict[str, Any]] = [
         {"key": "total_personnel", "label": "Toplam Personel", "value": top_metrics["total_personnel"], "icon": "fa-users", "tone": "red", "note": "Yetki kapsamındaki kayıt"},
         {"key": "active_users", "label": "Aktif Kullanıcı", "value": top_metrics["active_users"], "icon": "fa-user-check", "tone": "green", "note": "Sistemde aktif görünen"},
         {"key": "open_support", "label": "Açık Destek Talebi", "value": top_metrics["open_support"], "icon": "fa-life-ring", "tone": "amber", "note": "Açık / işlemde"},
         {"key": "pending_performance", "label": "Bekleyen Performans Görevi", "value": top_metrics["pending_performance"], "icon": "fa-clipboard-check", "tone": "blue", "note": "Tamamlanmamış görev"},
         {"key": "president_pending", "label": "Üst Onay Bekleyen", "value": top_metrics["president_pending"], "icon": "fa-user-shield", "tone": "danger", "note": "70 altı / yayın kilidi"},
         {"key": "unread_notifications", "label": "Okunmamış Bildirim", "value": top_metrics["unread_notifications"], "icon": "fa-bell", "tone": "violet", "note": "Bana özel"},
-        {"key": "open_surveys", "label": "Açık Anket", "value": top_metrics["open_surveys"], "icon": "fa-square-poll-vertical", "tone": "teal", "note": "Yayında olan"},
+        {"key": "open_surveys", "label": "Açık Anket", "value": top_metrics.get("open_surveys"), "icon": "fa-square-poll-vertical", "tone": "teal", "note": "Yayında olan"},
         {"key": "open_feedback", "label": "Açık Geri Bildirim / Eylem", "value": top_metrics["open_feedback"], "icon": "fa-comments", "tone": "rose", "note": "Kapanmamış aksiyon"},
     ]
+    kpi_cards = [card for card in kpi_cards if card["key"] in top_metrics]
 
     personal = {
         "pending_tasks": _pending_assignments(reader, period_id, scope_ids, evaluator_id=uid),

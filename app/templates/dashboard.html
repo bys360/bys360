@@ -183,6 +183,7 @@
         <li><span class="dash-bars__label">{{ row.label }}</span><span class="dash-bars__value">%{{ row.value_display }} · {{ row.count|default(0, true) }} / {{ row.total|default(0, true) }}</span><span class="dash-bars__track" aria-hidden="true"><span class="dash-bars__fill" style="width: {{ [row.value, 100]|min }}%"></span></span></li>
         {% endfor %}
       </ul>
+      {% elif c.restricted %}{{ chart_empty(c.note) }}
       {% else %}{{ chart_empty('Henüz atanmış anket veya geri bildirim yok.') }}{% endif %}
     </section>
   </div>
