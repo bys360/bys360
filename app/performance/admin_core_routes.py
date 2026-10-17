@@ -19,7 +19,8 @@ from app.models import (
     User,
 )
 from app.route_registry import main_bp
-from app.route_support import admin_required, ensure_boolean_toggle, safe_render
+from app.route_support import admin_required, ensure_boolean_toggle, menu_key_required, safe_render
+from app.security.critical_operations import critical_operation_required
 from app.services.ai.dashboard_panels import build_period_form_ai_panel, build_periods_ai_panel
 from app.services.hierarchy_admin_service import parse_date
 from app.services.performance.assignment_rule_audit import build_assignment_generation_preflight
@@ -271,6 +272,8 @@ def performance_criteria_seed_defaults():
 @main_bp.route("/performance/periods")
 @login_required
 @admin_required
+@critical_operation_required("period_manage")
+@menu_key_required("performance_periods")
 def performance_periods():
     q = (request.args.get("q") or "").strip()
     status = (request.args.get("status") or "").strip()
@@ -496,6 +499,8 @@ def _build_period_create_scope_options() -> dict[str, list]:
 @main_bp.route("/performance/periods/create", methods=["GET", "POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_manage")
+@menu_key_required("performance_periods")
 def performance_period_create():
     if request.method == "POST":
         try:
@@ -527,6 +532,8 @@ def performance_period_create():
 @main_bp.route("/performance/periods/<int:period_id>/edit", methods=["GET", "POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_manage")
+@menu_key_required("performance_periods")
 def performance_period_edit(period_id):
     period = db.session.get(PerformancePeriod, period_id)
     if not period:
@@ -552,6 +559,8 @@ def performance_period_edit(period_id):
 @main_bp.route("/performance/periods/<int:period_id>/toggle-active", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_activate")
+@menu_key_required("performance_periods")
 def performance_period_toggle_active(period_id):
     period = db.session.get(PerformancePeriod, period_id)
     if not period:
@@ -582,6 +591,8 @@ def performance_period_toggle_active(period_id):
 @main_bp.route("/performance/periods/<int:period_id>/toggle-lock", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_lock")
+@menu_key_required("performance_periods")
 def performance_period_toggle_lock(period_id):
     period = db.session.get(PerformancePeriod, period_id)
     if not period:
@@ -609,6 +620,8 @@ def performance_period_toggle_lock(period_id):
 @main_bp.route("/performance/periods/<int:period_id>/toggle-publish", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_publish")
+@menu_key_required("performance_publish")
 def performance_period_toggle_publish(period_id):
     period = db.session.get(PerformancePeriod, period_id)
     if not period:
@@ -631,6 +644,8 @@ def performance_period_toggle_publish(period_id):
 @main_bp.route("/performance/periods/<int:period_id>/delete", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_delete")
+@menu_key_required("performance_periods")
 def performance_period_delete(period_id):
     try:
         result = delete_performance_period_with_related_records(period_id, actor=current_user)
@@ -649,6 +664,8 @@ def performance_period_delete(period_id):
 @main_bp.route("/performance/evaluation-tasks/generate", methods=["GET", "POST"])
 @login_required
 @admin_required
+@critical_operation_required("assignment_generate")
+@menu_key_required("performance_task_management")
 def performance_generate_assignments():
     periods = PerformancePeriod.query.order_by(
         PerformancePeriod.start_date.desc()

@@ -8,6 +8,7 @@ from flask_login import current_user, login_required
 
 from app.route_registry import main_bp
 from app.route_support import menu_key_required, safe_render
+from app.security.critical_operations import critical_action_refusal
 from app.services.performance.v2_1_6_category_period_integration import (
     build_assignment_preintegration,
     create_or_update_period_from_plan,
@@ -201,6 +202,19 @@ def performance_v2_1_7_period_management_center():
         return redirect(url_for("main.performance_v2_1_7_period_management_center", plan=selected_plan, category=selected_category))
 
     if request.method == "POST":
+        # P0: merkez operatör listesi grup başkanı ve Hukuk Müşavirini de içerir; gerçek dönem
+        # oluşturan/bağlayan, etkinleştiren ve görev başlatan işlemler ayrıca sabit rol sınırına tabidir.
+        center_action = request.form.get("action") or "prepare_plan"
+        if center_action in {"prepare_and_link", "prepare_link_precheck", "link_period"}:
+            refusal = critical_action_refusal("period_manage", "performance_periods")
+            if refusal is None and request.form.get("activate_period"):
+                refusal = critical_action_refusal("period_activate", "performance_periods")
+            if refusal is not None:
+                return refusal
+        elif center_action == "launch_assignments":
+            refusal = critical_action_refusal("assignment_generate", "performance_task_management")
+            if refusal is not None:
+                return refusal
         action = request.form.get("action") or "prepare_plan"
         try:
             if action in {"prepare_plan", "prepare_and_link", "prepare_link_precheck"}:
