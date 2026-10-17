@@ -36,9 +36,9 @@ Bağımlılık sırası: #75 → #77 → #79 → #80 → #81 → #82 → #83 (he
 | [#78](https://github.com/bys360/bys360/pull/78) | `docs/ux-modernization-status-2026-10` | Bu belge, ekran envanteri, İngilizce metin aday envanteri, gece raporu | Belge |
 | [#79](https://github.com/bys360/bys360/pull/79) | `ux/wave3-support-detail-2026-10` | Dalga 3: Talep Detayı | CI yeşil (`5da2bbba`). Sahip görsel onayı + stil bloğu taşıma kararı (DISJOINT_RECLAIMS) bekliyor |
 | [#80](https://github.com/bys360/bys360/pull/80) | `ux/wave4-help-center-2026-10` | Dalga 4: Yardım Merkezi | CI yeşil (`8bc98cdc`). Sahip görsel onayı + içerik terimleri kararı bekliyor |
-| [#81](https://github.com/bys360/bys360/pull/81) | `ux/wave5-help-pages-2026-10` | Dalga 5: rehber makale, kategori, rol, arama | İlk CI Ruff B007 ile kırmızı; `370d497e` ile düzeltildi, CI yeniden çalışıyor. Sahip görsel onayı bekliyor |
-| [#82](https://github.com/bys360/bys360/pull/82) | `ux/wave6-help-form-setup-2026-10` | Dalga 6: rehber formu ve destek kurulumu (yönetici) | İlk CI #81'den miras Ruff hatasıyla kırmızı; `3b0d5c25` birleştirmesiyle düzeltildi, CI yeniden çalışıyor. Sahip görsel onayı bekliyor |
-| [#83](https://github.com/bys360/bys360/pull/83) | `ux/wave7-help-admin-list-2026-10` | Dalga 7: Rehber Yönetimi listesi (yönetici) | İlk CI #81'den miras Ruff hatasıyla kırmızı; `edf49eb0` birleştirmesiyle düzeltildi, CI yeniden çalışıyor. Sahip görsel onayı + stil bloğu kararı bekliyor |
+| [#81](https://github.com/bys360/bys360/pull/81) | `ux/wave5-help-pages-2026-10` | Dalga 5: rehber makale, kategori, rol, arama | İlk CI Ruff B007 ile kırmızı; `370d497e` ile düzeltildi, CI yeşil. Sahip görsel onayı bekliyor |
+| [#82](https://github.com/bys360/bys360/pull/82) | `ux/wave6-help-form-setup-2026-10` | Dalga 6: rehber formu ve destek kurulumu (yönetici) | İlk CI #81'den miras Ruff hatasıyla kırmızı; `3b0d5c25` birleştirmesiyle düzeltildi; sonraki koşu 0 hatayla 180 dk sınırında iptal oldu, bir kez yeniden çalıştırıldı. Sahip görsel onayı bekliyor |
+| [#83](https://github.com/bys360/bys360/pull/83) | `ux/wave7-help-admin-list-2026-10` | Dalga 7: Rehber Yönetimi listesi (yönetici) | İlk CI #81'den miras Ruff hatasıyla kırmızı; `edf49eb0` birleştirmesiyle düzeltildi, CI yeşil. Sahip görsel onayı + stil bloğu kararı bekliyor |
 
 ## 4. Ekran envanteri
 
