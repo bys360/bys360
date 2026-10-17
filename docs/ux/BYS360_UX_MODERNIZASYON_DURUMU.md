@@ -37,9 +37,12 @@ Bağımlılık sırası: #75 → #77 → #79 → #80 → #81 → #82 → #83 (he
 | [#79](https://github.com/bys360/bys360/pull/79) | `ux/wave3-support-detail-2026-10` | Dalga 3: Talep Detayı | CI yeşil (`5da2bbba`). Sahip görsel onayı + stil bloğu taşıma kararı (DISJOINT_RECLAIMS) bekliyor |
 | [#80](https://github.com/bys360/bys360/pull/80) | `ux/wave4-help-center-2026-10` | Dalga 4: Yardım Merkezi | CI yeşil (`8bc98cdc`). Sahip görsel onayı + içerik terimleri kararı bekliyor |
 | [#81](https://github.com/bys360/bys360/pull/81) | `ux/wave5-help-pages-2026-10` | Dalga 5: rehber makale, kategori, rol, arama | İlk CI Ruff B007 ile kırmızı; `370d497e` ile düzeltildi, CI yeşil. Sahip görsel onayı bekliyor |
-| [#82](https://github.com/bys360/bys360/pull/82) | `ux/wave6-help-form-setup-2026-10` | Dalga 6: rehber formu ve destek kurulumu (yönetici) | İlk CI #81'den miras Ruff hatasıyla kırmızı; `3b0d5c25` birleştirmesiyle düzeltildi; sonraki koşu 0 hatayla 180 dk sınırında iptal oldu, bir kez yeniden çalıştırıldı. Sahip görsel onayı bekliyor |
+| [#82](https://github.com/bys360/bys360/pull/82) | `ux/wave6-help-form-setup-2026-10` | Dalga 6: rehber formu ve destek kurulumu (yönetici) | İlk CI #81'den miras Ruff hatasıyla kırmızı; `3b0d5c25` birleştirmesiyle düzeltildi; sonraki koşu 0 hatayla 180 dk sınırında iptal oldu; yeniden koşu yeşil (`3b0d5c25`, 1 sa 57 dk). Sahip görsel onayı bekliyor |
 | [#83](https://github.com/bys360/bys360/pull/83) | `ux/wave7-help-admin-list-2026-10` | Dalga 7: Rehber Yönetimi listesi (yönetici) | İlk CI #81'den miras Ruff hatasıyla kırmızı; `edf49eb0` birleştirmesiyle düzeltildi, CI yeşil. Sahip görsel onayı + stil bloğu kararı bekliyor |
 | [#84](https://github.com/bys360/bys360/pull/84) | `ci/quality-gate-timeout-240-2026-10` | CI: `quality-gate` süre sınırı 180 → 240 dk (sahip onaylı, kısa vadeli) | Draft; kendi CI koşusu bekleniyor |
+| [#85](https://github.com/bys360/bys360/pull/85) | `fix/ci-timeout-floor-test-2026-10` | Süre alt sınırı testi gerçek `timeout-minutes` değerini okuyor (yorum satırını değil) | Draft (sahip onaylı); CI bekleniyor. #84 ile çakışmasız |
+| [#86](https://github.com/bys360/bys360/pull/86) | `ux/wave8-home-2026-10` | Dalga 8: Ana Sayfa — günlük çalışma merkezi (#83 üzerine) | Draft; CI bekleniyor. Sahip görsel onayı bekliyor |
+| [#87](https://github.com/bys360/bys360/pull/87) | `ux/wave9-dashboard-2026-10` | Dalga 9: Gösterge Paneli — yönetim ve analiz merkezi (#86 üzerine) | Draft; CI bekleniyor. Sahip görsel onayı + katılım kapsamı kararı bekliyor |
 
 ## 4. Ekran envanteri
 
@@ -77,8 +80,8 @@ Bilinen sınırlar:
 
 1. Sahip kararları: #75 merge; #77/#79/#80 görsel onay; #79 stil bloğu taşıma (DISJOINT_RECLAIMS ikinci giriş) onayı; yardım içeriği terimleri ("AI", "Dashboard", "URL", "CSRF", "CAPTCHA").
 2. CI süre bütçesi: sahip 240 dk'yı kısa vadeli çözüm olarak onayladı → [#84](https://github.com/bys360/bys360/pull/84) (Draft; yalnız iş akışı değeri + açıklama belgesi). Bulgu: `test_quality_gate_job_timeout_has_an_evidence_backed_floor` gerçek değeri değil bir yorum satırını (45) okuyor — düzeltme sahip kararına bırakıldı. Kalıcı çözüm: Step2'yi bölme planı (ayrı, ölçüme dayalı).
-3. Destek modülü tamamlandı (#75–#83). Talep Detayı ve Rehber Yönetimi listesindeki eski stil bloklarının taşınması sahip kararına bağlı. Rehber aramasında "yapay zeka" → "AI" eş anlamı yok (terim kararıyla birlikte).
-4. Ana sayfa / gösterge paneli (yüksek görünürlük; ortak bileşen etkisi incelenmeli).
+3. Destek modülünün bütün ekranları Draft PR olarak hazır (#75–#83); #75 dışında görsel onay ve hiçbiri için merge yapılmadı. Talep Detayı ve Rehber Yönetimi listesindeki eski stil bloklarının taşınması sahip kararına bağlı. Rehber aramasında "yapay zeka" → "AI" eş anlamı yok (terim kararıyla birlikte).
+4. Ana sayfa ve gösterge paneli Draft PR olarak hazır (#86, #87). Birleştirme sırası ve yöntemi: `docs/ux/BYS360_BIRLESTIRME_PLANI.md`.
 5. Ortak düzen (`base.html`): global flash mesajlarına `role`, "Dashboard" menü adı, "AI destekli" rozeti — **yüksek risk**, ayrı küçük PR ve kapsamlı regresyon testiyle.
 6. Yapay zekâ özet servisi (`app/services/ai`): talep özetinde ham durum kodu ("open") ve İngilizce alan adı.
 7. Giriş güvenliği G1–G8 ayrı güvenlik hattında (G6 → G1 → G7 → G3); UX PR'larına karıştırılmaz.
