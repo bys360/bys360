@@ -5,37 +5,62 @@
 {% block page_subtitle %}İşlem, modül veya hata mesajına göre rehber arayın.{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_support_learning.css') }}">
-<div class="support-learning-shell">
-  {% set current_view_key = 'support_index' %}
-  {% include 'support/_tabs.html' %}
-  <section class="support-panel">
-    <form class="support-search" method="get" action="{{ url_for('main.support_help_search') }}">
-      <input class="support-input" type="text" name="q" value="{{ search_query or '' }}" placeholder="personel raporları, destek talebi, AI karar destek, menü, CSRF...">
-      <button class="support-btn" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Ara</button>
-    </form>
-    <div class="support-chip-row">
-      {% for query in ['destek talebi','personel raporları','performans dönemi','nabız analitiği','AI özet','menü yetkisi','CSRF'] %}
-      <a class="support-chip" href="{{ url_for('main.support_help_search', q=query) }}"><i class="fa-solid fa-hashtag"></i>{{ query }}</a>
-      {% endfor %}
-    </div>
-  </section>
-  <section class="support-panel">
-    {% if search_query %}<p class="support-section-text"><strong>“{{ search_query }}”</strong> için {{ articles|length }} sonuç bulundu.</p>{% endif %}
-    {% if articles %}
-    <div class="support-article-list" style="margin-top:16px;">
-      {% for article in articles %}
-      <a class="support-article-card" href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">
-        <div><h4 class="support-article-title">{{ article.title }}</h4><p class="support-article-summary">{{ article.summary }}</p><div class="support-meta">{% for tag in article.tags[:4] %}<span class="support-badge">{{ tag }}</span>{% endfor %}</div></div>
-        <span class="support-badge">İncele</span>
-      </a>
-      {% endfor %}
-    </div>
-    {% elif search_query %}
-    <div class="support-empty" style="margin-top:16px;">Sonuç bulunamadı. Benzer kelimeler deneyin: destek, personel, performans, nabız, rapor, yetki, CSRF.</div>
-    {% else %}
-    <div class="support-empty" style="margin-top:16px;">Arama yapmak için bir anahtar kelime yazın.</div>
-    {% endif %}
-  </section>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
+{# BYS360_UX_WAVE5_HELP_PAGES: rehber arama. Rota, arama işlevi (search_articles) ve sorgu parametresi (q) değişmedi.
+   Öneri bağlantıları Türkçe sorgularla aynı ilk sonuçları verir (ör. "yapay zekâ özeti", "oturum güvenliği"). #}
+{% macro article_list(articles, label) -%}
+<ul class="bys-article-list bys-article-list--cards" aria-label="{{ label }}">
+    {% for article in articles %}
+    <li>
+        <a class="bys-article-link" href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">
+            <span class="bys-article-link__title">{{ article.title }}</span>
+            {% if article.summary %}<span class="bys-article-link__text">{{ article.summary }}</span>{% endif %}
+            {% if article.tags %}<span class="bys-article-link__tags">{% for tag in article.tags[:4] %}<span class="bys-chip bys-chip--neutral">{{ tag }}</span>{% endfor %}</span>{% endif %}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{%- endmacro %}
+<div class="support-learning-shell bys-ui bys-page">
+    {% set current_view_key = 'support_index' %}
+    <nav class="bys-tabs skip-mobile-normalize" aria-label="Destek bölümleri">{% include 'support/_tabs.html' %}</nav>
+
+    <section class="bys-card bys-help-search" aria-labelledby="helpSearchTitle">
+        <h2 class="bys-card__title" id="helpSearchTitle">Rehberlerde arayın</h2>
+        <form class="bys-help-search__form skip-mobile-normalize" method="get" action="{{ url_for('main.support_help_search') }}" role="search" aria-labelledby="helpSearchTitle">
+            <div class="bys-field bys-help-search__field">
+                <label class="bys-field__label" for="help-search">Aranacak konu</label>
+                <input class="bys-input" type="search" id="help-search" name="q" value="{{ search_query or '' }}" maxlength="120" autocomplete="off" placeholder="Örnek: personel raporları, destek talebi, menü yetkisi">
+            </div>
+            <button class="bys-btn bys-btn--primary" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Ara</button>
+        </form>
+        <div class="bys-help-suggest">
+            <p class="bys-help-suggest__label" id="helpSuggestLabel">Sık aranan konular</p>
+            <ul class="bys-link-chips" aria-labelledby="helpSuggestLabel">
+                {% for query in ['destek talebi', 'personel raporları', 'performans dönemi', 'nabız analitiği', 'yapay zekâ özeti', 'menü yetkisi', 'oturum güvenliği'] %}
+                <li><a class="bys-link-chip" href="{{ url_for('main.support_help_search', q=query) }}">{{ query }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </section>
+
+    <section class="bys-card" aria-labelledby="helpResultsTitle">
+        <h2 class="bys-card__title" id="helpResultsTitle">{% if search_query %}Arama sonuçları{% else %}Arama{% endif %}</h2>
+        {% if search_query %}<p class="bys-muted-text" role="status"><strong>“{{ search_query }}”</strong> için {{ articles|length }} rehber bulundu.</p>{% endif %}
+        {% if articles %}
+        {{ article_list(articles, 'Arama sonuçları') }}
+        {% elif search_query %}
+        <div class="bys-empty">
+            <span class="bys-empty__icon" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <p class="bys-empty__title">Aramanıza uygun rehber bulunamadı.</p>
+            <p class="bys-empty__text">Daha kısa veya farklı bir kelime deneyin: destek, personel, performans, nabız, rapor, yetki.</p>
+            <a class="bys-btn bys-btn--primary" href="{{ url_for('main.support_new') }}"><i class="fa-solid fa-plus" aria-hidden="true"></i> Destek talebi aç</a>
+        </div>
+        {% else %}
+        <p class="bys-muted-text">Aramak için bir konu yazın veya sık aranan konulardan birini seçin.</p>
+        {% endif %}
+    </section>
 </div>
 <script src="{{ url_for('static', filename='js/bys360_support_learning.js') }}"></script>
 {% endblock %}
