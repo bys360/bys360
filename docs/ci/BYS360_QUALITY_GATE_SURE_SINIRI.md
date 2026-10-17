@@ -69,7 +69,7 @@ En yavaş başarılı koşunun (178 dk) üstünde ~60 dk pay. #82'nin iptal edil
 
 ## 3. Bu kısa vadeli bir çözümdür
 
-Asıl sorun Step2'nin tek bir işte sıralı çalışması. Süreyi kalıcı olarak düşürmek için Step2'yi güvenli şekilde bölme planı ayrı belgede: `docs/ci/BYS360_CI_TEST_BOLME_PLANI.md` (yerel test başına süre ölçümü bitince eklenir). Plan uygulanana kadar bu sınır korunmalı.
+Asıl sorun Step2'nin tek bir işte sıralı çalışması. Süreyi kalıcı olarak düşürme planı ayrı belgede: `docs/ci/BYS360_CI_TEST_BOLME_PLANI.md`. CI günlüğünden test dosyası başına ölçüm, Step2 süresinin %74'ünün test başına uygulama ve şema kuran 190 dosyada olduğunu gösteriyor. Plan uygulanana kadar bu sınır korunmalı.
 
 ## 4. Regresyon kontrolü (yerel, bu dalda)
 
