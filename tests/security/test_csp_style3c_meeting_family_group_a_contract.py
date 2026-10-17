@@ -533,7 +533,12 @@ def test_repo_wide_inline_handler_and_javascript_url_totals_are_zero() -> None:
 # Yardım Merkezi): the help-center template's 13 static style="..." attributes
 # were replaced by classes in bys360_components.css -- 1032 -> 1019 (0 blocks,
 # 0 dynamic). See STYLE_MIGRATION_WAVES["ux_wave4_help_center"].
-EXPECTED_ACTIVE_STYLE_TOTAL_AFTER_STYLE3C = 1019
+# FORWARD-COMPATIBILITY FOLLOW-UP 14 (BYS360 UX wave 5, support/help_article,
+# help_category, help_role, help_search): their 2 + 3 + 1 + 3 = 9 static
+# style="..." attributes were replaced by classes in bys360_components.css --
+# 1019 -> 1010 (0 blocks, 0 dynamic). See
+# STYLE_MIGRATION_WAVES["ux_wave5_help_pages"].
+EXPECTED_ACTIVE_STYLE_TOTAL_AFTER_STYLE3C = 1010
 EXPECTED_DYNAMIC_STYLE_TOTAL_AFTER_STYLE3C = 64
 # FORWARD-COMPATIBILITY FOLLOW-UP 12 (BYS360 UX wave 2, support/list.html):
 # the shared Taleplerim / Bana Atananlar / Tüm Talepler list template moved

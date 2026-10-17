@@ -1643,6 +1643,210 @@
   color: var(--bys-text-secondary);
 }
 
+/* ---- Dalga 5: rehber makale, kategori, rol ve arama (support/help_*.html) ---- */
+.bys-ui .bys-article-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bys-space-3);
+}
+
+.bys-ui .bys-article-toolbar__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bys-space-2);
+}
+
+/* Wave-7 CSP sözleşmesi bu iki düğmenin işaretlemesini (sınıf dahil) sabitler; görünüm burada uyarlanır. */
+.bys-ui .support-btn-soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--bys-space-2);
+  min-height: var(--bys-target);
+  /* Küresel mobil stiller min-height'i 42 px'e indirebiliyor; 44 px hedef yüksekliği dolgu ile de sağlanır. */
+  padding: 11px var(--bys-space-4);
+  border: 1px solid var(--bys-border-control);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface);
+  color: var(--bys-text);
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.bys-ui .support-btn-soft:hover {
+  border-color: var(--bys-brand);
+  background: var(--bys-brand-soft);
+  color: var(--bys-brand);
+}
+
+.bys-ui .support-btn-soft:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+.bys-ui .bys-article-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--bys-space-5);
+  align-items: start;
+}
+
+.bys-ui .bys-prose {
+  display: grid;
+  gap: var(--bys-space-4);
+  min-width: 0;
+  border-radius: var(--bys-radius-lg);
+  box-shadow: var(--bys-shadow-2);
+}
+
+.bys-ui .bys-prose__title {
+  margin: 0;
+  font-size: var(--bys-fs-xl);
+  font-weight: var(--bys-fw-bold);
+  line-height: 1.3;
+  letter-spacing: 0;
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-prose__lead {
+  margin: 0;
+  max-width: 70ch;
+  font-size: var(--bys-fs-md);
+  line-height: 1.7;
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bys-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bys-ui .bys-prose__section {
+  margin: 0;
+  padding-top: var(--bys-space-4);
+  border-top: 1px solid var(--bys-border-subtle);
+  scroll-margin-top: 96px;
+}
+
+.bys-ui .bys-prose__section h3 {
+  margin: 0 0 var(--bys-space-2);
+  font-size: var(--bys-fs-lg);
+  font-weight: var(--bys-fw-bold);
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-prose__section p,
+.bys-ui .bys-prose__section li {
+  max-width: 70ch;
+  line-height: 1.75;
+  color: var(--bys-text);
+}
+
+.bys-ui .bys-prose__section p {
+  margin: 0;
+}
+
+.bys-ui .bys-prose__section ul {
+  display: grid;
+  gap: var(--bys-space-1);
+  margin: var(--bys-space-2) 0 0;
+  padding-left: var(--bys-space-5);
+}
+
+.bys-ui .bys-article-aside {
+  display: grid;
+  gap: var(--bys-space-4);
+  min-width: 0;
+}
+
+.bys-ui .bys-aside-card {
+  display: grid;
+  gap: var(--bys-space-3);
+  padding: var(--bys-space-5);
+}
+
+.bys-ui .bys-aside-card__title {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-bold);
+  letter-spacing: 0.02em;
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .bys-aside-card--cta {
+  background: var(--bys-surface-brand);
+}
+
+.bys-ui .bys-toc,
+.bys-ui .bys-aside-links {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bys-ui .bys-toc {
+  padding-left: var(--bys-space-5);
+  list-style: decimal;
+}
+
+.bys-ui .bys-toc a,
+.bys-ui .bys-aside-links a {
+  display: block;
+  padding: 6px 0;
+  font-size: var(--bys-fs-sm);
+  line-height: 1.4;
+  color: var(--bys-brand);
+  text-decoration: none;
+}
+
+.bys-ui .bys-toc a:hover,
+.bys-ui .bys-aside-links a:hover {
+  text-decoration: underline;
+}
+
+.bys-ui .bys-toc a:focus-visible,
+.bys-ui .bys-aside-links a:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+.bys-ui .bys-article-list--cards {
+  gap: var(--bys-space-3);
+}
+
+.bys-ui .bys-article-list--cards > li + li {
+  border-top: 0;
+}
+
+.bys-ui .bys-article-list--cards .bys-article-link {
+  gap: var(--bys-space-1);
+  padding: var(--bys-space-4);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface);
+}
+
+.bys-ui .bys-article-list--cards .bys-article-link:hover {
+  border-color: var(--bys-brand);
+}
+
+.bys-ui .bys-article-link__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bys-space-1);
+  margin-top: var(--bys-space-1);
+}
+
 /* ---- Duyarlı düzen ----------------------------------------------------- */
 @media (max-width: 1199.98px) {
   .bys-ui .bys-request-layout {
@@ -1659,6 +1863,14 @@
 
   .bys-ui .bys-guide-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bys-ui .bys-article-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bys-ui .support-aside.bys-article-aside {
+    position: static;
   }
 }
 
@@ -1789,6 +2001,15 @@
     width: 100%;
   }
 
+  .bys-ui .bys-article-toolbar__tools,
+  .bys-ui .bys-article-toolbar__tools .support-btn-soft {
+    width: 100%;
+  }
+
+  .bys-ui .bys-prose__title {
+    font-size: var(--bys-fs-lg);
+  }
+
   .bys-ui .bys-toolbar__search,
   .bys-ui .bys-toolbar__status,
   .bys-ui .bys-toolbar__actions {
@@ -1808,6 +2029,19 @@
     min-height: 52px;
     padding-top: 15px;
     padding-bottom: 15px;
+  }
+}
+
+/* Rehber makalesinin yazdırma görünümü (bys360_support_learning.css @media print ile aynı sonuç):
+   tek sütun, gölgesiz; araç çubuğu ve yan sütun orada gizlenir. */
+@media print {
+  .bys-ui .bys-article-layout {
+    display: block;
+  }
+
+  .bys-ui .bys-prose {
+    border: 0;
+    box-shadow: none;
   }
 }
 

@@ -576,9 +576,9 @@ def test_role_matrix_support_tabs_and_neighbour_screens_are_unchanged(app, clien
     assert tabs[:3] == ["Yardım Merkezi", "Yeni Talep Aç", "Taleplerim"]
     assert ("Bana Atananlar" in tabs) is assigned_visible
 
-    # Rehber arama ekranı henüz tasarım sistemine geçmedi: pilot varlıkları sızmamalı.
-    # (/support -- Yardım Merkezi -- dalga 4'te geçti; aşağıda ayrıca denetlenir.)
-    neighbour = client.get("/support/help/search?q=talep")
+    # Bildirimler ekranı henüz tasarım sistemine geçmedi: pilot varlıkları sızmamalı.
+    # (/support -- Yardım Merkezi -- dalga 4'te, rehber arama dalga 5'te geçti; Yardım Merkezi aşağıda ayrıca denetlenir.)
+    neighbour = client.get("/notifications")
     assert neighbour.status_code == 200
     neighbour_html = neighbour.get_data(as_text=True)
     assert "bys360_components.css" not in neighbour_html
@@ -709,13 +709,18 @@ def test_k5_component_css_selectors_are_all_bys_prefixed_and_scoped() -> None:
 # Tasarım sistemi dalga dalga yayılır; her yeni şablon burada açıkça listelenir
 # ve kendi sözleşme testini taşır (dalga 2: tests/behavior/test_ux_wave2_support_list_contract.py,
 # dalga 3: tests/behavior/test_ux_wave3_support_detail_contract.py,
-# dalga 4: tests/behavior/test_ux_wave4_help_center_contract.py).
+# dalga 4: tests/behavior/test_ux_wave4_help_center_contract.py,
+# dalga 5: tests/behavior/test_ux_wave5_help_pages_contract.py).
 DESIGN_SYSTEM_TEMPLATES = {
     TEMPLATE,
     MACROS,
     REPO_ROOT / "app/templates/support/list.html",
     REPO_ROOT / "app/templates/support/detail.html",
     REPO_ROOT / "app/templates/support/index.html",
+    REPO_ROOT / "app/templates/support/help_article.html",
+    REPO_ROOT / "app/templates/support/help_category.html",
+    REPO_ROOT / "app/templates/support/help_role.html",
+    REPO_ROOT / "app/templates/support/help_search.html",
 }
 
 

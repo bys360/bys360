@@ -428,6 +428,22 @@ STYLE_MIGRATION_WAVES: dict[str, _WaveManifestEntry] = {
         "removed_static": 13,
         "removed_blocks": 0,
     },
+    # FORWARD-COMPATIBILITY FOLLOW-UP 14 (BYS360 UX wave 5, Destek -> rehber
+    # makale / kategori / rol / arama): 2 + 3 + 1 + 3 = 9 static style="..."
+    # attributes replaced by classes in the scoped external stylesheet
+    # app/static/css/bys360_components.css; 0 blocks (none of the four had
+    # one). First claim of each template -- no reclaim.
+    # Evidence: tests/behavior/test_ux_wave5_help_pages_contract.py.
+    "ux_wave5_help_pages": {
+        "templates": (
+            "app/templates/support/help_article.html",
+            "app/templates/support/help_category.html",
+            "app/templates/support/help_role.html",
+            "app/templates/support/help_search.html",
+        ),
+        "removed_static": 9,
+        "removed_blocks": 0,
+    },
 }
 
 # A template may be claimed by a second edit-in-place wave ONLY when the two
