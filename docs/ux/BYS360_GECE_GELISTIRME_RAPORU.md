@@ -1,6 +1,6 @@
 # BYS360 GECE GELİŞTİRME RAPORU
 
-Gece çalışması: 16–17 Ekim 2026. Son güncelleme: 17 Ekim 2026, 08:00 UTC (11:00 TSİ). Görsel kanıt: https://claude.ai/artifact/VgkCUVna2ooZnmvEoW8HPc
+Gece çalışması: 16–17 Ekim 2026. Son güncelleme: 17 Ekim 2026, 08:55 UTC (11:55 TSİ). Görsel kanıt: https://claude.ai/artifact/VgkCUVna2ooZnmvEoW8HPc
 Kapsam ve yetki: yalnız Draft PR; merge, canlıya geçiş, gerçek veri ve gerçek kullanıcı hesabı yok. Bütün yerel testler sahte kullanıcı ve sahte veriyle, geçici SQLite veritabanında.
 
 ## 1. Kaç ekran bulundu?
@@ -43,12 +43,13 @@ Yerel (sahte veri) — **hepsi geçti, 0 kaldı**:
 | #82 | 876 geçti (23 dosya) | 37/37 |
 | #83 | 881 geçti (24 dosya) | 21/21 |
 
-GitHub CI (`Run tests / quality-gate`, ~3 saat), 08:00 UTC durumu:
-- **Yeşil (iki kontrol de geçti):** #75 (`5531f4a9`), #76 (yeniden koşu), #77 (`03e96feb`), #78, #79 (`5da2bbba`), #80 (`8bc98cdc`).
+GitHub CI (`Run tests / quality-gate`, ~3 saat), 08:55 UTC durumu (yalnız tamamlanmış koşular yeşil sayılır):
+- **Yeşil (iki kontrol de geçti):** #75 (`5531f4a9`), #76 (yeniden koşu), #77 (`03e96feb`), #79 (`5da2bbba`), #80 (`8bc98cdc`).
 - #76'nın ilk koşusu 180 dk iş sınırında iptal olmuştu (0 test hatası; yalnız mypy adımı süre dolduğu için kesildi). Yeniden koşu 1 sa 57 dk'da yeşil bitti.
 - **#81, #82, #83'ün ilk koşusu kırmızıydı — benim hatam, düzeltildi:** `quality-gate` testlere gelmeden Ruff adımında durdu (B007: dalga 5 testinde kullanılmayan döngü değişkeni `section`). #82 ve #83 bu dalın üstüne kurulu olduğu için aynı hatayı miras aldı. Yerel doğrulamamda Ruff'u `tests/` dahil CI komutuyla çalıştırmamıştım (süreç açığı). Düzeltme: `370d497e` (#81), birleştirme `3b0d5c25` (#82), `edf49eb0` (#83).
-- Düzeltme sonrası: **#81 yeşil** (`370d497e`), **#83 yeşil** (`edf49eb0`; #81 ve #82'nin bütün kodunu içerir), #78 yeşil (`b876032b`).
-- **#82 (`3b0d5c25`) yeşil değil:** `quality-gate` 180 dk iş sınırında iptal oldu; ana test adımı %92'deyken 0 hata vardı, kalan adımlar süre dolduğu için çalışmadı. PR'a açıklama yazıldı ve bir kez yeniden çalıştırıldı; sonuç bekleniyor.
+- Düzeltme sonrası: **#81 yeşil** (`370d497e`), **#83 yeşil** (`edf49eb0`; #81 ve #82'nin bütün kodunu içerir).
+- **#78 (belge dalı):** önceki HEAD `b876032b` yeşildi; her belge commit'i yeni bir koşu başlatır. Güncel HEAD'in CI'ı tamamlanmadan #78 yeşil sayılmaz (`96b1fad2` ve bu rapor commit'i için koşu bekleniyor).
+- **#82 (`3b0d5c25`) yeşil değil:** `quality-gate` 180 dk iş sınırında iptal oldu; ana test adımı %92'deyken 0 hata vardı, kalan adımlar süre dolduğu için çalışmadı. PR'a açıklama yazıldı ve bir kez yeniden çalıştırıldı (07:57 UTC başladı); sonuç bekleniyor, iptal edilmeyecek.
 
 ## 5. Kaç hata düzeltildi?
 
@@ -85,7 +86,7 @@ GitHub CI (`Run tests / quality-gate`, ~3 saat), 08:00 UTC durumu:
 2. Talep notu eklerken dosya reddedilirse yazılan not da kayboluyor (rota davranışı).
 3. Yardım içeriği verisinde İngilizce terimler: AI, Dashboard, URL, CSRF, CAPTCHA — terim kararı gerekiyor.
 4. Talep Detayı'nın eski stil bloğu: taşıma, ratchet istisnasının (DISJOINT_RECLAIMS) genişletilmesini gerektiriyor — sahip onayı.
-5. CI süre bütçesi: ana test adımı ~2 sa 53 dk, iş sınırı 180 dk; mypy adımı kesilebiliyor.
+5. CI süre bütçesi: sahip 180 → 240 dk'yı kısa vadeli çözüm olarak onayladı; ayrı Draft PR [#84](https://github.com/bys360/bys360/pull/84). Süre testinin gerçek değeri değil bir yorum satırını okuduğu bulundu (karar #84'te). Step2'yi bölme planı ayrı hazırlanıyor.
 6. Pilot dil denetleyicisinin İngilizce kelime listesi sınırlı (ör. "quick", "start" yakalanmıyor).
 7. Küresel bir arayüz betiği bazı bağlantılara kalıcı çerçeve ekliyor (`bys360-ux1-action-focus`) — tüm sitede, ayrı inceleme.
 8. 3 rotada dekoratör görünmüyor (`/guest/files/<token>`, `/guest/upload/<token>`, `/offline`) — muhtemelen tasarım gereği; güvenlik hattında doğrulanmalı.
@@ -113,6 +114,7 @@ GitHub CI (`Run tests / quality-gate`, ~3 saat), 08:00 UTC durumu:
 | [#81](https://github.com/bys360/bys360/pull/81) | Dalga 5: Rehber makale, kategori, rol, arama | #80 |
 | [#82](https://github.com/bys360/bys360/pull/82) | Dalga 6: Rehber formu ve destek kurulumu | #81 |
 | [#83](https://github.com/bys360/bys360/pull/83) | Dalga 7: Rehber Yönetimi listesi | #82 |
+| [#84](https://github.com/bys360/bys360/pull/84) | CI: `quality-gate` süre sınırı 180 → 240 dk (sahip onaylı, kısa vadeli) | bağımsız |
 
 Hepsi Draft; hiçbiri merge edilmedi, canlıya alınmadı.
 
