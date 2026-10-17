@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Callable
 from datetime import timedelta
+from functools import partial
 from typing import Any
 
 from app.core.datetime_utils import utc_now
@@ -146,11 +147,7 @@ def _visible_to(user: Any, rows: list[Any], limit: int | None = None) -> list[An
     """Yalnız kullanıcının portal akışında da görebileceği gönderileri bırakır (hata = görünmez)."""
     visible: list[Any] = []
     for row in rows:
-        try:
-            allowed = bool(can_user_view_post(user, row))
-        except Exception:
-            allowed = False
-        if allowed:
+        if _safe(partial(can_user_view_post, user, row), False):
             visible.append(row)
             if limit is not None and len(visible) >= limit:
                 break
