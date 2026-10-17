@@ -118,7 +118,7 @@ def test_article_renders_sections_toc_related_and_ticket_link(app, client) -> No
     html = _get(client, "/support/help/article/destek-talebi-nasil-acilir")
 
     assert f'<h2 class="bys-prose__title" id="helpArticleTitle">{article["title"]}</h2>' in html
-    for index, section in enumerate(article["sections"], start=1):
+    for index in range(1, len(article["sections"]) + 1):
         assert f'id="section-{index}"' in html
         assert f'<a data-support-anchor href="#section-{index}">' in html
     for related in article.get("related_articles") or []:
