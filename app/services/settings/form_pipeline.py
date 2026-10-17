@@ -47,6 +47,11 @@ def _system_field_name(setting_key: str) -> str:
     return f"system__{setting_key.replace('.', '__')}"
 
 
+def _system_presence_name(setting_key: str) -> str:
+    """Arayüz formunun her alan için gönderdiği işaretçi: alan formdaydı (işaretsiz kutu = kasıtlı kapalı)."""
+    return f"system_present__{setting_key.replace('.', '__')}"
+
+
 def _module_field_name(module_key: str, setting_key: str) -> str:
     return f"module__{module_key}__{setting_key.replace('.', '__')}"
 
@@ -78,7 +83,12 @@ def save_system_settings_from_form_handler(
     changed = 0
 
     for setting_key, definition in definitions.items():
-        incoming = _incoming_form_value(form, _system_field_name(setting_key), definition["input_type"])
+        field_name = _system_field_name(setting_key)
+        # Kısmi istek: alanı ve işaretçisi olmayan ayar olduğu gibi kalır; aksi hâlde gönderilmeyen onay
+        # kutusu (ör. logs.enable_audit_log) sessizce kapanır, metin alanı boş değerle ezilirdi.
+        if form.get(field_name) is None and form.get(_system_presence_name(setting_key)) is None:
+            continue
+        incoming = _incoming_form_value(form, field_name, definition["input_type"])
         storage_value = value_to_storage(incoming, definition["value_type"])
         row = rows.get(setting_key)
         if row is None:

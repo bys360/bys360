@@ -166,6 +166,7 @@
                         <div class="foundation-field-grid">
                             {% for row in group.rows %}
                             <div class="foundation-field">
+                                <input type="hidden" name="system_present__{{ row.setting_key|replace('.', '__') }}" value="1">
                                 <label for="system__{{ row.setting_key|replace('.', '__') }}">{{ row.label }}</label>
                                 {% if row.input_type == 'textarea' %}
                                 <textarea id="system__{{ row.setting_key|replace('.', '__') }}" name="system__{{ row.setting_key|replace('.', '__') }}">{{ row.current_value }}</textarea>
