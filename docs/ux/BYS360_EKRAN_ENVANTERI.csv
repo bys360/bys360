@@ -15,7 +15,7 @@ Destek ve Talep Yönetimi,/support,main.support_index,support/index.html,support
 Destek ve Talep Yönetimi,/support/<int:ticket_id>,main.support_detail,support/detail.html,support_index,login_required menu_key_required,Sahip Onayı Bekliyor (PR #79)
 Destek ve Talep Yönetimi,/support/all,main.support_all,support/list.html,support_all,login_required menu_key_required,"Test Edildi (PR #77; yerel ortamda 403, yalnız şablon testi)"
 Destek ve Talep Yönetimi,/support/assigned,main.support_assigned,support/list.html,support_assigned,login_required menu_key_required,Sahip Onayı Bekliyor (PR #77)
-Destek ve Talep Yönetimi,/support/help-admin,main.support_help_admin,support/help_admin_list.html,support_index,admin_required login_required menu_key_required,İncelenmedi
+Destek ve Talep Yönetimi,/support/help-admin,main.support_help_admin,support/help_admin_list.html,support_index,admin_required login_required menu_key_required,Sahip Onayı Bekliyor (PR #83)
 Destek ve Talep Yönetimi,/support/help-admin/<int:article_id>/edit,main.support_help_admin_edit,support/help_admin_form.html,support_index,admin_required login_required menu_key_required,Sahip Onayı Bekliyor (PR #82)
 Destek ve Talep Yönetimi,/support/help-admin/new,main.support_help_admin_new,support/help_admin_form.html,support_index,admin_required login_required menu_key_required,Sahip Onayı Bekliyor (PR #82)
 Destek ve Talep Yönetimi,/support/help/article/<string:article_slug>,main.support_help_article,support/help_article.html,support_index,login_required menu_key_required,Sahip Onayı Bekliyor (PR #81)
