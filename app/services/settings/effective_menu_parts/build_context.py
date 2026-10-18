@@ -8,11 +8,20 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from app.services.settings.effective_menu_parts.bys360_context import (
-    _bys360_person_matrix_can_open_v1,
-)
-
 RollbackHook = Callable[[], None]
+
+# Same set as bys360_context._bys360_person_matrix_user_is_admin_v1. Repeated here on purpose: this
+# module imports its dependencies lazily through the effective_menu facade only (no module-level
+# import of a sibling part), so it stays loadable on its own.
+_PERSON_MATRIX_ADMIN_ROLES = frozenset({"admin", "super_admin", "system_admin", "sistem_yoneticisi"})
+
+
+def _person_matrix_user_is_admin(user: Any, normalize_role_name: Callable[[Any], str]) -> bool:
+    return bool(
+        normalize_role_name(getattr(user, "role", "")) in _PERSON_MATRIX_ADMIN_ROLES
+        or getattr(user, "is_admin", False)
+        or getattr(user, "is_superuser", False)
+    )
 
 def build_menu_visibility_map(
     user: Any,
@@ -236,7 +245,7 @@ def build_menu_visibility_map(
                 continue
             # P0: kişi bazlı kayıt admin_only bir yönetim ekranını admin olmayana açmaz (canlı yetki
             # katmanındaki aynı kural; bu katman daha önce onu eziyordu). Kapatma her zaman uygulanır.
-            if is_visible and not _bys360_person_matrix_can_open_v1(key, v14_items.get(key), user):
+            if is_visible and (v14_items.get(key) or {}).get("admin_only") and not _person_matrix_user_is_admin(user, normalize_role_name):
                 continue
             visibility[key] = bool(is_visible)
 
