@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import logging
 import os
 import tempfile
 import textwrap
@@ -45,6 +46,16 @@ EDIT_FORM = {"title": "Sahte P0 Düzenlenmiş Dönem", "period_type": "6 Aylık"
 # İsteğe bağlı PostgreSQL koşusu: yalnız localhost'taki geçici, sahte bir test veritabanı.
 # Tanımlıysa her test o veritabanının public şemasını sıfırlar; SQLite yerine geçmez, atlanmaz.
 PG_URL = os.environ.get("BYS360_P0_PG_URL", "").strip()
+
+
+@pytest.fixture(autouse=True)
+def _logging_enabled():
+    """test_17 günlük metnini doğrular; önceki bir testin açık bıraktığı süreç geneli
+    ``logging.disable()`` durumuna bağlı kalmaz (test_pr68_f2_upload_log_hygiene ile aynı desen)."""
+    previous = logging.root.manager.disable
+    logging.disable(logging.NOTSET)
+    yield
+    logging.disable(previous)
 
 
 @pytest.fixture
