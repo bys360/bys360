@@ -11,6 +11,7 @@ from typing import Any
 
 from app.config import is_removed_menu_key
 from app.models import RoleMenuDefault, UserMenuPermission
+from app.services.settings.effective_menu_parts.override_scope import user_overrides_suppressed
 
 RollbackHook = Callable[[], None]
 
@@ -171,7 +172,7 @@ def _load_unit_profile_state(user: Any, *, rollback: RollbackHook | None = None)
 
 def _load_user_override_state(user: Any, *, rollback: RollbackHook | None = None) -> dict[str, bool]:
     user_id = getattr(user, "id", None)
-    if not user_id:
+    if not user_id or user_overrides_suppressed():
         return {}
     rows = _safe_query_all(UserMenuPermission.query.filter_by(user_id=user_id), rollback=rollback)
     return _row_map_by_key(rows)

@@ -260,6 +260,13 @@ def _currently_visible_keys(user) -> set[str]:
     return {key for key, visible in (build_menu_visibility_map(user) or {}).items() if visible}
 
 
+def _admin_exception_keys(target, visible_keys) -> set[str]:
+    """K2: gerçek admin'in bu hesaba rol tanımının dışında verdiği anahtarlar (onaylı istisna olarak yazılır)."""
+    if target is None or not is_real_admin(current_user):
+        return set()
+    return grant_ceiling_violations(getattr(target, "role", ""), visible_keys, (), exempt_keys=PROTECTED_GRANT_KEYS)
+
+
 def _authorize_rollback(row, plan):
     """N1: a rollback is a write like any other; the same rules apply to what it would restore."""
     scope = row.change_scope
@@ -807,7 +814,7 @@ def _handle_bulk_apply_profile(users, grouped_menu_definitions, flat_menu_items)
         return _refuse_settings_change(None, GRANT_CEILING_REFUSAL, keep_user_id=keep_user_id)
     try:
         for user, visible_keys in planned:
-            _apply_visibility_keys_to_user(user, flat_menu_items, visible_keys)
+            _apply_visibility_keys_to_user(user, flat_menu_items, visible_keys, _admin_exception_keys(user, visible_keys))
         write_audit_log(
             "settings.bulk_profile_apply",
             "user",
@@ -1070,6 +1077,7 @@ def _handle_user_scoped_profile_action(form_action, flat_menu_items, all_menu_ke
                 visible_keys,
                 updated_by_user_id=actor_id,
                 allow_explicit_grant_change=grant_change_allowed,
+                admin_exception_keys=_admin_exception_keys(selected_user, visible_keys),
             )
             flash(
                 f"{selected_user.ad} {selected_user.soyad} için kişi bazlı sekme ayarları kaydedildi. Bu personelin menüsü artık ekrandaki işaretlere göre çalışır. Kaydedilen sekme: {result['override_count']}",

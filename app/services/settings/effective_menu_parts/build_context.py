@@ -11,6 +11,7 @@ from typing import Any
 from app.services.settings.effective_menu_parts.bys360_context import (
     _bys360_person_matrix_can_open_v1,
 )
+from app.services.settings.effective_menu_parts.override_scope import user_overrides_suppressed
 
 RollbackHook = Callable[[], None]
 
@@ -99,7 +100,7 @@ def build_menu_visibility_map(
                 visibility[key] = True
 
         try:
-            rows = UserMenuPermission.query.filter_by(user_id=user.id).all()
+            rows = [] if user_overrides_suppressed() else UserMenuPermission.query.filter_by(user_id=user.id).all()
         except Exception as load_exc:  # pragma: no cover
             _rollback(rollback)
             _log_warning(
@@ -336,7 +337,20 @@ def build_menu_visibility_map(
     # K5-Q1/K5-Q3 (approved policy, 2026-10-10): support_all is an explicit per-user grant.
     # No role default, unit profile, role/label policy layer above or later wrapper opens it;
     # the menu, menu_key_required("support_all") and the support screens read the same grant.
-    from app.services.personnel_read_grant import SUPPORT_ALL_KEY, has_support_all_grant
+    from app.services.personnel_read_grant import (
+        EXPLICIT_GRANT_KEYS,
+        SUPPORT_ALL_KEY,
+        has_support_all_grant,
+    )
+    from app.services.settings.menu_grant_ceiling import apply_legacy_override_ceiling
+
+    # K2: rol politikasının dışındaki eski kişi kaydı erişim vermez (onaylı istisna ve açık izinler hariç).
+    visibility = apply_legacy_override_ceiling(
+        visibility,
+        user,
+        rebuild=lambda: build_menu_visibility_map(user, logger=logger, rollback=rollback),
+        exempt_keys=EXPLICIT_GRANT_KEYS,
+    )
 
     if SUPPORT_ALL_KEY in visibility:
         visibility[SUPPORT_ALL_KEY] = has_support_all_grant(user)
