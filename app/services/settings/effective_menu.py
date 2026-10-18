@@ -340,3 +340,27 @@ def _apply_r05c_admin_lockout_floor(previous_build_menu_visibility_map):
 
 build_menu_visibility_map = _apply_r05c_admin_lockout_floor(build_menu_visibility_map)
 # BYS360_R05C_ADMIN_LOCKOUT_FLOOR_END
+
+
+# BYS360_K2_LEGACY_OVERRIDE_CEILING_BEGIN
+# K2 (owner decision 2026-10-18): a per-user row outside the role definition opens nothing unless it
+# was granted through an approved mechanism (a real admin's exception or an explicit grant). Only keys
+# that the map without per-user rows would not show are closed. Final layer; see menu_grant_ceiling.
+def _apply_k2_legacy_override_ceiling(previous_build_menu_visibility_map):
+    def build_menu_visibility_map(user, *args, **kwargs):
+        from app.services.personnel_read_grant import EXPLICIT_GRANT_KEYS
+        from app.services.settings.menu_grant_ceiling import apply_legacy_override_ceiling
+
+        visibility = dict(previous_build_menu_visibility_map(user, *args, **kwargs) or {})
+        return apply_legacy_override_ceiling(
+            visibility,
+            user,
+            rebuild=lambda: previous_build_menu_visibility_map(user, *args, **kwargs),
+            exempt_keys=EXPLICIT_GRANT_KEYS,
+        )
+
+    return build_menu_visibility_map
+
+
+build_menu_visibility_map = _apply_k2_legacy_override_ceiling(build_menu_visibility_map)
+# BYS360_K2_LEGACY_OVERRIDE_CEILING_END

@@ -193,12 +193,16 @@ def role_profile_change_refusal(actor: Any, role: Any, *, before: Any, after: An
         return "settings_admin_role_profile" if is_admin_role else "settings_role_profile"
     if not is_real_admin(actor):
         # P0 menü matrisi tavanı: rolün kurumsal tanımının vermediği anahtar rol varsayılanına eklenemez.
+        from app.menu_registry import get_role_default_menu_keys as shipped_role_default_menu_keys
         from app.services.settings.menu_grant_ceiling import (
             GRANT_CEILING_REFUSAL,
             grant_ceiling_violations,
         )
 
-        if grant_ceiling_violations(role, after_keys, before_keys, exempt_keys=PROTECTED_GRANT_KEYS):
+        # R05c "temel geri almalar": the role's shipped (code) defaults are the institutional
+        # baseline, so restoring them is not an escalation; database rows never widen this set.
+        exempt = set(PROTECTED_GRANT_KEYS) | set(shipped_role_default_menu_keys(normalize_role_name(role)))
+        if grant_ceiling_violations(role, after_keys, before_keys, exempt_keys=exempt):
             return GRANT_CEILING_REFUSAL
     if is_admin_role and any(key in before_keys and key not in after_keys for key in LOCKOUT_CRITICAL_ADMIN_KEYS):
         return "admin_role_lockout_keys"
