@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-PASSWORD = "MatrisTavanSahte1!"
+PASSWORD = "MatrisTavanTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "menu_grant_ceiling" / "dbs"
 NON_ADMIN_MANAGERS = ["baskan", "baskan_yardimcisi", "grup_baskani", "mali_musavir"]
 # Kurumsal tanımın personel rolüne vermediği, gerçek erişim açan anahtarlar ve açtıkları rotalar.
