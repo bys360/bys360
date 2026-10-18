@@ -569,7 +569,7 @@ def test_17_refusals_are_audited_without_sensitive_values(app, caplog) -> None:
 
     period_id = _period(app)
     client = _client_for(app, "mali_musavir", "P0-AUDIT-HM")
-    secret = "GIZLI-SAHTE-DEGER-7731"
+    secret = "GIZLI-TEST-DEGER-7731"
     with caplog.at_level(logging.WARNING, logger="app.security.critical_operations"):
         assert _denied(client.post(f"/performance/periods/{period_id}/toggle-publish?token=" + secret,
                                    data={"target_state": "true", "password": secret}))
