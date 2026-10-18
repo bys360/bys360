@@ -107,6 +107,7 @@ from app.main_handlers.account_visibility_helpers import (
 )
 from app.route_support import build_menu_visibility_map, normalize_role_name, render_access_denied
 from app.services.account_change_guard import (
+    PROTECTED_GRANT_KEYS,
     ChangeRefused,
     audit_refusal,
     is_real_admin,
@@ -242,7 +243,7 @@ def _user_matrix_refusal(target, visible_keys, flat_menu_items):
     if refusal:
         return refusal
     if not is_real_admin(current_user) and grant_ceiling_violations(
-        getattr(target, "role", ""), visible_keys, _currently_visible_keys(target)
+        getattr(target, "role", ""), visible_keys, _currently_visible_keys(target), exempt_keys=PROTECTED_GRANT_KEYS
     ):
         return GRANT_CEILING_REFUSAL
     listed = {str((item or {}).get("key") or "").strip() for item in flat_menu_items or []}
@@ -279,7 +280,8 @@ def _authorize_rollback(row, plan):
             or lockout_revocation_refusal(current_user, target, revoked_keys=revoked)
         )
         if not reason and target is not None and not is_real_admin(current_user) and grant_ceiling_violations(
-            getattr(target, "role", ""), plan.get("user_granted") or set(), _currently_visible_keys(target)
+            getattr(target, "role", ""), plan.get("user_granted") or set(), _currently_visible_keys(target),
+            exempt_keys=PROTECTED_GRANT_KEYS,
         ):
             reason = GRANT_CEILING_REFUSAL
     elif scope == "module_settings":
@@ -799,7 +801,8 @@ def _handle_bulk_apply_profile(users, grouped_menu_definitions, flat_menu_items)
 
     planned = [(user, set(_resolve_bulk_profile_keys(profile_key, user, grouped_menu_definitions))) for user in target_users]
     if not is_real_admin(current_user) and any(
-        grant_ceiling_violations(getattr(user, "role", ""), keys, _currently_visible_keys(user)) for user, keys in planned
+        grant_ceiling_violations(getattr(user, "role", ""), keys, _currently_visible_keys(user), exempt_keys=PROTECTED_GRANT_KEYS)
+        for user, keys in planned
     ):
         return _refuse_settings_change(None, GRANT_CEILING_REFUSAL, keep_user_id=keep_user_id)
     try:

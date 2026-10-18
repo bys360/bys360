@@ -10,8 +10,9 @@ rolün kurumsal tanımın izin verdiği anahtarları **yeni** açabilir:
   yalnız menü kaydı belirleyicidir).
 
 Hesapta zaten görünen anahtarlar yeniden kaydedilebilir; daraltma her zaman serbesttir. Açık izinler
-(``personnel_read_all``, ``support_all``) mevcut K5q/B1F1 kuralıyla ayrıca korunur. Tanınmayan
-anahtar hiçbir role açılamaz (fail-closed).
+mevcut K5q/B1F1 kuralıyla ayrıca korunur; çağıran taraf onları ``exempt_keys`` ile geçirir (bu
+modül, R07 sözleşmesi gereği açık izin sabitlerine doğrudan başvurmaz). Tanınmayan anahtar hiçbir
+role açılamaz (fail-closed).
 """
 from __future__ import annotations
 
@@ -19,7 +20,6 @@ from collections.abc import Iterable
 from typing import Any
 
 from app.route_support import normalize_role_name
-from app.services.personnel_read_grant import EXPLICIT_GRANT_KEYS
 
 GRANT_CEILING_REFUSAL = "settings_grant_ceiling"
 
@@ -47,12 +47,11 @@ def role_may_hold_menu_key(role: Any, key: Any) -> bool:
     return allowed is None or role_name in {normalize_role_name(value) for value in allowed}
 
 
-def grant_ceiling_violations(role: Any, requested_keys: Iterable[Any], already_visible: Iterable[Any]) -> set[str]:
+def grant_ceiling_violations(
+    role: Any, requested_keys: Iterable[Any], already_visible: Iterable[Any], *, exempt_keys: Iterable[Any] = ()
+) -> set[str]:
     """Yeni açılmak istenen ve rolün kurumsal tanımının üstünde kalan anahtarlar."""
     visible = {str(key).strip() for key in already_visible or ()}
+    exempt = {str(key).strip() for key in exempt_keys or ()}
     requested = {str(key).strip() for key in requested_keys or () if str(key).strip()}
-    return {
-        key
-        for key in requested - visible
-        if key not in EXPLICIT_GRANT_KEYS and not role_may_hold_menu_key(role, key)
-    }
+    return {key for key in requested - visible - exempt if not role_may_hold_menu_key(role, key)}

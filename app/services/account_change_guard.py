@@ -198,7 +198,7 @@ def role_profile_change_refusal(actor: Any, role: Any, *, before: Any, after: An
             grant_ceiling_violations,
         )
 
-        if grant_ceiling_violations(role, after_keys, before_keys):
+        if grant_ceiling_violations(role, after_keys, before_keys, exempt_keys=PROTECTED_GRANT_KEYS):
             return GRANT_CEILING_REFUSAL
     if is_admin_role and any(key in before_keys and key not in after_keys for key in LOCKOUT_CRITICAL_ADMIN_KEYS):
         return "admin_role_lockout_keys"
