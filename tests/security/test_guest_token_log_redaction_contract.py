@@ -21,6 +21,16 @@ import pytest
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "guest_token_log" / "dbs"
 
 
+@pytest.fixture(autouse=True)
+def _logging_enabled():
+    """Bu testler günlük metnini doğrular; önceki bir testin süreç genelinde açık bıraktığı
+    ``logging.disable()`` durumuna bağlı kalmamalıdır (test_pr68_f2_upload_log_hygiene ile aynı desen)."""
+    previous = logging.root.manager.disable
+    logging.disable(logging.NOTSET)
+    yield
+    logging.disable(previous)
+
+
 @pytest.fixture
 def app(monkeypatch):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
