@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-PASSWORD = "AyarYetkiSahte1!"
+PASSWORD = "AyarYetkiTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "settings_critical" / "dbs"
 ADMIN_FAMILY_NON_ADMIN = ["baskan", "baskan_yardimcisi", "grup_baskani", "mali_musavir"]
 OUTSIDE_ADMIN_FAMILY = ["koordinator", "birim_sorumlusu", "personel"]
@@ -219,7 +219,7 @@ def test_anonymous_settings_requests_change_nothing(app) -> None:
 
 def test_refusal_audit_contains_no_submitted_values(app) -> None:
     client = _client_for(app, "mali_musavir")
-    secret = "GIZLI-SAHTE-AYAR-4419"
+    secret = "GIZLI-TEST-AYAR-4419"
     form = {**SYSTEM_FORM, "system__general__version_note": secret, "password": secret}
     assert client.post("/settings?token=" + secret, data=form).status_code == 403
     assert client.post("/admin/settings/security?token=" + secret, data=form).status_code == 403
