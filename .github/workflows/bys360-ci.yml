@@ -116,6 +116,31 @@ jobs:
       - name: Run quality tests
         run: python -m pytest tests/quality -m "ci_safe" --cov=app --cov-report= --cov-fail-under=0 --tb=short -q
 
+      # PG15 race gate (2026-10-20): the admin-continuity race tests need two
+      # independent connections and a real FOR UPDATE row lock, so they only
+      # mean something on PostgreSQL. Before this step they never ran in CI
+      # (BYS360_R05C_PG_URL was unset: the R05c pair was skipped and
+      # tests/postgresql was not selected). They now run here against the same
+      # postgres:15 service, in their own disposable database, before the long
+      # Step2 so a race failure is reported within minutes. The gate checks the
+      # server major version and fails on any skip; it adds no coverage data.
+      # Host 127.0.0.1 for the same host-runner reason as the migration steps.
+      - name: Create disposable PostgreSQL 15 race-test database
+        run: |
+          python -c "
+          import psycopg2
+          conn = psycopg2.connect(host='127.0.0.1', port=5432, user='postgres', password='bys360_ci_test_only_password', dbname='postgres')
+          conn.autocommit = True
+          with conn.cursor() as cur:
+              cur.execute('CREATE DATABASE bys360_race_test_ci;')
+          conn.close()
+          "
+
+      - name: PostgreSQL 15 race tests
+        env:
+          BYS360_R05C_PG_URL: postgresql://postgres:bys360_ci_test_only_password@127.0.0.1:5432/bys360_race_test_ci
+        run: python scripts/quality/bys360_postgres_race_gate.py
+
       # NOT (BYS360 Phase 6, CI Coverage Scope Policy Closure, 2026-07-27): tests/services
       # (422 tests) was identified back in Campaign 1 as the lowest-risk, highest-priority
       # candidate for CI coverage inclusion ("izole ve birlikte %100 geçiyor") but the
