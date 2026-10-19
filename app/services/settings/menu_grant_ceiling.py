@@ -178,9 +178,11 @@ def _request_baseline(user: Any, rebuild: Callable[[], dict[str, bool]], suppres
 
 
 def _safe_rollback() -> None:
-    try:
-        from app.extensions import db
+    from sqlalchemy.exc import SQLAlchemyError
 
+    from app.extensions import db
+
+    try:
         db.session.rollback()
-    except Exception:  # pragma: no cover - geri alma da başarısızsa yapılacak bir şey yok
+    except SQLAlchemyError:  # pragma: no cover - geri alma da başarısızsa yapılacak bir şey yok
         logger.exception("BYS360 K2 rollback after lookup failure failed.")
