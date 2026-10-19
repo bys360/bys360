@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.main_handlers.account_visibility_helpers import (
     _BYS360_ALL_MENU_ROLE_MATRIX_ITEM_BY_KEY,
     _BYS360_ALL_MENU_ROLE_MATRIX_ITEMS,
@@ -140,7 +142,11 @@ from app.services.personnel_read_grant import (
     has_support_all_grant,
 )
 from app.services.settings.menu_grant_ceiling import GRANT_CEILING_REFUSAL, grant_ceiling_violations
-from app.services.settings_service import module_settings_state_from_form, snapshot_module_settings
+from app.services.settings_service import (
+    module_settings_state_from_form,
+    settings_phase1_readiness,
+    snapshot_module_settings,
+)
 
 # B1-F1, K5-Q2: only an admin may assign or remove the explicit grants (personnel_read_all,
 # support_all), and never on their own account; the rest of the admin family keeps the other
@@ -374,7 +380,9 @@ def settings_page():
     role_options = sorted({(user.role or "").strip() for user in users if (user.role or "").strip()})
     birim_options = sorted({(user.birim or "").strip() for user in users if (user.birim or "").strip()})
     bulk_result_summary = _resolve_bulk_result_summary_from_args(request.args, grouped_menu_definitions)
-    phase1_seed_summary = ensure_settings_phase1_seeded(updated_by_user_id=getattr(current_user, "id", None))
+    # K13: rendering /settings (GET, and before any POST action) writes nothing; the default sync is the
+    # explicit real-admin form_action "sync_role_defaults".
+    phase1_seed_summary = settings_phase1_readiness()
     if not phase1_seed_summary.get("ok"):
         missing_tables = phase1_seed_summary.get('missing_tables') or []
         if missing_tables:
@@ -587,14 +595,58 @@ def _handle_save_module_foundation():
     return redirect(url_for("main.settings_page", user_id=keep_user_id) if keep_user_id else url_for("main.settings_page"))
 
 
+ROLE_DEFAULTS_SYNC_REFUSAL = "settings_role_defaults_sync_real_admin_only"
+
+
 def _handle_sync_role_defaults():
-    seed_result = ensure_settings_phase1_seeded(updated_by_user_id=getattr(current_user, "id", None))
-    if seed_result.get("ok"):
+    keep_user_id = request.form.get("keep_user_id", type=int)
+    # K13: the sync rewrites every role's seed rows, so only the real admin runs it (audited).
+    if not is_real_admin(current_user):
+        return _refuse_settings_change(None, ROLE_DEFAULTS_SYNC_REFUSAL, keep_user_id=keep_user_id)
+    before = _role_default_rows()
+    # K13: the seed changes and their audit row are one transaction; a failed audit keeps no change.
+    seed_result = ensure_settings_phase1_seeded(updated_by_user_id=getattr(current_user, "id", None), commit=False)
+    if not seed_result.get("ok"):
+        flash(f"Rol varsayılanları senkronize edilirken hata oluştu: {seed_result.get('error')}", "danger")
+    elif _commit_role_defaults_sync(seed_result, before, _role_default_rows()):
         flash("Rol varsayılanı ve ayar omurgası senkronize edildi.", "success")
     else:
-        flash(f"Rol varsayılanları senkronize edilirken hata oluştu: {seed_result.get('error')}", "danger")
+        flash("Rol varsayılanları senkronize edilemedi: denetim kaydı yazılamadı, hiçbir değişiklik kaydedilmedi.", "danger")
     keep_user_id = request.form.get("keep_user_id", type=int)
     return redirect(url_for("main.settings_page", user_id=keep_user_id) if keep_user_id else url_for("main.settings_page"))
+
+
+def _role_default_rows():
+    """(role, menu_key) -> stored visibility, for the sync audit."""
+    from app.models import RoleMenuDefault
+
+    return {(row.role_name, row.menu_key): bool(row.is_visible) for row in RoleMenuDefault.query.all()}
+
+
+def _commit_role_defaults_sync(seed_result, before, after) -> bool:
+    """Writes the sync audit row and commits it with the flushed seed changes; False after a rollback."""
+    changes = [
+        {"role": role, "menu_key": key, "before": before[(role, key)], "after": visible}
+        for (role, key), visible in sorted(after.items())
+        if (role, key) in before and before[(role, key)] != visible
+    ]
+    try:
+        write_audit_log(
+            "settings.role_defaults_sync",
+            "role_menu_default",
+            None,
+            new_data={
+                **{key: seed_result.get(key) for key in ("seeded_role_defaults", "seeded_system_settings", "seeded_module_settings")},
+                "role_default_changes": changes,
+            },
+            summary=f"role defaults synced: {seed_result.get('seeded_role_defaults', 0)} new, {len(changes)} seed rows rewritten",
+        )
+        db.session.commit()
+    except SQLAlchemyError:
+        logger.exception("BYS360 K13 role defaults sync audit failed; the sync was rolled back.")
+        db.session.rollback()
+        return False
+    return True
 
 
 def _handle_save_role_matrix_group(form_action, grouped_menu_definitions, flat_menu_items, all_menu_keys):

@@ -155,7 +155,10 @@ def _load_role_matrix_state(role_name: str, *, rollback: RollbackHook | None = N
     if not normalized_role:
         return {}
     rows = _safe_query_all(RoleMenuDefault.query.filter_by(role_name=normalized_role), rollback=rollback)
-    return _row_map_by_key(rows)
+    from app.services.settings.menu_grant_ceiling import stale_seed_grant_keys
+
+    stale = stale_seed_grant_keys(normalized_role, rows)  # K13: an old seed above the role definition is no record
+    return _row_map_by_key([row for row in rows if str(getattr(row, "menu_key", "") or "").strip() not in stale])
 
 def _load_unit_profile_state(user: Any, *, rollback: RollbackHook | None = None) -> dict[str, bool]:
     unit_name = _get_unit_name_for_authority(user)

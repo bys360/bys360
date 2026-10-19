@@ -166,9 +166,15 @@ def _settings(client, data):
     return client.post("/settings", data=data)
 
 
+def _sync_role_defaults(env):
+    """K13 (19 Oct 2026): rendering /settings no longer seeds the role defaults; the real admin's explicit sync does."""
+    assert _web(env, "admin").post("/settings", data={"form_action": "sync_role_defaults"}).status_code == 302
+
+
 def _seeded_client(env, who):
+    _sync_role_defaults(env)
     client = _web(env, who)
-    client.get("/settings")  # the first request seeds the role defaults
+    client.get("/settings")  # rendering the page writes nothing (K13)
     return client
 
 
@@ -872,7 +878,8 @@ def test_m3_a_settings_visit_never_reverts_an_admin_v10_change(env):
     }
     admin.post("/settings/assistant-role-matrix-v10/save", data=form)
     assert _v10_row(env, "grup_baskani", "assistant_module")[0] is False
-    _web(env, NON_ADMIN).get("/settings")  # runs the per-request settings seed
+    _sync_role_defaults(env)  # K13: the settings seed runs on the real admin's explicit sync, not per request
+    _web(env, NON_ADMIN).get("/settings")
     assert _v10_row(env, "grup_baskani", "assistant_module")[0] is False
     assert _v10_matrix(env)["assistant_module"]["grup_baskani"] is False
 

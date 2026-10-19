@@ -444,7 +444,10 @@ def _resolve_bulk_profile_keys(profile_key: str, user, grouped_menu_definitions)
     if not profile_key:
         return []
     if profile_key == "dynamic::role_defaults":
-        return sorted(get_role_default_menu_keys(getattr(user, "role", "")))
+        # K13: only the settings menu keys the bulk save writes (the seed stores exactly these). With no
+        # stored role rows the static default also lists non-menu keys, which the grant ceiling refuses.
+        settings_keys = {str(item.get("key") or "").strip() for item in flatten_settings_menu_definitions()}
+        return sorted(set(get_role_default_menu_keys(getattr(user, "role", ""))) & settings_keys)
     if profile_key.startswith("unit::"):
         return sorted(get_unit_profile_menu_keys(profile_key.split("::", 1)[1]))
     for profile in _build_bulk_settings_profiles(grouped_menu_definitions):
