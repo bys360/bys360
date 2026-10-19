@@ -119,9 +119,11 @@ def env(monkeypatch, tmp_path):
         db.session.flush()
         for key, (_role, _birim, grant) in USERS.items():
             if grant:  # support_all as assigned in Settings; reports opens the Faz 4 screens
-                for menu_key in ("support_all", "reports"):
+                # support_all: the K5q explicit grant row. reports is outside the personel role
+                # definition, so the real admin's Settings save records it as an admin exception (K2).
+                for menu_key, source_type in (("support_all", "user_override"), ("reports", "admin_exception")):
                     db.session.add(UserMenuPermission(user_id=users[key].id, menu_key=menu_key, is_visible=True,
-                                                      source_type="user_override"))
+                                                      source_type=source_type))
         created = datetime.utcnow() - timedelta(days=10)  # open past every SLA target: breach rows
 
         def _ticket(no, title, private, priority):
