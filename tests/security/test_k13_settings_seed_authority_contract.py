@@ -445,3 +445,147 @@ def test_the_management_family_keeps_its_own_assigned_list(app) -> None:
     page = _client(app, "K13-MGR").get(SUPPORT_GET)
     assert page.status_code == 200
     assert "SAHTE-YONETICIYE-ATANAN" in page.get_data(as_text=True)
+
+
+# ---------------------------------------------------------------------------
+# Review findings (19 Oct 2026): a role with only stale seed rows, and a failed sync audit
+# ---------------------------------------------------------------------------
+def _stale_only_personel_rows(app, extra: dict[str, tuple[bool, str]] | None = None) -> None:
+    """personel holds no role rows but the old opening seed rows (plus ``extra``): what the static role
+    gate must decide again, as if there were no record."""
+    from app.extensions import db
+    from app.models.settings_models import RoleMenuDefault
+
+    rows = {key: (True, "seed") for key in LEGACY_SEED_KEYS}
+    rows.update(extra or {})
+    with app.app_context():
+        for key, (visible, source_type) in rows.items():
+            db.session.add(RoleMenuDefault(role_name="personel", menu_key=key, is_visible=visible, source_type=source_type))
+        db.session.commit()
+
+
+def _role_default_keys(app, role: str, *, prefer_database: bool = True) -> set[str]:
+    from app.services.settings_service import get_role_default_menu_keys
+
+    with app.app_context():
+        return set(get_role_default_menu_keys(role, prefer_database=prefer_database))
+
+
+def test_a_role_with_only_stale_seed_rows_falls_back_to_the_static_role_default(app) -> None:
+    _stale_only_personel_rows(app)
+    static_default = _role_default_keys(app, "personel", prefer_database=False)
+    assert SELF_ASSESSMENT in static_default
+    assert _role_default_keys(app, "personel") == static_default
+    assert not static_default & set(LEGACY_SEED_KEYS)
+
+
+@pytest.mark.parametrize(
+    ("extra", "expected"),
+    [
+        ({"feedback_results": (True, "manual")}, {"feedback_results"}),  # a manual grant still decides
+        ({SELF_ASSESSMENT: (False, "manual")}, set()),  # a manual refusal still decides
+    ],
+)
+def test_manual_role_rows_still_decide_next_to_stale_seed_rows(app, extra, expected) -> None:
+    _stale_only_personel_rows(app, extra)
+    assert _role_default_keys(app, "personel") == expected
+
+
+def test_the_role_default_bulk_profile_over_stale_seed_rows_applies_the_static_role_default(app) -> None:
+    from app.models import UserMenuPermission
+
+    _stale_only_personel_rows(app)
+    _user(app, "K13-ADM", "admin")
+    personel = _user(app, "K13-PER", "personel")
+    response = _client(app, "K13-ADM").post("/settings", data={
+        "form_action": "bulk_apply_profile", "bulk_profile_key": "dynamic::role_defaults",
+        "bulk_scope_type": "role", "bulk_role": "personel",
+    })
+    assert response.status_code == 302
+    with app.app_context():
+        stored = {row.menu_key: bool(row.is_visible) for row in UserMenuPermission.query.filter_by(user_id=personel).all()}
+    assert stored.get(SELF_ASSESSMENT) is True, "the persisted role default keeps the legitimate personel key"
+    assert {key for key in LEGACY_SEED_KEYS if stored.get(key)} == set()
+    assert _menu(app, personel, [SELF_ASSESSMENT] + LEGACY_SEED_KEYS) == {SELF_ASSESSMENT: True, **{key: False for key in LEGACY_SEED_KEYS}}
+
+
+def test_stale_seed_rows_keep_the_unit_profile_and_the_personal_exception(app) -> None:
+    from app.extensions import db
+    from app.models import UnitMenuProfile
+
+    _stale_only_personel_rows(app)
+    with app.app_context():
+        db.session.add(UnitMenuProfile(unit_name="Sahte Birim A", menu_key="feedback_results", is_visible=True))
+        db.session.commit()
+    personel = _user(app, "K13-PER", "personel", rows={"performance_feedback_meetings": (True, "admin_exception")})
+    assert _menu(app, personel, [SELF_ASSESSMENT, "feedback_results", "performance_feedback_meetings", "feedback_actions", "performance_tasks", "support_assigned"]) == {
+        SELF_ASSESSMENT: True, "feedback_results": True, "performance_feedback_meetings": True,
+        "feedback_actions": False, "performance_tasks": False, "support_assigned": False,
+    }
+
+
+def _fail_the_sync_audit_commit(monkeypatch, app) -> None:
+    """The commit that carries the sync audit row fails (a controlled database error); other commits run."""
+    from sqlalchemy.exc import OperationalError
+
+    from app.extensions import db
+    from app.models import AuditLog
+
+    original = db.session.commit
+
+    def commit():
+        if any(isinstance(obj, AuditLog) and obj.action == "settings.role_defaults_sync" for obj in db.session.new):
+            raise OperationalError("COMMIT", {}, Exception("simulated audit commit failure"))
+        return original()
+
+    monkeypatch.setattr(db.session, "commit", commit)
+
+
+def _flashes(client) -> list[tuple[str, str]]:
+    with client.session_transaction() as session:
+        return list(session.get("_flashes", []))
+
+
+def _drop_flashes(client) -> None:
+    """Forget the login flash so only the sync's own message is checked."""
+    with client.session_transaction() as session:
+        session.pop("_flashes", None)
+
+
+def test_a_failed_sync_audit_reports_failure_and_keeps_no_unaudited_change(app, monkeypatch) -> None:
+    from sqlalchemy import text
+
+    from app.extensions import db
+
+    _legacy_seeded_db(app)
+    _user(app, "K13-ADM", "admin")
+    client = _client(app, "K13-ADM")
+    _drop_flashes(client)
+    seed_rows_before = {key: _role_row(app, "personel", key) for key in LEGACY_SEED_KEYS}
+    assert set(seed_rows_before.values()) == {(True, "seed")}
+    _fail_the_sync_audit_commit(monkeypatch, app)
+    response = client.post("/settings", data={"form_action": "sync_role_defaults"})
+    assert response.status_code == 302
+    categories = [category for category, _message in _flashes(client)]
+    assert "success" not in categories, _flashes(client)
+    assert "danger" in categories, _flashes(client)
+    monkeypatch.undo()
+    assert {key: _role_row(app, "personel", key) for key in LEGACY_SEED_KEYS} == seed_rows_before, "no seed change without its audit"
+    with app.app_context():
+        assert db.session.execute(text("SELECT COUNT(*) FROM audit_logs WHERE action = 'settings.role_defaults_sync'")).scalar() == 0
+
+
+def test_a_successful_sync_stores_the_seed_change_and_its_audit_together(app) -> None:
+    from sqlalchemy import text
+
+    from app.extensions import db
+
+    _legacy_seeded_db(app)
+    _user(app, "K13-ADM", "admin")
+    client = _client(app, "K13-ADM")
+    _drop_flashes(client)
+    assert client.post("/settings", data={"form_action": "sync_role_defaults"}).status_code == 302
+    assert [category for category, _message in _flashes(client)] == ["success"]
+    assert {key: _role_row(app, "personel", key) for key in LEGACY_SEED_KEYS} == {key: (False, "seed") for key in LEGACY_SEED_KEYS}
+    with app.app_context():
+        assert db.session.execute(text("SELECT COUNT(*) FROM audit_logs WHERE action = 'settings.role_defaults_sync'")).scalar() == 1
