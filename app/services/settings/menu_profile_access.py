@@ -39,6 +39,10 @@ def get_role_default_menu_keys_handler(
             rows = filter_live_menu_rows_func(
                 role_menu_default_model.query.filter_by(role_name=normalized_role, is_visible=True).all()
             )
+            from app.services.settings.menu_grant_ceiling import stale_seed_grant_keys
+
+            stale = stale_seed_grant_keys(normalized_role, rows)  # K13: an old seed above the role definition grants nothing
+            rows = [row for row in rows if row.menu_key not in stale]
             if rows:
                 return {row.menu_key for row in rows}
             any_rows = filter_live_menu_rows_func(

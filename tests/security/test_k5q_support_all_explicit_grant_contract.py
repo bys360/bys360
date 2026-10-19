@@ -220,10 +220,11 @@ def test_k5q1_a_role_matrix_or_unit_profile_row_grants_nothing(env):
 
 
 def test_k5q1_seeded_role_defaults_never_store_the_grant(env):
-    # Opening /settings seeds the role matrix from the static role menus, which still list support_all
-    # for seven roles (and personel). The seed must store the explicit grants as not visible.
+    # The real admin's role-default sync (K13: no longer GET /settings) seeds the role matrix from the static
+    # role menus, which still list support_all for seven roles. The seed must store the explicit grants as not visible.
     from app.models import RoleMenuDefault
 
+    assert _web(env, "admin").post("/settings", data={"form_action": "sync_role_defaults"}).status_code == 302
     assert _web(env, "admin").get("/settings").status_code == 200
     with env.app.app_context():
         assert RoleMenuDefault.query.filter_by(menu_key=KEY).count() > 0, "the seed must have run"

@@ -30,6 +30,8 @@ from app.route_support import normalize_role_name
 logger = logging.getLogger(__name__)
 
 GRANT_CEILING_REFUSAL = "settings_grant_ceiling"
+# K13: role_menu_defaults rows written by the automatic seeder (manual saves write "manual", rollbacks "rollback").
+SEED_SOURCE = "seed"
 # K2: gerçek admin'in kişi matrisinden rol tanımının dışında verdiği istisna (mevcut source_type sütunu).
 ADMIN_EXCEPTION_SOURCE = "admin_exception"
 
@@ -157,6 +159,33 @@ def unrecognised_user_row_grants(user: Any, rows: Iterable[tuple[Any, Any, Any]]
         if key and is_visible and not _row_grant_recognised(role_name, key, str(source_type or ""), items, exempt):
             refused.add(key)
     return refused
+
+
+def stale_seed_grant_keys(role_name: Any, rows: Iterable[Any]) -> set[str]:
+    """K13: keys of opening ``role_menu_defaults`` seed rows of one role that grant nothing.
+
+    A seed row is the automatic copy of the static role default. One that opens a key today's static
+    default no longer holds and the role definition does not allow (an old seed of a corrected
+    default) is read as no record, so the static role gate decides again. Manual and rollback rows,
+    closing rows and keys the role may hold are untouched; no row is changed (the explicit real-admin
+    sync rewrites it).
+    """
+    from app.menu_registry import get_role_default_menu_keys
+
+    role = normalize_role_name(role_name)
+    static_default: set[str] | None = None
+    stale: set[str] = set()
+    for row in rows or ():
+        if (getattr(row, "source_type", "") or "") != SEED_SOURCE or not getattr(row, "is_visible", False):
+            continue
+        key = str(getattr(row, "menu_key", "") or "").strip()
+        if not key:
+            continue
+        if static_default is None:
+            static_default = set(get_role_default_menu_keys(role))
+        if key not in static_default and not role_may_hold_menu_key(role, key):
+            stale.add(key)
+    return stale
 
 
 def _request_baseline(user: Any, rebuild: Callable[[], dict[str, bool]], suppress: Callable[[], Any]) -> dict[str, bool]:
