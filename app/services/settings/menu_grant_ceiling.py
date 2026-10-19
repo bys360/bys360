@@ -102,16 +102,16 @@ def apply_legacy_override_ceiling(
         rows = UserMenuPermission.query.filter(
             UserMenuPermission.user_id == user.id, UserMenuPermission.is_visible.is_(True)
         ).all()
-        opened = {str(row.menu_key or "").strip() for row in rows if (row.source_type or "") != ADMIN_EXCEPTION_SOURCE}
+        sources = {str(row.menu_key or "").strip(): (row.source_type or "") for row in rows}
     except SQLAlchemyError:
         logger.exception("BYS360 K2 legacy override lookup failed; no per-user exception is recognised.")
         _safe_rollback()
-        opened = {key for key, visible in visibility.items() if visible}
+        sources = {key: "" for key, visible in visibility.items() if visible}
     items = {str((item or {}).get("key") or "").strip(): item for item in _active_menu_items() or []}
     role_name = normalize_role_name(getattr(user, "role", ""))
     candidates = {
-        key for key in opened - exempt
-        if visibility.get(key) and not _role_may_hold(role_name, key, items.get(key))
+        key for key, source in sources.items()
+        if visibility.get(key) and not _row_grant_recognised(role_name, key, source, items, exempt)
     }
     if not candidates:
         return visibility
@@ -120,6 +120,43 @@ def apply_legacy_override_ceiling(
         if not baseline.get(key):
             visibility[key] = False
     return visibility
+
+
+def _row_grant_recognised(role_name: str, key: str, source: str, items: dict[str, Any], exempt: set[str]) -> bool:
+    """May an opening per-user row for ``key`` grant it? (K2 rule, shared by every menu map.)
+
+    F: a per-user row never opens an admin_only screen to anyone but the real admin, an admin
+    exception included; other keys keep the real admin's exception.
+    """
+    item = items.get(key)
+    if key in exempt:
+        return True
+    if source == ADMIN_EXCEPTION_SOURCE and not (item or {}).get("admin_only"):
+        return True
+    return _role_may_hold(role_name, key, item)
+
+
+def unrecognised_user_row_grants(user: Any, rows: Iterable[tuple[Any, Any, Any]], *, exempt_keys: Iterable[Any] = ()) -> set[str]:
+    """K2-b: keys of opening per-user rows ``(menu_key, is_visible, source_type)`` that grant nothing.
+
+    For menu maps outside build_menu_visibility_map that read user_menu_permissions themselves (the
+    assistant map): such a row is ignored there exactly as the main map's ceiling closes it. Role
+    defaults are untouched, so a key the role already has stays open. Closing rows always apply.
+    """
+    from app.services.account_change_guard import is_real_admin
+    from app.services.settings.effective_menu import _active_menu_items
+
+    if user is None or getattr(user, "id", None) is None or is_real_admin(user):
+        return set()
+    exempt = {str(key).strip() for key in exempt_keys or ()}
+    items = {str((item or {}).get("key") or "").strip(): item for item in _active_menu_items() or []}
+    role_name = normalize_role_name(getattr(user, "role", ""))
+    refused = set()
+    for menu_key, is_visible, source_type in rows or ():
+        key = str(menu_key or "").strip()
+        if key and is_visible and not _row_grant_recognised(role_name, key, str(source_type or ""), items, exempt):
+            refused.add(key)
+    return refused
 
 
 def _request_baseline(user: Any, rebuild: Callable[[], dict[str, bool]], suppress: Callable[[], Any]) -> dict[str, bool]:

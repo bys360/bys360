@@ -11,18 +11,14 @@ from typing import Any
 
 RollbackHook = Callable[[], None]
 
-# Same set as bys360_context._bys360_person_matrix_user_is_admin_v1. Repeated here on purpose: this
-# module imports its dependencies lazily through the effective_menu facade only (no module-level
-# import of a sibling part), so it stays loadable on its own.
-_PERSON_MATRIX_ADMIN_ROLES = frozenset({"admin", "super_admin", "system_admin", "sistem_yoneticisi"})
-
-
 def _person_matrix_user_is_admin(user: Any, normalize_role_name: Callable[[Any], str]) -> bool:
-    return bool(
-        normalize_role_name(getattr(user, "role", "")) in _PERSON_MATRIX_ADMIN_ROLES
-        or getattr(user, "is_admin", False)
-        or getattr(user, "is_superuser", False)
-    )
+    """The real admin only: stored role exactly "admin" (as account_change_guard.is_real_admin).
+
+    Technical roles (sistem_yoneticisi, system_admin, super_admin), titles and flags are not the
+    real admin. Written in place on purpose: this module imports its dependencies lazily through
+    the effective_menu facade only, so it stays loadable on its own.
+    """
+    return normalize_role_name(getattr(user, "role", "")) == "admin"
 
 
 def _user_overrides_suppressed() -> bool:

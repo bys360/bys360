@@ -348,7 +348,7 @@ build_menu_visibility_map = _apply_r05c_admin_lockout_floor(build_menu_visibilit
 # that the map without per-user rows would not show are closed. Final layer; see menu_grant_ceiling.
 def _apply_k2_legacy_override_ceiling(previous_build_menu_visibility_map):
     def build_menu_visibility_map(user, *args, **kwargs):
-        from app.services.personnel_read_grant import EXPLICIT_GRANT_KEYS
+        from app.services.personnel_read_grant import explicit_grant_keys
         from app.services.settings.menu_grant_ceiling import apply_legacy_override_ceiling
 
         visibility = dict(previous_build_menu_visibility_map(user, *args, **kwargs) or {})
@@ -356,7 +356,7 @@ def _apply_k2_legacy_override_ceiling(previous_build_menu_visibility_map):
             visibility,
             user,
             rebuild=lambda: previous_build_menu_visibility_map(user, *args, **kwargs),
-            exempt_keys=EXPLICIT_GRANT_KEYS,
+            exempt_keys=explicit_grant_keys(),
         )
 
     return build_menu_visibility_map

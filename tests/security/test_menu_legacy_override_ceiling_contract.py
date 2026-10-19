@@ -233,3 +233,51 @@ def test_real_admin_account_keeps_its_own_rows(app) -> None:
     baseline = _visible(app, admin)
     _legacy_rows(app, admin, {key: True for key in baseline - {"personnel_read_all", "support_all"}})
     assert _visible(app, admin) == baseline
+
+
+# ---------------------------------------------------------------------------
+# 3. Gerçek admin yalnız kayıtlı rolü "admin" olan hesaptır (K2/K3 kararı, 18 Ekim 2026)
+# ---------------------------------------------------------------------------
+ADMIN_ONLY_KEY, ADMIN_ONLY_ROUTE = "settings", "/communication/faz9/release-center"
+REPORTS_ROUTE = "/communication/faz9/export/json"
+
+
+def test_technical_role_legacy_rows_do_not_grant_real_admin_screens(app) -> None:
+    target = _user(app, "EK-TEKNIK", "sistem_yoneticisi")
+    _legacy_rows(app, target, {ADMIN_ONLY_KEY: True, "reports": True})
+    visible = _visible(app, target)
+    assert ADMIN_ONLY_KEY not in visible and "reports" not in visible
+    assert _status(app, "EK-TEKNIK", ADMIN_ONLY_ROUTE) == 403
+    assert _status(app, "EK-TEKNIK", REPORTS_ROUTE) == 403
+
+
+@pytest.mark.parametrize("target_role", ["personel", "sistem_yoneticisi"])
+def test_an_admin_exception_never_opens_an_admin_only_screen(app, target_role) -> None:
+    target = _user(app, "EK-HEDEF", target_role)
+    _legacy_rows(app, target, {ADMIN_ONLY_KEY: True}, "admin_exception")
+    assert ADMIN_ONLY_KEY not in _visible(app, target)
+    assert _status(app, "EK-HEDEF", ADMIN_ONLY_ROUTE) == 403
+
+
+@pytest.mark.parametrize("target_role", ["personel", "sistem_yoneticisi"])
+def test_reports_opens_only_through_a_real_admin_exception(app, target_role) -> None:
+    plain = _user(app, "EK-DUZ", target_role)
+    granted = _user(app, "EK-ISTISNA", target_role)
+    _legacy_rows(app, plain, {"reports": True}, "user_override")
+    _legacy_rows(app, granted, {"reports": True}, "admin_exception")
+    assert _status(app, "EK-DUZ", REPORTS_ROUTE) == 403
+    assert _status(app, "EK-ISTISNA", REPORTS_ROUTE) == 200
+
+
+@pytest.mark.parametrize("actor_role", ["grup_baskani", "sistem_yoneticisi"])
+def test_only_the_real_admin_records_an_exception(app, actor_role) -> None:
+    target = _user(app, "EK-HEDEF", "personel")
+    _user(app, "EK-ADMIN", "admin")
+    _user(app, "EK-AKTOR", actor_role)
+    base = _visible(app, target) - {"personnel_read_all", "support_all"}
+    _login(app, "EK-AKTOR").post("/settings", data=_matrix_form(target, base | {"reports"}))
+    assert _rows(app, target).get("reports", (False, ""))[1] != "admin_exception", actor_role
+    assert _status(app, "EK-HEDEF", REPORTS_ROUTE) == 403
+    assert _login(app, "EK-ADMIN").post("/settings", data=_matrix_form(target, base | {"reports"})).status_code == 302
+    assert _rows(app, target)["reports"] == (True, "admin_exception")
+    assert _status(app, "EK-HEDEF", REPORTS_ROUTE) == 200

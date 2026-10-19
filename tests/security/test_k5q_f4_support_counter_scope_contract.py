@@ -43,6 +43,10 @@ USERS = {
 # Expected open-ticket count per viewer under the access rule.
 EXPECTED = {"sysadm": 1, "baskan": 0, "colleague": 0, "holder": OTHER_TICKETS, "admin_holder": OTHER_TICKETS + 1}
 MENUS = ("settings_center_support", "settings", "reports", "dashboard")
+# K2: reports is outside the personel and sistem_yoneticisi role definitions; as assigned by the real
+# admin in Settings it is recorded as an admin exception. The other menu rows stay ordinary rows
+# (settings is admin_only and settings_center_support a settings-center screen: no exception).
+REPORTS_EXCEPTION_ROLES = {"personel", "sistem_yoneticisi"}
 SUPPORT_CHECKS = {"Açık destek talebi", "Atanmamış destek", "Duran talepler"}
 
 
@@ -109,10 +113,11 @@ def env(monkeypatch, tmp_path):
             db.session.add(user)
             users[key] = user
         db.session.flush()
-        for key, (_role, _birim, grant, _own) in USERS.items():
+        for key, (role, _birim, grant, _own) in USERS.items():
             for menu_key in MENUS + (("support_all",) if grant else ()):
+                exception = menu_key == "reports" and role in REPORTS_EXCEPTION_ROLES
                 db.session.add(UserMenuPermission(user_id=users[key].id, menu_key=menu_key, is_visible=True,
-                                                  source_type="user_override"))
+                                                  source_type="admin_exception" if exception else "user_override"))
         stale = datetime.utcnow() - timedelta(days=10)  # open, unassigned, stale and past every SLA target
         old = datetime.utcnow() - timedelta(days=400)
         ticket_nos = []
@@ -172,13 +177,65 @@ SCOPED = ["sysadm", "baskan", "colleague", "holder", "admin_holder"]
 # --- U1: /settings-center/support ------------------------------------------------------------
 
 
+# K2 (owner decision 2026-10-18): settings_center_support is in the admin and technical role definitions
+# only; baskan and personel reach the read-only screen through a real admin's exception, never through
+# the ordinary per-user row the fixture writes.
+SETTINGS_CENTER_SUPPORT_EXCEPTION = {"baskan", "colleague", "holder"}
+
+
+def _row_source(env, who, menu_key):
+    from app.models import UserMenuPermission
+
+    with env.app.app_context():
+        row = UserMenuPermission.query.filter_by(user_id=env.ids[who], menu_key=menu_key).first()
+        return None if row is None else (bool(row.is_visible), row.source_type)
+
+
+def _grant_by_real_admin(env, who, menu_key):
+    """The approved path: the real admin's per-user matrix save, which records an admin exception."""
+    from flask_login import login_user
+
+    from app.route_support import build_menu_visibility_map
+
+    with env.app.app_context(), env.app.test_request_context("/"):
+        user = _user(env, who)
+        login_user(user)
+        visible = {key for key, shown in build_menu_visibility_map(user).items() if shown}
+    form = {"form_action": "save_user_visibility", "user_id": str(env.ids[who]),
+            **{f"menu_{key}": "on" for key in visible | {menu_key}}}
+    assert _web(env, "admin_holder").post("/settings", data=form).status_code == 302
+
+
 @pytest.mark.parametrize("who", SCOPED)
 def test_settings_center_support_counts_only_the_viewers_tickets(env, who):
+    if who in SETTINGS_CENTER_SUPPORT_EXCEPTION:
+        assert _web(env, who).get("/settings-center/support").status_code == 403  # ordinary row: no access
+        _grant_by_real_admin(env, who, "settings_center_support")
+        assert _row_source(env, who, "settings_center_support") == (True, "admin_exception")
     response = _web(env, who).get("/settings-center/support")
     assert response.status_code == 200
     match = re.search(r"Toplam destek talebi\s+(\d+)", _text(response.get_data(as_text=True)))
     assert match is not None
     assert int(match.group(1)) == EXPECTED[who]
+    assert [no for no in env.other_ticket_nos if no in response.get_data(as_text=True)] == []
+
+
+@pytest.mark.parametrize("actor", ["colleague", "baskan"])
+def test_an_ordinary_user_cannot_create_the_settings_center_exception(env, actor):
+    """Neither the target itself nor a manager can record the exception; the screen stays closed."""
+    from flask_login import login_user
+
+    from app.route_support import build_menu_visibility_map
+
+    with env.app.app_context(), env.app.test_request_context("/"):
+        user = _user(env, "colleague")
+        login_user(user)
+        visible = {key for key, shown in build_menu_visibility_map(user).items() if shown}
+    form = {"form_action": "save_user_visibility", "user_id": str(env.ids["colleague"]),
+            **{f"menu_{key}": "on" for key in visible | {"settings_center_support"}}}
+    _web(env, actor).post("/settings", data=form)
+    assert _row_source(env, "colleague", "settings_center_support") != (True, "admin_exception"), actor
+    assert _web(env, "colleague").get("/settings-center/support").status_code == 403
 
 
 # --- U2/U3: Faz 5 health and retention ----------------------------------------------------------
@@ -298,15 +355,40 @@ def test_json_exports_count_only_the_viewers_tickets(env):
     assert cards["Açık destek"] == EXPECTED["sysadm"]
 
 
+# K2/K3 (owner decision 2026-10-18): sistem_yoneticisi is not the real admin. The pages behind the
+# admin_only "settings" key refuse it at the HTTP layer; their counters stay covered for this viewer by
+# the service-level snapshot tests above, and the real admin still gets the pages with its own scope.
+SETTINGS_SNAPSHOT_PAGES = ["/communication/faz5", "/communication/faz5/retention", "/communication/faz9/release-center"]
+
+
 @pytest.mark.parametrize("path", [
-    "/communication/faz5", "/communication/faz5/health", "/communication/faz5/retention",
-    "/communication/faz8", "/communication/faz8/readiness", "/communication/faz9", "/communication/faz9/release-center",
+    "/communication/faz5/health", "/communication/faz8", "/communication/faz8/readiness", "/communication/faz9",
     "/communication/faz9/first-72", "/communication/faz9a", "/communication/faz9c", "/communication/faz9d",
 ])
 def test_snapshot_pages_still_render_for_a_scoped_viewer(env, path):
     response = _web(env, "sysadm").get(path)
     assert response.status_code == 200, (path, response.status_code)
     assert [no for no in env.other_ticket_nos if no in response.get_data(as_text=True)] == []
+
+
+@pytest.mark.parametrize("path", SETTINGS_SNAPSHOT_PAGES)
+def test_settings_snapshot_pages_refuse_the_technical_role(env, path):
+    response = _web(env, "sysadm").get(path)
+    assert response.status_code == 403, (path, response.status_code)
+    assert [no for no in env.other_ticket_nos if no in response.get_data(as_text=True)] == []
+
+
+@pytest.mark.parametrize("path", SETTINGS_SNAPSHOT_PAGES)
+def test_settings_snapshot_pages_render_for_the_real_admin_within_its_scope(env, path):
+    response = _web(env, "admin_holder").get(path)
+    assert response.status_code == 200, (path, response.status_code)
+    text = _text(response.get_data(as_text=True))
+    if path == "/communication/faz5":
+        match = re.search(r"Açık destek talebi\s+(\d+)", text)
+        assert match is not None and int(match.group(1)) == EXPECTED["admin_holder"]
+    elif path == "/communication/faz5/retention":
+        match = re.search(r"Destek\s+(\d+)\s+(\d+)", text)
+        assert match is not None and (int(match.group(1)), int(match.group(2))) == (EXPECTED["admin_holder"], OLD_TICKETS)
 
 
 # --- U12: Faz 4 stored daily metrics -------------------------------------------------------------
