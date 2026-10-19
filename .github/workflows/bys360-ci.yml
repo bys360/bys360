@@ -29,7 +29,17 @@ jobs:
     # and repository-worktree paths) were fixed -- the Step2 runtime itself,
     # not a defect, was the bottleneck. 90 minutes leaves a real margin
     # (~20 min) over that measured total without being an unbounded budget.
-    timeout-minutes: 180
+    # (The budget was later raised to 180 minutes in eb5f531d, 2026-09-21.)
+    #
+    # Third recalibration (2026-10-19, owner-approved): 180 minutes is
+    # insufficient in the same failure mode. Runs were cancelled by the
+    # 180-minute job limit with 0 test failures (38967292704 attempt 1,
+    # 38992501593, 39004392842 attempt 1; PR #95 run 39211601598 twice, at
+    # 90% and 91% of Step2), and successful runs from 13-17 Oct took
+    # 103-178 min. 240 minutes leaves ~60 min over the slowest observed
+    # success. Step selection, commands and every gate below are unchanged;
+    # reducing the runtime itself is separate work (see PR #84).
+    timeout-minutes: 240
 
     # TD-032 closure: real PostgreSQL 15 target for the migration-integrity
     # gate below. Disposable, CI-only credentials -- never production
