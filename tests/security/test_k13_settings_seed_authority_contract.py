@@ -510,18 +510,27 @@ def test_the_role_default_bulk_profile_over_stale_seed_rows_applies_the_static_r
 
 
 def test_stale_seed_rows_keep_the_unit_profile_and_the_personal_exception(app) -> None:
+    """In the effective menu stale-only seed rows are exactly no record: the menu equals the one without
+    those rows (an empty role table gives personel no self-assessment until the explicit sync, see
+    test_personel_keeps_self_assessment), while the unit profile and the personal exception still apply."""
     from app.extensions import db
     from app.models import UnitMenuProfile
+    from app.models.settings_models import RoleMenuDefault
 
+    keys = [SELF_ASSESSMENT, "feedback_results", "performance_feedback_meetings", "feedback_actions", "performance_tasks", "support_assigned"]
     _stale_only_personel_rows(app)
     with app.app_context():
         db.session.add(UnitMenuProfile(unit_name="Sahte Birim A", menu_key="feedback_results", is_visible=True))
         db.session.commit()
     personel = _user(app, "K13-PER", "personel", rows={"performance_feedback_meetings": (True, "admin_exception")})
-    assert _menu(app, personel, [SELF_ASSESSMENT, "feedback_results", "performance_feedback_meetings", "feedback_actions", "performance_tasks", "support_assigned"]) == {
-        SELF_ASSESSMENT: True, "feedback_results": True, "performance_feedback_meetings": True,
-        "feedback_actions": False, "performance_tasks": False, "support_assigned": False,
-    }
+    with_stale_rows = _menu(app, personel, keys)
+    assert with_stale_rows["feedback_results"] is True, "the unit profile still applies"
+    assert with_stale_rows["performance_feedback_meetings"] is True, "the personal exception still applies"
+    assert {key for key in ("feedback_actions", "performance_tasks", "support_assigned") if with_stale_rows[key]} == set()
+    with app.app_context():
+        RoleMenuDefault.query.filter_by(role_name="personel").delete()
+        db.session.commit()
+    assert _menu(app, personel, keys) == with_stale_rows, "stale seed rows read exactly as no record"
 
 
 def _fail_the_sync_audit_commit(monkeypatch, app) -> None:

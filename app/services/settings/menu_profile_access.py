@@ -45,9 +45,12 @@ def get_role_default_menu_keys_handler(
             rows = [row for row in rows if row.menu_key not in stale]
             if rows:
                 return {row.menu_key for row in rows}
-            any_rows = filter_live_menu_rows_func(
-                role_menu_default_model.query.filter_by(role_name=normalized_role).all()
-            )
+            # K13: the stale seed rows are no record here either; a role with nothing else falls back to the static default.
+            any_rows = [
+                row
+                for row in filter_live_menu_rows_func(role_menu_default_model.query.filter_by(role_name=normalized_role).all())
+                if row.menu_key not in stale
+            ]
             if any_rows:
                 return set()
         except Exception:

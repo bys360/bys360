@@ -165,7 +165,7 @@ def settings_phase1_readiness() -> dict[str, Any]:
     return {"ok": True}
 
 
-def ensure_settings_phase1_seeded(updated_by_user_id: int | None = None) -> dict[str, Any]:
+def ensure_settings_phase1_seeded(updated_by_user_id: int | None = None, *, commit: bool = True) -> dict[str, Any]:
     return _ensure_settings_phase1_seeded_handler(
         updated_by_user_id=updated_by_user_id,
         table_exists=_table_exists,
@@ -181,6 +181,7 @@ def ensure_settings_phase1_seeded(updated_by_user_id: int | None = None) -> dict
         iter_live_module_setting_definitions_func=_iter_live_module_setting_definitions,
         value_to_storage=_value_to_storage,
         safe_rollback=_safe_rollback,
+        commit=commit,
     )
 
 def get_role_default_menu_keys(role_name: str, prefer_database: bool = True) -> set[str]:

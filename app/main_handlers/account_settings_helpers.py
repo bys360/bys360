@@ -604,12 +604,14 @@ def _handle_sync_role_defaults():
     if not is_real_admin(current_user):
         return _refuse_settings_change(None, ROLE_DEFAULTS_SYNC_REFUSAL, keep_user_id=keep_user_id)
     before = _role_default_rows()
-    seed_result = ensure_settings_phase1_seeded(updated_by_user_id=getattr(current_user, "id", None))
-    if seed_result.get("ok"):
-        _audit_role_defaults_sync(seed_result, before, _role_default_rows())
+    # K13: the seed changes and their audit row are one transaction; a failed audit keeps no change.
+    seed_result = ensure_settings_phase1_seeded(updated_by_user_id=getattr(current_user, "id", None), commit=False)
+    if not seed_result.get("ok"):
+        flash(f"Rol varsayılanları senkronize edilirken hata oluştu: {seed_result.get('error')}", "danger")
+    elif _commit_role_defaults_sync(seed_result, before, _role_default_rows()):
         flash("Rol varsayılanı ve ayar omurgası senkronize edildi.", "success")
     else:
-        flash(f"Rol varsayılanları senkronize edilirken hata oluştu: {seed_result.get('error')}", "danger")
+        flash("Rol varsayılanları senkronize edilemedi: denetim kaydı yazılamadı, hiçbir değişiklik kaydedilmedi.", "danger")
     keep_user_id = request.form.get("keep_user_id", type=int)
     return redirect(url_for("main.settings_page", user_id=keep_user_id) if keep_user_id else url_for("main.settings_page"))
 
@@ -621,7 +623,8 @@ def _role_default_rows():
     return {(row.role_name, row.menu_key): bool(row.is_visible) for row in RoleMenuDefault.query.all()}
 
 
-def _audit_role_defaults_sync(seed_result, before, after):
+def _commit_role_defaults_sync(seed_result, before, after) -> bool:
+    """Writes the sync audit row and commits it with the flushed seed changes; False after a rollback."""
     changes = [
         {"role": role, "menu_key": key, "before": before[(role, key)], "after": visible}
         for (role, key), visible in sorted(after.items())
@@ -640,8 +643,10 @@ def _audit_role_defaults_sync(seed_result, before, after):
         )
         db.session.commit()
     except SQLAlchemyError:
-        logger.exception("BYS360 K13 role defaults sync audit failed.")
+        logger.exception("BYS360 K13 role defaults sync audit failed; the sync was rolled back.")
         db.session.rollback()
+        return False
+    return True
 
 
 def _handle_save_role_matrix_group(form_action, grouped_menu_definitions, flat_menu_items, all_menu_keys):
