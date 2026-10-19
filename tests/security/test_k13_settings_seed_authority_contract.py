@@ -584,6 +584,23 @@ def test_a_failed_sync_audit_reports_failure_and_keeps_no_unaudited_change(app, 
         assert db.session.execute(text("SELECT COUNT(*) FROM audit_logs WHERE action = 'settings.role_defaults_sync'")).scalar() == 0
 
 
+def test_a_failed_sync_audit_on_an_empty_database_keeps_none_of_the_inserted_rows(app, monkeypatch) -> None:
+    """The insert path: on an empty database the sync creates every role, system and module setting row;
+    a failed audit commit must roll all of them back together with the audit row."""
+    tables = ("role_menu_defaults", "system_settings", "module_settings")
+    _user(app, "K13-ADM", "admin")
+    client = _client(app, "K13-ADM")
+    _drop_flashes(client)
+    assert {table: _count(app, table) for table in tables} == {table: 0 for table in tables}
+    _fail_the_sync_audit_commit(monkeypatch, app)
+    response = client.post("/settings", data={"form_action": "sync_role_defaults"})
+    assert response.status_code == 302
+    assert [category for category, _message in _flashes(client)] == ["danger"]
+    monkeypatch.undo()
+    assert {table: _count(app, table) for table in tables} == {table: 0 for table in tables}, "no unaudited insert is kept"
+    assert "settings.role_defaults_sync" not in _audit_actions(app)
+
+
 def test_a_successful_sync_stores_the_seed_change_and_its_audit_together(app) -> None:
     from sqlalchemy import text
 
