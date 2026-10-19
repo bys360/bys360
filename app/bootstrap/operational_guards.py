@@ -7,7 +7,7 @@ from flask import Flask, current_app, g, request
 from flask_login import current_user
 
 from app.bootstrap.error_pages import render_error_page
-from app.bootstrap.request_context import is_ops_bypass_user, request_log_context
+from app.bootstrap.request_context import is_ops_bypass_user, redact_log_path, request_log_context
 from app.extensions import db
 from app.security.request_guard import inspect_incoming_request
 from app.services.audit_event_service import record_security_event
@@ -167,11 +167,11 @@ def register_operational_guards(app: Flask) -> None:
         if current_user.is_authenticated and is_ops_bypass_user(current_user):
             return None
 
-        current_app.logger.warning("Bakim modu aktifken istek reddedildi: %s %s", request.method, request.path)
+        current_app.logger.warning("Bakim modu aktifken istek reddedildi: %s %s", request.method, redact_log_path(request.path))
         record_security_event(
             "maintenance_request_denied",
             summary="Bakım modu aktifken yetkisiz/istisna dışı istek reddedildi.",
-            new_data={"path": request.path, "endpoint": request.endpoint},
+            new_data={"path": redact_log_path(request.path), "endpoint": request.endpoint},
         )
         return render_error_page(503, "Bakım Modu", app.config.get("MAINTENANCE_MESSAGE") or "Sistem şu anda planlı bakım modunda. Lütfen kısa süre sonra tekrar deneyin.")
 
@@ -184,19 +184,19 @@ def register_operational_guards(app: Flask) -> None:
             ops_logger.info(
                 "%s %s -> %s | endpoint=%s | duration_ms=%s | request_id=%s",
                 request.method,
-                request.path,
+                redact_log_path(request.path),
                 response.status_code,
                 request.endpoint,
                 duration_ms if duration_ms is not None else "-",
                 getattr(g, "request_id", "-"),
             )
         if response.status_code >= 500:
-            current_app.logger.error("5xx yanit verildi: %s %s -> %s", request.method, request.path, response.status_code)
+            current_app.logger.error("5xx yanit verildi: %s %s -> %s", request.method, redact_log_path(request.path), response.status_code)
             record_security_event(
                 "http_5xx_response",
                 summary="Uygulama 5xx yanıt üretti.",
                 new_data={"status_code": response.status_code, "duration_ms": duration_ms},
             )
         elif duration_ms is not None and duration_ms >= int(app.config.get("SLOW_REQUEST_THRESHOLD_MS", 1500)):
-            current_app.logger.warning("Yavas istek: %s %s %sms", request.method, request.path, duration_ms)
+            current_app.logger.warning("Yavas istek: %s %s %sms", request.method, redact_log_path(request.path), duration_ms)
         return response
