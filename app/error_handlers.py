@@ -21,7 +21,7 @@ from werkzeug.exceptions import HTTPException, MethodNotAllowed, RequestEntityTo
 from werkzeug.wrappers import Response
 
 from app.bootstrap.error_pages import mobile_json_error, wants_mobile_json_error
-from app.bootstrap.request_context import redact_log_path
+from app.bootstrap.request_context import redact_log_path, redact_log_referer
 from app.extensions import db
 from app.services.runtime_schema import RuntimeSchemaMissing
 
@@ -157,7 +157,7 @@ def request_log_context() -> dict[str, Any]:
             "endpoint": request.endpoint,
             "ip": _client_ip(),
             "remote_addr": request.remote_addr or "-",
-            "referer": request.headers.get("Referer", "-"),
+            "referer": redact_log_referer(request.headers.get("Referer")),
             "origin": request.headers.get("Origin", "-"),
             "user_agent": request.headers.get("User-Agent", "-"),
             "content_type": request.headers.get("Content-Type", "-"),
