@@ -217,6 +217,17 @@ def _bys360_assistant_collect_from_db(user, menu_map):
         except Exception:
             __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: except bloğu loglandı (app/services/menu_visibility.py:312)")
             continue
+        if table == "user_menu_permissions":
+            # K2-b: a per-user row the main menu map's K2 ceiling does not recognise grants nothing here.
+            from app.services.personnel_read_grant import explicit_grant_keys
+            from app.services.settings.menu_grant_ceiling import unrecognised_user_row_grants
+
+            refused = unrecognised_user_row_grants(
+                user,
+                [(row.get("menu_key"), _bys360_assistant_truthy(row.get("is_visible")), row.get("source_type")) for row in rows],
+                exempt_keys=explicit_grant_keys(),
+            )
+            rows = [row for row in rows if not (_bys360_assistant_truthy(row.get("is_visible")) and str(row.get("menu_key") or "").strip() in refused)]
         resolved: dict[str, tuple[tuple[int, int], Any]] = {}
         for row in rows:
             feature = canonical_assistant_feature_key(row.get("menu_key"))

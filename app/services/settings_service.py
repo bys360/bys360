@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from sqlalchemy import inspect
@@ -285,6 +286,7 @@ def save_user_menu_overrides(
     *,
     updated_by_user_id: int | None = None,
     allow_explicit_grant_change: bool = False,
+    admin_exception_keys: Iterable[str] = (),
 ) -> dict[str, int]:
     # B1-F1, K5-Q2: the explicit grants change only on the explicit per-user save by ANOTHER
     # user; every other caller (template import, archive apply) leaves the existing rows untouched.
@@ -307,6 +309,7 @@ def save_user_menu_overrides(
         snapshot_user_override_state_func=_snapshot_user_override_state,
         build_base_rule_map_for_user_func=build_base_rule_map_for_user,
         create_settings_change_log_func=_create_settings_change_log,
+        admin_exception_keys=admin_exception_keys,
     )
 
 def clear_user_menu_overrides(
