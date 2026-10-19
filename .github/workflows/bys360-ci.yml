@@ -29,7 +29,18 @@ jobs:
     # and repository-worktree paths) were fixed -- the Step2 runtime itself,
     # not a defect, was the bottleneck. 90 minutes leaves a real margin
     # (~20 min) over that measured total without being an unbounded budget.
-    timeout-minutes: 180
+    # (The budget was later raised to 180 minutes in eb5f531d, 2026-09-21.)
+    #
+    # Third recalibration (2026-10-17, owner-approved short-term fix): 180
+    # minutes was proven insufficient in the same failure mode. Three real
+    # runs were cancelled by the 180-minute job limit with 0 test failures
+    # (runs 38967292704 attempt 1, 38992501593 and 39004392842 attempt 1),
+    # and 28 successful runs from 13-17 Oct took 103-178 min (median 160).
+    # 240 minutes leaves ~60 min over the slowest observed success. Step
+    # selection, commands and every gate below are unchanged. Reducing the
+    # runtime by splitting Step2 is tracked as separate, evidence-based work
+    # (docs/ci/BYS360_QUALITY_GATE_SURE_SINIRI.md).
+    timeout-minutes: 240
 
     # TD-032 closure: real PostgreSQL 15 target for the migration-integrity
     # gate below. Disposable, CI-only credentials -- never production
