@@ -142,7 +142,13 @@ Waitress varsayılan olarak hiçbir bağlantının proxy başlıklarına güvenm
 | `WAITRESS_TRUSTED_PROXY_HEADERS` | Proxy'nin yazdığı başlıklar; yalnız `x-forwarded-for`, `x-forwarded-proto`, `x-forwarded-host`, `x-forwarded-port`. Proxy ayarlıysa zorunlu. |
 
 - Geçersiz veya eksik değer `run_server.py`'nin başlamasını durdurur; güven sessizce genişletilmez.
-- Güven ayarlandığında bu dört başlığı yalnız Waitress yorumlar; uygulamadaki ProxyFix bunları ikinci kez okumaz. `X-Forwarded-Prefix` ProxyFix ayarına (`PROXY_FIX_X_PREFIX`) bağlı kalır.
+- Güven ayarlandığında bu dört başlığı yalnız Waitress yorumlar; uygulamadaki ProxyFix bunları ikinci kez okumaz.
+- **Alt dizin yayını (`X-Forwarded-Prefix`):** varsayılan olarak yok sayılır (`PROXY_FIX_X_PREFIX=0`). Uygulama örneğin `https://kurum/bys/` altında yayınlanacaksa aşağıdakilerin üçü birden gerekir:
+  - `WAITRESS_TRUSTED_PROXY` ayarlı olmalı;
+  - `PROXY_FIX_X_PREFIX=1` olmalı;
+  - proxy `X-Forwarded-Prefix: /bys` başlığını kendisi yazmalı, istemcinin gönderdiği aynı başlığı silmeli veya üzerine yazmalı.
+
+  Başlık yalnız güvenilen proxy adresinden gelirse ve her değeri düz bir yol ise (`/bys`, `/a/b`; `//`, şema, `.`/`..` segmenti yok) okunur; aksi halde Waitress'e varmadan silinir. Güven ayarlı değilken başlık hiçbir koşulda okunmaz.
 - Değerleri ancak operatör gerçek proxy adresini ve katman sayısını doğruladıktan sonra girin. `.env.example`'daki örnek canlı değer değildir. Waitress'in önünde proxy yoksa değişkenleri boş bırakın.
 - Proxy, istemcinin gönderdiği `X-Forwarded-*` başlıklarını silmeli veya üzerine yazmalı. Waitress portuna proxy dışından doğrudan erişim kapatılmalıdır.
 

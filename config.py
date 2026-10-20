@@ -661,7 +661,9 @@ class Config:
     PROXY_FIX_X_PROTO = _coerce_positive_int(os.getenv('PROXY_FIX_X_PROTO'), 1)
     PROXY_FIX_X_HOST = _coerce_positive_int(os.getenv('PROXY_FIX_X_HOST'), 1)
     PROXY_FIX_X_PORT = _coerce_positive_int(os.getenv('PROXY_FIX_X_PORT'), 1)
-    PROXY_FIX_X_PREFIX = _coerce_positive_int(os.getenv('PROXY_FIX_X_PREFIX'), 1)
+    # 0 (default) = X-Forwarded-Prefix is ignored. Read only behind Waitress with WAITRESS_TRUSTED_PROXY
+    # set, from that proxy (app/core/waitress_proxy.py); never from a client.
+    PROXY_FIX_X_PREFIX = _coerce_positive_int(os.getenv('PROXY_FIX_X_PREFIX'), 0)
 
     WAITRESS_THREADS = _coerce_positive_int(os.getenv('WAITRESS_THREADS'), 12 if _is_prod_like else 4)
     # Set: Waitress interprets X-Forwarded-For/-Proto/-Host/-Port and ProxyFix leaves them alone

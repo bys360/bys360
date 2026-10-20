@@ -22,12 +22,15 @@ def apply_reverse_proxy_fix(app):
         "x_proto": int(app.config.get("PROXY_FIX_X_PROTO", 1) or 1),
         "x_host": int(app.config.get("PROXY_FIX_X_HOST", 1) or 1),
         "x_port": int(app.config.get("PROXY_FIX_X_PORT", 1) or 1),
-        "x_prefix": int(app.config.get("PROXY_FIX_X_PREFIX", 1) or 1),
+        "x_prefix": 0,
     }
     if str(app.config.get("WAITRESS_TRUSTED_PROXY") or "").strip():
         # Waitress already applied the trusted proxy's X-Forwarded-For/-Proto/-Host/-Port
         # (app/core/waitress_proxy.py) and leaves those headers in place; reading them again here
         # would pick the wrong hop behind more than one proxy.
         hops.update(x_for=0, x_proto=0, x_host=0, x_port=0)
+        # X-Forwarded-Prefix only reaches the application from the trusted proxy (the guard in
+        # waitress_proxy.py); it is read only when PROXY_FIX_X_PREFIX enables it.
+        hops["x_prefix"] = int(app.config.get("PROXY_FIX_X_PREFIX", 0) or 0)
     app.wsgi_app = ProxyFix(app.wsgi_app, **hops)
     return app
