@@ -214,6 +214,7 @@ def test_c_alias_real_change_is_authorized_manual_persistent_and_audited(env):
     assert previous._refusals(env, "assistant_role_matrix_v10")
     admin.post("/settings/assistant-role-matrix-v10/save", data=form)
     assert previous._v10_row(env, "grup_baskani", "assistant_module") == (False, "manual")
+    previous._sync_role_defaults(env)  # K13: the seed runs on the explicit sync, not on GET /settings
     admin.get("/settings")
     assert previous._v10_matrix(env)["assistant_module"]["grup_baskani"] is False
     audit = previous._audit(env, "settings.assistant_role_matrix_v10_save")[-1]
@@ -241,6 +242,7 @@ def test_c_alias_only_manual_denial_survives_no_op_and_seed_in_all_consumers(env
     form = {f"assistant_matrix__{feature}__{role}": "on" for feature, roles in matrix.items() for role, visible in roles.items() if visible}
     admin.post("/settings/assistant-role-matrix-v10/save", data=form)
     assert previous._role_profile(env, "grup_baskani") == before
+    previous._sync_role_defaults(env)  # K13: the seed runs on the explicit sync, not on GET /settings
     admin.get("/settings")
     assert previous._v10_matrix(env)["assistant_module"]["grup_baskani"] is False
     with env.app.app_context():

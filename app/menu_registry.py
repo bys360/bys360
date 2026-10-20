@@ -1520,6 +1520,24 @@ FEEDBACK_PULSE_CORE_MENU_POLICY = {
 # BYS360_A5_P2D2_FEEDBACK_PULSE_ROUTE_SUPPORT_POLICY_END
 
 
+# BYS360_K13_PERSONEL_STATIC_DEFAULT_ALIGNMENT_START
+# K13 (19 Oct 2026): the static personel default carried seven keys whose menu definition
+# (required_roles) excludes personel. The old seeder copied them into role_menu_defaults as "seed"
+# rows on every GET /settings, which lifted the static role gate and opened 14 performance GET routes,
+# run-alerts/run-digest and /support/assigned to every personel. performance_self_assessment stays.
+_BYS360_K13_PERSONEL_KEYS_OUTSIDE_ROLE_DEFINITION = {
+    "feedback_actions",
+    "feedback_admin",
+    "feedback_manager",
+    "feedback_results",
+    "performance_feedback_meetings",
+    "performance_tasks",
+    "support_assigned",
+}
+ROLE_MENU_DEFAULTS.setdefault("personel", set()).difference_update(_BYS360_K13_PERSONEL_KEYS_OUTSIDE_ROLE_DEFINITION)  # noqa: F821 - dynamic menu registry global
+# BYS360_K13_PERSONEL_STATIC_DEFAULT_ALIGNMENT_END
+
+
 # BYS360_A5_P2D4_LIVE_SCOPE_PORTAL_PREFIX_ANCHOR_START
 # Static contract anchor: /portal
 # Portal prefix canl? kapsam/karantina s?zle?mesinde a??k?a izlenir.

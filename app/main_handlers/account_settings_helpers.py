@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.main_handlers.account_visibility_helpers import (
     _BYS360_ALL_MENU_ROLE_MATRIX_ITEM_BY_KEY,
     _BYS360_ALL_MENU_ROLE_MATRIX_ITEMS,
@@ -105,8 +107,9 @@ from app.main_handlers.account_visibility_helpers import (
     url_for,
     utc_now,
 )
-from app.route_support import normalize_role_name
+from app.route_support import build_menu_visibility_map, normalize_role_name, render_access_denied
 from app.services.account_change_guard import (
+    PROTECTED_GRANT_KEYS,
     ChangeRefused,
     audit_refusal,
     is_real_admin,
@@ -138,7 +141,12 @@ from app.services.personnel_read_grant import (
     has_personnel_read_all_grant,
     has_support_all_grant,
 )
-from app.services.settings_service import module_settings_state_from_form, snapshot_module_settings
+from app.services.settings.menu_grant_ceiling import GRANT_CEILING_REFUSAL, grant_ceiling_violations
+from app.services.settings_service import (
+    module_settings_state_from_form,
+    settings_phase1_readiness,
+    snapshot_module_settings,
+)
 
 # B1-F1, K5-Q2: only an admin may assign or remove the explicit grants (personnel_read_all,
 # support_all), and never on their own account; the rest of the admin family keeps the other
@@ -192,6 +200,9 @@ def _settings_redirect(keep_user_id=None, **kwargs):
 
 def _refuse_settings_change(target, reason, *, keep_user_id=None, **redirect_kwargs):
     audit_refusal(target, reason)
+    if GRANT_CEILING_REFUSAL in reason:
+        # P0: kurumsal tanımın üstünde yetki açma girişimi; hiçbir şey yazılmadı.
+        return render_access_denied()
     flash(_LOCKOUT_REFUSAL_MESSAGE if "lockout_keys" in reason else _PROTECTED_MATRIX_REFUSAL_MESSAGE, "danger")
     return _settings_redirect(keep_user_id, **redirect_kwargs)
 
@@ -237,11 +248,29 @@ def _user_matrix_refusal(target, visible_keys, flat_menu_items):
     refusal = user_matrix_change_refusal(current_user, target)
     if refusal:
         return refusal
+    if not is_real_admin(current_user) and grant_ceiling_violations(
+        getattr(target, "role", ""), visible_keys, _currently_visible_keys(target), exempt_keys=PROTECTED_GRANT_KEYS
+    ):
+        return GRANT_CEILING_REFUSAL
     listed = {str((item or {}).get("key") or "").strip() for item in flat_menu_items or []}
     revoked = listed - set(visible_keys or ())
     return own_matrix_lockout_refusal(current_user, target, revoked_keys=revoked) or lockout_revocation_refusal(
         current_user, target, revoked_keys=revoked
     )
+
+
+def _currently_visible_keys(user) -> set[str]:
+    """Hedef hesabın şu anki canlı menüsünde görünen anahtarlar (yeniden kayıt bir istisnayı korur)."""
+    if user is None:
+        return set()
+    return {key for key, visible in (build_menu_visibility_map(user) or {}).items() if visible}
+
+
+def _admin_exception_keys(target, visible_keys) -> set[str]:
+    """K2: gerçek admin'in bu hesaba rol tanımının dışında verdiği anahtarlar (onaylı istisna olarak yazılır)."""
+    if target is None or not is_real_admin(current_user):
+        return set()
+    return grant_ceiling_violations(getattr(target, "role", ""), visible_keys, (), exempt_keys=PROTECTED_GRANT_KEYS)
 
 
 def _authorize_rollback(row, plan):
@@ -263,6 +292,11 @@ def _authorize_rollback(row, plan):
             or own_matrix_lockout_refusal(current_user, target, revoked_keys=revoked)
             or lockout_revocation_refusal(current_user, target, revoked_keys=revoked)
         )
+        if not reason and target is not None and not is_real_admin(current_user) and grant_ceiling_violations(
+            getattr(target, "role", ""), plan.get("user_granted") or set(), _currently_visible_keys(target),
+            exempt_keys=PROTECTED_GRANT_KEYS,
+        ):
+            reason = GRANT_CEILING_REFUSAL
     elif scope == "module_settings":
         reason = _module_authority_refusal(snapshot_module_settings(), plan.get("module_after") or {})
     else:
@@ -346,7 +380,9 @@ def settings_page():
     role_options = sorted({(user.role or "").strip() for user in users if (user.role or "").strip()})
     birim_options = sorted({(user.birim or "").strip() for user in users if (user.birim or "").strip()})
     bulk_result_summary = _resolve_bulk_result_summary_from_args(request.args, grouped_menu_definitions)
-    phase1_seed_summary = ensure_settings_phase1_seeded(updated_by_user_id=getattr(current_user, "id", None))
+    # K13: rendering /settings (GET, and before any POST action) writes nothing; the default sync is the
+    # explicit real-admin form_action "sync_role_defaults".
+    phase1_seed_summary = settings_phase1_readiness()
     if not phase1_seed_summary.get("ok"):
         missing_tables = phase1_seed_summary.get('missing_tables') or []
         if missing_tables:
@@ -559,14 +595,58 @@ def _handle_save_module_foundation():
     return redirect(url_for("main.settings_page", user_id=keep_user_id) if keep_user_id else url_for("main.settings_page"))
 
 
+ROLE_DEFAULTS_SYNC_REFUSAL = "settings_role_defaults_sync_real_admin_only"
+
+
 def _handle_sync_role_defaults():
-    seed_result = ensure_settings_phase1_seeded(updated_by_user_id=getattr(current_user, "id", None))
-    if seed_result.get("ok"):
+    keep_user_id = request.form.get("keep_user_id", type=int)
+    # K13: the sync rewrites every role's seed rows, so only the real admin runs it (audited).
+    if not is_real_admin(current_user):
+        return _refuse_settings_change(None, ROLE_DEFAULTS_SYNC_REFUSAL, keep_user_id=keep_user_id)
+    before = _role_default_rows()
+    # K13: the seed changes and their audit row are one transaction; a failed audit keeps no change.
+    seed_result = ensure_settings_phase1_seeded(updated_by_user_id=getattr(current_user, "id", None), commit=False)
+    if not seed_result.get("ok"):
+        flash(f"Rol varsayılanları senkronize edilirken hata oluştu: {seed_result.get('error')}", "danger")
+    elif _commit_role_defaults_sync(seed_result, before, _role_default_rows()):
         flash("Rol varsayılanı ve ayar omurgası senkronize edildi.", "success")
     else:
-        flash(f"Rol varsayılanları senkronize edilirken hata oluştu: {seed_result.get('error')}", "danger")
+        flash("Rol varsayılanları senkronize edilemedi: denetim kaydı yazılamadı, hiçbir değişiklik kaydedilmedi.", "danger")
     keep_user_id = request.form.get("keep_user_id", type=int)
     return redirect(url_for("main.settings_page", user_id=keep_user_id) if keep_user_id else url_for("main.settings_page"))
+
+
+def _role_default_rows():
+    """(role, menu_key) -> stored visibility, for the sync audit."""
+    from app.models import RoleMenuDefault
+
+    return {(row.role_name, row.menu_key): bool(row.is_visible) for row in RoleMenuDefault.query.all()}
+
+
+def _commit_role_defaults_sync(seed_result, before, after) -> bool:
+    """Writes the sync audit row and commits it with the flushed seed changes; False after a rollback."""
+    changes = [
+        {"role": role, "menu_key": key, "before": before[(role, key)], "after": visible}
+        for (role, key), visible in sorted(after.items())
+        if (role, key) in before and before[(role, key)] != visible
+    ]
+    try:
+        write_audit_log(
+            "settings.role_defaults_sync",
+            "role_menu_default",
+            None,
+            new_data={
+                **{key: seed_result.get(key) for key in ("seeded_role_defaults", "seeded_system_settings", "seeded_module_settings")},
+                "role_default_changes": changes,
+            },
+            summary=f"role defaults synced: {seed_result.get('seeded_role_defaults', 0)} new, {len(changes)} seed rows rewritten",
+        )
+        db.session.commit()
+    except SQLAlchemyError:
+        logger.exception("BYS360 K13 role defaults sync audit failed; the sync was rolled back.")
+        db.session.rollback()
+        return False
+    return True
 
 
 def _handle_save_role_matrix_group(form_action, grouped_menu_definitions, flat_menu_items, all_menu_keys):
@@ -778,10 +858,15 @@ def _handle_bulk_apply_profile(users, grouped_menu_definitions, flat_menu_items)
         flash("Seçilen kapsamda güncellenecek kullanıcı bulunamadı.", "warning")
         return redirect(url_for("main.settings_page", user_id=keep_user_id) if keep_user_id else url_for("main.settings_page"))
 
+    planned = [(user, set(_resolve_bulk_profile_keys(profile_key, user, grouped_menu_definitions))) for user in target_users]
+    if not is_real_admin(current_user) and any(
+        grant_ceiling_violations(getattr(user, "role", ""), keys, _currently_visible_keys(user), exempt_keys=PROTECTED_GRANT_KEYS)
+        for user, keys in planned
+    ):
+        return _refuse_settings_change(None, GRANT_CEILING_REFUSAL, keep_user_id=keep_user_id)
     try:
-        for user in target_users:
-            visible_keys = set(_resolve_bulk_profile_keys(profile_key, user, grouped_menu_definitions))
-            _apply_visibility_keys_to_user(user, flat_menu_items, visible_keys)
+        for user, visible_keys in planned:
+            _apply_visibility_keys_to_user(user, flat_menu_items, visible_keys, _admin_exception_keys(user, visible_keys))
         write_audit_log(
             "settings.bulk_profile_apply",
             "user",
@@ -1044,6 +1129,7 @@ def _handle_user_scoped_profile_action(form_action, flat_menu_items, all_menu_ke
                 visible_keys,
                 updated_by_user_id=actor_id,
                 allow_explicit_grant_change=grant_change_allowed,
+                admin_exception_keys=_admin_exception_keys(selected_user, visible_keys),
             )
             flash(
                 f"{selected_user.ad} {selected_user.soyad} için kişi bazlı sekme ayarları kaydedildi. Bu personelin menüsü artık ekrandaki işaretlere göre çalışır. Kaydedilen sekme: {result['override_count']}",

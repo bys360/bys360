@@ -5,6 +5,7 @@ from typing import Any
 from flask import current_app, has_app_context, request
 from flask_login import current_user
 
+from app.bootstrap.request_context import redact_log_path
 from app.extensions import db
 from app.models import AuditLog
 from app.services.audit_service import write_audit_log
@@ -17,7 +18,7 @@ def _safe_request_info() -> dict[str, Any]:
     try:
         return {
             "method": request.method,
-            "path": request.path,
+            "path": redact_log_path(request.path),
             "endpoint": request.endpoint,
             "ip": request.headers.get("X-Forwarded-For") or request.remote_addr,
             "user_agent": (request.headers.get("User-Agent") or "")[:240],

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from sqlalchemy import inspect
@@ -156,7 +157,15 @@ def _safe_rollback() -> None:
     except Exception:
         import logging
         logging.getLogger(__name__).exception("BYS360_MAINTENANCE_V13_P1_SILENT_EXCEPTION_LOGGER | app/services/settings_service.py")
-def ensure_settings_phase1_seeded(updated_by_user_id: int | None = None) -> dict[str, Any]:
+def settings_phase1_readiness() -> dict[str, Any]:
+    """K13: read-only counterpart of ensure_settings_phase1_seeded for rendering /settings (writes nothing)."""
+    missing_tables = [name for name in ("role_menu_defaults", "system_settings", "module_settings") if not _table_exists(name)]
+    if missing_tables:
+        return {"ok": False, "error": "Ayarlar altyapısı henüz veritabanına uygulanmamış.", "missing_tables": missing_tables}
+    return {"ok": True}
+
+
+def ensure_settings_phase1_seeded(updated_by_user_id: int | None = None, *, commit: bool = True) -> dict[str, Any]:
     return _ensure_settings_phase1_seeded_handler(
         updated_by_user_id=updated_by_user_id,
         table_exists=_table_exists,
@@ -172,6 +181,7 @@ def ensure_settings_phase1_seeded(updated_by_user_id: int | None = None) -> dict
         iter_live_module_setting_definitions_func=_iter_live_module_setting_definitions,
         value_to_storage=_value_to_storage,
         safe_rollback=_safe_rollback,
+        commit=commit,
     )
 
 def get_role_default_menu_keys(role_name: str, prefer_database: bool = True) -> set[str]:
@@ -179,7 +189,9 @@ def get_role_default_menu_keys(role_name: str, prefer_database: bool = True) -> 
         role_name=role_name,
         prefer_database=prefer_database,
         role_menu_default_model=RoleMenuDefault,
-        static_role_default_menu_keys_func=static_role_default_menu_keys,
+        # K13: with no stored rows the static default is the role default; like the seeder, it never
+        # carries an explicit grant (support_all, personnel_read_all are per-user only).
+        static_role_default_menu_keys_func=lambda name: without_explicit_grants(static_role_default_menu_keys(name)),
         filter_live_menu_rows_func=_filter_live_menu_rows,
         filter_live_menu_keys_func=_filter_live_menu_keys,
         safe_rollback_func=_safe_rollback,
@@ -285,6 +297,7 @@ def save_user_menu_overrides(
     *,
     updated_by_user_id: int | None = None,
     allow_explicit_grant_change: bool = False,
+    admin_exception_keys: Iterable[str] = (),
 ) -> dict[str, int]:
     # B1-F1, K5-Q2: the explicit grants change only on the explicit per-user save by ANOTHER
     # user; every other caller (template import, archive apply) leaves the existing rows untouched.
@@ -307,6 +320,7 @@ def save_user_menu_overrides(
         snapshot_user_override_state_func=_snapshot_user_override_state,
         build_base_rule_map_for_user_func=build_base_rule_map_for_user,
         create_settings_change_log_func=_create_settings_change_log,
+        admin_exception_keys=admin_exception_keys,
     )
 
 def clear_user_menu_overrides(
