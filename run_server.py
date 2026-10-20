@@ -51,12 +51,12 @@ def _waitress_threads() -> int:
     return int(os.getenv("WAITRESS_THREADS", str(app.config.get("WAITRESS_THREADS", 8))))
 
 
-def _waitress_proxy_settings() -> dict:
+def _waitress_application() -> tuple:
     """WAITRESS_TRUSTED_PROXY* (app/core/waitress_proxy.py); an invalid value stops startup."""
-    from app.core.waitress_proxy import WaitressProxyConfigError, waitress_proxy_settings
+    from app.core.waitress_proxy import WaitressProxyConfigError, waitress_application
 
     try:
-        return waitress_proxy_settings(os.environ)
+        return waitress_application(app, os.environ)
     except WaitressProxyConfigError as exc:
         raise SystemExit(f"BYS360 Waitress proxy yapilandirmasi gecersiz: {exc}") from exc
 
@@ -70,6 +70,7 @@ if __name__ == "__main__":
     if app_env in {"production", "staging"}:
         from waitress import serve
 
-        serve(app, host=host, port=port, threads=_waitress_threads(), **_waitress_proxy_settings())
+        wsgi_app, proxy_kwargs = _waitress_application()
+        serve(wsgi_app, host=host, port=port, threads=_waitress_threads(), **proxy_kwargs)
     else:
         app.run(host=host, port=port, debug=False)

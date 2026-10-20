@@ -20,7 +20,11 @@ from pathlib import Path
 
 import pytest
 
-from app.core.waitress_proxy import WaitressProxyConfigError, waitress_proxy_settings
+from app.core.waitress_proxy import (
+    WaitressProxyConfigError,
+    waitress_application,
+    waitress_proxy_settings,
+)
 
 TRUSTED_PEER = "127.0.0.2"
 UNTRUSTED_PEER = "127.0.0.1"
@@ -78,7 +82,7 @@ def test_an_invalid_or_incomplete_setting_is_refused_not_widened(env) -> None:
 
 def test_run_server_passes_the_settings_to_waitress_and_stops_on_an_invalid_value() -> None:
     source = (Path(__file__).resolve().parents[2] / "run_server.py").read_text(encoding="utf-8")
-    assert "**_waitress_proxy_settings()" in source
+    assert "waitress_application(app, os.environ)" in source and "serve(wsgi_app," in source
     assert "except WaitressProxyConfigError" in source and "raise SystemExit" in source
 
 
@@ -89,7 +93,7 @@ def test_run_server_passes_the_settings_to_waitress_and_stops_on_an_invalid_valu
 def make_app(monkeypatch):
     created = []
 
-    def factory(trusted_proxy: str = ""):
+    def factory(trusted_proxy: str = "", prefix_hops: int = 0):
         _DB_ROOT.mkdir(parents=True, exist_ok=True)
         db_file = _DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
         uri = "sqlite:///" + db_file.as_posix()
@@ -109,6 +113,7 @@ def make_app(monkeypatch):
         monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
         monkeypatch.setattr(Config, "PROXY_FIX_ENABLED", True)  # the production default
         monkeypatch.setattr(Config, "WAITRESS_TRUSTED_PROXY", trusted_proxy)
+        monkeypatch.setattr(Config, "PROXY_FIX_X_PREFIX", prefix_hops)
         app = create_app()
         app.config.update(TESTING=True, SQLALCHEMY_DATABASE_URI=uri)
         from app.extensions import db
@@ -123,7 +128,7 @@ def make_app(monkeypatch):
 
             return json.dumps({
                 "remote_addr": request.remote_addr, "scheme": request.scheme, "host": request.host,
-                "external": url_for("main.index", _external=True),
+                "external": url_for("main.index", _external=True), "script_root": request.script_root,
             })
 
         app.add_url_rule("/__proxy_probe", "proxy_probe", seen)
@@ -146,8 +151,9 @@ def serve():
 
     running = []
 
-    def start(app, env: dict[str, str] | None = None) -> int:
-        server = create_server(app, host="127.0.0.1", port=0, threads=2, **waitress_proxy_settings(env or {}))
+    def start(app, env: dict[str, str] | None = None, prefix_hops: int | None = None) -> int:
+        wsgi_app, kwargs = waitress_application(app, env or {}, prefix_hops)  # the run_server.py wiring
+        server = create_server(wsgi_app, host="127.0.0.1", port=0, threads=2, **kwargs)
         thread = threading.Thread(target=server.run, daemon=True)
         thread.start()
         running.append((server, thread))
@@ -192,6 +198,7 @@ def _trust(count: int = 1) -> dict[str, str]:
 def _untouched(seen: dict, port: int, peer: str) -> None:
     assert seen == {
         "remote_addr": peer, "scheme": "http", "host": f"127.0.0.1:{port}", "external": f"http://127.0.0.1:{port}/",
+        "script_root": "",
     }
 
 
@@ -205,7 +212,9 @@ def test_with_no_trust_forged_proxy_headers_change_nothing(make_app, serve) -> N
 def test_the_trusted_proxy_sets_client_address_https_and_public_url(make_app, serve) -> None:
     port = serve(make_app(TRUSTED_PEER), _trust())
     seen = _probe(port, source=TRUSTED_PEER, headers=_proxy_headers())
-    assert seen == {"remote_addr": CLIENT_IP, "scheme": "https", "host": PUBLIC_HOST, "external": f"https://{PUBLIC_HOST}/"}
+    assert seen == {
+        "remote_addr": CLIENT_IP, "scheme": "https", "host": PUBLIC_HOST, "external": f"https://{PUBLIC_HOST}/", "script_root": "",
+    }
     assert _hsts(port, source=TRUSTED_PEER, headers=_proxy_headers())
 
 
@@ -244,3 +253,208 @@ def test_the_guest_token_reaches_neither_application_nor_waitress_logs(make_app,
     captured = capfd.readouterr()
     assert token not in logged
     assert token not in captured.out + captured.err
+
+
+# ---------------------------------------------------------------------------
+# X-Forwarded-Prefix
+# ---------------------------------------------------------------------------
+# Before: Waitress does not remove X-Forwarded-Prefix and ProxyFix read it (x_prefix=1, and 0 was
+# coerced back to 1) from any connection. A direct request with "X-Forwarded-Prefix: //evil.example"
+# made every url_for and redirect point at another host: "Location: //evil.example/login".
+FORGED_PREFIXES = ("/evil", "//evil.example")
+
+
+def _prefix_seen(port: int, *, source: str, headers: dict[str, str]) -> tuple[dict, str | None]:
+    status, response_headers, _body = _get(port, "/", source=source, headers=headers)
+    assert status == 302
+    return _probe(port, source=source, headers=headers), response_headers.get("Location")
+
+
+@pytest.mark.parametrize("prefix", FORGED_PREFIXES)
+def test_with_no_trust_a_forged_prefix_changes_no_url_or_redirect(make_app, serve, prefix) -> None:
+    port = serve(make_app(prefix_hops=1))  # even with PROXY_FIX_X_PREFIX set, no trust = no prefix
+    for peer in (UNTRUSTED_PEER, TRUSTED_PEER):
+        seen, location = _prefix_seen(port, source=peer, headers={"X-Forwarded-Prefix": prefix})
+        assert seen["script_root"] == "" and seen["external"] == f"http://127.0.0.1:{port}/"
+        assert location == "/login"
+
+
+@pytest.mark.parametrize("prefix", FORGED_PREFIXES)
+def test_a_direct_connection_cannot_set_the_prefix_even_with_a_trusted_proxy_configured(make_app, serve, prefix) -> None:
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    seen, location = _prefix_seen(port, source=UNTRUSTED_PEER, headers={"X-Forwarded-Prefix": prefix})
+    assert seen["script_root"] == "" and location == "/login"
+
+
+def test_the_trusted_proxy_publishes_the_application_under_a_sub_path(make_app, serve) -> None:
+    """The documented sub-path deployment: PROXY_FIX_X_PREFIX=1 and the trusted proxy sets the prefix."""
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    seen, location = _prefix_seen(port, source=TRUSTED_PEER, headers={**_proxy_headers(), "X-Forwarded-Prefix": "/bys"})
+    assert seen["script_root"] == "/bys" and seen["external"] == f"https://{PUBLIC_HOST}/bys/"
+    assert location == "/bys/login"
+
+
+def test_the_trusted_proxy_cannot_pass_on_a_prefix_that_is_not_a_plain_path(make_app, serve) -> None:
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    for prefix in ("//evil.example", "https://evil.example", "/bys/../x", "/a\\b", "bys"):
+        seen, location = _prefix_seen(port, source=TRUSTED_PEER, headers={**_proxy_headers(), "X-Forwarded-Prefix": prefix})
+        assert seen["script_root"] == "" and location == "/login", prefix
+
+
+def test_without_prefix_hops_the_trusted_proxy_prefix_is_ignored(make_app, serve) -> None:
+    port = serve(make_app(TRUSTED_PEER), _trust())  # PROXY_FIX_X_PREFIX default 0
+    seen, location = _prefix_seen(port, source=TRUSTED_PEER, headers={**_proxy_headers(), "X-Forwarded-Prefix": "/bys"})
+    assert seen["script_root"] == "" and location == "/login"
+
+
+@pytest.mark.parametrize(
+    ("trusted_proxy", "prefix_hops", "expected"), [("", 1, 0), ("", 0, 0), (TRUSTED_PEER, 0, 0), (TRUSTED_PEER, 1, 1)]
+)
+def test_proxyfix_reads_the_prefix_only_with_waitress_trust_and_explicit_hops(trusted_proxy, prefix_hops, expected) -> None:
+    from types import SimpleNamespace
+
+    from app.core.reverse_proxy import apply_reverse_proxy_fix
+
+    app = SimpleNamespace(
+        config={"PROXY_FIX_ENABLED": True, "WAITRESS_TRUSTED_PROXY": trusted_proxy, "PROXY_FIX_X_PREFIX": prefix_hops},
+        wsgi_app=object(),
+    )
+    assert apply_reverse_proxy_fix(app).wsgi_app.x_prefix == expected
+
+
+def test_the_prefix_setting_defaults_to_off(monkeypatch) -> None:
+    import config
+
+    for raw, expected in (("", 0), ("0", 0), ("1", 1), ("x", 0)):
+        assert config._coerce_positive_int(raw, 0) == expected
+    source = (Path(__file__).resolve().parents[2] / "config.py").read_text(encoding="utf-8")
+    assert "PROXY_FIX_X_PREFIX = _coerce_positive_int(os.getenv('PROXY_FIX_X_PREFIX'), 0)" in source
+
+
+# ---------------------------------------------------------------------------
+# X-Forwarded-Prefix bypass attempts
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "prefix",
+    [
+        "%2F%2Fevil.example",  # percent-encoded //
+        "/%2e%2e/evil",  # encoded ..
+        "/\\evil.example",  # browsers read /\ as //
+        "\\\\evil.example",
+        " //evil.example",  # leading space
+        "/b\tys",  # control character inside the value (surrounding whitespace is trimmed per RFC 9110)
+        "/bys?x=1",
+        "/bys#x",
+        "/b ys",
+    ],
+)
+def test_encoded_backslash_and_whitespace_prefixes_are_refused_even_from_the_trusted_proxy(make_app, serve, prefix) -> None:
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    seen, location = _prefix_seen(port, source=TRUSTED_PEER, headers={**_proxy_headers(), "X-Forwarded-Prefix": prefix})
+    assert seen["script_root"] == "" and location == "/login", prefix
+
+
+def _get_raw(port: int, path: str, *, source: str, header_lines: list[str]) -> tuple[int, str | None]:
+    """Send header lines verbatim (duplicate names, odd spellings) over a raw socket."""
+    import socket
+
+    request = "\r\n".join([f"GET {path} HTTP/1.1", f"Host: 127.0.0.1:{port}", "Connection: close", *header_lines, "", ""])
+    with socket.create_connection(("127.0.0.1", port), timeout=30, source_address=(source, 0)) as sock:
+        sock.sendall(request.encode("latin-1"))
+        data = b""
+        while chunk := sock.recv(65536):
+            data += chunk
+    head = data.split(b"\r\n\r\n", 1)[0].decode("latin-1").split("\r\n")
+    location = next((line.split(":", 1)[1].strip() for line in head[1:] if line.lower().startswith("location:")), None)
+    return int(head[0].split()[1]), location
+
+
+def test_a_forged_prefix_line_next_to_the_proxy_prefix_drops_both(make_app, serve) -> None:
+    """Client line + proxy line arrive joined as "//evil.example, /bys"; nothing of it is used."""
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    lines = [f"{k}: {v}" for k, v in _proxy_headers().items()] + ["X-Forwarded-Prefix: //evil.example", "X-Forwarded-Prefix: /bys"]
+    assert _get_raw(port, "/", source=TRUSTED_PEER, header_lines=lines) == (302, "/login")
+
+
+@pytest.mark.parametrize("name", ["x-forwarded-prefix", "X-FORWARDED-PREFIX", "X_Forwarded_Prefix"])
+def test_header_name_spellings_do_not_bypass_the_guard(make_app, serve, name) -> None:
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    for peer in (UNTRUSTED_PEER, TRUSTED_PEER):
+        status, location = _get_raw(port, "/", source=peer, header_lines=[f"{name}: //evil.example"])
+        assert (status, location) == (302, "/login"), (name, peer)
+
+
+def test_two_proxy_layers_keep_the_prefix_rule(make_app, serve) -> None:
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust(count=2))
+    headers = {**_proxy_headers(f"10.6.6.6, {CLIENT_IP}, 192.0.2.10")}
+    seen, location = _prefix_seen(port, source=TRUSTED_PEER, headers={**headers, "X-Forwarded-Prefix": "/bys"})
+    assert seen["script_root"] == "/bys" and seen["remote_addr"] == CLIENT_IP and location == "/bys/login"
+    seen, location = _prefix_seen(port, source=UNTRUSTED_PEER, headers={**headers, "X-Forwarded-Prefix": "/bys"})
+    assert seen["script_root"] == "" and location == "/login"
+
+
+# Before: the guard let a list through when every value was a plain path, and ProxyFix picked one
+# by position. "/bys, /evil" (or the lines "/bys" and "/evil") from the trusted proxy gave
+# SCRIPT_NAME=/evil; with PROXY_FIX_X_PREFIX=2 an appending proxy's "/evil, /bys" gave /evil.
+@pytest.mark.parametrize("value", ["/bys, /evil", "/evil, /bys", "/bys,/bys"])
+def test_a_prefix_list_from_the_trusted_proxy_is_refused(make_app, serve, value) -> None:
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    seen, location = _prefix_seen(port, source=TRUSTED_PEER, headers={**_proxy_headers(), "X-Forwarded-Prefix": value})
+    assert seen["script_root"] == "" and location == "/login", value
+
+
+@pytest.mark.parametrize("values", [("/bys", "/evil"), ("/evil", "/bys")])
+def test_two_plain_prefix_lines_from_the_trusted_proxy_are_refused(make_app, serve, values) -> None:
+    """A client line next to the proxy's (an appending proxy) is joined into a list; none of it is used."""
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    lines = [f"{k}: {v}" for k, v in _proxy_headers().items()] + [f"X-Forwarded-Prefix: {v}" for v in values]
+    assert _get_raw(port, "/", source=TRUSTED_PEER, header_lines=lines) == (302, "/login")
+
+
+@pytest.mark.parametrize("hops", [2, 10])
+@pytest.mark.parametrize("env", [{}, _trust(count=2)], ids=["no-trust", "trusted-proxy"])
+def test_more_than_one_prefix_hop_is_refused_at_startup(hops, env) -> None:
+    def app(environ, start_response):  # pragma: no cover - never served
+        return []
+
+    with pytest.raises(WaitressProxyConfigError, match="PROXY_FIX_X_PREFIX"):
+        waitress_application(app, env, prefix_hops=hops)
+
+
+def test_two_prefix_hops_in_the_application_config_stop_waitress(make_app) -> None:
+    with pytest.raises(WaitressProxyConfigError, match="PROXY_FIX_X_PREFIX"):
+        waitress_application(make_app(TRUSTED_PEER, prefix_hops=2), _trust(count=2))
+
+
+def test_a_client_value_is_never_selected_even_if_proxyfix_reads_two_prefix_hops(make_app, serve) -> None:
+    """ProxyFix with x_prefix=2 behind the guard: only a single value passes, so it never has two to pick from."""
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=2), _trust(count=2), prefix_hops=1)
+    proxy_lines = [f"{k}: {v}" for k, v in _proxy_headers(f"{CLIENT_IP}, 192.0.2.10").items()]
+    for prefix_lines in (["X-Forwarded-Prefix: /evil, /bys"], ["X-Forwarded-Prefix: /evil", "X-Forwarded-Prefix: /bys"],
+                         ["X-Forwarded-Prefix: /bys"]):
+        assert _get_raw(port, "/", source=TRUSTED_PEER, header_lines=proxy_lines + prefix_lines) == (302, "/login"), prefix_lines
+
+
+@pytest.mark.parametrize(
+    ("configured", "peer", "kept"),
+    [
+        ("0:0:0:0:0:0:0:1", "::1", True),  # the configured address is normalised to Waitress's form
+        ("::1", "::1", True),
+        ("::1", "::2", False),
+        ("::1", "127.0.0.1", False),
+        ("127.0.0.2", "::ffff:127.0.0.2", False),  # a mapped address is a different peer string
+    ],
+)
+def test_ipv6_peers_are_matched_exactly_at_the_wsgi_layer(configured, peer, kept) -> None:
+    """This container has no IPv6 socket support, so the guard is driven with a WSGI environ here."""
+    seen: dict = {}
+
+    def app(environ, start_response):
+        seen["prefix"] = environ.get("HTTP_X_FORWARDED_PREFIX")
+        start_response("200 OK", [])
+        return [b""]
+
+    env = {"WAITRESS_TRUSTED_PROXY": configured, "WAITRESS_TRUSTED_PROXY_HEADERS": "x-forwarded-proto"}
+    wsgi_app, _kwargs = waitress_application(app, env, prefix_hops=1)
+    wsgi_app({"REMOTE_ADDR": peer, "HTTP_X_FORWARDED_PREFIX": "/bys", "wsgi.url_scheme": "http"}, lambda *a: None)
+    assert (seen["prefix"] == "/bys") is kept

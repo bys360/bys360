@@ -14,6 +14,13 @@ the one proxy Waitress may believe:
 Unset means no trust. An invalid or incomplete setting raises ``WaitressProxyConfigError``; it is
 never widened or ignored. When Waitress trusts a proxy it alone interprets these headers, so the
 application's ProxyFix must not read them again (see ``app/core/reverse_proxy.py``).
+
+X-Forwarded-Prefix is not among the headers Waitress removes, and the application only sees the
+address Waitress rewrote. ``waitress_application`` therefore drops it in front of Waitress's own
+proxy handling unless ``PROXY_FIX_X_PREFIX`` is 1, the peer is the trusted proxy and the header is
+one plain path (``/segment[/segment...]``). A list ("/evil, /bys", or two header lines joined by
+Waitress) is dropped: ProxyFix would pick a value by position, and with an appending proxy or more
+hops than proxies that value can be the client's. ``PROXY_FIX_X_PREFIX`` above 1 is refused.
 """
 from __future__ import annotations
 
@@ -27,6 +34,9 @@ COUNT_ENV = "WAITRESS_TRUSTED_PROXY_COUNT"
 HEADERS_ENV = "WAITRESS_TRUSTED_PROXY_HEADERS"
 ALLOWED_HEADERS = frozenset({"x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-forwarded-port"})
 MAX_PROXY_COUNT = 10
+MAX_PREFIX_HOPS = 1
+PREFIX_ENVIRON_KEY = "HTTP_X_FORWARDED_PREFIX"
+_PLAIN_PATH_PREFIX = re.compile(r"(?:/(?!\.\.?(?:/|$))[A-Za-z0-9._~-]+)+")  # no "." or ".." segment
 
 
 class WaitressProxyConfigError(ValueError):
@@ -83,3 +93,43 @@ def waitress_proxy_settings(env: Mapping[str, str]) -> dict[str, Any]:
         )
     settings.update(trusted_proxy=proxy, trusted_proxy_count=count, trusted_proxy_headers=" ".join(sorted(headers)))
     return settings
+
+
+def _drop_untrusted_forwarded_prefix(app: Any, trusted_proxy: str | None, prefix_hops: int) -> Any:
+    def guarded(environ: dict[str, Any], start_response: Any) -> Any:
+        value = environ.get(PREFIX_ENVIRON_KEY)
+        if value is not None:
+            from_trusted_proxy = bool(trusted_proxy) and environ.get("REMOTE_ADDR") == trusted_proxy
+            single_plain = _PLAIN_PATH_PREFIX.fullmatch(str(value).strip()) is not None  # "," never matches
+            if not (prefix_hops == 1 and from_trusted_proxy and single_plain):
+                del environ[PREFIX_ENVIRON_KEY]
+        return app(environ, start_response)
+
+    return guarded
+
+
+def waitress_application(app: Any, env: Mapping[str, str], prefix_hops: int | None = None) -> tuple[Any, dict[str, Any]]:
+    """The WSGI application and ``waitress.serve`` keyword arguments for run_server.py.
+
+    Waitress's own proxy-header handling is applied here, inside the X-Forwarded-Prefix guard (the
+    guard must see the real peer address), so ``serve`` is told not to wrap the application again.
+    ``prefix_hops`` defaults to the application's ``PROXY_FIX_X_PREFIX``.
+    """
+    from waitress.proxy_headers import proxy_headers_middleware
+
+    if prefix_hops is None:
+        prefix_hops = int(getattr(app, "config", {}).get("PROXY_FIX_X_PREFIX", 0) or 0)
+    if prefix_hops > MAX_PREFIX_HOPS:
+        raise WaitressProxyConfigError(
+            f"PROXY_FIX_X_PREFIX must be 0 or 1; got {prefix_hops}. Only one proxy may set X-Forwarded-Prefix."
+        )
+    settings = waitress_proxy_settings(env)
+    proxy = settings.get("trusted_proxy")
+    inner = proxy_headers_middleware(
+        app,
+        trusted_proxy=proxy,
+        trusted_proxy_count=settings.get("trusted_proxy_count", 1),
+        trusted_proxy_headers=set(str(settings.get("trusted_proxy_headers", "")).split()),
+        clear_untrusted=True,
+    )
+    return _drop_untrusted_forwarded_prefix(inner, proxy, prefix_hops), {"clear_untrusted_proxy_headers": False}
