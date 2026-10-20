@@ -68,7 +68,11 @@ def _job_level_timeout_minutes(text: str, job: str = "quality-gate") -> int:
     jobs_at = next((i for i, line in enumerate(lines) if line == "jobs:"), None)
     assert jobs_at is not None, "Workflow has no top-level `jobs:` key."
 
-    job_at = job_indent = jobs_child_indent = None
+    assert jobs_at + 1 < len(lines), "Workflow `jobs:` block is empty."
+    # The first line after `jobs:` is a job id (quoted or not); its indentation is the job level.
+    jobs_child_indent = len(lines[jobs_at + 1]) - len(lines[jobs_at + 1].lstrip(" "))
+    assert jobs_child_indent > 0, "Workflow `jobs:` block is empty."
+    job_at = job_indent = None
     for i in range(jobs_at + 1, len(lines)):
         match = _KEY_LINE_RE.match(lines[i])
         if not match:
@@ -76,8 +80,6 @@ def _job_level_timeout_minutes(text: str, job: str = "quality-gate") -> int:
         indent = len(match.group("indent"))
         if indent == 0:
             break
-        if jobs_child_indent is None:
-            jobs_child_indent = indent
         if indent != jobs_child_indent:
             continue  # a nested key inside another job, never a job id
         if match.group("key") == job and match.group("rest").split("#", 1)[0].strip() == "":
@@ -183,6 +185,15 @@ def test_timeout_reader_ignores_a_nested_quality_gate_key_inside_another_job() -
     )
     assert "      quality-gate:\n        timeout-minutes: 5" in nested_first
     assert _job_level_timeout_minutes(nested_first.format(value="240")) == 240
+
+
+def test_timeout_reader_does_not_take_a_property_key_for_a_quoted_job_id() -> None:
+    """With a quoted first job id the job level is still the first line's
+    indentation, so a nested ``quality-gate:`` (here at property level) is not
+    taken as the job; the unquoted id the reader looks for is then missing."""
+    quoted = "jobs:\n  'other':\n    quality-gate:\n      timeout-minutes: 99\n"
+    with pytest.raises(AssertionError, match="no `jobs.quality-gate` block"):
+        _job_level_timeout_minutes(quoted)
 
 
 @pytest.mark.parametrize("minutes", [10, 39])
