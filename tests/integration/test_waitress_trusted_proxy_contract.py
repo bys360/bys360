@@ -329,3 +329,90 @@ def test_the_prefix_setting_defaults_to_off(monkeypatch) -> None:
         assert config._coerce_positive_int(raw, 0) == expected
     source = (Path(__file__).resolve().parents[2] / "config.py").read_text(encoding="utf-8")
     assert "PROXY_FIX_X_PREFIX = _coerce_positive_int(os.getenv('PROXY_FIX_X_PREFIX'), 0)" in source
+
+
+# ---------------------------------------------------------------------------
+# X-Forwarded-Prefix bypass attempts
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "prefix",
+    [
+        "%2F%2Fevil.example",  # percent-encoded //
+        "/%2e%2e/evil",  # encoded ..
+        "/\\evil.example",  # browsers read /\ as //
+        "\\\\evil.example",
+        " //evil.example",  # leading space
+        "/b\tys",  # control character inside the value (surrounding whitespace is trimmed per RFC 9110)
+        "/bys?x=1",
+        "/bys#x",
+        "/b ys",
+    ],
+)
+def test_encoded_backslash_and_whitespace_prefixes_are_refused_even_from_the_trusted_proxy(make_app, serve, prefix) -> None:
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    seen, location = _prefix_seen(port, source=TRUSTED_PEER, headers={**_proxy_headers(), "X-Forwarded-Prefix": prefix})
+    assert seen["script_root"] == "" and location == "/login", prefix
+
+
+def _get_raw(port: int, path: str, *, source: str, header_lines: list[str]) -> tuple[int, str | None]:
+    """Send header lines verbatim (duplicate names, odd spellings) over a raw socket."""
+    import socket
+
+    request = "\r\n".join([f"GET {path} HTTP/1.1", f"Host: 127.0.0.1:{port}", "Connection: close", *header_lines, "", ""])
+    with socket.create_connection(("127.0.0.1", port), timeout=30, source_address=(source, 0)) as sock:
+        sock.sendall(request.encode("latin-1"))
+        data = b""
+        while chunk := sock.recv(65536):
+            data += chunk
+    head = data.split(b"\r\n\r\n", 1)[0].decode("latin-1").split("\r\n")
+    location = next((line.split(":", 1)[1].strip() for line in head[1:] if line.lower().startswith("location:")), None)
+    return int(head[0].split()[1]), location
+
+
+def test_a_forged_prefix_line_next_to_the_proxy_prefix_drops_both(make_app, serve) -> None:
+    """Client line + proxy line arrive joined as "//evil.example, /bys"; nothing of it is used."""
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    lines = [f"{k}: {v}" for k, v in _proxy_headers().items()] + ["X-Forwarded-Prefix: //evil.example", "X-Forwarded-Prefix: /bys"]
+    assert _get_raw(port, "/", source=TRUSTED_PEER, header_lines=lines) == (302, "/login")
+
+
+@pytest.mark.parametrize("name", ["x-forwarded-prefix", "X-FORWARDED-PREFIX", "X_Forwarded_Prefix"])
+def test_header_name_spellings_do_not_bypass_the_guard(make_app, serve, name) -> None:
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    for peer in (UNTRUSTED_PEER, TRUSTED_PEER):
+        status, location = _get_raw(port, "/", source=peer, header_lines=[f"{name}: //evil.example"])
+        assert (status, location) == (302, "/login"), (name, peer)
+
+
+def test_two_proxy_layers_keep_the_prefix_rule(make_app, serve) -> None:
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust(count=2))
+    headers = {**_proxy_headers(f"10.6.6.6, {CLIENT_IP}, 192.0.2.10")}
+    seen, location = _prefix_seen(port, source=TRUSTED_PEER, headers={**headers, "X-Forwarded-Prefix": "/bys"})
+    assert seen["script_root"] == "/bys" and seen["remote_addr"] == CLIENT_IP and location == "/bys/login"
+    seen, location = _prefix_seen(port, source=UNTRUSTED_PEER, headers={**headers, "X-Forwarded-Prefix": "/bys"})
+    assert seen["script_root"] == "" and location == "/login"
+
+
+@pytest.mark.parametrize(
+    ("configured", "peer", "kept"),
+    [
+        ("0:0:0:0:0:0:0:1", "::1", True),  # the configured address is normalised to Waitress's form
+        ("::1", "::1", True),
+        ("::1", "::2", False),
+        ("::1", "127.0.0.1", False),
+        ("127.0.0.2", "::ffff:127.0.0.2", False),  # a mapped address is a different peer string
+    ],
+)
+def test_ipv6_peers_are_matched_exactly_at_the_wsgi_layer(configured, peer, kept) -> None:
+    """This container has no IPv6 socket support, so the guard is driven with a WSGI environ here."""
+    seen: dict = {}
+
+    def app(environ, start_response):
+        seen["prefix"] = environ.get("HTTP_X_FORWARDED_PREFIX")
+        start_response("200 OK", [])
+        return [b""]
+
+    env = {"WAITRESS_TRUSTED_PROXY": configured, "WAITRESS_TRUSTED_PROXY_HEADERS": "x-forwarded-proto"}
+    wsgi_app, _kwargs = waitress_application(app, env)
+    wsgi_app({"REMOTE_ADDR": peer, "HTTP_X_FORWARDED_PREFIX": "/bys", "wsgi.url_scheme": "http"}, lambda *a: None)
+    assert (seen["prefix"] == "/bys") is kept
