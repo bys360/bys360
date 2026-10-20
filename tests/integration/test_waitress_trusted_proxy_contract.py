@@ -151,8 +151,8 @@ def serve():
 
     running = []
 
-    def start(app, env: dict[str, str] | None = None) -> int:
-        wsgi_app, kwargs = waitress_application(app, env or {})  # the run_server.py wiring
+    def start(app, env: dict[str, str] | None = None, prefix_hops: int | None = None) -> int:
+        wsgi_app, kwargs = waitress_application(app, env or {}, prefix_hops)  # the run_server.py wiring
         server = create_server(wsgi_app, host="127.0.0.1", port=0, threads=2, **kwargs)
         thread = threading.Thread(target=server.run, daemon=True)
         thread.start()
@@ -393,6 +393,48 @@ def test_two_proxy_layers_keep_the_prefix_rule(make_app, serve) -> None:
     assert seen["script_root"] == "" and location == "/login"
 
 
+# Before: the guard let a list through when every value was a plain path, and ProxyFix picked one
+# by position. "/bys, /evil" (or the lines "/bys" and "/evil") from the trusted proxy gave
+# SCRIPT_NAME=/evil; with PROXY_FIX_X_PREFIX=2 an appending proxy's "/evil, /bys" gave /evil.
+@pytest.mark.parametrize("value", ["/bys, /evil", "/evil, /bys", "/bys,/bys"])
+def test_a_prefix_list_from_the_trusted_proxy_is_refused(make_app, serve, value) -> None:
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    seen, location = _prefix_seen(port, source=TRUSTED_PEER, headers={**_proxy_headers(), "X-Forwarded-Prefix": value})
+    assert seen["script_root"] == "" and location == "/login", value
+
+
+@pytest.mark.parametrize("values", [("/bys", "/evil"), ("/evil", "/bys")])
+def test_two_plain_prefix_lines_from_the_trusted_proxy_are_refused(make_app, serve, values) -> None:
+    """A client line next to the proxy's (an appending proxy) is joined into a list; none of it is used."""
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=1), _trust())
+    lines = [f"{k}: {v}" for k, v in _proxy_headers().items()] + [f"X-Forwarded-Prefix: {v}" for v in values]
+    assert _get_raw(port, "/", source=TRUSTED_PEER, header_lines=lines) == (302, "/login")
+
+
+@pytest.mark.parametrize("hops", [2, 10])
+@pytest.mark.parametrize("env", [{}, _trust(count=2)], ids=["no-trust", "trusted-proxy"])
+def test_more_than_one_prefix_hop_is_refused_at_startup(hops, env) -> None:
+    def app(environ, start_response):  # pragma: no cover - never served
+        return []
+
+    with pytest.raises(WaitressProxyConfigError, match="PROXY_FIX_X_PREFIX"):
+        waitress_application(app, env, prefix_hops=hops)
+
+
+def test_two_prefix_hops_in_the_application_config_stop_waitress(make_app) -> None:
+    with pytest.raises(WaitressProxyConfigError, match="PROXY_FIX_X_PREFIX"):
+        waitress_application(make_app(TRUSTED_PEER, prefix_hops=2), _trust(count=2))
+
+
+def test_a_client_value_is_never_selected_even_if_proxyfix_reads_two_prefix_hops(make_app, serve) -> None:
+    """ProxyFix with x_prefix=2 behind the guard: only a single value passes, so it never has two to pick from."""
+    port = serve(make_app(TRUSTED_PEER, prefix_hops=2), _trust(count=2), prefix_hops=1)
+    proxy_lines = [f"{k}: {v}" for k, v in _proxy_headers(f"{CLIENT_IP}, 192.0.2.10").items()]
+    for prefix_lines in (["X-Forwarded-Prefix: /evil, /bys"], ["X-Forwarded-Prefix: /evil", "X-Forwarded-Prefix: /bys"],
+                         ["X-Forwarded-Prefix: /bys"]):
+        assert _get_raw(port, "/", source=TRUSTED_PEER, header_lines=proxy_lines + prefix_lines) == (302, "/login"), prefix_lines
+
+
 @pytest.mark.parametrize(
     ("configured", "peer", "kept"),
     [
@@ -413,6 +455,6 @@ def test_ipv6_peers_are_matched_exactly_at_the_wsgi_layer(configured, peer, kept
         return [b""]
 
     env = {"WAITRESS_TRUSTED_PROXY": configured, "WAITRESS_TRUSTED_PROXY_HEADERS": "x-forwarded-proto"}
-    wsgi_app, _kwargs = waitress_application(app, env)
+    wsgi_app, _kwargs = waitress_application(app, env, prefix_hops=1)
     wsgi_app({"REMOTE_ADDR": peer, "HTTP_X_FORWARDED_PREFIX": "/bys", "wsgi.url_scheme": "http"}, lambda *a: None)
     assert (seen["prefix"] == "/bys") is kept
