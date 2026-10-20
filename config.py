@@ -664,6 +664,9 @@ class Config:
     PROXY_FIX_X_PREFIX = _coerce_positive_int(os.getenv('PROXY_FIX_X_PREFIX'), 1)
 
     WAITRESS_THREADS = _coerce_positive_int(os.getenv('WAITRESS_THREADS'), 12 if _is_prod_like else 4)
+    # Set: Waitress interprets X-Forwarded-For/-Proto/-Host/-Port and ProxyFix leaves them alone
+    # (validated at startup by app/core/waitress_proxy.py).
+    WAITRESS_TRUSTED_PROXY = (os.getenv('WAITRESS_TRUSTED_PROXY') or '').strip()
     GUNICORN_BIND = os.getenv('GUNICORN_BIND', f"{os.getenv('APP_HOST', '0.0.0.0')}:{os.getenv('APP_PORT', '8000')}").strip() or '0.0.0.0:8000'
     GUNICORN_WORKERS = _coerce_positive_int(os.getenv('GUNICORN_WORKERS'), 3)
     GUNICORN_WORKER_CLASS = os.getenv('GUNICORN_WORKER_CLASS', 'gevent').strip() or 'gevent'
