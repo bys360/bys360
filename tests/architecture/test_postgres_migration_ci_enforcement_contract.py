@@ -68,7 +68,7 @@ def _job_level_timeout_minutes(text: str, job: str = "quality-gate") -> int:
     jobs_at = next((i for i, line in enumerate(lines) if line == "jobs:"), None)
     assert jobs_at is not None, "Workflow has no top-level `jobs:` key."
 
-    job_at = job_indent = None
+    job_at = job_indent = jobs_child_indent = None
     for i in range(jobs_at + 1, len(lines)):
         match = _KEY_LINE_RE.match(lines[i])
         if not match:
@@ -76,6 +76,10 @@ def _job_level_timeout_minutes(text: str, job: str = "quality-gate") -> int:
         indent = len(match.group("indent"))
         if indent == 0:
             break
+        if jobs_child_indent is None:
+            jobs_child_indent = indent
+        if indent != jobs_child_indent:
+            continue  # a nested key inside another job, never a job id
         if match.group("key") == job and match.group("rest").split("#", 1)[0].strip() == "":
             job_at, job_indent = i, indent
             break
@@ -168,6 +172,27 @@ jobs:
 def test_timeout_reader_ignores_comments_other_jobs_and_step_level_keys() -> None:
     assert _job_level_timeout_minutes(_SYNTHETIC_WORKFLOW.format(value="10")) == 10
     assert _job_level_timeout_minutes(_SYNTHETIC_WORKFLOW.format(value="240  # trailing note")) == 240
+
+
+def test_timeout_reader_ignores_a_nested_quality_gate_key_inside_another_job() -> None:
+    """A mapping key named ``quality-gate`` nested in an earlier job (here under
+    ``env:``) is not the job; only a direct child of ``jobs:`` is."""
+    nested_first = _SYNTHETIC_WORKFLOW.replace(
+        "    timeout-minutes: 999\n",
+        "    timeout-minutes: 999\n    env:\n      quality-gate:\n        timeout-minutes: 5\n",
+    )
+    assert "      quality-gate:\n        timeout-minutes: 5" in nested_first
+    assert _job_level_timeout_minutes(nested_first.format(value="240")) == 240
+
+
+@pytest.mark.parametrize("minutes", [10, 39])
+def test_floor_test_fails_for_a_real_value_below_the_floor(minutes: int) -> None:
+    """End to end with the real workflow text: below 40 the guard's own
+    comparison rejects the value the reader returns (the old regex read 45
+    from the history comment and passed)."""
+    value = _job_level_timeout_minutes(_workflow_with_job_timeout(minutes))
+    assert value == minutes
+    assert not value >= _MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES
 
 
 @pytest.mark.parametrize(
