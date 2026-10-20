@@ -7,6 +7,7 @@ from flask_login import current_user, login_required
 
 from app.route_registry import main_bp
 from app.route_support import admin_required, safe_render
+from app.security.critical_operations import critical_action_refusal
 from app.services.performance.v2_1_5_category_period_scope import list_category_period_scope_plans
 from app.services.performance.v2_1_6_category_period_integration import (
     build_assignment_preintegration,
@@ -28,6 +29,14 @@ logger = logging.getLogger(__name__)
 @login_required
 @admin_required
 def performance_v2_1_6_category_period_integration():
+    # P0: plandan gerçek dönem oluşturma ve etkinleştirme sabit rol sınırına tabidir; kontrol
+    # şema hazırlığı dahil hiçbir işlemden önce yapılır.
+    if request.method == "POST" and (request.form.get("action") or "link_period") == "link_period":
+        refusal = critical_action_refusal("period_manage", "performance_periods")
+        if refusal is None and request.form.get("activate_period"):
+            refusal = critical_action_refusal("period_activate", "performance_periods")
+        if refusal is not None:
+            return refusal
     ensure_category_period_integration_schema()
     if request.method == "POST":
         action = request.form.get("action") or "link_period"

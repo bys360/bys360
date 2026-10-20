@@ -10,6 +10,7 @@ from app.extensions import db
 from app.models import PerformanceEvaluation, PerformancePeriod, PerformancePublishLog
 from app.route_registry import main_bp
 from app.route_support import admin_required, ensure_state_change, menu_key_required
+from app.security.critical_operations import critical_operation_required
 from app.services.mail_service import send_published_evaluation_notifications
 from app.services.performance.hardening_service import (
     build_period_download_name,
@@ -83,6 +84,7 @@ def performance_snapshot_backfill():
 @main_bp.route("/performance/publish/period/<int:period_id>", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_publish")
 @menu_key_required("performance_publish")
 def performance_publish_period(period_id):
     period = db.session.get(PerformancePeriod, period_id)
@@ -162,6 +164,7 @@ def performance_publish_period(period_id):
 @main_bp.route("/performance/unpublish/period/<int:period_id>", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_publish")
 @menu_key_required("performance_publish")
 def performance_unpublish_period(period_id):
     period = db.session.get(PerformancePeriod, period_id)

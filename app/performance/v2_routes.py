@@ -19,7 +19,8 @@ from flask_login import current_user, login_required
 from app.extensions import db
 from app.models import EvaluationAssignment, PerformancePeriod, User
 from app.route_registry import main_bp
-from app.route_support import admin_required
+from app.route_support import admin_required, menu_key_required
+from app.security.critical_operations import critical_operation_required
 from app.services.ai.dashboard_panels import (
     build_management_ai_panel,
     build_publish_ai_panel,
@@ -361,6 +362,8 @@ def performance_v2_phase5_publish_preflight():
 @main_bp.route('/performans/v2/faz5/publish', methods=['GET', 'POST'])
 @login_required
 @admin_required
+@critical_operation_required('period_publish')
+@menu_key_required('performance_publish')
 def performance_v2_phase5_publish():
     period = _resolve_period(request.values.get('period_id', type=int))
     if request.method == 'POST' and period:
