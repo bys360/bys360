@@ -26,6 +26,41 @@ jobs:
           if (Test-Path requirements.txt) { python -m pip install -r requirements.txt }
           python -m pip install -r requirements-dev.txt
 
+      # Production lock on real Windows (the production platform): the lock must be exactly what
+      # the generator resolves here, its wheelhouse must match every pinned sha256, and a fresh
+      # venv must install it offline in hash-checking mode with all dependencies satisfied.
+      # One native command per step: pwsh reports only the last exit code of a block.
+      - name: Production lock manifest gate (Windows)
+        shell: pwsh
+        run: python scripts/quality/bys360_dependency_lock_gate.py validate --lock requirements.lock --requirements requirements.txt --report reports/quality/score100_quality_gate_v1/BYS360_DEPENDENCY_LOCK_MANIFEST.json
+
+      - name: Production lock regeneration check (Windows)
+        shell: pwsh
+        run: python scripts/release/generate_bys360_requirements_lock.py --check
+
+      - name: Production wheelhouse build and hash verification (Windows)
+        shell: pwsh
+        run: python scripts/release/build_bys360_wheelhouse.py --root . --output "${{ runner.temp }}/bys360-wheelhouse" --report reports/quality/score100_quality_gate_v1/BYS360_WHEELHOUSE_BUILD_REPORT.json
+
+      - name: Production lock fresh venv (Windows)
+        shell: pwsh
+        run: python -m venv "${{ runner.temp }}/bys360-lock-venv"
+
+      - name: Production lock offline hash-checked install (Windows)
+        shell: pwsh
+        run: |
+          & "${{ runner.temp }}/bys360-lock-venv/Scripts/python.exe" -m pip install --no-index --find-links "${{ runner.temp }}/bys360-wheelhouse" --require-hashes --only-binary=:all: --no-cache-dir -r requirements.lock
+
+      - name: Production lock dependency consistency (Windows)
+        shell: pwsh
+        run: |
+          & "${{ runner.temp }}/bys360-lock-venv/Scripts/python.exe" -m pip check
+
+      - name: Production lock runtime smoke (Windows)
+        shell: pwsh
+        run: |
+          & "${{ runner.temp }}/bys360-lock-venv/Scripts/python.exe" scripts/release/smoke_bys360_locked_dependencies.py --lock requirements.lock
+
       - name: Run BYS360 Quality Assurance Gate V1
         shell: pwsh
         run: |

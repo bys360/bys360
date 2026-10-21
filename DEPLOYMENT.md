@@ -181,6 +181,26 @@ commit'in checkout edildiği temiz kaynak kökünde, uygun Python ortamında kul
 Builder `--source-sha` ile HEAD eşleşmesini denetler; mevcut HEAD'de çalıştırmak tek başına
 o commit'i onaylı yapmaz. Bu belgede sabit bir gelecek release SHA'sı tanımlanmaz.
 
+**Kilit dosyası (`requirements.lock`) üretimi:** Kilit elle düzenlenmez;
+[generate_bys360_requirements_lock.py](scripts/release/generate_bys360_requirements_lock.py)
+ile CPython 3.12 altında üretilir. Hedef Windows x64 / CPython 3.12'dir; ortam işaretleri
+(marker) Windows için değerlendirilir, bu yüzden `colorama` gibi yalnız Windows'ta gereken
+paketler Linux'ta üretimde de korunur. Mevcut kilitteki sürümler kısıt olarak tutulur: yalnız
+`requirements.txt` sabitleri ve açıkça verilen `--upgrade-package` sürümleri değişebilir; yeni
+paket veya açıklanmayan sürüm değişikliği üretimi durdurur. Çıktı deterministiktir (tarih,
+commit veya pip sürümü içermez).
+
+```powershell
+python scripts\release\generate_bys360_requirements_lock.py                          # yeniden üret
+python scripts\release\generate_bys360_requirements_lock.py --check                  # yalnız doğrula
+python scripts\release\generate_bys360_requirements_lock.py --upgrade-package NAME==SÜRÜM
+```
+
+CI her PR'da kilidi iki yerden denetler: Linux'ta `scripts/quality/bys360_dependency_lock_gate.py`
+kilidin yapısını ve sabitlenmiş sürümlerin pip-audit sonucunu (sıfır açık) denetler; Windows'ta
+`--check` ile kilidin bayt düzeyinde yeniden üretildiği, wheelhouse hash'lerinin eşleştiği ve
+temiz bir venv'e `--require-hashes` ile offline kurulabildiği doğrulanır.
+
 **A. Wheelhouse üretimi ve doğrulaması:**
 [build_bys360_wheelhouse.py](scripts/release/build_bys360_wheelhouse.py), onaylı kaynak
 kökteki [requirements.lock](requirements.lock) üzerinden Windows x64 / CPython 3.12

@@ -309,6 +309,20 @@ jobs:
       - name: Dependency vulnerability audit
         run: python -m pip_audit -r requirements.txt --progress-spinner off
 
+      # requirements.lock is what production installs (Windows wheelhouse). The audit above
+      # re-resolves requirements.txt on Linux and never sees the lock's pinned transitive
+      # versions or Windows-only packages, so the lock is checked on its own: structure first
+      # (offline), then pip-audit on the pinned versions with --disable-pip --strict (nothing is
+      # installed), then a negative control that must fail on a known-vulnerable lock.
+      - name: Production lock manifest gate (requirements.lock)
+        run: python scripts/quality/bys360_dependency_lock_gate.py validate --lock requirements.lock --requirements requirements.txt --report reports/quality/BYS360_DEPENDENCY_LOCK_MANIFEST.json
+
+      - name: Production lock vulnerability audit (requirements.lock)
+        run: python scripts/quality/bys360_dependency_lock_gate.py audit --lock requirements.lock --requirements requirements.txt --report reports/quality/BYS360_DEPENDENCY_LOCK_AUDIT.json
+
+      - name: Production lock audit negative control
+        run: python scripts/quality/bys360_dependency_lock_gate.py self-test --vulnerable-lock tests/fixtures/dependency_audit/requirements_lock_pre_fix_vulnerable.lock --report reports/quality/BYS360_DEPENDENCY_LOCK_SELFTEST.json
+
       - name: Upload quality reports
         if: always()
         uses: actions/upload-artifact@v4

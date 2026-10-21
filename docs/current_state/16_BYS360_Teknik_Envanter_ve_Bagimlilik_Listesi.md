@@ -40,7 +40,7 @@ Son Güncelleme: 2026-09-02
 | pandas | 2.2.3 |
 | waitress | 3.0.1 |
 | XlsxWriter | 3.2.0 |
-| Pillow | 12.3.0 |
+| Pillow | 13.0.0 |
 | cryptography | 50.0.0 |
 | reportlab | 4.4.10 |
 | gunicorn | 25.3.0 |
@@ -58,11 +58,11 @@ Son Güncelleme: 2026-09-02
 Bu worktree'de üç ayrı bağımlılık dosyası/kaynağı bulunmaktadır ve **ikisi güncel HEAD'e ait değildir**:
 
 1. **`requirements.txt`** — doğrudan bağımlılıklar, gevşek olmayan `==` sabitlemeli (yukarıdaki tablo). Bu dosya güncel HEAD `873e6d3`'te mevcuttur ve doğrudan okunmuştur (`CODE_VERIFIED`).
-2. **`requirements.lock`** (170 satır, 59 paket — 24 doğrudan + 35 geçişli) — pip'in hash-doğrulamalı (`--require-hashes` uyumlu) tam düz kilidi. **Dosyanın kendi başlığı**, bunun `2026-08-25` tarihinde, **eski SHA `ec4e56bd9bab2ce59e9543fc647f55dffd37d94b`**'ye karşı `pip install --dry-run --report` ile yeniden üretildiğini açıkça belirtir (`CODE_VERIFIED` — dosya başlık yorumu). Güncel HEAD `873e6d3` için yeniden üretilip üretilmediği bu oturumda doğrulanmadı.
-3. **`build/wheelhouse/`** — 59 önceden indirilmiş `.whl` dosyası (çevrimdışı kurulum için, CPython 3.12 / win_amd64 hedefli). Bu, `requirements.lock` ile aynı (eski SHA'ya ait) çözümleme oturumunun ürünüdür — aynı 59 paket sayısı eşleşir (`CODE_VERIFIED` — dosya sayımı).
+2. **`requirements.lock`** (59 paket — 24 doğrudan + 35 geçişli) — pip'in hash-doğrulamalı (`--require-hashes` uyumlu) tam düz kilidi. **Güncelleme (21 Ekim 2026):** kilit artık `scripts/release/generate_bys360_requirements_lock.py` ile deterministik olarak üretilir; başlıkta tarih/SHA yerine makine okunur `# bys360-lock: packages=59 direct=24 transitive=35` satırı vardır. Bu yenilemede yalnız güvenlik sürümleri değişti: Pillow 13.0.0, urllib3 2.8.0, Werkzeug 3.1.9, certifi 2026.10.19. CI kilidi Linux'ta pip-audit ile (sabitlenmiş sürümler) ve Windows'ta yeniden üretim, wheelhouse hash ve `--require-hashes` kurulumu ile denetler.
+3. **`build/wheelhouse/`** — 59 önceden indirilmiş `.whl` dosyası (çevrimdışı kurulum için, CPython 3.12 / win_amd64 hedefli); izlenen bir dosya değildir, `scripts/release/build_bys360_wheelhouse.py` ile kilitten üretilir. Canlıdaki release `cdae2795`'in wheelhouse kimliği (`c372cc25…`) eski kilide aittir; 21 Ekim kilidiyle üretilecek wheelhouse'un kimliği farklı olacaktır (yerel doğrulamada `3c3acbd8…`).
 4. **`requirements-dev.txt`** (CI/kalite araç zinciri, `requirements.txt`'ten ayrı tutulur, kendi başlığında bunu açıkça belirtir): `mypy==2.3.0`, `pip-audit==2.10.1`, `pytest==9.0.3`, `pytest-cov==7.1.0`, `ruff==0.16.0` — bu dosya **güncel** görünmektedir, eski SHA referansı taşımaz (`CODE_VERIFIED`).
 
-**Açık teknik bulgu:** `requirements.lock` ve `build/wheelhouse/`, güncel HEAD `873e6d3`'e karşı **doğrulanmamış/güncellenmemiştir**; final release/Puantaj öncesi aşamada bu ikilinin (güncel `requirements.txt`'e karşı fark var mı diye) yeniden üretilip üretilmeyeceği netleştirilmelidir. (`requirements.txt`'in kendisi iki SHA arasında değişmiş olabilir ya da olmayabilir — bu oturumda `git log -p requirements.txt` ile tarihsel fark analizi yapılmadı, `NOT_YET_FINALIZED`.)
+**Açık teknik bulgu (21 Ekim 2026 güncellemesi):** `requirements.lock` güncel `requirements.txt`'e karşı yeniden üretildi ve CI'da denetleniyor. Yeni kilitle FULL paket/wheelhouse henüz üretilmedi ve canlıya alınmadı; bu, ayrı release kabul sürecinin işidir. (`requirements.txt`'in kendisi iki SHA arasında değişmiş olabilir ya da olmayabilir — bu oturumda `git log -p requirements.txt` ile tarihsel fark analizi yapılmadı, `NOT_YET_FINALIZED`.)
 
 ## 4. Veritabanı ve önbellek
 
@@ -182,6 +182,6 @@ Windows canlı görev, "Highest run level" (yükseltilmiş yetki) ile çalışac
 
 ## Ek — Bu belgede tespit edilen açık teknik bulgular
 
-1. `requirements.lock` ve `build/wheelhouse/` **eski SHA (`ec4e56b`)**'ye karşı üretilmiştir, güncel HEAD `873e6d3`'e karşı yeniden üretilip doğrulanmamıştır — final release öncesi netleştirilmelidir.
+1. `requirements.lock` 21 Ekim 2026'da güncel `requirements.txt`'e karşı yeniden üretildi (güvenlik sürümleri); yeni kilitle wheelhouse/FULL paket henüz üretilmedi ve canlıya alınmadı — final release kabulünde ele alınmalıdır.
 2. `pyproject.toml` içinde hem `[tool.black]`/`[tool.isort]` hem de `[tool.ruff.format]`/`[tool.ruff.lint.isort]` bölümleri bir arada tanımlıdır; fiilen hangi formatlayıcının CI'da otoriter kabul edildiği bu incelemenin kapsamında netleştirilmedi (`requirements-dev.txt` yalnızca `ruff`'ı listeler, `black` içermez — bu, ruff'ın fiilen kullanılan araç olduğuna işaret eder ama kesin değildir).
 3. Canlı SMTP sunucusu, Sentry DSN, Firebase proje yapılandırması ve Instagram entegrasyonunun fiili aktiflik durumu bu incelemede doğrulanamadı — hepsi `NOT_YET_FINALIZED` olarak işaretlenmiştir.
