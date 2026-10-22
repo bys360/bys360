@@ -5,31 +5,51 @@
 {% block page_subtitle %}{{ category.description }}{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_support_learning.css') }}">
-<div class="support-learning-shell">
-  {% set current_view_key = 'support_index' %}
-  {% include 'support/_tabs.html' %}
-  <section class="support-hero" style="grid-template-columns:1fr 260px;">
-    <div>
-      <span class="support-kicker"><i class="{{ category.icon }}"></i> Modül Rehber Paketi</span>
-      <h2 class="support-title">{{ category.title }}</h2>
-      <p class="support-text">{{ category.description }}</p>
-      {% if category.learning_goal %}<div class="support-goal"><strong>Öğrenme hedefi:</strong> {{ category.learning_goal }}</div>{% endif %}
-    </div>
-    <div class="support-note"><h4>Kapsam</h4><p>{{ category.article_count }} rehber · {{ category.coverage_level }} seviye</p></div>
-  </section>
-  <section class="support-panel">
-    <div class="support-section-head"><div><h3 class="support-section-title">Rehberler</h3><p class="support-section-text">Bu modüldeki öğretici içerikler.</p></div></div>
-    {% if category.articles %}
-    <div class="support-article-list" style="margin-top:16px;">
-      {% for article in category.articles %}
-      <a class="support-article-card" href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">
-        <div><h4 class="support-article-title">{{ article.title }}</h4><p class="support-article-summary">{{ article.summary }}</p><div class="support-meta">{% for tag in article.tags[:4] %}<span class="support-badge">{{ tag }}</span>{% endfor %}</div></div>
-        <span class="support-badge">İncele</span>
-      </a>
-      {% endfor %}
-    </div>
-    {% else %}<div class="support-empty" style="margin-top:16px;">Bu paket için henüz rehber bulunmuyor.</div>{% endif %}
-  </section>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
+{# BYS360_UX_WAVE5_HELP_PAGES: modül rehber paketi. Rota ve bağlam verisi değişmedi; yalnız sunum. #}
+{% macro article_list(articles, label) -%}
+<ul class="bys-article-list bys-article-list--cards" aria-label="{{ label }}">
+    {% for article in articles %}
+    <li>
+        <a class="bys-article-link" href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">
+            <span class="bys-article-link__title">{{ article.title }}</span>
+            {% if article.summary %}<span class="bys-article-link__text">{{ article.summary }}</span>{% endif %}
+            {% if article.tags %}<span class="bys-article-link__tags">{% for tag in article.tags[:4] %}<span class="bys-chip bys-chip--neutral">{{ tag }}</span>{% endfor %}</span>{% endif %}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{%- endmacro %}
+<div class="support-learning-shell bys-ui bys-page">
+    {% set current_view_key = 'support_index' %}
+    <nav class="bys-tabs skip-mobile-normalize" aria-label="Destek bölümleri">{% include 'support/_tabs.html' %}</nav>
+
+    <header class="bys-page-header">
+        <div class="bys-page-header__text">
+            <p class="bys-eyebrow"><i class="{{ category.icon }}" aria-hidden="true"></i> Modül rehber paketi</p>
+            <h2 class="bys-page-title">{{ category.title }}</h2>
+            <p class="bys-page-lead">{{ category.description }}</p>
+            {% if category.learning_goal %}<p class="bys-guide__goal"><strong>Öğrenme hedefi:</strong> {{ category.learning_goal }}</p>{% endif %}
+        </div>
+        <a class="bys-text-link" href="{{ url_for('main.support_index') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Yardım Merkezine Dön</a>
+    </header>
+
+    <section class="bys-card" aria-labelledby="helpCategoryListTitle">
+        <div class="bys-card__head">
+            <h3 class="bys-card__title" id="helpCategoryListTitle">Rehberler</h3>
+            <span class="bys-chip bys-chip--neutral">{{ category.article_count }} rehber · {{ category.coverage_level }} kapsam</span>
+        </div>
+        {% if category.articles %}
+        {{ article_list(category.articles, category.title ~ ' rehberleri') }}
+        {% else %}
+        <div class="bys-empty">
+            <span class="bys-empty__icon" aria-hidden="true"><i class="fa-solid fa-book-open"></i></span>
+            <p class="bys-empty__title">Bu paket için henüz rehber yok.</p>
+            <a class="bys-btn bys-btn--secondary" href="{{ url_for('main.support_index') }}">Yardım Merkezine dön</a>
+        </div>
+        {% endif %}
+    </section>
 </div>
 <script src="{{ url_for('static', filename='js/bys360_support_learning.js') }}"></script>
 {% endblock %}
