@@ -115,9 +115,11 @@ def test_p1c_non_admin_cannot_change_the_admin_role_profile(env):
                 (row.menu_key, bool(row.is_visible)) for row in RoleMenuDefault.query.filter_by(role_name="admin").all()
             )
 
+    # K13: role defaults are seeded by the real admin's explicit sync (GET /settings writes nothing)
+    assert _web(env, "admin").post("/settings", data={"form_action": "sync_role_defaults"}).status_code == 302
     client = _web(env, "baskan")
     client.get("/settings")
-    before = admin_profile()  # role defaults are seeded on the first request
+    before = admin_profile()
     assert any(visible for _key, visible in before)
     client.post(
         "/settings",

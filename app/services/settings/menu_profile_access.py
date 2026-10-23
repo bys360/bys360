@@ -14,6 +14,11 @@ from collections import OrderedDict
 from collections.abc import Callable, Iterable
 from typing import Any
 
+from app.services.settings.effective_menu_parts.override_scope import user_overrides_suppressed
+
+# K2: kept in sync with app.services.settings.menu_grant_ceiling.ADMIN_EXCEPTION_SOURCE (no import: avoids a cycle).
+ADMIN_EXCEPTION_SOURCE = "admin_exception"
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,11 +39,18 @@ def get_role_default_menu_keys_handler(
             rows = filter_live_menu_rows_func(
                 role_menu_default_model.query.filter_by(role_name=normalized_role, is_visible=True).all()
             )
+            from app.services.settings.menu_grant_ceiling import stale_seed_grant_keys
+
+            stale = stale_seed_grant_keys(normalized_role, rows)  # K13: an old seed above the role definition grants nothing
+            rows = [row for row in rows if row.menu_key not in stale]
             if rows:
                 return {row.menu_key for row in rows}
-            any_rows = filter_live_menu_rows_func(
-                role_menu_default_model.query.filter_by(role_name=normalized_role).all()
-            )
+            # K13: the stale seed rows are no record here either; a role with nothing else falls back to the static default.
+            any_rows = [
+                row
+                for row in filter_live_menu_rows_func(role_menu_default_model.query.filter_by(role_name=normalized_role).all())
+                if row.menu_key not in stale
+            ]
             if any_rows:
                 return set()
         except Exception:
@@ -191,7 +203,10 @@ def build_effective_user_menu_context_handler(
     }
 
     try:
-        override_rows = filter_live_menu_rows_func(user_menu_permission_model.query.filter_by(user_id=user.id).all())
+        # K2: erişim anındaki tavan kişi kaydı olmayan temel haritayı ister.
+        override_rows = [] if user_overrides_suppressed() else filter_live_menu_rows_func(
+            user_menu_permission_model.query.filter_by(user_id=user.id).all()
+        )
     except Exception:
         logger.exception("BYS360 V6B guarded exception | file=app/services/settings/menu_profile_access.py | line=190")
         safe_rollback_func()
@@ -466,9 +481,13 @@ def save_user_menu_overrides_handler(
     build_base_rule_map_for_user_func: Callable[[Any, list[dict[str, Any]]], dict[str, Any]],
     create_settings_change_log_func: Callable[..., object],
     preserved_menu_keys: Iterable[str] = (),
+    admin_exception_keys: Iterable[str] = (),
 ) -> dict[str, int]:
     # preserved_menu_keys: rows this save must neither write nor prune (B1-F1 grant key).
     preserved = {str(key).strip() for key in preserved_menu_keys or () if str(key).strip()}
+    # K2: a real admin's grant outside the role definition is recorded as such; an existing one is
+    # kept while the key stays visible (a re-save by anyone else does not drop it).
+    granted_exceptions = {str(key).strip() for key in admin_exception_keys or () if str(key).strip()}
     flat_menu_items = [
         item for item in _bys360_pf_v14_dedupe_menu_items(flat_menu_items)
         if not is_removed_menu_key_func(item.get("key"))
@@ -486,18 +505,20 @@ def save_user_menu_overrides_handler(
             continue
         desired = menu_key in visible_keys
         row = existing.get(menu_key)
+        keeps_exception = row is not None and (row.source_type or "") == ADMIN_EXCEPTION_SOURCE
+        source_type = ADMIN_EXCEPTION_SOURCE if desired and (menu_key in granted_exceptions or keeps_exception) else "user_override"
         if row is None:
             db_session.add(user_menu_permission_model(
                 user_id=user.id,
                 menu_key=menu_key,
                 is_visible=desired,
-                source_type="user_override",
+                source_type=source_type,
             ))
             changed += 1
         else:
-            if row.is_visible != desired or (row.source_type or "") != "user_override":
+            if row.is_visible != desired or (row.source_type or "") != source_type:
                 row.is_visible = desired
-                row.source_type = "user_override"
+                row.source_type = source_type
                 changed += 1
     for menu_key, row in existing.items():
         if menu_key not in keep_keys and menu_key not in preserved:

@@ -12,7 +12,7 @@ from app.core.datetime_utils import utc_now
 from app.extensions import db
 from app.models import FeedbackMeeting, FeedbackRequest, PerformancePeriod
 from app.route_registry import main_bp
-from app.route_support import menu_key_required, safe_render
+from app.route_support import manager_required, menu_key_required, safe_render
 from app.services.ai.dashboard_panels import (
     build_feedback_meetings_ai_panel,
     build_feedback_requests_ai_panel,
@@ -249,6 +249,7 @@ def feedback_watch_dashboard():
 
 @main_bp.route("/performance/feedback-watch/run-alerts", methods=["POST"])
 @login_required
+@manager_required  # K13: the operation keeps its own role check; a menu row or exception never triggers it
 @menu_key_required("performance_feedback_meetings")
 def feedback_watch_run_alerts():
     scope_value = (request.form.get("scope") or request.args.get("scope") or "").strip()
@@ -321,6 +322,7 @@ def feedback_executive_summary_dashboard():
 
 @main_bp.route("/performance/feedback-executive-summary/run-digest", methods=["POST"])
 @login_required
+@manager_required  # K13: the operation keeps its own role check; a menu row or exception never triggers it
 @menu_key_required("performance_feedback_meetings")
 def feedback_executive_summary_run_digest():
     scope_value = (request.form.get("scope") or request.args.get("scope") or "").strip()

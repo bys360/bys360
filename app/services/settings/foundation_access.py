@@ -55,8 +55,13 @@ def ensure_settings_phase1_seeded_handler(
     iter_live_module_setting_definitions_func: Callable[[], list[dict[str, Any]]],
     value_to_storage: Callable[[Any, str], str],
     safe_rollback: Callable[[], None],
+    commit: bool = True,
 ) -> dict[str, Any]:
-    """Role/menu, system ve module ayar varsayilanlarini guvenli sekilde seed eder."""
+    """Role/menu, system ve module ayar varsayilanlarini guvenli sekilde seed eder.
+
+    ``commit=False`` yalniz flush eder; cagiran (rol varsayilani senkronu) degisikligi kendi denetim
+    kaydiyla ayni islemde commit eder.
+    """
     summary = {
         "ok": True,
         "seeded_role_defaults": 0,
@@ -137,7 +142,10 @@ def ensure_settings_phase1_seeded_handler(
                 ))
                 summary["seeded_module_settings"] += 1
 
-        db_session.commit()
+        if commit:
+            db_session.commit()
+        else:
+            db_session.flush()
         return summary
     except Exception:
         logger.exception("BYS360 V6B guarded exception | file=app/services/settings/foundation_access.py | line=137")

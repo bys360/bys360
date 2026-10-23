@@ -125,6 +125,35 @@ Start-Sleep -Seconds 8
 Invoke-WebRequest -Uri "http://127.0.0.1/login" -UseBasicParsing
 ```
 
+## 7a. Ters proxy arkasında Waitress (`WAITRESS_TRUSTED_PROXY*`)
+
+Waitress varsayılan olarak hiçbir bağlantının proxy başlıklarına güvenmez ve `X-Forwarded-For`, `-Proto`, `-Host`, `-Port` başlıklarını siler. Waitress'in önünde IIS veya başka bir ters proxy varsa bu durumda uygulama:
+
+- istemci yerine proxy'nin IP adresini görür (denetim kaydı ve hız sınırı);
+- isteği `http` sanır ve HSTS göndermez;
+- dış URL'leri iç host ve portla üretir.
+
+`run_server.py` bu ortam değişkenlerini okur (`app/core/waitress_proxy.py`):
+
+| Değişken | Anlamı |
+|---|---|
+| `WAITRESS_TRUSTED_PROXY` | Proxy'nin Waitress'e bağlandığı **tek** IP adresi. Boş = güven yok. `*`, liste, ağ veya host adı reddedilir. |
+| `WAITRESS_TRUSTED_PROXY_COUNT` | Waitress önündeki proxy katmanı sayısı (1–10, varsayılan 1). |
+| `WAITRESS_TRUSTED_PROXY_HEADERS` | Proxy'nin yazdığı başlıklar; yalnız `x-forwarded-for`, `x-forwarded-proto`, `x-forwarded-host`, `x-forwarded-port`. Proxy ayarlıysa zorunlu. |
+
+- Geçersiz veya eksik değer `run_server.py`'nin başlamasını durdurur; güven sessizce genişletilmez.
+- Güven ayarlandığında bu dört başlığı yalnız Waitress yorumlar; uygulamadaki ProxyFix bunları ikinci kez okumaz.
+- **Alt dizin yayını (`X-Forwarded-Prefix`):** varsayılan olarak yok sayılır (`PROXY_FIX_X_PREFIX=0`). Uygulama örneğin `https://kurum/bys/` altında yayınlanacaksa aşağıdakilerin üçü birden gerekir:
+  - `WAITRESS_TRUSTED_PROXY` ayarlı olmalı;
+  - `PROXY_FIX_X_PREFIX=1` olmalı;
+  - Waitress'e bağlanan proxy (IIS) istemcinin gönderdiği `X-Forwarded-Prefix` başlığını silmeli ve kendi **tek** değerini yazmalıdır (`X-Forwarded-Prefix: /bys`). Ekleme yapan (append) ayar kullanılmamalıdır.
+
+  Başlık yalnız güvenilen proxy adresinden gelirse ve tek bir düz yol ise (`/bys`, `/a/b`; `//`, şema, `.`/`..` segmenti yok) okunur. Virgüllü liste (`/evil, /bys`) veya iki ayrı başlık satırı geçersiz sayılır ve başlık Waitress'e varmadan silinir; uygulama kök dizinde çalışır. Güven ayarlı değilken başlık hiçbir koşulda okunmaz. `PROXY_FIX_X_PREFIX` yalnız 0 veya 1 olabilir; 2 ve üstünde `run_server.py` başlamaz. Bu değer `WAITRESS_TRUSTED_PROXY_COUNT`'tan bağımsızdır: iki proxy katmanında da öneki yalnız Waitress'e bağlanan proxy yazar ve değer 1 kalır.
+
+  Canlı IIS'in bu başlığı silip üzerine yazdığı henüz doğrulanmadı (operatör kontrol listesi madde 4).
+- Değerleri ancak operatör gerçek proxy adresini ve katman sayısını doğruladıktan sonra girin. `.env.example`'daki örnek canlı değer değildir. Waitress'in önünde proxy yoksa değişkenleri boş bırakın.
+- Proxy, istemcinin gönderdiği `X-Forwarded-*` başlıklarını silmeli veya üzerine yazmalı. Waitress portuna proxy dışından doğrudan erişim kapatılmalıdır.
+
 ## 8. Temiz release üretimi
 
 Doğrudan proje klasörünü zip yapmak yasaktır. Çünkü `.env`, `.git`, `instance`, `logs`, SQLite dosyaları veya geçici raporlar pakete girebilir.

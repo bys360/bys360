@@ -46,6 +46,12 @@ PERSONNEL_READ_ALL_MENU_ITEM = {
 }
 
 
+def explicit_grant_keys() -> frozenset[str]:
+    """Read-only view of the explicit grant keys for layers that must recognise them without
+    writing them (K2 menu ceiling). The keys themselves stay defined only in this module."""
+    return frozenset(EXPLICIT_GRANT_KEYS)
+
+
 def without_explicit_grants(keys: Iterable[Any] | None) -> list[str]:
     """Drop every explicit grant key from role/unit profile key lists (they never carry one)."""
     return [str(key).strip() for key in keys or [] if str(key).strip() and str(key).strip() not in EXPLICIT_GRANT_KEYS]
