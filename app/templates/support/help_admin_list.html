@@ -5,67 +5,86 @@
 {% block page_subtitle %}Yardım merkezi makalelerini veritabanından yönetin, yayınlayın ve güncel içerikle eşitleyin.{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/faz4_support_account_mobile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
+{# BYS360_UX_WAVE7_HELP_ADMIN_LIST: Rehber Yönetimi listesi (yalnız yönetici), pilot tasarım dilinde.
+   Sayfanın eski stil bloğu bilinçli olarak AYNEN duruyor (Style-2A sahipliği; taşımak ratchet'te ikinci sahiplenme
+   istisnası ister ve yalnız proje sahibinin onayıyla yapılabilir). Silme onayı, CSRF girdileri, betikler ve Style-2A /
+   Wave-7 sözleşmelerinin sabitlediği sınıf ve metinler birebir korunur; rotalar ve form hedefleri değişmedi. #}
 <style>
 .support-shell{display:grid;gap:18px}.support-tabs{display:flex;flex-wrap:wrap;gap:10px}.support-tab{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid rgba(15,23,42,.08);text-decoration:none;color:#374151;font-weight:800}.support-tab.active{background:rgba(139,0,0,.08);color:#8B0000;border-color:rgba(139,0,0,.18)}.card{background:rgba(255,255,255,.94);border:1px solid rgba(139,0,0,.08);border-radius:24px;box-shadow:0 18px 36px rgba(15,23,42,.08);padding:22px}.toolbar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}.search-form{display:flex;gap:10px;flex-wrap:wrap}.search-input,.select-input{min-height:46px;border-radius:14px;border:1px solid rgba(15,23,42,.12);padding:0 14px;background:#fff}.search-input{min-width:280px}.btn-main,.btn-soft,.btn-danger{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border-radius:14px;text-decoration:none;font-weight:800;border:none}.btn-main{background:linear-gradient(180deg,#8B0000,#6f0000);color:#fff}.btn-soft{background:#fff;color:#8B0000;border:1px solid rgba(139,0,0,.16)}.btn-danger{background:#fff;color:#991b1b;border:1px solid rgba(153,27,27,.18)}.list{display:grid;gap:12px;margin-top:18px}.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;padding:18px;border:1px solid rgba(15,23,42,.08);border-radius:18px;background:#fff}.title{margin:0 0 6px;font-size:1rem;font-weight:900;color:#111827}.summary{margin:0;color:#6b7280;line-height:1.7}.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(139,0,0,.08);color:#8B0000;font-size:.78rem;font-weight:800}.badge.gray{background:rgba(15,23,42,.06);color:#475569}.badge.green{background:rgba(16,185,129,.12);color:#047857}.badge.orange{background:rgba(245,158,11,.15);color:#92400e}.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}.empty{padding:18px;border-radius:18px;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.22);color:#92400e}form.inline{display:inline}
 </style>
-<div class="support-shell">
+{% set source_labels = {'manual': 'Elle eklendi', 'seeded': 'Hazır rehber'} %}
+<div class="support-shell bys-ui bys-page">
     {% set current_view_key = 'support_help_admin' %}
-    {% include 'support/_tabs.html' %}
-    <section class="card">
-        <div class="toolbar">
-            <div>
+    <nav class="bys-tabs skip-mobile-normalize" aria-label="Destek bölümleri">{% include 'support/_tabs.html' %}</nav>
+    <section class="card bys-card bys-admin-list" aria-labelledby="helpAdminTitle">
+        <div class="toolbar bys-admin-list__head">
+            <div class="bys-page-header__text">
+                <p class="bys-eyebrow">Rehber Yönetimi</p>
                 <h3 class="panel-heading">Yönetim Paneli</h3>
-                <p class="panel-subtitle">Hazır rehberleri ilk kez veritabanına aktarabilir veya güncel statik içerikle tekrar eşitleyebilirsiniz. Manuel oluşturulan kayıtlar eşitleme sırasında korunur.</p>
+                <p class="panel-subtitle">Hazır rehberleri ilk kez veritabanına aktarabilir veya güncel hazır içerikle yeniden eşitleyebilirsiniz. Elle eklenen rehberler eşitleme sırasında korunur.</p>
             </div>
             <div class="header-actions-row">
-                <a href="{{ url_for('main.support_help_admin_new') }}" class="btn-main"><i class="fa-solid fa-plus"></i> Yeni Makale</a>
+                <a href="{{ url_for('main.support_help_admin_new') }}" class="bys-btn bys-btn--primary"><i class="fa-solid fa-plus" aria-hidden="true"></i> Yeni rehber</a>
                 <form method="post" action="{{ url_for('main.support_help_admin_seed') }}" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-soft"><i class="fa-solid fa-database"></i> İlk Yükleme</button>
+                    <button type="submit" class="bys-btn bys-btn--secondary"><i class="fa-solid fa-database" aria-hidden="true"></i> İlk yükleme</button>
                 </form>
                 <form method="post" action="{{ url_for('main.support_help_admin_sync') }}" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-soft"><i class="fa-solid fa-rotate"></i> Hazır Rehberleri Güncelle</button>
+                    <button type="submit" class="bys-btn bys-btn--secondary"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Hazır rehberleri güncelle</button>
                 </form>
             </div>
         </div>
+        <span class="visually-hidden" id="helpAdminTitle">Rehber listesi</span>
         <form method="get" class="search-form section-spacing-top-md">
-            <input class="search-input" type="text" name="q" value="{{ search_query or '' }}" placeholder="Başlık, slug veya özet ara...">
-            <select class="select-input" name="status">
-                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Tümü</option>
-                <option value="published" {% if status_filter == 'published' %}selected{% endif %}>Yayında</option>
-                <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Taslak</option>
-            </select>
-            <button type="submit" class="btn-soft"><i class="fa-solid fa-filter"></i> Filtrele</button>
+            <div class="bys-toolbar skip-mobile-normalize" role="search" aria-label="Rehberleri süz">
+                <div class="bys-field bys-toolbar__search">
+                    <label class="bys-field__label" for="help-admin-search">Rehber ara</label>
+                    <input class="bys-input" type="search" id="help-admin-search" name="q" value="{{ search_query or '' }}" maxlength="120" autocomplete="off" placeholder="Başlık, kısa bağlantı adı veya özet">
+                </div>
+                <div class="bys-field bys-toolbar__status">
+                    <label class="bys-field__label" for="help-admin-status">Yayın durumu</label>
+                    <select class="bys-input" id="help-admin-status" name="status">
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Tümü</option>
+                        <option value="published" {% if status_filter == 'published' %}selected{% endif %}>Yayında</option>
+                        <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Taslak</option>
+                    </select>
+                </div>
+                <div class="bys-toolbar__actions">
+                    <button type="submit" class="bys-btn bys-btn--secondary"><i class="fa-solid fa-filter" aria-hidden="true"></i> Süz</button>
+                </div>
+            </div>
         </form>
         {% if articles %}
-        <div class="list">
+        <ul class="bys-admin-rows">
             {% for article in articles %}
-            <div class="item">
-                <div>
-                    <h4 class="title">{{ article.title }}</h4>
-                    <p class="summary">{{ article.summary or 'Özet yok.' }}</p>
-                    <div class="meta">
-                        <span class="badge"><i class="fa-solid fa-link"></i> {{ article.slug }}</span>
-                        <span class="badge gray"><i class="fa-solid fa-layer-group"></i> {{ article.category_slug }}</span>
-                        <span class="badge {% if article.is_published %}green{% else %}orange{% endif %}"><i class="fa-solid fa-circle"></i> {% if article.is_published %}Yayında{% else %}Taslak{% endif %}</span>
-                        <span class="badge gray"><i class="fa-solid fa-database"></i> {{ article.source_type or 'manual' }}</span>
+            <li class="bys-admin-row">
+                <div class="bys-admin-row__text">
+                    <h4 class="bys-admin-row__title">{{ article.title }}</h4>
+                    <p class="bys-admin-row__summary">{{ article.summary or 'Özet yok.' }}</p>
+                    <div class="bys-tag-list">
+                        <span class="bys-chip bys-chip--{{ 'success' if article.is_published else 'warning' }}"><i class="fa-solid {{ 'fa-circle-check' if article.is_published else 'fa-pen' }}" aria-hidden="true"></i> {% if article.is_published %}Yayında{% else %}Taslak{% endif %}</span>
+                        <span class="bys-chip bys-chip--neutral"><span class="visually-hidden">Kısa bağlantı adı: </span><code>{{ article.slug }}</code></span>
+                        <span class="bys-chip bys-chip--neutral"><span class="visually-hidden">Kategori: </span>{{ article.category_slug }}</span>
+                        <span class="bys-chip bys-chip--neutral">{{ source_labels.get(article.source_type or 'manual', article.source_type) }}</span>
                     </div>
                 </div>
-                <div class="actions">
-                    <a class="btn-soft" href="{{ url_for('main.support_help_admin_edit', article_id=article.id) }}"><i class="fa-solid fa-pen"></i> Düzenle</a>
+                <div class="bys-admin-row__actions">
+                    <a class="bys-btn bys-btn--secondary bys-btn--compact" href="{{ url_for('main.support_help_admin_edit', article_id=article.id) }}"><i class="fa-solid fa-pen" aria-hidden="true"></i> Düzenle<span class="visually-hidden">: {{ article.title }}</span></a>
                     <form method="post" action="{{ url_for('main.support_help_admin_toggle_publish', article_id=article.id) }}" class="inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn-soft"><i class="fa-solid fa-eye"></i> {% if article.is_published %}Taslağa Al{% else %}Yayınla{% endif %}</button>
+                        <button type="submit" class="bys-btn bys-btn--secondary bys-btn--compact"><i class="fa-solid fa-eye" aria-hidden="true"></i> {% if article.is_published %}Taslağa al{% else %}Yayınla{% endif %}<span class="visually-hidden">: {{ article.title }}</span></button>
                     </form>
                     <form method="post" action="{{ url_for('main.support_help_admin_delete', article_id=article.id) }}" class="inline" data-confirm="Bu makaleyi silmek istediğinize emin misiniz?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn-danger"><i class="fa-solid fa-trash"></i> Sil</button>
+                        <button type="submit" class="bys-btn bys-btn--danger bys-btn--compact"><i class="fa-solid fa-trash" aria-hidden="true"></i> Sil<span class="visually-hidden">: {{ article.title }}</span></button>
                     </form>
                 </div>
-            </div>
+            </li>
             {% endfor %}
-        </div>
+        </ul>
         {% else %}
         <div class="empty section-spacing-top-lg">Filtreye uygun makale bulunamadı.</div>
         {% endif %}
