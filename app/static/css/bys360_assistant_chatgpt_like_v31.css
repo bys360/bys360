@@ -145,14 +145,20 @@
 #bys360-assistant-module-root .bys360-am-message.is-user .bys360-am-bubble {
   background: linear-gradient(135deg, #8B0000, #650000) !important;
 }
-#bys360-assistant-module-root .bys360-am-launcher {
-  min-width: 244px !important;
-  border-radius: 999px !important;
+/* BYS360_ASSISTANT_MOBILE_LAUNCHER_FIX_2026_10: 244 px genişlik yalnız etiketin
+   göründüğü geniş ekranlarda. 620 px ve altında etiket gizlendiği için bu kural
+   boş bir kırmızı hap bırakıyordu (bkz. bys360_assistant_module.css sonu). */
+@media (min-width: 621px) {
+  #bys360-assistant-module-root .bys360-am-launcher {
+    min-width: 244px !important;
+    border-radius: 999px !important;
+  }
 }
 @media (max-width: 720px) {
   #bys360-assistant-module-root .bys360-am-panel {
     width: calc(100vw - 18px) !important;
-    height: min(82vh, 720px) !important;
+    /* BYS360_ASSISTANT_MOBILE_LAUNCHER_FIX_2026_10: klavye açıkken görünür alana sığar (--bys360-am-vvh JS ile yazılır). */
+    height: min(82vh, 720px, calc(var(--bys360-am-vvh, 100vh) - 90px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))) !important;
     right: 0 !important;
     bottom: 70px !important;
   }
