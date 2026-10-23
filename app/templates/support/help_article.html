@@ -5,33 +5,44 @@
 {% block page_subtitle %}{{ article.summary|default('') }}{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_support_learning.css') }}">
-<div class="support-learning-shell">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
+{# BYS360_UX_WAVE5_HELP_PAGES: rehber makalesi. support-actions / support-aside / support-print sınıfları
+   bys360_support_learning.css'teki yazdırma kurallarının hedefidir; bağlantı kopyalama ve yazdırma düğmeleri
+   Wave-7 CSP sözleşmesi gereği birebir aynıdır. #}
+<div class="support-learning-shell bys-ui bys-page">
   {% set current_view_key = 'support_index' %}
-  {% include 'support/_tabs.html' %}
-  <div class="support-actions">
-    <a class="support-btn-soft" href="{{ url_for('main.support_index') }}"><i class="fa-solid fa-arrow-left"></i> Yardım Merkezine Dön</a>
+  <nav class="bys-tabs skip-mobile-normalize" aria-label="Destek bölümleri">{% include 'support/_tabs.html' %}</nav>
+  <div class="support-actions bys-article-toolbar">
+    <a class="bys-text-link" href="{{ url_for('main.support_index') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Yardım Merkezine Dön</a>
+    <div class="bys-article-toolbar__tools">
     <button class="support-btn-soft" type="button" data-copy-support-link><i class="fa-solid fa-link"></i> Bağlantıyı Kopyala</button>
     <button class="support-btn-soft" type="button" id="helpArticlePrintBtn"><i class="fa-solid fa-print"></i> Yazdır</button>
+    </div>
   </div>
 
-  <div class="support-article-shell">
-    <article class="support-reading">
+  <div class="support-article-shell bys-article-layout skip-mobile-normalize">
+    <article class="support-reading bys-card bys-prose" aria-labelledby="helpArticleTitle">
       {% set article_category = article.category|default({}) %}
-      <span class="support-kicker"><i class="{{ article_category.icon|default('fa-solid fa-book-open') }}"></i> {{ article_category.title|default('Rehber') }}</span>
-      <h2>{{ article.title|default('Rehber') }}</h2>
-      {% if article.summary %}<p class="support-reading-summary">{{ article.summary }}</p>{% endif %}
+      <p class="bys-eyebrow"><i class="{{ article_category.icon|default('fa-solid fa-book-open') }}" aria-hidden="true"></i> {{ article_category.title|default('Rehber') }}</p>
+      <h2 class="bys-prose__title" id="helpArticleTitle">{{ article.title|default('Rehber') }}</h2>
+      {% if article.summary %}<p class="bys-prose__lead">{{ article.summary }}</p>{% endif %}
 
-      <div class="support-meta">
-        {% for role in article.roles|default([]) %}
-          <span class="support-badge"><i class="{{ role.icon|default('fa-solid fa-user') }}"></i>{{ role.title|default('Rol') }}</span>
+      {% set article_roles = article.roles|default([]) %}
+      {% set article_tags = article.tags|default([]) %}
+      {% if article_roles or article_tags %}
+      <ul class="bys-tag-list" aria-label="Rehberin ilgili olduğu roller ve konular">
+        {% for role in article_roles %}
+          <li class="bys-chip bys-chip--info"><i class="{{ role.icon|default('fa-solid fa-user') }}" aria-hidden="true"></i> {{ role.title|default('Rol') }}</li>
         {% endfor %}
-        {% for tag in article.tags|default([]) %}
-          <span class="support-badge">{{ tag }}</span>
+        {% for tag in article_tags %}
+          <li class="bys-chip bys-chip--neutral">{{ tag }}</li>
         {% endfor %}
-      </div>
+      </ul>
+      {% endif %}
 
       {% for section in article.sections|default([]) %}
-        <section class="support-section" id="section-{{ loop.index }}">
+        <section class="support-section bys-prose__section" id="section-{{ loop.index }}">
           <h3>{{ section.title|default('Bölüm') }}</h3>
           {% if section.body %}<p>{{ section.body }}</p>{% endif %}
           {% set bullet_items = section.bullet_items|default([]) %}
@@ -44,7 +55,7 @@
           {% endif %}
         </section>
       {% else %}
-        <section class="support-section">
+        <section class="support-section bys-prose__section">
           <h3>Rehber içeriği hazırlanıyor</h3>
           <p>Bu makale için içerik henüz tanımlanmamış. Yardım Merkezi ana sayfasından diğer rehberlere dönebilirsiniz.</p>
         </section>
@@ -53,30 +64,36 @@
       <p class="support-print">Bu çıktı BYS360 Yardım Merkezi rehberinden alınmıştır.</p>
     </article>
 
-    <aside class="support-aside">
-      <div class="support-aside-card">
-        <h4>Bu rehberde</h4>
-        {% for section in article.sections|default([]) %}
-          <a data-support-anchor href="#section-{{ loop.index }}">{{ section.title|default('Bölüm') }}</a>
+    <aside class="support-aside bys-article-aside" aria-label="Rehber gezinmesi">
+      <nav class="bys-card bys-aside-card" aria-labelledby="helpTocTitle">
+        <h3 class="bys-aside-card__title" id="helpTocTitle">Bu rehberde</h3>
+        {% if article.sections %}
+        <ol class="bys-toc">
+          {% for section in article.sections %}
+          <li><a data-support-anchor href="#section-{{ loop.index }}">{{ section.title|default('Bölüm') }}</a></li>
+          {% endfor %}
+        </ol>
         {% else %}
-          <span class="support-muted">İçerik başlığı bulunamadı.</span>
-        {% endfor %}
-      </div>
+        <p class="bys-muted-text">İçerik başlığı bulunamadı.</p>
+        {% endif %}
+      </nav>
 
       {% if article.related_articles %}
-      <div class="support-aside-card">
-        <h4>İlgili rehberler</h4>
-        {% for related in article.related_articles %}
-          <a href="{{ url_for('main.support_help_article', article_slug=related.slug) }}">{{ related.title }}</a>
-        {% endfor %}
-      </div>
+      <section class="bys-card bys-aside-card" aria-labelledby="helpRelatedTitle">
+        <h3 class="bys-aside-card__title" id="helpRelatedTitle">İlgili rehberler</h3>
+        <ul class="bys-aside-links">
+          {% for related in article.related_articles %}
+          <li><a href="{{ url_for('main.support_help_article', article_slug=related.slug) }}">{{ related.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </section>
       {% endif %}
 
-      <div class="support-aside-card">
-        <h4>Destek gerekirse</h4>
-        <p style="margin:0 0 12px;color:#6b7280;line-height:1.65;">Konu bu rehberle çözülmediyse ekran adresi ve işlem adımıyla kayıt oluşturun.</p>
-        <a class="support-btn" style="display:inline-flex;color:#fff;border-bottom:0;" href="{{ url_for('main.support_new') }}"><i class="fa-solid fa-plus"></i> Talep Aç</a>
-      </div>
+      <section class="bys-card bys-aside-card bys-aside-card--cta" aria-labelledby="helpCtaTitle">
+        <h3 class="bys-aside-card__title" id="helpCtaTitle">Sorun çözülmedi mi?</h3>
+        <p class="bys-muted-text">Ekran adresini ve hangi adımda takıldığınızı yazarak kayıtlı bir destek talebi açın.</p>
+        <a class="bys-btn bys-btn--primary" href="{{ url_for('main.support_new') }}"><i class="fa-solid fa-plus" aria-hidden="true"></i> Talep Aç</a>
+      </section>
     </aside>
   </div>
 </div>
