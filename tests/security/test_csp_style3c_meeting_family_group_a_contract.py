@@ -523,9 +523,15 @@ def test_repo_wide_inline_handler_and_javascript_url_totals_are_zero() -> None:
 #    same ledger file's FORWARD-COMPATIBILITY FOLLOW-UP 9.
 # ---------------------------------------------------------------------------
 
+# FORWARD-COMPATIBILITY FOLLOW-UP 11 (BYS360 UX pilot, support/new.html):
+# the pilot moved support/new.html's single page-level <style> block into
+# the scoped external stylesheet app/static/css/bys360_components.css
+# (0 static attributes, 1 block, 0 dynamic) -- STYLE_BLOCK_TOTAL drops
+# 221 -> 220; ACTIVE_STATIC/DYNAMIC totals are unchanged. See the ledger
+# file's STYLE_MIGRATION_WAVES["ux_pilot_support_new"].
 EXPECTED_ACTIVE_STYLE_TOTAL_AFTER_STYLE3C = 1032
 EXPECTED_DYNAMIC_STYLE_TOTAL_AFTER_STYLE3C = 64
-EXPECTED_STYLE_BLOCK_TOTAL_AFTER_STYLE3C = 221
+EXPECTED_STYLE_BLOCK_TOTAL_AFTER_STYLE3C = 220
 
 
 def test_repo_wide_active_and_dynamic_style_attribute_totals_are_unchanged() -> None:

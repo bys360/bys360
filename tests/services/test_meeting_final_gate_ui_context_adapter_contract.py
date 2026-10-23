@@ -731,7 +731,14 @@ def test_url_map_route_count_is_unchanged(final_gate_env) -> None:
 
 EXPECTED_ACTIVE_STYLE_TOTAL = 1032
 EXPECTED_DYNAMIC_STYLE_TOTAL = 64
-EXPECTED_STYLE_BLOCK_TOTAL = 221
+# FORWARD-COMPATIBILITY FOLLOW-UP 11 (BYS360 UX pilot, support/new.html):
+# the pilot moved support/new.html's single page-level <style> block into
+# the scoped external stylesheet app/static/css/bys360_components.css
+# (0 static attributes, 1 block, 0 dynamic) -- STYLE_BLOCK_TOTAL drops
+# 221 -> 220; ACTIVE_STATIC/DYNAMIC totals are unchanged. See
+# tests/security/test_csp_style_migration_cumulative_inventory_contract.py,
+# STYLE_MIGRATION_WAVES["ux_pilot_support_new"].
+EXPECTED_STYLE_BLOCK_TOTAL = 220
 
 
 def test_repo_wide_style_and_handler_inventory_is_unchanged() -> None:
