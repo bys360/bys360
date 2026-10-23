@@ -1,0 +1,641 @@
+/*
+ * BYS360 UX dalga 8 — Ana sayfa (home.html) günlük çalışma merkezi.
+ *
+ * Kapsam kuralı: bütün seçiciler `.bys-ui` altında, yalnız ana sayfanın sınıflarıdır
+ * (`home-*`). Belge kökü seçicisi ve `!important` kullanılmaz. Renk, boşluk ve köşe
+ * değerleri bys360_tokens.css tokenlarından gelir.
+ */
+
+.bys-ui.home-page {
+  display: grid;
+  gap: var(--bys-space-5);
+}
+
+/* ---- Karşılama ve hava durumu ------------------------------------------ */
+.bys-ui .home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: var(--bys-space-4);
+  align-items: stretch;
+}
+
+.bys-ui .home-hero__main {
+  display: grid;
+  align-content: center;
+  gap: var(--bys-space-3);
+  padding: var(--bys-space-5) var(--bys-space-6);
+  border: 1px solid var(--bys-border-subtle);
+  border-left: 4px solid var(--bys-brand);
+  border-radius: var(--bys-radius-lg);
+  background: var(--bys-surface);
+  box-shadow: var(--bys-shadow-2);
+}
+
+.bys-ui .home-hero__date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bys-space-2);
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-hero__title {
+  margin: 0;
+  font-size: 1.625rem;
+  font-weight: var(--bys-fw-bold);
+  line-height: 1.25;
+  color: var(--bys-text);
+  text-wrap: balance;
+}
+
+.bys-ui .home-hero__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bys-space-2) var(--bys-space-3);
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bys-space-2);
+  margin-top: var(--bys-space-2);
+}
+
+.bys-ui .home-hero__actions .bys-btn--primary {
+  min-width: 0;
+}
+
+.bys-ui .home-weather {
+  display: grid;
+  gap: var(--bys-space-3);
+  padding: var(--bys-space-5);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-lg);
+  background: var(--bys-surface);
+  box-shadow: var(--bys-shadow-2);
+}
+
+.bys-ui .home-weather__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bys-space-2);
+}
+
+.bys-ui .home-weather__title {
+  display: flex;
+  align-items: center;
+  gap: var(--bys-space-2);
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-weather__now {
+  display: flex;
+  align-items: center;
+  gap: var(--bys-space-3);
+}
+
+.bys-ui .home-weather__icon {
+  font-size: 2rem;
+  color: var(--bys-brand);
+}
+
+.bys-ui .home-weather__temp {
+  margin: 0;
+  font-size: 2.25rem;
+  font-weight: var(--bys-fw-bold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+.bys-ui .home-weather__label {
+  margin: 0;
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text);
+}
+
+.bys-ui .home-weather__range {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-weather__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--bys-space-2);
+  margin: 0;
+}
+
+.bys-ui .home-weather__metrics div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--bys-space-2);
+  padding: var(--bys-space-2) var(--bys-space-3);
+  border-radius: var(--bys-radius-sm);
+  background: var(--bys-surface-subtle);
+}
+
+.bys-ui .home-weather__metrics dt {
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-weather__metrics dd {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+.bys-ui .home-weather__foot {
+  margin: 0;
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+/* ---- Bölüm başlıkları --------------------------------------------------- */
+.bys-ui .home-section {
+  display: grid;
+  gap: var(--bys-space-3);
+}
+
+.bys-ui .home-section__title,
+.bys-ui .home-panel__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: var(--bys-fw-bold);
+  line-height: 1.3;
+  color: var(--bys-text);
+}
+
+.bys-ui .home-subtitle {
+  margin: var(--bys-space-2) 0 0;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text-secondary);
+}
+
+/* ---- Günün öncelikleri -------------------------------------------------- */
+.bys-ui .home-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--bys-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bys-ui .home-kpi {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "icon label" "icon value" "note note";
+  column-gap: var(--bys-space-3);
+  row-gap: 2px;
+  height: 100%;
+  min-height: var(--bys-target);
+  padding: var(--bys-space-4);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bys-ui .home-kpi:hover {
+  border-color: var(--bys-brand);
+  box-shadow: var(--bys-shadow-1);
+  color: inherit;
+}
+
+.bys-ui .home-kpi:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+.bys-ui .home-kpi__icon {
+  grid-area: icon;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface-subtle);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-kpi.is-active .home-kpi__icon {
+  background: var(--bys-brand-soft);
+  color: var(--bys-brand);
+}
+
+.bys-ui .home-kpi__label {
+  grid-area: label;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-kpi__value {
+  grid-area: value;
+  font-size: var(--bys-fs-xl);
+  font-weight: var(--bys-fw-bold);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+.bys-ui .home-kpi__note {
+  grid-area: note;
+  margin-top: var(--bys-space-2);
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+/* ---- İki sütunlu gövde -------------------------------------------------- */
+.bys-ui .home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: var(--bys-space-4);
+  align-items: start;
+}
+
+.bys-ui .home-grid__main,
+.bys-ui .home-grid__side {
+  display: grid;
+  gap: var(--bys-space-4);
+  min-width: 0;
+}
+
+.bys-ui .home-panel {
+  display: grid;
+  gap: var(--bys-space-3);
+  padding: var(--bys-space-5);
+  min-width: 0;
+}
+
+.bys-ui .home-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bys-space-2);
+}
+
+.bys-ui .home-muted {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-empty {
+  padding: var(--bys-space-4);
+}
+
+/* ---- Listeler ----------------------------------------------------------- */
+.bys-ui .home-list,
+.bys-ui .home-links,
+.bys-ui .home-notes,
+.bys-ui .home-featured,
+.bys-ui .home-people,
+.bys-ui .home-activity {
+  display: grid;
+  gap: var(--bys-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bys-ui .home-list__item,
+.bys-ui .home-links a {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--bys-space-3);
+  min-height: var(--bys-target);
+  padding: var(--bys-space-3);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-md);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.bys-ui .home-list__item:hover,
+.bys-ui .home-links a:hover {
+  border-color: var(--bys-brand);
+  background: var(--bys-surface-brand);
+  color: inherit;
+}
+
+.bys-ui .home-list__item:focus-visible,
+.bys-ui .home-links a:focus-visible,
+.bys-ui .home-featured__item:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+.bys-ui .home-list__item.is-danger {
+  border-color: var(--bys-danger);
+  background: var(--bys-danger-bg);
+}
+
+.bys-ui .home-list__icon,
+.bys-ui .home-links i {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--bys-radius-sm);
+  background: var(--bys-brand-soft);
+  color: var(--bys-brand);
+}
+
+.bys-ui .home-list__item.is-danger .home-list__icon {
+  background: var(--bys-surface);
+  color: var(--bys-danger);
+}
+
+.bys-ui .home-list__body,
+.bys-ui .home-links span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bys-ui .home-list__kicker {
+  font-size: var(--bys-fs-xs);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-brand);
+}
+
+.bys-ui .home-list__title,
+.bys-ui .home-links b {
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text);
+  overflow-wrap: anywhere;
+}
+
+.bys-ui .home-list__text,
+.bys-ui .home-links small {
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.bys-ui .home-list__meta {
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-list--compact .home-list__item {
+  padding: var(--bys-space-2) var(--bys-space-3);
+}
+
+.bys-ui .home-featured {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.bys-ui .home-featured__item {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  height: 100%;
+  padding: var(--bys-space-3);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface-subtle);
+  color: inherit;
+  text-decoration: none;
+}
+
+.bys-ui .home-featured__item:hover {
+  border-color: var(--bys-brand);
+  color: inherit;
+}
+
+/* ---- Özet sayılar ve olgular -------------------------------------------- */
+.bys-ui .home-pills {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--bys-space-2);
+  margin: 0;
+}
+
+.bys-ui .home-pills div {
+  display: grid;
+  gap: 2px;
+  padding: var(--bys-space-2) var(--bys-space-3);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface-subtle);
+}
+
+.bys-ui .home-pills dt {
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-pills dd {
+  margin: 0;
+  font-size: var(--bys-fs-lg);
+  font-weight: var(--bys-fw-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+.bys-ui .home-facts {
+  display: grid;
+  margin: 0;
+}
+
+.bys-ui .home-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--bys-space-3);
+  padding: var(--bys-space-2) 0;
+  border-bottom: 1px solid var(--bys-border-subtle);
+}
+
+.bys-ui .home-facts dt {
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-facts dd {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+/* ---- Saha notları ------------------------------------------------------- */
+.bys-ui .home-note {
+  display: flex;
+  gap: var(--bys-space-3);
+  padding: var(--bys-space-3);
+  border-left: 3px solid var(--bys-border);
+  border-radius: var(--bys-radius-sm);
+  background: var(--bys-surface-subtle);
+}
+
+.bys-ui .home-note > i {
+  margin-top: 2px;
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-note span {
+  display: grid;
+  gap: 2px;
+}
+
+.bys-ui .home-note b {
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text);
+}
+
+.bys-ui .home-note small {
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-note.level-danger {
+  border-left-color: var(--bys-danger);
+}
+
+.bys-ui .home-note.level-warning {
+  border-left-color: var(--bys-warning);
+}
+
+.bys-ui .home-note.level-success {
+  border-left-color: var(--bys-success);
+}
+
+.bys-ui .home-note.level-info {
+  border-left-color: var(--bys-info);
+}
+
+/* ---- Profil ve kişiler -------------------------------------------------- */
+.bys-ui .home-profile,
+.bys-ui .home-people li {
+  display: flex;
+  align-items: center;
+  gap: var(--bys-space-3);
+}
+
+.bys-ui .home-profile > span:last-child,
+.bys-ui .home-people li > span:last-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bys-ui .home-profile b,
+.bys-ui .home-people b {
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text);
+}
+
+.bys-ui .home-profile small,
+.bys-ui .home-people small {
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-avatar {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--bys-brand-soft);
+  color: var(--bys-brand);
+}
+
+.bys-ui .home-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bys-ui .home-meter {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .home-page meter {
+  width: 100%;
+  height: 10px;
+}
+
+.bys-ui .home-activity li {
+  padding-left: var(--bys-space-3);
+  border-left: 2px solid var(--bys-border);
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+/* ---- Duyarlı yerleşim --------------------------------------------------- */
+@media (max-width: 1200px) {
+  .bys-ui .home-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .bys-ui .home-hero,
+  .bys-ui .home-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .bys-ui .home-hero__main {
+    padding: var(--bys-space-4);
+  }
+
+  .bys-ui .home-hero__title {
+    font-size: 1.375rem;
+  }
+
+  .bys-ui .home-hero__actions .bys-btn {
+    flex: 1 1 100%;
+  }
+
+  .bys-ui .home-kpis,
+  .bys-ui .home-pills {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bys-ui .home-kpis li:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .bys-ui .home-featured {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bys-ui .home-panel {
+    padding: var(--bys-space-4);
+  }
+}

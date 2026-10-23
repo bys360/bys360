@@ -1,173 +1,208 @@
 {% extends "base.html" %}
+{% import "_ui_form.html" as ui %}
 {% block title %}{{ ticket.ticket_no }} - BYS360{% endblock %}
 {% block page_kicker %}Destek ve Talep Yönetimi{% endblock %}
 {% block page_title %}{{ ticket.ticket_no }}{% endblock %}
-{% block page_subtitle %}Talep sahibi, alt durum, çözüm özeti ve işlem geçmişi aynı ekranda görünür.{% endblock %}
+{% block page_subtitle %}Talebin durumu, yazışmalar, dosyalar ve işlem geçmişi.{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/faz4_support_account_mobile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
+{# Sayfanın eski sayfa içi stil bloğu bilinçli olarak AYNEN duruyor: başka bir şablonun bloğunu taşımak stil ratchet'inde
+   ikinci bir sahiplik istisnası (DISJOINT_RECLAIMS) gerektiriyor ve bu istisna yalnız proje sahibinin onayıyla
+   genişletilebilir. Yeni işaretleme yalnız .bys-ui altındaki bys-* sınıflarını kullanır. #}
 <style>.support-shell{display:grid;gap:18px}.support-tabs{display:flex;flex-wrap:wrap;gap:10px}.support-tab{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid rgba(15,23,42,.08);text-decoration:none;color:#374151;font-weight:800}.support-tab.active{background:rgba(139,0,0,.08);color:#8B0000;border-color:rgba(139,0,0,.16)}.detail-grid{display:grid;grid-template-columns:minmax(0,1.35fr) 360px;gap:18px}.card{background:rgba(255,255,255,.92);border:1px solid rgba(139,0,0,.08);border-radius:24px;padding:22px;box-shadow:0 18px 36px rgba(15,23,42,.08)}.ticket-title{margin:0;font-size:1.18rem;font-weight:900;color:#111827}.meta-row{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}.chip{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 10px;border-radius:999px;font-size:.76rem;font-weight:900}.priority-critical,.status-open{background:rgba(254,242,242,.95);color:#b91c1c}.priority-high,.status-reviewing,.status-waiting_info{background:rgba(255,247,237,.95);color:#c2410c}.priority-normal,.status-assigned,.status-planned{background:rgba(239,246,255,.95);color:#1d4ed8}.priority-low,.status-resolved,.status-closed{background:rgba(236,253,245,.95);color:#047857}.status-rejected{background:rgba(243,244,246,.95);color:#4b5563}.detail-text{margin-top:16px;color:#6b7280;line-height:1.9}.section-title{margin:0 0 12px;font-size:1rem;font-weight:900;color:#111827}.timeline{display:grid;gap:12px}.timeline-item{padding:14px;border-radius:16px;background:#f8fafc;border:1px solid rgba(15,23,42,.06)}.timeline-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#6b7280;font-size:.8rem;font-weight:800;margin-bottom:8px}.timeline-text{color:#374151;line-height:1.75}.side-stack{display:grid;gap:18px}.field{display:grid;gap:8px}.field label{font-size:.82rem;font-weight:800;color:#374151}.field input,.field select,.field textarea{min-height:44px;border-radius:12px;border:1px solid rgba(15,23,42,.08);padding:0 12px;background:#fff}.field textarea{min-height:110px;padding:12px;resize:vertical}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border-radius:12px;border:none;text-decoration:none;font-weight:800}.btn.primary{background:linear-gradient(180deg,#8B0000,#6f0000);color:#fff}.btn.soft{background:#eef2f7;color:#334155}.attach-list{display:grid;gap:10px}.attach-item{padding:12px 14px;border-radius:14px;background:#f8fafc;border:1px solid rgba(15,23,42,.06);display:flex;align-items:center;justify-content:space-between;gap:12px}.muted{color:#6b7280;font-size:.84rem;line-height:1.7}@media (max-width:1080px){.detail-grid{grid-template-columns:1fr}}</style>
-<div class="support-shell">
-    {% set current_view_key = 'support_index' %}
-    {% include 'support/_tabs.html' %}
-    <div class="detail-grid">
-        <div class="side-stack">
-            <div class="card">
-                <h3 class="ticket-title">{{ ticket.title }}</h3>
-                <div class="meta-row">
-                    <span class="chip priority-{{ ticket.priority }}">{{ ticket.priority_label }}</span>
-                    <span class="chip status-{{ ticket.status }}">{{ ticket.status_label }}</span>
-                    <span class="chip">{{ ticket.module_name }}</span>
-                    <span class="chip">{{ ticket.full_name_snapshot or '-' }}</span>
-                </div>
-                <div class="detail-text">{{ ticket.description }}</div>
-                <div class="meta-row section-spacing-top-md">
-                    <span class="muted">Oluşturulma: {{ ticket.created_at.strftime('%d.%m.%Y %H:%M') if ticket.created_at else '-' }}</span>
-                    <span class="muted">Son Güncelleme: {{ ticket.updated_at.strftime('%d.%m.%Y %H:%M') if ticket.updated_at else '-' }}</span>
-                </div>
+{# BYS360_UX_WAVE3_SUPPORT_DETAIL: Talep detayı, pilot (support/new.html) tasarım dilinde.
+   Rota, yetki, görünürlük (iç not yalnız yöneticiye), form alan adları ve form hedefleri değişmedi; yalnız sunum. #}
+{% set current_view_key = 'support_index' %}
+{% set status_icons = {'open': 'fa-circle-dot', 'reviewing': 'fa-magnifying-glass', 'waiting_info': 'fa-circle-question', 'assigned': 'fa-user-check', 'planned': 'fa-calendar-check', 'resolved': 'fa-circle-check', 'closed': 'fa-lock', 'rejected': 'fa-circle-xmark'} %}
+{% set status_tones = {'open': 'info', 'reviewing': 'warning', 'waiting_info': 'warning', 'assigned': 'info', 'planned': 'info', 'resolved': 'success', 'closed': 'neutral', 'rejected': 'neutral'} %}
+{% set priority_tones = {'critical': 'danger', 'high': 'warning', 'normal': 'neutral', 'low': 'neutral'} %}
+{# Türkçe arayüz standardı: kayıtlı alan adı değişmez; yalnız gösterilen ad Türkçeleştirilir (support/new.html ile aynı eşleme). #}
+{% set module_display_labels = {'Raporlama ve Dashboard': 'Raporlama ve Gösterge Paneli', 'KPI / Hedef Yönetimi': 'Performans Göstergesi (KPI) / Hedef Yönetimi'} %}
+{% set message_type_labels = {'status_note': 'Durum notu', 'internal_note': 'İç not'} %}
+{% set rating_labels = {1: 'Çok yetersiz', 2: 'Yetersiz', 3: 'Orta', 4: 'İyi', 5: 'Çok iyi'} %}
+{% set attachment_accept = '.png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,.webp' %}
+{% set attachment_help = 'İsteğe bağlı. İzin verilen dosya türleri: resim (PNG, JPG, WEBP), PDF, Word (DOCX), Excel (XLSX) ve metin (TXT).' %}
+{% macro file_size(value) -%}
+{%- set size = value or 0 -%}
+{%- if size < 1024 -%}{{ size }} bayt{%- elif size < 1048576 -%}{{ size // 1024 }} KB{%- else -%}{{ '%.1f'|format(size / 1048576)|replace('.', ',') }} MB{%- endif -%}
+{%- endmacro %}
+{% macro when(value) -%}{{ value.strftime('%d.%m.%Y %H:%M') if value else '-' }}{%- endmacro %}
+<div class="support-shell bys-ui bys-page">
+    <nav class="bys-tabs skip-mobile-normalize" aria-label="Destek bölümleri">{% include 'support/_tabs.html' %}</nav>
+
+    <header class="bys-page-header bys-detail-header">
+        <div class="bys-page-header__text">
+            <p class="bys-eyebrow">Destek talebi · {{ ticket.ticket_no }}</p>
+            <h2 class="bys-page-title">{{ ticket.title }}</h2>
+            <div class="bys-chip-row">
+                <span class="bys-chip bys-chip--{{ status_tones.get(ticket.status, 'neutral') }}"><i class="fa-solid {{ status_icons.get(ticket.status, 'fa-circle') }}" aria-hidden="true"></i> <span class="visually-hidden">Durum: </span>{{ ticket.status_label }}</span>
+                <span class="bys-chip bys-chip--{{ priority_tones.get(ticket.priority, 'neutral') }}"><span class="visually-hidden">Öncelik: </span>{{ ticket.priority_label }}</span>
+                <span class="bys-chip bys-chip--neutral"><span class="visually-hidden">İlgili alan: </span>{{ module_display_labels.get(ticket.module_name, ticket.module_name) or 'Genel' }}</span>
             </div>
-            <div class="card">
-                <h4 class="section-title">Yorumlar ve işlem notları</h4>
-                <div class="timeline">
+            <div class="meta-row section-spacing-top-md">
+                <span>Oluşturulma: {{ when(ticket.created_at) }}</span>
+                <span>Son güncelleme: {{ when(ticket.updated_at) }}</span>
+            </div>
+        </div>
+        <a class="bys-btn bys-btn--ghost" href="{{ url_for('main.support_my_tickets') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Taleplerime dön</a>
+    </header>
+
+    <div class="bys-detail-layout skip-mobile-normalize">
+        <div class="bys-detail-main">
+            <section class="bys-card" aria-labelledby="ticketDescriptionTitle">
+                <h3 class="bys-card__title" id="ticketDescriptionTitle">Talep açıklaması</h3>
+                <p class="bys-detail-text">{{ ticket.description }}</p>
+            </section>
+
+            <section class="bys-card" aria-labelledby="ticketMessagesTitle">
+                <h3 class="bys-card__title" id="ticketMessagesTitle">Yazışmalar ve notlar</h3>
+                <ol class="bys-timeline">
                     {% for row in ticket.messages %}
                         {% if not row.is_internal or can_manage %}
-                        <div class="timeline-item">
-                            <div class="timeline-top"><span>{{ row.user.full_name if row.user else 'Kullanıcı' }}{% if row.is_internal %} · İç not{% endif %}</span><span>{{ row.created_at.strftime('%d.%m.%Y %H:%M') if row.created_at else '-' }}</span></div>
-                            <div class="timeline-text">{{ row.message }}</div>
-                        </div>
+                        <li class="bys-timeline__item{% if row.is_internal %} bys-timeline__item--internal{% endif %}">
+                            <p class="bys-timeline__meta">
+                                <span class="bys-timeline__author">{{ row.user.full_name if row.user else 'Kullanıcı' }}</span>
+                                {% if row.is_internal %}<span class="bys-chip bys-chip--warning"><i class="fa-solid fa-lock" aria-hidden="true"></i> İç not</span>{% elif message_type_labels.get(row.message_type) %}<span class="bys-chip bys-chip--neutral">{{ message_type_labels.get(row.message_type) }}</span>{% endif %}
+                                <span class="bys-timeline__time">{{ when(row.created_at) }}</span>
+                            </p>
+                            <p class="bys-timeline__text">{{ row.message }}</p>
+                        </li>
                         {% endif %}
                     {% else %}
-                    <div class="timeline-item">Henüz not eklenmemiş.</div>
+                    <li class="bys-timeline__empty">Henüz yazışma yok. Ek bilgi veya soru için aşağıdan not ekleyebilirsiniz.</li>
                     {% endfor %}
-                </div>
-            </div>
-            <div class="card">
-                <h4 class="section-title">Durum geçmişi</h4>
-                <div class="timeline">
-                    {% for row in ticket.status_history %}
-                    <div class="timeline-item">
-                        <div class="timeline-top"><span>{{ row.changed_by.full_name if row.changed_by else 'Sistem' }}</span><span>{{ row.created_at.strftime('%d.%m.%Y %H:%M') if row.created_at else '-' }}</span></div>
-                        <div class="timeline-text">{{ status_labels.get(row.old_status, 'Bilinmiyor') if row.old_status else 'İlk kayıt' }} → {{ status_labels.get(row.new_status, 'Bilinmiyor') }}{% if row.note %}<br><span class="muted">{{ row.note }}</span>{% endif %}</div>
-                    </div>
-                    {% else %}
-                    <div class="timeline-item">Durum geçmişi bulunmuyor.</div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        <div class="side-stack">
-            <div class="card">
-                <h4 class="section-title">Talep özeti</h4>
-                <div class="muted">Talep sahibi: <strong>{{ ticket.full_name_snapshot or '-' }}</strong></div>
-                <div class="muted">Sicil no: <strong>{{ ticket.sicil_no_snapshot or '-' }}</strong></div>
-                <div class="muted">Birim: <strong>{{ ticket.unit_name_snapshot or '-' }}</strong></div>
-                <div class="muted">Atanan kişi: <strong>{{ ticket.assigned_to.full_name if ticket.assigned_to else 'Atanmadı' }}</strong></div>
-                <div class="muted">Alt durum: <strong>{{ ticket.sub_status_text }}</strong></div>
-                <div class="muted">Çözüm özeti: <strong>{{ ticket.resolution_text }}</strong></div>
-                <div class="muted">Durum tarihi: <strong>{{ ticket.status_date.strftime('%d.%m.%Y %H:%M') if ticket.status_date else '-' }}</strong></div>
-                <div class="muted">Süre: <strong>{{ ticket.elapsed_label }}</strong></div>
-            </div>
-            <div class="card">
-                <h4 class="section-title">Dosyalar</h4>
-                <div class="attach-list">
-                    {% for attachment in ticket.attachments %}
-                    <div class="attach-item">
-                        <div>
-                            <div class="attachment-filename">{{ attachment.filename }}</div>
-                            <div class="muted">{{ (attachment.file_size or 0) // 1024 }} KB</div>
-                        </div>
-                        <a class="btn soft" href="{{ url_for('main.support_attachment_download', ticket_id=ticket.id, attachment_id=attachment.id) }}"><i class="fa-solid fa-download"></i> İndir</a>
-                    </div>
-                    {% else %}
-                    <div class="timeline-item">Ek dosya bulunmuyor.</div>
-                    {% endfor %}
-                </div>
-            </div>
-            <div class="card" id="ai-support-triage-card">
-                <h4 class="section-title">AI triage özeti</h4>
-                <div class="muted" id="ai-support-triage-output">Talep için henüz AI triage özeti üretilmedi.</div>
-                <div class="actions"><button type="button" class="btn soft" id="ai-support-triage-trigger"><i class="fa-solid fa-sparkles"></i> AI ile değerlendir</button></div>
-            </div>
-            <div class="card">
-                <h4 class="section-title">Yeni not ekle</h4>
-                <form method="post" action="{{ url_for('main.support_comment', ticket_id=ticket.id) }}" enctype="multipart/form-data">
+                </ol>
+
+                <form class="bys-detail-form" id="ticketCommentForm" method="post" action="{{ url_for('main.support_comment', ticket_id=ticket.id) }}" enctype="multipart/form-data" data-bys-submit-guard aria-labelledby="ticketCommentTitle">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="field"><label>Mesaj</label><textarea name="message" required></textarea></div>
-                    <div class="field"><label>Ek dosya</label><input type="file" name="attachment"></div>
-                    {% if can_manage %}<label class="muted checkbox-inline"><input type="checkbox" name="is_internal" value="1"> İç not olarak kaydet</label>{% endif %}
-                    <div class="actions"><button type="submit" class="btn primary"><i class="fa-solid fa-comment-medical"></i> Notu Kaydet</button></div>
+                    <h4 class="bys-detail-form__title" id="ticketCommentTitle">Yeni not ekleyin</h4>
+                    {{ ui.textarea_field('ticket-comment', 'message', 'Mesajınız', required=true, maxlength=2000, rows=4, counter=true,
+                        help='En fazla 2.000 karakter. Parola veya kişisel veri yazmayın.') }}
+                    {{ ui.file_field('ticket-comment-attachment', 'attachment', 'Ek dosya', accept=attachment_accept, help=attachment_help) }}
+                    {% if can_manage %}
+                    <div class="privacy-box">
+                        <label class="muted checkbox-inline"><input type="checkbox" name="is_internal" value="1"> İç not olarak kaydet</label>
+                        <p class="field-helper-text">İç notları yalnız destek yöneticileri görür; talep sahibine gösterilmez.</p>
+                    </div>
+                    {% endif %}
+                    <div class="bys-actions">
+                        <button type="submit" class="bys-btn bys-btn--primary" data-bys-submit-button data-bys-busy-text="Kaydediliyor…"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i> <span data-bys-submit-label>Notu Kaydet</span></button>
+                    </div>
                 </form>
-            </div>
+            </section>
+
+            <section class="bys-card" aria-labelledby="ticketHistoryTitle">
+                <h3 class="bys-card__title" id="ticketHistoryTitle">Durum geçmişi</h3>
+                <ol class="bys-timeline">
+                    {% for row in ticket.status_history %}
+                    <li class="bys-timeline__item">
+                        <p class="bys-timeline__meta">
+                            <span class="bys-timeline__author">{{ row.changed_by.full_name if row.changed_by else 'Sistem' }}</span>
+                            <span class="bys-timeline__time">{{ when(row.created_at) }}</span>
+                        </p>
+                        <p class="bys-timeline__text">{{ status_labels.get(row.old_status, 'Bilinmiyor') if row.old_status else 'İlk kayıt' }} → {{ status_labels.get(row.new_status, 'Bilinmiyor') }}</p>
+                        {% if row.note %}<p class="bys-timeline__note">{{ row.note }}</p>{% endif %}
+                    </li>
+                    {% else %}
+                    <li class="bys-timeline__empty">Durum geçmişi bulunmuyor.</li>
+                    {% endfor %}
+                </ol>
+            </section>
+        </div>
+
+        <aside class="bys-detail-side" aria-label="Talep bilgileri ve işlemler">
+            <section class="bys-card" aria-labelledby="ticketFactsTitle">
+                <h3 class="bys-card__title" id="ticketFactsTitle">Talep bilgileri</h3>
+                <dl class="bys-facts">
+                    <div><dt>Talep sahibi</dt><dd>{{ ticket.full_name_snapshot or '-' }}</dd></div>
+                    <div><dt>Sicil no</dt><dd>{{ ticket.sicil_no_snapshot or '-' }}</dd></div>
+                    <div><dt>Birim</dt><dd>{{ ticket.unit_name_snapshot or '-' }}</dd></div>
+                    <div><dt>Atanan kişi</dt><dd>{{ ticket.assigned_to.full_name if ticket.assigned_to else 'Atanmadı' }}</dd></div>
+                    <div><dt>Durum tarihi</dt><dd>{{ when(ticket.status_date) }}</dd></div>
+                    <div><dt>Geçen süre</dt><dd>{{ ticket.elapsed_label }}</dd></div>
+                    <div><dt>Alt durum</dt><dd>{{ ticket.sub_status_text }}</dd></div>
+                    <div><dt>Çözüm özeti</dt><dd>{{ ticket.resolution_text }}</dd></div>
+                </dl>
+            </section>
+
+            <section class="bys-card" aria-labelledby="ticketFilesTitle">
+                <h3 class="bys-card__title" id="ticketFilesTitle">Dosyalar</h3>
+                {% if ticket.attachments %}
+                <ul class="bys-file-list">
+                    {% for attachment in ticket.attachments %}
+                    <li class="bys-file-list__item">
+                        <span class="bys-file-list__icon" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></span>
+                        <div class="bys-file-list__text">
+                            <div class="attachment-filename">{{ attachment.filename }}</div>
+                            <span class="bys-file-list__meta">{{ file_size(attachment.file_size) }}</span>
+                        </div>
+                        <a class="bys-btn bys-btn--secondary bys-btn--compact" href="{{ url_for('main.support_attachment_download', ticket_id=ticket.id, attachment_id=attachment.id) }}"><i class="fa-solid fa-download" aria-hidden="true"></i> İndir<span class="visually-hidden">: {{ attachment.filename }}</span></a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="bys-muted-text">Ek dosya bulunmuyor.</p>
+                {% endif %}
+            </section>
+
             {% if can_manage %}
-            <div class="card">
-                <h4 class="section-title">Durum ve atama yönetimi</h4>
-                <form method="post" action="{{ url_for('main.support_status', ticket_id=ticket.id) }}">
+            <section class="bys-card" aria-labelledby="ticketManageTitle">
+                <h3 class="bys-card__title" id="ticketManageTitle">Durum ve atama</h3>
+                <form class="bys-detail-form" id="ticketStatusForm" method="post" action="{{ url_for('main.support_status', ticket_id=ticket.id) }}" data-bys-submit-guard>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="field"><label>Durum</label><select name="status">{% for value,label in status_choices %}<option value="{{ value }}" {% if ticket.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-                    <div class="field"><label>Alt durum / çözüm notu</label><textarea name="status_note" placeholder="İşlemdeyse alt durum, çözüldü-kapatıldı ise çözüm özetini yazın."></textarea></div>
-                    <div class="actions"><button type="submit" class="btn primary"><i class="fa-solid fa-rotate"></i> Durumu Güncelle</button></div>
+                    {{ ui.select_field('ticket-status', 'status', 'Durum', status_choices, selected=ticket.status) }}
+                    {{ ui.textarea_field('ticket-status-note', 'status_note', 'Alt durum veya çözüm notu', maxlength=500, rows=3,
+                        help='İşlemdeyse alt durumu, çözüldü veya kapatıldıysa çözüm özetini yazın. Not talep sahibine görünür.') }}
+                    <div class="bys-actions">
+                        <button type="submit" class="bys-btn bys-btn--primary" data-bys-submit-button><i class="fa-solid fa-rotate" aria-hidden="true"></i> <span data-bys-submit-label>Durumu Güncelle</span></button>
+                    </div>
                 </form>
                 <hr class="section-divider">
-                <form method="post" action="{{ url_for('main.support_assign', ticket_id=ticket.id) }}">
+                <form class="bys-detail-form" id="ticketAssignForm" method="post" action="{{ url_for('main.support_assign', ticket_id=ticket.id) }}" data-bys-submit-guard>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="field"><label>Atanan kişi</label><select name="assigned_to_user_id"><option value="">Atama kaldır</option>{% for user in assignable_users %}<option value="{{ user.id }}" {% if ticket.assigned_to_user_id == user.id %}selected{% endif %}>{{ user.full_name }}</option>{% endfor %}</select></div>
-                    <div class="actions"><button type="submit" class="btn soft"><i class="fa-solid fa-user-check"></i> Atamayı Kaydet</button></div>
+                    {% set assignee_options = [('', 'Atama kaldır')] %}
+                    {% for user in assignable_users %}{% set _ = assignee_options.append((user.id, user.full_name)) %}{% endfor %}
+                    {{ ui.select_field('ticket-assignee', 'assigned_to_user_id', 'Atanan kişi', assignee_options, selected=ticket.assigned_to_user_id) }}
+                    <div class="bys-actions">
+                        <button type="submit" class="bys-btn bys-btn--secondary" data-bys-submit-button><i class="fa-solid fa-user-check" aria-hidden="true"></i> <span data-bys-submit-label>Atamayı Kaydet</span></button>
+                    </div>
                 </form>
-            </div>
+            </section>
             {% endif %}
+
             {% if ticket.created_by_user_id == current_user.id %}
-            <div class="card">
-                <h4 class="section-title">Destek deneyimi puanı</h4>
-                <form method="post" action="{{ url_for('main.support_rate', ticket_id=ticket.id) }}">
+            <section class="bys-card" aria-labelledby="ticketRatingTitle">
+                <h3 class="bys-card__title" id="ticketRatingTitle">Destek deneyimini değerlendirin</h3>
+                <form class="bys-detail-form" id="ticketRatingForm" method="post" action="{{ url_for('main.support_rate', ticket_id=ticket.id) }}" data-bys-submit-guard>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {% set current_rating = ticket.feedback_ratings[0].rating if ticket.feedback_ratings else 0 %}
-                    <div class="field"><label>Puan</label><select name="rating">{% for i in range(1,6) %}<option value="{{ i }}" {% if current_rating == i %}selected{% endif %}>{{ i }} / 5</option>{% endfor %}</select></div>
-                    <div class="field"><label>Not</label><textarea name="feedback_note">{{ ticket.feedback_ratings[0].feedback_note if ticket.feedback_ratings else '' }}</textarea></div>
-                    <div class="actions"><button type="submit" class="btn soft"><i class="fa-solid fa-star"></i> Puanı Kaydet</button></div>
+                    {# Henüz puan verilmediyse seçim boş başlar; eskiden 1 / 5 seçili geldiği için fark edilmeden 1 puan kaydedilebiliyordu. #}
+                    {% set rating_options = [('', 'Puan seçin')] %}
+                    {% for i in range(1, 6) %}{% set _ = rating_options.append((i, i ~ ' / 5 · ' ~ rating_labels[i])) %}{% endfor %}
+                    {{ ui.select_field('ticket-rating', 'rating', 'Puanınız', rating_options, selected=current_rating, required=true) }}
+                    {{ ui.textarea_field('ticket-rating-note', 'feedback_note', 'Görüşünüz', value=(ticket.feedback_ratings[0].feedback_note if ticket.feedback_ratings else ''), maxlength=500, rows=3,
+                        help='İsteğe bağlı, en fazla 500 karakter.') }}
+                    <div class="bys-actions">
+                        <button type="submit" class="bys-btn bys-btn--secondary" data-bys-submit-button><i class="fa-solid fa-star" aria-hidden="true"></i> <span data-bys-submit-label>Puanı Kaydet</span></button>
+                    </div>
                 </form>
-            </div>
+            </section>
             {% endif %}
-        </div>
+
+            <section class="bys-card" id="ai-support-triage-card" aria-labelledby="ticketTriageTitle" data-triage-url="{{ url_for('main.ai_support_ticket_triage', ticket_id=ticket.id) }}">
+                <h3 class="bys-card__title" id="ticketTriageTitle">Yapay zekâ ön değerlendirmesi</h3>
+                <p class="bys-muted-text">Öneri niteliğindedir; karar destek ekibine aittir.</p>
+                <div class="bys-triage-output" id="ai-support-triage-output" aria-live="polite">Bu talep için henüz ön değerlendirme hazırlanmadı.</div>
+                <div class="bys-actions">
+                    <button type="button" class="bys-btn bys-btn--secondary" id="ai-support-triage-trigger"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Ön değerlendirme hazırla</button>
+                </div>
+            </section>
+        </aside>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const trigger = document.getElementById('ai-support-triage-trigger');
-  const output = document.getElementById('ai-support-triage-output');
-  const card = document.getElementById('ai-support-triage-card');
-  if (!trigger || !output || !card) return;
-
-  const renderText = (value) => {
-    output.innerHTML = '';
-    String(value || '').split('\n').forEach((line) => {
-      const row = document.createElement('div');
-      row.className = 'timeline-item';
-      row.style.marginTop = '8px';
-      row.textContent = line;
-      output.appendChild(row);
-    });
-  };
-
-  trigger.addEventListener('click', async function () {
-    trigger.disabled = true;
-    output.innerHTML = 'AI triage özeti hazırlanıyor...';
-    try {
-      const resp = await fetch("{{ url_for('main.ai_support_ticket_triage', ticket_id=ticket.id) }}", {headers: {'X-Requested-With': 'XMLHttpRequest'}});
-      const data = await resp.json();
-      if (!resp.ok || !data.ok) {
-        throw new Error((data && data.error) || 'AI triage özeti alınamadı.');
-      }
-      const summary = (((data || {}).data || {}).summary) || '-';
-      renderText(summary);
-      card.style.borderColor = 'rgba(139,0,0,.16)';
-    } catch (err) {
-      output.textContent = err.message || 'AI triage özeti alınamadı.';
-      card.style.borderColor = 'rgba(217,119,6,.28)';
-    } finally {
-      trigger.disabled = false;
-    }
-  });
-});
-</script>
+<script src="{{ url_for('static', filename='js/bys360_ui_form.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bys360_support_detail.js') }}"></script>
 <script src="{{ url_for('static', filename='js/faz4_support_account_mobile.js') }}"></script>
 {% endblock %}

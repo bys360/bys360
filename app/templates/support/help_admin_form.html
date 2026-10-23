@@ -4,91 +4,93 @@
 {% block page_title %}{% if form_mode == 'edit' %}Makale Düzenle{% else %}Yeni Makale{% endif %}{% endblock %}
 {% block page_subtitle %}Yardım merkezi içeriğini kurumsal dile uygun şekilde yönetin.{% endblock %}
 {% block content %}
+{% import "_ui_form.html" as ui %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/faz4_support_account_mobile.css') }}">
-<style>
-.support-shell{display:grid;gap:18px}.support-tabs{display:flex;flex-wrap:wrap;gap:10px}.support-tab{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid rgba(15,23,42,.08);text-decoration:none;color:#374151;font-weight:800}.support-tab.active{background:rgba(139,0,0,.08);color:#8B0000;border-color:rgba(139,0,0,.18)}.card{background:rgba(255,255,255,.94);border:1px solid rgba(139,0,0,.08);border-radius:24px;box-shadow:0 18px 36px rgba(15,23,42,.08);padding:22px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.field{display:grid;gap:8px}.field.full{grid-column:1/-1}.label{font-size:.9rem;font-weight:800;color:#374151}.input,.textarea,.select{width:100%;border:1px solid rgba(15,23,42,.12);border-radius:14px;background:#fff;padding:12px 14px;font:inherit}.textarea{min-height:140px;resize:vertical}.check-grid{display:flex;gap:14px;flex-wrap:wrap}.role-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.hint{font-size:.82rem;color:#6b7280;line-height:1.7}.actions{display:flex;gap:10px;flex-wrap:wrap}.btn-main,.btn-soft{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 16px;border-radius:14px;text-decoration:none;font-weight:800;border:none}.btn-main{background:linear-gradient(180deg,#8B0000,#6f0000);color:#fff}.btn-soft{background:#fff;color:#8B0000;border:1px solid rgba(139,0,0,.16)}@media (max-width:900px){.form-grid,.role-grid{grid-template-columns:1fr}}
-</style>
-<div class="support-shell">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
+{# BYS360_UX_WAVE6_HELP_FORM: rehber makalesi oluşturma/düzenleme formu (yalnız yönetici).
+   Alan adları, form hedefi (aynı adres, POST), CSRF ve hata durumunda girilen değerlerin korunması değişmedi. #}
+{% set f = request.form %}
+{% set selected_category = f.get('category_slug', article.category_slug if article else 'baslarken') %}
+{% set selected_roles = f.getlist('role_slugs') or (article.role_slugs if article else []) %}
+{% set published_value = f.get('is_published', '1' if article and article.is_published else '') %}
+{% set featured_value = f.get('is_featured', '1' if article and article.is_featured else '') %}
+{% set category_options = [] %}
+{% for category in help_categories %}{% set _ = category_options.append((category.slug, category.title)) %}{% endfor %}
+<div class="support-shell bys-ui bys-page">
     {% set current_view_key = 'support_help_admin' %}
-    {% include 'support/_tabs.html' %}
-    <section class="card">
-        <form method="post" class="form-grid">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="field full">
-                <label class="label">Makale Başlığı</label>
-                <input class="input" type="text" name="title" value="{{ request.form.get('title', article.title if article else '') }}" required>
+    <nav class="bys-tabs skip-mobile-normalize" aria-label="Destek bölümleri">{% include 'support/_tabs.html' %}</nav>
+
+    <header class="bys-page-header">
+        <div class="bys-page-header__text">
+            <p class="bys-eyebrow">Rehber Yönetimi</p>
+            <h2 class="bys-page-title">{% if form_mode == 'edit' %}Rehberi düzenleyin{% else %}Yeni rehber oluşturun{% endif %}</h2>
+            <p class="bys-page-lead">Rehber, Yardım Merkezi'nde ve aramada kullanıcıların göreceği metindir. Sade ve kurumsal bir dil kullanın; kişisel veri eklemeyin.</p>
+        </div>
+        <a class="bys-text-link" href="{{ url_for('main.support_help_admin') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Rehber listesine dön</a>
+    </header>
+
+    <form class="bys-card bys-form" id="helpArticleForm" method="post" data-bys-submit-guard>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p class="bys-required-note">"(zorunlu)" ile işaretli alanlar doldurulmalıdır.</p>
+
+        <fieldset class="bys-section">
+            <legend class="bys-section__head"><span class="bys-section__step" aria-hidden="true">1</span><span class="bys-section__title">Rehber bilgileri</span></legend>
+            <div class="bys-form-grid skip-mobile-normalize">
+                {{ ui.text_field('help-title', 'title', 'Rehber başlığı', value=f.get('title', article.title if article else ''), required=true, maxlength=255, wide=true) }}
+                {{ ui.text_field('help-slug', 'slug', 'Kısa bağlantı adı', value=f.get('slug', article.slug if article else ''), maxlength=120, placeholder='ornek-rehber-basligi',
+                    help='Rehberin adresinde görünür. Boş bırakılırsa başlıktan üretilir; Türkçe karakterler ve boşluklar dönüştürülür.') }}
+                {{ ui.select_field('help-category', 'category_slug', 'Kategori', category_options, selected=selected_category) }}
+                {{ ui.textarea_field('help-summary', 'summary', 'Özet', value=f.get('summary', article.summary if article else ''), maxlength=500, rows=3, counter=true,
+                    help='Arama sonuçlarında ve listelerde görünen 1–2 cümle. En fazla 500 karakter.') }}
+                {{ ui.text_field('help-sort', 'sort_order', 'Sıra', value=(f.get('sort_order', article.sort_order if article else 0))|string, input_type='number',
+                    help='Küçük sayı listede önce görünür.') }}
             </div>
-            <div class="field">
-                <label class="label">Kısa Bağlantı (slug)</label>
-                <input class="input" type="text" name="slug" value="{{ request.form.get('slug', article.slug if article else '') }}" placeholder="ornek-makale-basligi">
-                <div class="hint">Boş bırakılırsa başlıktan otomatik üretilir.</div>
+        </fieldset>
+
+        <fieldset class="bys-section">
+            <legend class="bys-section__head"><span class="bys-section__step" aria-hidden="true">2</span><span class="bys-section__title">İçerik</span></legend>
+            <div class="bys-form-grid skip-mobile-normalize">
+                {{ ui.textarea_field('help-content', 'content_text', 'Genel bilgi', value=f.get('content_text', article.content_text if article else ''), maxlength=12000, rows=6) }}
+                {{ ui.textarea_field('help-steps', 'steps_text', 'Adım adım işlem', value=f.get('steps_text', article.steps_text if article else ''), maxlength=12000, rows=6,
+                    help='Her adımı ayrı satıra yazın.') }}
+                {{ ui.textarea_field('help-notes', 'notes_text', 'Dikkat edilecekler ve notlar', value=f.get('notes_text', article.notes_text if article else ''), maxlength=12000, rows=4) }}
             </div>
-            <div class="field">
-                <label class="label">Kategori</label>
-                <select class="select" name="category_slug">
-                    {% set selected_category = request.form.get('category_slug', article.category_slug if article else 'baslarken') %}
-                    {% for category in help_categories %}
-                    <option value="{{ category.slug }}" {% if selected_category == category.slug %}selected{% endif %}>{{ category.title }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="field full">
-                <label class="label">Özet</label>
-                <textarea class="textarea" name="summary" style="min-height:90px;">{{ request.form.get('summary', article.summary if article else '') }}</textarea>
-            </div>
-            <div class="field full">
-                <label class="label">Roller</label>
-                {% set selected_roles = request.form.getlist('role_slugs') or (article.role_slugs if article else []) %}
-                <div class="role-grid">
+        </fieldset>
+
+        <fieldset class="bys-section">
+            <legend class="bys-section__head"><span class="bys-section__step" aria-hidden="true">3</span><span class="bys-section__title">Kimler için ve ilişkiler</span></legend>
+            <fieldset class="bys-checks">
+                <legend class="bys-field__label">Rehberin ilgili olduğu roller</legend>
+                <div class="bys-check-grid skip-mobile-normalize">
                     {% for role in help_roles %}
-                    <label class="input" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-                        <input type="checkbox" name="role_slugs" value="{{ role.slug }}" {% if role.slug in selected_roles %}checked{% endif %}>
-                        <span>{{ role.title }}</span>
-                    </label>
+                    <label class="bys-check" for="help-role-{{ role.slug }}"><input type="checkbox" id="help-role-{{ role.slug }}" name="role_slugs" value="{{ role.slug }}"{% if role.slug in selected_roles %} checked{% endif %}> <span>{{ role.title }}</span></label>
                     {% endfor %}
                 </div>
+            </fieldset>
+            <div class="bys-form-grid skip-mobile-normalize">
+                {{ ui.text_field('help-tags', 'tags_text', 'Konu etiketleri', value=f.get('tags_text', article.tags_text if article else ''), placeholder='izin, vekâlet, onay',
+                    help='Virgülle ayırın. Aramada eşleşme için kullanılır.') }}
+                {{ ui.text_field('help-related', 'related_slugs_text', 'İlgili rehberler', value=f.get('related_slugs_text', article.related_slugs_text if article else ''), placeholder='sisteme-ilk-giris, csrf-ve-oturum-hatalari',
+                    help='İlgili rehberlerin kısa bağlantı adlarını virgülle ayırarak yazın.') }}
             </div>
-            <div class="field">
-                <label class="label">Etiketler</label>
-                <input class="input" type="text" name="tags_text" value="{{ request.form.get('tags_text', article.tags_text if article else '') }}" placeholder="izin, vekalet, onay">
+        </fieldset>
+
+        <fieldset class="bys-section">
+            <legend class="bys-section__head"><span class="bys-section__step" aria-hidden="true">4</span><span class="bys-section__title">Yayın</span></legend>
+            <div class="bys-check-grid skip-mobile-normalize">
+                <label class="bys-check" for="help-published"><input type="checkbox" id="help-published" name="is_published" value="1"{% if published_value %} checked{% endif %}> <span>Yayında <span class="bys-check__hint">Kullanıcılar görür ve arar.</span></span></label>
+                <label class="bys-check" for="help-featured"><input type="checkbox" id="help-featured" name="is_featured" value="1"{% if featured_value %} checked{% endif %}> <span>Öne çıkan <span class="bys-check__hint">Yardım Merkezi'nde "Hızlı başlangıç" listesine girer.</span></span></label>
             </div>
-            <div class="field">
-                <label class="label">İlgili Makale Slugları</label>
-                <input class="input" type="text" name="related_slugs_text" value="{{ request.form.get('related_slugs_text', article.related_slugs_text if article else '') }}" placeholder="sisteme-ilk-giris, csrf-hatasi">
-            </div>
-            <div class="field full">
-                <label class="label">Genel Bilgi</label>
-                <textarea class="textarea" name="content_text">{{ request.form.get('content_text', article.content_text if article else '') }}</textarea>
-            </div>
-            <div class="field full">
-                <label class="label">Adım Adım İşlem</label>
-                <textarea class="textarea" name="steps_text">{{ request.form.get('steps_text', article.steps_text if article else '') }}</textarea>
-                <div class="hint">Her adımı ayrı satıra yazın.</div>
-            </div>
-            <div class="field full">
-                <label class="label">Dikkat Edilecekler / Notlar</label>
-                <textarea class="textarea" name="notes_text">{{ request.form.get('notes_text', article.notes_text if article else '') }}</textarea>
-            </div>
-            <div class="field">
-                <label class="label">Sıra</label>
-                <input class="input" type="number" name="sort_order" value="{{ request.form.get('sort_order', article.sort_order if article else 0) }}">
-            </div>
-            <div class="field">
-                <label class="label">Yayın Seçenekleri</label>
-                <div class="check-grid">
-                    {% set published_value = request.form.get('is_published', '1' if article and article.is_published else '') %}
-                    {% set featured_value = request.form.get('is_featured', '1' if article and article.is_featured else '') %}
-                    <label class="input" style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" name="is_published" value="1" {% if published_value %}checked{% endif %}> Yayında</label>
-                    <label class="input" style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" name="is_featured" value="1" {% if featured_value %}checked{% endif %}> Öne Çıkan</label>
-                </div>
-            </div>
-            <div class="field full actions">
-                <button class="btn-main" type="submit"><i class="fa-solid fa-floppy-disk"></i> Kaydet</button>
-                <a href="{{ url_for('main.support_help_admin') }}" class="btn-soft"><i class="fa-solid fa-arrow-left"></i> Geri Dön</a>
-                {% if article %}<a href="{{ url_for('main.support_help_article', article_slug=article.slug) }}" class="btn-soft"><i class="fa-solid fa-eye"></i> Yayındaki Hali</a>{% endif %}
-            </div>
-        </form>
-    </section>
+        </fieldset>
+
+        <div class="bys-actions">
+            <button class="bys-btn bys-btn--primary" type="submit" data-bys-submit-button><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> <span data-bys-submit-label>Kaydet</span></button>
+            <a href="{{ url_for('main.support_help_admin') }}" class="bys-btn bys-btn--ghost">Vazgeç</a>
+            {% if article %}<a href="{{ url_for('main.support_help_article', article_slug=article.slug) }}" class="bys-btn bys-btn--secondary"><i class="fa-solid fa-eye" aria-hidden="true"></i> Yayındaki hâli</a>{% endif %}
+        </div>
+    </form>
 </div>
+<script src="{{ url_for('static', filename='js/bys360_ui_form.js') }}"></script>
 <script src="{{ url_for('static', filename='js/faz4_support_account_mobile.js') }}"></script>
 {% endblock %}
