@@ -464,7 +464,8 @@ Tüm modülleri besleyen merkezi personel havuzu. Kayıtları arayın, filtreley
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
                 <form method="POST" action="{{ url_for('main.admin_users_bulk_archive') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="selected_ids" id="bulkArchiveIds">
+                    <input type="hidden" name="return_to" value="personnel_list">
+                    <input type="hidden" name="user_ids" id="bulkArchiveIds">
                     <button type="submit" class="btn-soft warning" data-bulk-target="bulkArchiveIds" data-bulk-confirm="Seçili personeller arşivlensin mi?">
                         <i class="fa-solid fa-box-archive"></i>
                         Toplu Arşivle
@@ -472,7 +473,8 @@ Tüm modülleri besleyen merkezi personel havuzu. Kayıtları arayın, filtreley
                 </form>
                 <form method="POST" action="{{ url_for('main.admin_users_bulk_delete') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="selected_ids" id="bulkDeleteIds">
+                    <input type="hidden" name="return_to" value="personnel_list">
+                    <input type="hidden" name="user_ids" id="bulkDeleteIds">
                     <button type="submit" class="btn-soft primary" data-bulk-target="bulkDeleteIds" data-bulk-confirm="Seçili personeller silinsin mi?">
                         <i class="fa-solid fa-trash"></i>
                         Toplu Sil
