@@ -25,10 +25,13 @@ def enforce_first_login_security_flow():
     return _handlers.enforce_first_login_security_flow()
 
 
-@main_bp.route("/settings", methods=["GET", "POST"])
+# Decorator'lar aşağıdan yukarı kaydedilir: en alttaki /settings, endpoint'in ilk kaydıdır ve
+# url_for("main.settings_page") onu üretir. Yalnız admin'e açık /admin/settings* adresleri varsayılan
+# olursa yönetim ailesinin meşru /settings işlemleri 403 veren bir adrese yönlenir.
 @main_bp.route("/admin/settings", methods=["GET", "POST"])
 @main_bp.route("/admin/settings/performance", methods=["GET", "POST"])
 @main_bp.route("/admin/settings/security", methods=["GET", "POST"])
+@main_bp.route("/settings", methods=["GET", "POST"])
 @login_required
 @admin_required
 def settings_page():
