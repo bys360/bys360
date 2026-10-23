@@ -447,9 +447,34 @@ def test_url_map_route_count_is_unchanged(wave1_app) -> None:
 #     files each contributed 0 to every bucket).
 # ---------------------------------------------------------------------------
 
-EXPECTED_ACTIVE_STYLE_TOTAL = 1032
+# FORWARD-COMPATIBILITY FOLLOW-UP 13 (BYS360 UX wave 4, support/index.html --
+# Yardım Merkezi): the help-center template's 13 static style="..." attributes
+# were replaced by classes in bys360_components.css -- 1032 -> 1019 (0 blocks,
+# 0 dynamic). See STYLE_MIGRATION_WAVES["ux_wave4_help_center"].
+# FORWARD-COMPATIBILITY FOLLOW-UP 14 (BYS360 UX wave 5, support/help_article,
+# help_category, help_role, help_search): their 2 + 3 + 1 + 3 = 9 static
+# style="..." attributes were replaced by classes in bys360_components.css --
+# 1019 -> 1010 (0 blocks, 0 dynamic). See
+# STYLE_MIGRATION_WAVES["ux_wave5_help_pages"].
+# FORWARD-COMPATIBILITY FOLLOW-UP 15 (BYS360 UX wave 6, support/help_admin_form.html
+# and support/setup.html): 4 + 3 = 7 static style="..." attributes and both
+# templates' single page-level <style> blocks moved into bys360_components.css --
+# active static 1010 -> 1003, <style> blocks 219 -> 217. See
+# STYLE_MIGRATION_WAVES["ux_wave6_help_form_setup"].
+EXPECTED_ACTIVE_STYLE_TOTAL = 1003
 EXPECTED_DYNAMIC_STYLE_TOTAL = 64
-EXPECTED_STYLE_BLOCK_TOTAL = 221
+# FORWARD-COMPATIBILITY FOLLOW-UP 11 (BYS360 UX pilot, support/new.html):
+# the pilot moved support/new.html's single page-level <style> block into
+# the scoped external stylesheet app/static/css/bys360_components.css
+# (0 static attributes, 1 block, 0 dynamic) -- STYLE_BLOCK_TOTAL drops
+# 221 -> 220; ACTIVE_STATIC/DYNAMIC totals are unchanged. See
+# tests/security/test_csp_style_migration_cumulative_inventory_contract.py,
+# STYLE_MIGRATION_WAVES["ux_pilot_support_new"].
+# FORWARD-COMPATIBILITY FOLLOW-UP 12 (BYS360 UX wave 2, support/list.html):
+# the shared Taleplerim / Bana Atananlar / Tüm Talepler list template moved
+# its single page-level <style> block into bys360_components.css -- 220 -> 219.
+# See STYLE_MIGRATION_WAVES["ux_wave2_support_list"].
+EXPECTED_STYLE_BLOCK_TOTAL = 217  # FOLLOW-UP 15, see above
 
 
 def test_repo_wide_style_inventory_totals_are_unchanged() -> None:

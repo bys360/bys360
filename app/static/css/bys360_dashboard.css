@@ -1,0 +1,557 @@
+/*
+ * BYS360 UX dalga 9 — Gösterge paneli (dashboard.html) yönetim ve analiz merkezi.
+ *
+ * Kapsam kuralı: bütün seçiciler `.bys-ui` altında, yalnız gösterge panelinin
+ * sınıflarıdır (`dash-*`). Belge kökü seçicisi ve `!important` kullanılmaz.
+ * Lejant renkleri app/services/dashboard_rebuild_service.py içindeki _gradient()
+ * paletiyle birebir aynıdır; halka dilimi ile lejant rengi eşleşir.
+ */
+
+.bys-ui.dash-page {
+  display: grid;
+  gap: var(--bys-space-5);
+}
+
+/* ---- Başlık ve kapsam --------------------------------------------------- */
+.bys-ui .dash-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--bys-space-4);
+  align-items: center;
+  padding: var(--bys-space-5) var(--bys-space-6);
+  border: 1px solid var(--bys-border-subtle);
+  border-left: 4px solid var(--bys-brand);
+  border-radius: var(--bys-radius-lg);
+  background: var(--bys-surface);
+  box-shadow: var(--bys-shadow-2);
+}
+
+.bys-ui .dash-head__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: var(--bys-fw-bold);
+  line-height: 1.25;
+  color: var(--bys-text);
+}
+
+.bys-ui .dash-head__lead {
+  margin: var(--bys-space-1) 0 0;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, auto));
+  gap: var(--bys-space-2) var(--bys-space-5);
+  margin: 0;
+}
+
+.bys-ui .dash-meta div {
+  display: grid;
+  gap: 2px;
+}
+
+.bys-ui .dash-meta dt {
+  font-size: var(--bys-fs-xs);
+  font-weight: var(--bys-fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-meta dd {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text);
+}
+
+/* ---- Bölüm ve panel ----------------------------------------------------- */
+.bys-ui .dash-section {
+  display: grid;
+  gap: var(--bys-space-3);
+}
+
+.bys-ui .dash-section__title,
+.bys-ui .dash-panel__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: var(--bys-fw-bold);
+  line-height: 1.3;
+  color: var(--bys-text);
+}
+
+.bys-ui .dash-panel {
+  display: grid;
+  align-content: start;
+  gap: var(--bys-space-4);
+  padding: var(--bys-space-5);
+  min-width: 0;
+}
+
+.bys-ui .dash-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--bys-space-2) var(--bys-space-3);
+}
+
+.bys-ui .dash-panel__lead {
+  margin: var(--bys-space-1) 0 0;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-subtitle {
+  display: flex;
+  align-items: center;
+  gap: var(--bys-space-2);
+  margin: 0 0 var(--bys-space-2);
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-empty {
+  padding: var(--bys-space-4);
+}
+
+.bys-ui .dash-note {
+  display: flex;
+  gap: var(--bys-space-2);
+  margin: 0;
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+/* ---- Ana göstergeler ---------------------------------------------------- */
+.bys-ui .dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--bys-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bys-ui .dash-kpi {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "icon label" "icon value" "note note";
+  column-gap: var(--bys-space-3);
+  row-gap: 2px;
+  padding: var(--bys-space-4);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-surface);
+}
+
+.bys-ui .dash-kpi__icon {
+  grid-area: icon;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--bys-radius-md);
+  background: var(--bys-brand-soft);
+  color: var(--bys-brand);
+}
+
+.bys-ui .dash-kpi__label {
+  grid-area: label;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-kpi__value {
+  grid-area: value;
+  font-size: var(--bys-fs-xl);
+  font-weight: var(--bys-fw-bold);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+.bys-ui .dash-kpi__note {
+  grid-area: note;
+  margin-top: var(--bys-space-2);
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-kpi--warning {
+  border-color: var(--bys-warning);
+}
+
+.bys-ui .dash-kpi--warning .dash-kpi__icon {
+  background: var(--bys-warning-bg);
+  color: var(--bys-warning);
+}
+
+.bys-ui .dash-kpi--danger {
+  border-color: var(--bys-danger);
+  background: var(--bys-danger-bg);
+}
+
+.bys-ui .dash-kpi--danger .dash-kpi__icon {
+  background: var(--bys-surface);
+  color: var(--bys-danger);
+}
+
+/* ---- Karar destek özeti ------------------------------------------------- */
+.bys-ui .dash-insight__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--bys-space-4);
+}
+
+.bys-ui .dash-items,
+.bys-ui .dash-links,
+.bys-ui .dash-legend,
+.bys-ui .dash-bars,
+.bys-ui .dash-shortcuts,
+.bys-ui .dash-line__labels {
+  display: grid;
+  gap: var(--bys-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bys-ui .dash-item {
+  display: grid;
+  gap: 2px;
+  padding: var(--bys-space-3);
+  border-left: 3px solid var(--bys-border);
+  border-radius: var(--bys-radius-sm);
+  background: var(--bys-surface-subtle);
+}
+
+.bys-ui .dash-item b {
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text);
+}
+
+.bys-ui .dash-item span {
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-item--risk {
+  border-left-color: var(--bys-warning);
+}
+
+.bys-ui .dash-item--good,
+.bys-ui .dash-item--ok {
+  border-left-color: var(--bys-success);
+}
+
+.bys-ui .dash-item--info {
+  border-left-color: var(--bys-info);
+}
+
+.bys-ui .dash-links a,
+.bys-ui .dash-shortcuts a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bys-space-3);
+  min-height: var(--bys-target);
+  padding: var(--bys-space-2) var(--bys-space-3);
+  border: 1px solid var(--bys-border-subtle);
+  border-radius: var(--bys-radius-md);
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  color: var(--bys-text);
+  text-decoration: none;
+}
+
+.bys-ui .dash-shortcuts a {
+  justify-content: flex-start;
+}
+
+.bys-ui .dash-shortcuts i {
+  width: 20px;
+  color: var(--bys-brand);
+  text-align: center;
+}
+
+.bys-ui .dash-links a:hover,
+.bys-ui .dash-shortcuts a:hover {
+  border-color: var(--bys-brand);
+  background: var(--bys-surface-brand);
+  color: var(--bys-text);
+}
+
+.bys-ui .dash-links a:focus-visible,
+.bys-ui .dash-shortcuts a:focus-visible {
+  outline: 3px solid var(--bys-focus);
+  outline-offset: 2px;
+}
+
+/* ---- Grafik ızgarası ---------------------------------------------------- */
+.bys-ui .dash-charts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--bys-space-4);
+  align-items: stretch;
+  grid-auto-flow: row dense;
+}
+
+.bys-ui .dash-panel--wide {
+  grid-column: span 2;
+}
+
+.bys-ui .dash-donut-area {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bys-space-4);
+}
+
+.bys-ui .dash-donut {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+}
+
+.bys-ui .dash-donut--small {
+  width: 128px;
+  height: 128px;
+}
+
+.bys-ui .dash-donut > span {
+  display: grid;
+  place-items: center;
+  width: 64%;
+  height: 64%;
+  border-radius: 50%;
+  background: var(--bys-surface);
+}
+
+.bys-ui .dash-donut b {
+  font-size: var(--bys-fs-xl);
+  font-weight: var(--bys-fw-bold);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+.bys-ui .dash-donut small {
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-legend {
+  flex: 1 1 160px;
+}
+
+.bys-ui .dash-legend li {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--bys-space-2);
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-legend b {
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+.bys-ui .dash-legend small {
+  min-width: 3.5em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bys-ui .dash-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--bys-border);
+}
+
+.bys-ui .dash-swatch--1 { background: #8B0000; }
+.bys-ui .dash-swatch--2 { background: #b91c1c; }
+.bys-ui .dash-swatch--3 { background: #c2410c; }
+.bys-ui .dash-swatch--4 { background: #2563eb; }
+.bys-ui .dash-swatch--5 { background: #15803d; }
+.bys-ui .dash-swatch--6 { background: #6d28d9; }
+
+.bys-ui .dash-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px var(--bys-space-3);
+}
+
+.bys-ui .dash-bars__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text);
+}
+
+.bys-ui .dash-bars__value {
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+.bys-ui .dash-bars__track {
+  grid-column: 1 / -1;
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bys-border-subtle);
+}
+
+.bys-ui .dash-bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--bys-brand);
+}
+
+.bys-ui .dash-bars__fill--alt {
+  background: #b91c1c;
+}
+
+.bys-ui .dash-line {
+  width: 100%;
+  height: 140px;
+}
+
+.bys-ui .dash-line__axis {
+  stroke: var(--bys-border);
+  stroke-width: 0.6;
+}
+
+.bys-ui .dash-line__grid {
+  stroke: var(--bys-border-subtle);
+  stroke-width: 0.4;
+  stroke-dasharray: 2 2;
+}
+
+.bys-ui .dash-line__path {
+  fill: none;
+  stroke: var(--bys-brand);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.bys-ui .dash-line__labels {
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+}
+
+.bys-ui .dash-line__labels li {
+  display: grid;
+  gap: 2px;
+  padding: var(--bys-space-2);
+  border-radius: var(--bys-radius-sm);
+  background: var(--bys-surface-subtle);
+  font-size: var(--bys-fs-xs);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-line__labels b {
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text);
+}
+
+/* ---- Alt bölüm ---------------------------------------------------------- */
+.bys-ui .dash-bottom {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--bys-space-4);
+  align-items: start;
+}
+
+.bys-ui .dash-facts {
+  display: grid;
+  margin: 0;
+}
+
+.bys-ui .dash-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--bys-space-3);
+  padding: var(--bys-space-2) 0;
+  border-bottom: 1px solid var(--bys-border-subtle);
+}
+
+.bys-ui .dash-facts dt {
+  font-size: var(--bys-fs-sm);
+  color: var(--bys-text-secondary);
+}
+
+.bys-ui .dash-facts dd {
+  margin: 0;
+  font-size: var(--bys-fs-sm);
+  font-weight: var(--bys-fw-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--bys-text);
+}
+
+/* ---- Duyarlı yerleşim --------------------------------------------------- */
+@media (max-width: 1200px) {
+  .bys-ui .dash-charts,
+  .bys-ui .dash-bottom {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .bys-ui .dash-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bys-ui .dash-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bys-ui .dash-insight__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .bys-ui .dash-charts,
+  .bys-ui .dash-bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bys-ui .dash-panel--wide {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .bys-ui .dash-head {
+    padding: var(--bys-space-4);
+  }
+
+  .bys-ui .dash-meta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bys-ui .dash-panel {
+    padding: var(--bys-space-4);
+  }
+}
+
+@media (max-width: 359px) {
+  .bys-ui .dash-kpis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,221 +1,220 @@
 {% extends "base.html" %}
-{% block title %}BYS360 Dashboard{% endblock %}
+{% block title %}Gösterge Paneli - BYS360{% endblock %}
 {% block page_kicker %}BYS360{% endblock %}
-{% block page_title %}Yönetim Dashboard{% endblock %}
-{% block page_subtitle %}Personel, performans, destek, anket, geri bildirim ve karar destek göstergeleri tek ekranda.{% endblock %}
+{% block page_title %}Gösterge Paneli{% endblock %}
+{% block page_subtitle %}Yetki kapsamınızdaki personel, performans, destek ve katılım göstergeleri.{% endblock %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_rebuild.css') }}">
+{# BYS360_UX_WAVE9_DASHBOARD: yönetim ve analiz merkezi, pilot tasarım dilinde.
+   Veri, hesaplama, kapsam ve yetki kuralları değişmedi (dashboard_rebuild_service).
+   Grafikler sunucuda çizilir; 6 dinamik genişlik/renk özniteliği sayıca korunmuştur
+   (stil ratchet'i yerinde düzenleme dalgasının dinamik öznitelik eklemesine/kaldırmasına izin vermez). #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_dashboard.css') }}">
 {% endblock %}
 {% block content %}
 {% set d = dashboard_rebuild if dashboard_rebuild is defined and dashboard_rebuild else {} %}
 {% set charts = d.charts if d.charts is defined and d.charts else {} %}
 {% set ai = d.ai if d.ai is defined and d.ai else {} %}
+{% set manager_view = d.user.manager_view if d.user is defined and d.user else false %}
+{% set kpi_tone = {'president_pending': 'danger', 'open_support': 'warning', 'pending_performance': 'warning', 'open_feedback': 'warning'} %}
 
-<div class="dr-shell" data-dashboard-rebuild="BYS360_DASHBOARD_REBUILD_V1_OK">
-  <section class="dr-hero">
-    <div class="dr-hero-main">
-      <div class="dr-eyebrow"><i class="fa-solid fa-gauge-high"></i> Kurumsal yönetim görünümü</div>
-      <h2>BYS360 Dashboard</h2>
-      <p>Canlı omurgadaki personel, performans, bildirim, destek, anket, geri bildirim ve karar destek kayıtları tek yüzeyde birleştirilir. Boş veri olduğunda alanlar kaybolmaz; güvenli boş durumla açılır.</p>
-      <div class="dr-hero-meta">
-        <span><i class="fa-regular fa-calendar"></i>{{ d.period.label|default('Aktif dönem yok', true) }}</span>
-        <span><i class="fa-regular fa-clock"></i>{{ d.period.range|default('Tarih aralığı yok', true) }}</span>
-        <span><i class="fa-solid fa-user-lock"></i>{{ d.scope.mode_label|default('Yetki kapsamı', true) }}</span>
-        <span><i class="fa-solid fa-rotate"></i>{{ d.generated_at|default('-', true) }}</span>
+{% macro chart_empty(text) -%}
+<div class="bys-empty dash-empty">
+  <span class="bys-empty__icon" aria-hidden="true"><i class="fa-regular fa-chart-bar"></i></span>
+  <p class="bys-empty__text">{{ text }}</p>
+</div>
+{%- endmacro %}
+
+<div class="bys-ui bys-page dash-page skip-mobile-normalize" data-dashboard-rebuild="BYS360_DASHBOARD_REBUILD_V1_OK">
+
+  {# ---- Başlık ve kapsam ----------------------------------------------- #}
+  <section class="dash-head" aria-labelledby="dashTitle">
+    <div class="dash-head__main">
+      <h2 class="dash-head__title" id="dashTitle">{{ 'Kurumsal genel bakış' if manager_view else 'Bana özel genel bakış' }}</h2>
+      <p class="dash-head__lead">
+        {% if manager_view %}Göstergeler yalnız yetki kapsamınızdaki kayıtlardan hesaplanır.{% else %}Yalnız kendi işleriniz ve size açık süreçler gösterilir.{% endif %}
+      </p>
+    </div>
+    <dl class="dash-meta">
+      <div><dt>Dönem</dt><dd>{{ d.period.label|default('Aktif dönem yok', true) if d.period is defined else 'Aktif dönem yok' }}</dd></div>
+      <div><dt>Tarih aralığı</dt><dd>{{ d.period.range|default('—', true) if d.period is defined else '—' }}</dd></div>
+      <div><dt>Kapsam</dt><dd>{{ d.scope.mode_label|default('Yetki kapsamı', true) if d.scope is defined else 'Yetki kapsamı' }}{% if d.scope is defined and d.scope.count %} · {{ d.scope.count }} personel{% endif %}</dd></div>
+      <div><dt>Hesaplandı</dt><dd>{{ d.generated_at|default('—', true) }}</dd></div>
+    </dl>
+  </section>
+
+  {# ---- Ana göstergeler ------------------------------------------------- #}
+  <section class="dash-section" aria-labelledby="dashKpiTitle">
+    <h2 class="dash-section__title" id="dashKpiTitle">Ana göstergeler</h2>
+    <ul class="dash-kpis">
+      {% for card in d.kpi_cards|default([], true) %}
+      {% set tone = kpi_tone.get(card.key, 'neutral') if card.value else 'neutral' %}
+      <li class="dash-kpi dash-kpi--{{ tone }}">
+        <span class="dash-kpi__icon" aria-hidden="true"><i class="fa-solid {{ card.icon }}"></i></span>
+        <span class="dash-kpi__label">{{ card.label }}</span>
+        <span class="dash-kpi__value">{{ card.value }}</span>
+        <span class="dash-kpi__note">{{ card.note }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {# ---- Karar destek özeti (kural tabanlı) ----------------------------- #}
+  <section class="bys-card dash-panel dash-insight" aria-labelledby="dashInsightTitle">
+    <div class="dash-panel__head">
+      <div>
+        <h2 class="dash-panel__title" id="dashInsightTitle">Karar destek özeti</h2>
+        <p class="dash-panel__lead">{{ ai.summary|default('Yetki kapsamındaki veriler özet için hazırlanıyor.', true) }}</p>
+      </div>
+      <span class="bys-chip bys-chip--neutral">Kural tabanlı özet</span>
+    </div>
+    <div class="dash-insight__grid">
+      <div>
+        <h3 class="dash-subtitle"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Dikkat alanları</h3>
+        <ul class="dash-items">
+          {% for item in ai.risks|default([], true) %}<li class="dash-item dash-item--risk"><b>{{ item.title }}</b><span>{{ item.body }}</span></li>{% endfor %}
+        </ul>
+      </div>
+      <div>
+        <h3 class="dash-subtitle"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Öneriler</h3>
+        <ul class="dash-items">
+          {% for item in ai.recommendations|default([], true) %}<li class="dash-item dash-item--good"><b>{{ item.title }}</b><span>{{ item.body }}</span></li>{% endfor %}
+        </ul>
+      </div>
+      <div>
+        <h3 class="dash-subtitle"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Öncelikli işlemler</h3>
+        <ul class="dash-links">
+          {% for item in ai.actions|default([], true) %}<li><a href="{{ item.url }}"><span>{{ item.label }}</span><span class="bys-chip bys-chip--{{ 'danger' if item.priority == 'Yüksek' else ('warning' if item.priority == 'Orta' else 'neutral') }}">{{ item.priority }}</span></a></li>{% endfor %}
+        </ul>
       </div>
     </div>
-    <aside class="dr-ai-summary">
-      <div class="dr-ai-head">
-        <span><i class="fa-solid fa-brain"></i></span>
-        <div>
-          <small>AI Karar Destek</small>
-          <h3>Kısa yönetici özeti</h3>
-        </div>
-      </div>
-      <p>{{ ai.summary|default('Yetki kapsamındaki veriler yönetici özeti için hazırlanıyor.', true) }}</p>
-      <div class="dr-ai-guard"><i class="fa-solid fa-shield-halved"></i>{{ ai.guardrail|default('AI karar vermez; yalnızca özet, risk farkındalığı ve öneri sunar.', true) }}</div>
-    </aside>
+    <p class="dash-note"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> {{ ai.guardrail|default('Bu özet karar vermez; yalnız yetki kapsamındaki verilerden farkındalık ve öneri sunar.', true) }}</p>
   </section>
 
-  <section class="dr-kpi-grid" aria-label="Üst özet kartları">
-    {% for card in d.kpi_cards|default([], true) %}
-    <article class="dr-kpi dr-tone-{{ card.tone }}">
-      <span class="dr-kpi-icon"><i class="fa-solid {{ card.icon }}"></i></span>
-      <div>
-        <small>{{ card.label }}</small>
-        <strong>{{ card.value }}</strong>
-        <em>{{ card.note }}</em>
+  {# ---- Grafikler ------------------------------------------------------ #}
+  <div class="dash-charts">
+    {% set c = charts.performance_distribution if charts.performance_distribution is defined else {} %}
+    <section class="bys-card dash-panel" data-chart-key="performance_distribution" aria-labelledby="chPerf">
+      <div class="dash-panel__head"><div><h2 class="dash-panel__title" id="chPerf">Performans dağılımı</h2><p class="dash-panel__lead">Aktif dönemdeki değerlendirmelerin puan aralıklarına göre dağılımı.</p></div></div>
+      {% if c.total %}
+      <div class="dash-donut-area">
+        <div class="dash-donut" style="background: {{ c.gradient }}" role="img" aria-label="Performans dağılımı halka grafiği, toplam {{ c.total|int }} değerlendirme"><span><b>{{ c.total|int }}</b><small>kayıt</small></span></div>
+        <ul class="dash-legend">
+          {% for row in c.rows|default([], true) %}<li><i class="dash-swatch dash-swatch--{{ loop.index }}" aria-hidden="true"></i><span>{{ row.label }}</span><b>{{ row.value_display }}</b><small>%{{ row.percent }}</small></li>{% endfor %}
+        </ul>
       </div>
-    </article>
-    {% endfor %}
-  </section>
+      {% else %}{{ chart_empty('Aktif dönemde henüz değerlendirme kaydı yok.') }}{% endif %}
+    </section>
 
-  <section class="dr-main-grid">
-    <article class="dr-card dr-chart-card" data-chart-key="performance_distribution">
-      <div class="dr-card-head">
-        <div><h3>Performans Dağılımı</h3><p>70 altı, 70–89 ve 90 üstü gerçek değerlendirme kayıtları.</p></div>
-        <span>Canlı</span>
-      </div>
-      {% set c = charts.performance_distribution if charts.performance_distribution is defined else {} %}
-      <div class="dr-donut-area">
-        <div class="dr-donut" style="background: {{ c.gradient|default('conic-gradient(#e7dada 0deg 360deg)', true) }}"><div><small>Toplam</small><b>{{ c.total|default(0, true)|int }}</b></div></div>
-        <div class="dr-legend">
-          {% for row in c.rows|default([], true) %}
-          <div><i></i><span>{{ row.label }}</span><b>{{ row.value_display }}</b><em>%{{ row.percent }}</em></div>
-          {% endfor %}
-        </div>
-      </div>
-    </article>
-
-    <article class="dr-card dr-chart-card" data-chart-key="period_completion">
-      <div class="dr-card-head">
-        <div><h3>Dönem Tamamlama</h3><p>Tamamlanan, bekleyen ve geciken değerlendirme görevleri.</p></div>
-        <span>Görev</span>
-      </div>
-      {% set c = charts.period_completion if charts.period_completion is defined else {} %}
-      <div class="dr-bars">
+    {% set c = charts.period_completion if charts.period_completion is defined else {} %}
+    <section class="bys-card dash-panel" data-chart-key="period_completion" aria-labelledby="chDone">
+      <div class="dash-panel__head"><div><h2 class="dash-panel__title" id="chDone">Dönem tamamlanma durumu</h2><p class="dash-panel__lead">Değerlendirme görevlerinin durumlara göre payı.</p></div></div>
+      {% if c.total %}
+      <ul class="dash-bars">
         {% for row in c.rows|default([], true) %}
-        <div class="dr-bar-row"><div><span>{{ row.label }}</span><b>{{ row.value_display }}</b></div><i><em style="width: {{ row.percent }}%"></em></i></div>
+        {% set share = ((row.value / c.total) * 100)|round(1) %}
+        <li><span class="dash-bars__label">{{ row.label }}</span><span class="dash-bars__value">{{ row.value_display }} görev · %{{ share }}</span><span class="dash-bars__track" aria-hidden="true"><span class="dash-bars__fill" style="width: {{ share }}%"></span></span></li>
         {% endfor %}
-      </div>
-    </article>
+      </ul>
+      {% else %}{{ chart_empty('Aktif dönemde değerlendirme görevi yok.') }}{% endif %}
+    </section>
 
-    <article class="dr-card dr-chart-card dr-wide" data-chart-key="unit_average">
-      <div class="dr-card-head">
-        <div><h3>Birim / Grup Bazlı Ortalama</h3><p>Grup başkanlıkları, çalışma grupları ve yetki kapsamındaki ortalamalar.</p></div>
-        <span>{{ d.scope.count|default(0, true) }} kişi</span>
-      </div>
-      {% set c = charts.unit_average if charts.unit_average is defined else {} %}
-      <div class="dr-hbars">
-        {% for row in c.rows|default([], true) %}
-        <div class="dr-hbar-row"><span title="{{ row.label }}">{{ row.label }}</span><i><em style="width: {{ row.percent }}%"></em></i><b>{{ row.value_display }}</b></div>
-        {% else %}
-        <div class="dr-empty">Ortalama üretecek performans kaydı henüz yok.</div>
+    {% set c = charts.unit_average if charts.unit_average is defined else {} %}
+    <section class="bys-card dash-panel dash-panel--wide" data-chart-key="unit_average" aria-labelledby="chUnit">
+      <div class="dash-panel__head"><div><h2 class="dash-panel__title" id="chUnit">Birim ve grup karşılaştırması</h2><p class="dash-panel__lead">Yetki kapsamındaki birimlerin ortalama puanı (100 üzerinden).</p></div>{% if c.rows %}<span class="bys-chip bys-chip--neutral">{{ c.rows|length }} birim</span>{% endif %}</div>
+      {% if c.rows %}
+      <ul class="dash-bars">
+        {% for row in c.rows %}
+        <li><span class="dash-bars__label">{{ row.label }}</span><span class="dash-bars__value">{{ row.value_display }} puan</span><span class="dash-bars__track" aria-hidden="true"><span class="dash-bars__fill" style="width: {{ [row.value, 100]|min }}%"></span></span></li>
         {% endfor %}
-      </div>
-    </article>
+      </ul>
+      {% else %}{{ chart_empty('Ortalama üretecek performans kaydı henüz yok.') }}{% endif %}
+    </section>
 
-    <article class="dr-card dr-chart-card" data-chart-key="category_average">
-      <div class="dr-card-head">
-        <div><h3>Kategori Ortalaması</h3><p>Güvenlik, temizlik, idari, teknik ve diğer kategoriler.</p></div>
-        <span>Kategori</span>
-      </div>
-      {% set c = charts.category_average if charts.category_average is defined else {} %}
-      <div class="dr-column-bars">
-        {% for row in c.rows|default([], true) %}
-        <div><b>{{ row.value_display }}</b><i><em style="height: {{ row.percent }}%"></em></i><span>{{ row.label }}</span></div>
-        {% else %}
-        <div class="dr-empty">Kategori ortalaması için veri bekleniyor.</div>
+    {% set c = charts.category_average if charts.category_average is defined else {} %}
+    <section class="bys-card dash-panel" data-chart-key="category_average" aria-labelledby="chCat">
+      <div class="dash-panel__head"><div><h2 class="dash-panel__title" id="chCat">Kategori ortalamaları</h2><p class="dash-panel__lead">Personel kategorilerine göre ortalama puan (100 üzerinden).</p></div></div>
+      {% if c.rows %}
+      <ul class="dash-bars">
+        {% for row in c.rows %}
+        <li><span class="dash-bars__label">{{ row.label }}</span><span class="dash-bars__value">{{ row.value_display }} puan</span><span class="dash-bars__track" aria-hidden="true"><span class="dash-bars__fill dash-bars__fill--alt" style="width: {{ [row.value, 100]|min }}%"></span></span></li>
         {% endfor %}
-      </div>
-    </article>
+      </ul>
+      {% else %}{{ chart_empty('Kategori ortalaması için veri bekleniyor.') }}{% endif %}
+    </section>
 
-    <article class="dr-card dr-chart-card" data-chart-key="low_score_trend">
-      <div class="dr-card-head">
-        <div><h3>Düşük Performans Trendi</h3><p>Dönem bazlı 70 altı kayıt sayısı.</p></div>
-        <span>Trend</span>
-      </div>
-      {% set c = charts.low_score_trend if charts.low_score_trend is defined else {} %}
-      <div class="dr-line-chart">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Düşük performans trendi">
-          <line x1="8" y1="86" x2="94" y2="86" class="axis"></line>
-          <line x1="8" y1="18" x2="8" y2="86" class="axis"></line>
-          <line x1="8" y1="40" x2="94" y2="40" class="grid"></line>
-          <line x1="8" y1="63" x2="94" y2="63" class="grid"></line>
-          <polyline points="{{ c.line_points|default('8,86 92,86', true) }}" class="line"></polyline>
-        </svg>
-        <div class="dr-line-labels">
-          {% for row in c.rows|default([], true) %}
-          <span>{{ row.label }}<b>{{ row.value_display }}</b></span>
-          {% endfor %}
-        </div>
-      </div>
-    </article>
+    {% set c = charts.low_score_trend if charts.low_score_trend is defined else {} %}
+    <section class="bys-card dash-panel" data-chart-key="low_score_trend" aria-labelledby="chLow">
+      <div class="dash-panel__head"><div><h2 class="dash-panel__title" id="chLow">Düşük performans eğilimi</h2><p class="dash-panel__lead">Dönemlere göre 70 puanın altındaki kayıt sayısı.</p></div></div>
+      {% if c.rows and c.total %}
+      <svg class="dash-line" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Düşük performans eğilimi çizgi grafiği">
+        <line x1="8" y1="86" x2="94" y2="86" class="dash-line__axis"></line>
+        <line x1="8" y1="40" x2="94" y2="40" class="dash-line__grid"></line>
+        <line x1="8" y1="63" x2="94" y2="63" class="dash-line__grid"></line>
+        <polyline points="{{ c.line_points }}" class="dash-line__path"></polyline>
+      </svg>
+      <ul class="dash-line__labels">
+        {% for row in c.rows %}<li><span>{{ row.label }}</span><b>{{ row.value_display }}</b></li>{% endfor %}
+      </ul>
+      {% else %}{{ chart_empty('Kapsamınızda 70 puanın altında kayıt yok.') }}{% endif %}
+    </section>
 
-    <article class="dr-card dr-chart-card" data-chart-key="support_status">
-      <div class="dr-card-head">
-        <div><h3>Destek Talepleri Durumu</h3><p>Açık, işlemde ve kapalı talep dağılımı.</p></div>
-        <span>Destek</span>
+    {% set c = charts.support_status if charts.support_status is defined else {} %}
+    <section class="bys-card dash-panel" data-chart-key="support_status" aria-labelledby="chSup">
+      <div class="dash-panel__head"><div><h2 class="dash-panel__title" id="chSup">Destek talebi durumları</h2><p class="dash-panel__lead">Görebildiğiniz taleplerin durumlara göre dağılımı.</p></div></div>
+      {% if c.total %}
+      <div class="dash-donut-area">
+        <div class="dash-donut dash-donut--small" style="background: {{ c.gradient }}" role="img" aria-label="Destek talebi durumları halka grafiği, toplam {{ c.total|int }} talep"><span><b>{{ c.total|int }}</b><small>talep</small></span></div>
+        <ul class="dash-legend">
+          {% for row in c.rows|default([], true) %}<li><i class="dash-swatch dash-swatch--{{ loop.index }}" aria-hidden="true"></i><span>{{ row.label }}</span><b>{{ row.value_display }}</b><small>%{{ row.percent }}</small></li>{% endfor %}
+        </ul>
       </div>
-      {% set c = charts.support_status if charts.support_status is defined else {} %}
-      <div class="dr-donut-area compact">
-        <div class="dr-donut small" style="background: {{ c.gradient|default('conic-gradient(#e7dada 0deg 360deg)', true) }}"><div><small>Talep</small><b>{{ c.total|default(0, true)|int }}</b></div></div>
-        <div class="dr-legend">
-          {% for row in c.rows|default([], true) %}
-          <div><i></i><span>{{ row.label }}</span><b>{{ row.value_display }}</b><em>%{{ row.percent }}</em></div>
-          {% endfor %}
-        </div>
-      </div>
-    </article>
+      {% else %}{{ chart_empty('Görebildiğiniz destek talebi yok.') }}{% endif %}
+    </section>
 
-    <article class="dr-card dr-chart-card" data-chart-key="participation">
-      <div class="dr-card-head">
-        <div><h3>Anket / Geri Bildirim Katılımı</h3><p>Atama ve yanıt kayıtlarına göre katılım yüzdesi.</p></div>
-        <span>Katılım</span>
-      </div>
-      {% set c = charts.participation if charts.participation is defined else {} %}
-      <div class="dr-bars">
-        {% for row in c.rows|default([], true) %}
-        <div class="dr-bar-row"><div><span>{{ row.label }}</span><b>%{{ row.value_display }}</b></div><i><em style="width: {{ row.percent }}%"></em></i><small>{{ row.count|default(0, true) }} / {{ row.total|default(0, true) }}</small></div>
+    {% set c = charts.participation if charts.participation is defined else {} %}
+    <section class="bys-card dash-panel" data-chart-key="participation" aria-labelledby="chPart">
+      <div class="dash-panel__head"><div><h2 class="dash-panel__title" id="chPart">Anket ve geri bildirim katılımı</h2><p class="dash-panel__lead">Atanan kayıtlara göre tamamlanma oranı.</p></div></div>
+      {% set has_part = c.rows and (c.rows|map(attribute='total')|select|list) %}
+      {% if has_part %}
+      <ul class="dash-bars">
+        {% for row in c.rows %}
+        <li><span class="dash-bars__label">{{ row.label }}</span><span class="dash-bars__value">%{{ row.value_display }} · {{ row.count|default(0, true) }} / {{ row.total|default(0, true) }}</span><span class="dash-bars__track" aria-hidden="true"><span class="dash-bars__fill" style="width: {{ [row.value, 100]|min }}%"></span></span></li>
         {% endfor %}
-      </div>
-    </article>
-  </section>
+      </ul>
+      {% elif c.restricted %}{{ chart_empty(c.note) }}
+      {% else %}{{ chart_empty('Henüz atanmış anket veya geri bildirim yok.') }}{% endif %}
+    </section>
+  </div>
 
-  <section class="dr-bottom-grid">
-    <article class="dr-card dr-ai-panel">
-      <div class="dr-card-head"><div><h3>Riskli Alanlar ve Öneriler</h3><p>Karar yerine geçmeyen, yetki kontrollü yönetici farkındalığı.</p></div><span>Özet</span></div>
-      <div class="dr-ai-columns">
-        <div>
-          <h4><i class="fa-solid fa-triangle-exclamation"></i> Dikkat alanları</h4>
-          {% for item in ai.risks|default([], true) %}
-          <div class="dr-ai-item"><b>{{ item.title }}</b><span>{{ item.body }}</span></div>
-          {% endfor %}
-        </div>
-        <div>
-          <h4><i class="fa-solid fa-lightbulb"></i> Öneri kartları</h4>
-          {% for item in ai.recommendations|default([], true) %}
-          <div class="dr-ai-item good"><b>{{ item.title }}</b><span>{{ item.body }}</span></div>
-          {% endfor %}
-        </div>
-        <div>
-          <h4><i class="fa-solid fa-bolt"></i> Öncelikli aksiyon</h4>
-          {% for item in ai.actions|default([], true) %}
-          <a class="dr-action-mini" href="{{ item.url }}"><span>{{ item.label }}</span><b>{{ item.priority }}</b></a>
-          {% endfor %}
-        </div>
-      </div>
-    </article>
+  {# ---- İşlemler ve kişisel özet ------------------------------------ #}
+  <div class="dash-bottom">
+    <section class="bys-card dash-panel" aria-labelledby="dashQuickTitle">
+      <div class="dash-panel__head"><div><h2 class="dash-panel__title" id="dashQuickTitle">{{ 'Yönetici hızlı geçişleri' if manager_view else 'Hızlı geçişler' }}</h2><p class="dash-panel__lead">Yalnız yetkinize uygun bağlantılar gösterilir.</p></div></div>
+      <ul class="dash-shortcuts">
+        {% for action in d.quick_actions|default([], true) %}<li><a href="{{ action.url }}"><i class="fa-solid {{ action.icon }}" aria-hidden="true"></i><span>{{ action.label }}</span></a></li>{% endfor %}
+      </ul>
+    </section>
 
-    <article class="dr-card dr-actions-panel">
-      <div class="dr-card-head"><div><h3>Yönetici Aksiyon Paneli</h3><p>Yetkiye göre görünen hızlı geçişler.</p></div><span>Tek tık</span></div>
-      <div class="dr-action-grid">
-        {% for action in d.quick_actions|default([], true) %}
-        <a href="{{ action.url }}"><i class="fa-solid {{ action.icon }}"></i><span>{{ action.label }}</span></a>
-        {% endfor %}
-      </div>
-    </article>
+    <section class="bys-card dash-panel" aria-labelledby="dashMineTitle">
+      <div class="dash-panel__head"><div><h2 class="dash-panel__title" id="dashMineTitle">Bana özel</h2><p class="dash-panel__lead">{{ d.user.label|default('Kullanıcı', true) if d.user is defined else 'Kullanıcı' }}</p></div></div>
+      <dl class="dash-facts">
+        <div><dt>Değerlendirme görevlerim</dt><dd>{{ d.personal.pending_tasks|default(0, true) }}</dd></div>
+        <div><dt>Okunmamış bildirimlerim</dt><dd>{{ d.personal.notifications|default(0, true) }}</dd></div>
+        <div><dt>Yanıt bekleyen anketlerim</dt><dd>{{ d.personal.surveys|default(0, true) }}</dd></div>
+        <div><dt>Açık destek taleplerim</dt><dd>{{ d.personal.support_tickets|default(0, true) }}</dd></div>
+        <div><dt>Geri bildirim ve eylemler</dt><dd>{{ d.personal.feedback_actions|default(0, true) }}</dd></div>
+      </dl>
+    </section>
 
-    <article class="dr-card dr-personal-panel">
-      <div class="dr-card-head"><div><h3>Bana Özel</h3><p>Kendi bekleyen işlerim ve bana açık süreçler.</p></div><span>{{ d.user.label|default('Kullanıcı', true) }}</span></div>
-      <div class="dr-personal-list">
-        <div><i class="fa-solid fa-clipboard-check"></i><span>Değerlendirme görevlerim</span><b>{{ d.personal.pending_tasks|default(0, true) }}</b></div>
-        <div><i class="fa-solid fa-bell"></i><span>Bildirimlerim</span><b>{{ d.personal.notifications|default(0, true) }}</b></div>
-        <div><i class="fa-solid fa-square-poll-vertical"></i><span>Anketlerim</span><b>{{ d.personal.surveys|default(0, true) }}</b></div>
-        <div><i class="fa-solid fa-life-ring"></i><span>Destek taleplerim</span><b>{{ d.personal.support_tickets|default(0, true) }}</b></div>
-        <div><i class="fa-solid fa-comments"></i><span>Geri bildirim / eylem</span><b>{{ d.personal.feedback_actions|default(0, true) }}</b></div>
-      </div>
-    </article>
-
-    <article class="dr-card dr-activity-panel">
-      <div class="dr-card-head"><div><h3>Son Süreç Hareketleri</h3><p>Bildirim ve düşük performans süreçlerinden kısa izleme.</p></div></div>
-      <div class="dr-activity-list">
-        {% for item in d.recent_activity|default([], true) %}
-        <div class="dr-activity dr-activity-{{ item.tone }}"><i></i><div><b>{{ item.title }}</b><span>{{ item.body }}</span></div></div>
-        {% endfor %}
-      </div>
-    </article>
-  </section>
+    <section class="bys-card dash-panel" aria-labelledby="dashActivityTitle">
+      <div class="dash-panel__head"><div><h2 class="dash-panel__title" id="dashActivityTitle">Son süreç hareketleri</h2><p class="dash-panel__lead">Bildirimleriniz ve kapsamınızdaki düşük performans süreçleri.</p></div></div>
+      <ul class="dash-items">
+        {% for item in d.recent_activity|default([], true) %}<li class="dash-item dash-item--{{ item.tone }}"><b>{{ item.title }}</b><span>{{ item.body }}</span></li>{% endfor %}
+      </ul>
+    </section>
+  </div>
 
   <script id="dashboard-rebuild-payload" type="application/json">{{ d|tojson }}</script>
 </div>
