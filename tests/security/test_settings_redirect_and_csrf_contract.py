@@ -249,7 +249,12 @@ def test_csrf_on_request_without_token_writes_nothing(csrf_app, path) -> None:
     admin = _login(csrf_app, "YD-ADMIN", csrf=True)
     before, logs_before = _values(csrf_app), _system_change_logs(csrf_app)
     response = admin.post(path, data=SYSTEM_FORM)
-    assert response.status_code != 200, path
+    # Kayıt da 302 döndüğü için yalnız durum kodu yetmez: isteği CSRF işleyicisi karşılamalı.
+    assert response.status_code == 302, (path, response.status_code)
+    assert urlsplit(response.headers.get("Location", "")).path != "/settings", path
+    with admin.session_transaction() as session:
+        flashed = [message for _category, message in session.get("_flashes", [])]
+    assert any("Güvenlik doğrulaması" in message for message in flashed), (path, flashed)
     assert _values(csrf_app) == before, path
     assert _system_change_logs(csrf_app) == logs_before, path
 
@@ -282,8 +287,10 @@ def test_csrf_on_manager_is_refused_for_system_settings_but_keeps_r05c(csrf_app,
         assert _system_change_logs(csrf_app) == logs_before, (role, name)
     for path in ADMIN_PATHS:
         assert client.get(path).status_code == 403, (role, path)
-    refusals = " ".join(_refusals(csrf_app))
-    assert "settings_system_foundation" in refusals and "settings_admin_path" in refusals, role
+    # Her ret tam olarak bir kayıt üretir: kayıt, geri alma, üç POST ve üç GET.
+    expected = ["R05 refused: settings_system_foundation", "R05 refused: settings_rollback:settings_system_foundation",
+                *["R05 refused: settings_admin_path"] * (2 * len(ADMIN_PATHS))]
+    assert sorted(_refusals(csrf_app)) == sorted(expected), role
 
     refusal_count = len(_refusals(csrf_app))
     response = client.post("/settings", data={"form_action": "save_role_profile", "user_id": str(plain_id),
