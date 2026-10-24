@@ -16,6 +16,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy import event, inspect
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO = Path(__file__).resolve().parents[2]
 DDL = re.compile(r"^\s*(CREATE\s+(UNIQUE\s+)?INDEX|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+)", re.I)
 PASSWORD = "RuntimeSchemaWave1Test!"
@@ -98,8 +100,10 @@ def _get_capturing_ddl(app, client, path):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 @pytest.fixture

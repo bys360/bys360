@@ -32,6 +32,8 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_f07b_file_center")
 _TMP_STORAGE_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_f07b_file_center_storage")
 PASSWORD = "F07bFileCenterTechTest1!"
@@ -87,7 +89,7 @@ def test_admin_must_be_the_stored_role_not_a_label_or_alias_attribute(attr):
 
 
 @pytest.fixture
-def app(monkeypatch):
+def app(monkeypatch, request):
     for key, value in {
         "APP_ENV": "testing", "FLASK_ENV": "testing", "SECRET_KEY": "test-secret-key-f07b-file-center",
         "DEFAULT_FIRST_LOGIN_PASSWORD": "f07b-file-center-first-login-test", "FLASK_SKIP_SCHEMA_VALIDATION": "1",
@@ -111,6 +113,7 @@ def app(monkeypatch):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", db_uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(
         TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=db_uri,
         SQLALCHEMY_ENGINE_OPTIONS={"poolclass": StaticPool, "connect_args": {"check_same_thread": False}},

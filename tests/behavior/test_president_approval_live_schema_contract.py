@@ -26,6 +26,8 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 ADOPTION_MIGRATION = (
     Path(__file__).resolve().parents[2]
     / "migrations"
@@ -118,9 +120,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def production_shaped_app(monkeypatch: pytest.MonkeyPatch):
+def production_shaped_app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
     """App whose performance_president_approvals comes from the adoption migration, not the ORM."""
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     with flask_app.app_context():
         from app.extensions import db
 

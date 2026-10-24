@@ -88,6 +88,7 @@ from sqlalchemy import text
 from sqlalchemy.pool import StaticPool
 
 from app.services.performance import process_engine_phase8_tracking as pt
+from tests.sqlite_test_cleanup import release_sqlite_app
 
 # ===========================================================================
 # TIER 1 -- pure functions, zero fixture, zero database.
@@ -634,8 +635,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch: pytest.MonkeyPatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def _seed_flow(

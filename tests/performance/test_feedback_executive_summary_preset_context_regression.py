@@ -47,6 +47,8 @@ from unittest import mock
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ROUTE_FILE = "app/performance/engagement_feedback_routes.py"
 ROUTE_URL = "/performance/feedback-executive-summary"
@@ -57,7 +59,7 @@ _BASE_TEMPLATE_MARKER = "topbarNotificationBadge"
 
 
 @pytest.fixture(scope="module")
-def perf_bugfix_env():
+def perf_bugfix_env(request):
     """Isolated, temp-SQLite Flask app + a real admin user (module-scoped,
     same established pattern as tests/security/test_csp_style2a_repo_wide_
     contract.py::style2a_env / test_csp_style2b_target_templates_contract.py
@@ -89,6 +91,7 @@ def perf_bugfix_env():
     mp.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(
         TESTING=True,
         WTF_CSRF_ENABLED=False,

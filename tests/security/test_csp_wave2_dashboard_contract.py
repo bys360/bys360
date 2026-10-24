@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 DASHBOARD_TEMPLATE = "app/templates/dashboard.html"
@@ -213,8 +215,9 @@ def _login(client, sicil_no, password="CspWave2TestKey1!"):
     return response
 
 
-def test_dashboard_page_render_has_no_inline_handlers(monkeypatch) -> None:
+def test_dashboard_page_render_has_no_inline_handlers(monkeypatch, request) -> None:
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="cspw2001", email=f"cspw2.{uuid.uuid4().hex[:8]}@ktb.gov.tr")
     client = app.test_client()
     _login(client, "cspw2001")
@@ -245,12 +248,13 @@ def test_dashboard_page_render_has_no_inline_handlers(monkeypatch) -> None:
     assert 'type="application/json"' in html
 
 
-def test_dashboard_page_render_marker_present(monkeypatch) -> None:
+def test_dashboard_page_render_marker_present(monkeypatch, request) -> None:
     """dashboard.html'nin dogru template oldugunu (yanlislikla baska bir
     fallback/hata sayfasinin render edilmedigini) dogrulayan duz-anlamli
     kontrol -- render testinin sessizce yanlis sayfayi 200 ile onaylamasini
     engeller."""
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="cspw2002", email=f"cspw2.{uuid.uuid4().hex[:8]}@ktb.gov.tr")
     client = app.test_client()
     _login(client, "cspw2002")

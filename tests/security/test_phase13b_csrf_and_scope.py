@@ -11,6 +11,8 @@ import tempfile
 import uuid
 from pathlib import Path
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _PHASE13B_TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "audit_tmp" / "phase13b" / "test_dbs"
 
 
@@ -136,8 +138,9 @@ def _seed_role_matrix_row(app, *, role_name, menu_key, is_visible):
 # --- #17/#18: CSRF negatives on the role-matrix write ---
 
 
-def test_role_matrix_write_missing_csrf_denied(monkeypatch):
+def test_role_matrix_write_missing_csrf_denied(monkeypatch, request):
     app = _make_app(monkeypatch, WTF_CSRF_ENABLED=True)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="13d001", email="p13b.csrfmissing@ktb.gov.tr", role="admin")
     _seed_role_matrix_row(app, role_name="kullanici", menu_key="assistant_module", is_visible=False)
     client = app.test_client()
@@ -154,8 +157,9 @@ def test_role_matrix_write_missing_csrf_denied(monkeypatch):
     assert _role_matrix_value(app, role_name="kullanici", menu_key="assistant_module") is False
 
 
-def test_role_matrix_write_invalid_csrf_denied(monkeypatch):
+def test_role_matrix_write_invalid_csrf_denied(monkeypatch, request):
     app = _make_app(monkeypatch, WTF_CSRF_ENABLED=True)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="13d002", email="p13b.csrfinvalid@ktb.gov.tr", role="admin")
     _seed_role_matrix_row(app, role_name="kullanici", menu_key="assistant_settings", is_visible=False)
     client = app.test_client()
@@ -175,10 +179,11 @@ def test_role_matrix_write_invalid_csrf_denied(monkeypatch):
     assert _role_matrix_value(app, role_name="kullanici", menu_key="assistant_settings") is False
 
 
-def test_role_matrix_write_with_valid_csrf_still_succeeds(monkeypatch):
+def test_role_matrix_write_with_valid_csrf_still_succeeds(monkeypatch, request):
     # Positive control: CSRF enforcement must not collateral-damage a
     # legitimate authorized submission.
     app = _make_app(monkeypatch, WTF_CSRF_ENABLED=True)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     admin_id = _create_user(app, sicil_no="13d003", email="p13b.csrfvalid@ktb.gov.tr", role="admin")
     _seed_role_matrix_row(app, role_name="kullanici", menu_key="assistant_my_reminders", is_visible=False)
     # BYS360_P13B_TEST_ISOLATION: the *separate* assistant-module feature gate
@@ -212,8 +217,9 @@ def test_role_matrix_write_with_valid_csrf_still_succeeds(monkeypatch):
 # --- #19: wrong-unit / cross-user object access denied ---
 
 
-def test_interim_notes_wrong_scope_denied(monkeypatch):
+def test_interim_notes_wrong_scope_denied(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     manager_id = _create_user(app, sicil_no="13d010", email="p13b.mgr@ktb.gov.tr", role="birim_sorumlusu", birim="Birim-A")
     victim_id = _create_user(app, sicil_no="13d011", email="p13b.notesvictim@ktb.gov.tr", role="personel", birim="Birim-A")
     # The "snoop" must itself pass the screen's own access gate (it is a
@@ -276,8 +282,9 @@ def test_interim_notes_wrong_scope_denied(monkeypatch):
 # --- bonus (NEW-1): support ticket private cross-unit access denied ---
 
 
-def test_support_ticket_private_cross_unit_denied(monkeypatch):
+def test_support_ticket_private_cross_unit_denied(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="13d020", email="p13b.ticketowner@ktb.gov.tr", role="personel", birim="Birim-A")
     _create_user(app, sicil_no="13d021", email="p13b.othermanager@ktb.gov.tr", role="birim_sorumlusu", birim="Birim-B")
 

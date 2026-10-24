@@ -33,6 +33,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "P57MeetingPrivacyTest1!"
 NOTE = "P57-MEETING-NOTE-MARKER"
 SUMMARY = "P57-AFTER-SUMMARY-MARKER"
@@ -58,7 +60,7 @@ PRIVATE_TOKENS = MEETING_TOKENS + (EMPLOYEE_NAME,)
 
 
 @pytest.fixture
-def env(monkeypatch):
+def env(monkeypatch, request):
     for key, value in {
         "APP_ENV": "testing", "FLASK_ENV": "testing", "SECRET_KEY": "test-secret-key-p57-meeting-privacy",
         "DEFAULT_FIRST_LOGIN_PASSWORD": "p57-meeting-privacy-first-login", "FLASK_SKIP_SCHEMA_VALIDATION": "1",
@@ -77,6 +79,7 @@ def env(monkeypatch):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
     from app.models import User
