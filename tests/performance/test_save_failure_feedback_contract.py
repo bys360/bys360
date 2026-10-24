@@ -33,6 +33,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _PASSWORD = "SaveFailureFeedbackTest1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_save_failure_feedback")
 _QUICK_UPDATE_SUCCESS = ("success", "Eylem planı takip bilgisi güncellendi.")
@@ -80,8 +82,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def perf_app(monkeypatch: pytest.MonkeyPatch):
-    return _make_app(monkeypatch)
+def perf_app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def _admin(flask_app) -> int:

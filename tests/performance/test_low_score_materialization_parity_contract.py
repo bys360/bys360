@@ -38,6 +38,8 @@ from typing import Any
 import pytest
 from sqlalchemy import text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _SERVICE_MODULE = "app.services.performance.low_score_process_service"
 _EVENTS_PER_FIRST_LOW_SCORE = 5
 _WEIGHTS_ERROR = "Ağırlık ayarları kaydedilirken hata oluştu."
@@ -143,10 +145,11 @@ def _login(client, sicil_no: str) -> None:
 
 
 @pytest.fixture
-def env(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+def env(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> SimpleNamespace:
     """App + logged-in admin web client. Only the live menu matrix is bypassed
     (same as tests/behavior/test_h1f_route_exception_leak_contract.py)."""
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     monkeypatch.setattr(importlib.import_module("app.route_support"), "can_access_menu", lambda user, key: True)
     admin_id, admin_sicil = _user(flask_app, role="admin")
     client = flask_app.test_client()

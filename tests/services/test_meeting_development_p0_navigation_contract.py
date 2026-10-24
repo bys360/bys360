@@ -64,6 +64,8 @@ from typing import Any
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 BASE_TEMPLATE_FILE = "app/templates/base.html"
@@ -349,7 +351,7 @@ _PASSWORD = "MeetingDevNavFixTestKey1!"
 
 
 @pytest.fixture(scope="module")
-def nav_env():
+def nav_env(request):
     mp = pytest.MonkeyPatch()
     _TEST_DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_path = _TEST_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
@@ -376,6 +378,7 @@ def nav_env():
     mp.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(
         TESTING=True,
         WTF_CSRF_ENABLED=False,

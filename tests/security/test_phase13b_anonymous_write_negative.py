@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 # BYS360_P13B_TEST_DB: pytest'in varsayilan tmp_path fixture'i, bu makinede
 # ASCII-disi kullanici adi yuzunden Windows PermissionError'a duser (bkz.
 # audit calismasi notlari). Repository-disi, ASCII-only, disposable bir
@@ -81,8 +83,10 @@ def _make_app(monkeypatch, **env_overrides):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 @pytest.fixture

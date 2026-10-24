@@ -25,6 +25,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 ROOT = Path(__file__).resolve().parents[2]
 DEVELOPER = "Havva Gülsen Özden"
 CO_DEVELOPER = "Mustafa Bektaş"
@@ -32,7 +34,7 @@ V34_JS = ROOT / "app" / "static" / "js" / "bys360_assistant_no_chat_intro_open_f
 
 
 @pytest.fixture(scope="module")
-def app(tmp_path_factory):
+def app(tmp_path_factory, request):
     with pytest.MonkeyPatch.context() as monkeypatch:
         db_path = tmp_path_factory.mktemp("p2_08") / "attribution.sqlite3"
         db_uri = "sqlite:///" + db_path.as_posix()
@@ -59,6 +61,7 @@ def app(tmp_path_factory):
         monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", db_uri)
         monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
         flask_app = create_app()
+        request.addfinalizer(lambda: release_sqlite_app(flask_app))
         flask_app.config.update(
             TESTING=True,
             WTF_CSRF_ENABLED=False,

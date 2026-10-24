@@ -39,6 +39,8 @@ import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_defect_ad")
 
 _MIGRATION_PATH = (
@@ -90,8 +92,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 def test_two_independent_sessions_racing_to_activate_different_periods_the_second_commit_fails_at_the_db(
     monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
 ) -> None:
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     from app.extensions import db
     from app.models.performance_models import PerformancePeriod
     from app.services import runtime_schema
@@ -214,8 +218,10 @@ def _make_app_with_static_pool(monkeypatch: pytest.MonkeyPatch):
 
 def test_activating_new_plan_period_while_another_period_is_active_succeeds_under_the_db_constraint(
     monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
 ) -> None:
     app = _make_app_with_static_pool(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     from app.extensions import db
     from app.models.performance_models import PerformancePeriod
     from app.services.performance.v2_1_5_category_period_scope import (

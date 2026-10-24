@@ -22,6 +22,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy import event
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "MobileV1ThreadRecipientTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "mobile_v1_thread_unknown_recipient" / "dbs"
 _CREATE_THREAD = "/api/mobile/communication/messages/create-thread"
@@ -72,13 +74,17 @@ def _build_app(monkeypatch, *, enforce_foreign_keys):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _build_app(monkeypatch, enforce_foreign_keys=False)
+def app(monkeypatch, request):
+    flask_app = _build_app(monkeypatch, enforce_foreign_keys=False)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 @pytest.fixture
-def fk_app(monkeypatch):
-    return _build_app(monkeypatch, enforce_foreign_keys=True)
+def fk_app(monkeypatch, request):
+    flask_app = _build_app(monkeypatch, enforce_foreign_keys=True)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def _create_thread(app, participant_ids):

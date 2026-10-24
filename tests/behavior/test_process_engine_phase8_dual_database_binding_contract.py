@@ -63,6 +63,7 @@ from app.services.performance.process_engine_phase8_tracking import (
     _history_for_flows,
     _steps_for_flows,
 )
+from tests.sqlite_test_cleanup import release_sqlite_app
 
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_defect_ab")
 
@@ -114,8 +115,9 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch: pytest.MonkeyPatch):
+def app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     with flask_app.app_context():
         from sqlalchemy import event
 

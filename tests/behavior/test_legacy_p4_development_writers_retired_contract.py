@@ -20,6 +20,8 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import event, inspect, text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "LegacyP4WritersRetiredTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "legacy_p4_writers_retired" / "dbs"
 TABLE = "performance_development_recommendations"
@@ -57,13 +59,14 @@ def _make_app(monkeypatch, uri):
 
 
 @pytest.fixture
-def env(monkeypatch, install_development_recommendations_schema):
+def env(monkeypatch, install_development_recommendations_schema, request):
     from app.extensions import db
     from app.models import PerformanceEvaluation, PerformancePeriod, User
 
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_file = _DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
     app = _make_app(monkeypatch, "sqlite:///" + db_file.as_posix())
+    request.addfinalizer(lambda: release_sqlite_app(app))
     ids: dict[str, int] = {}
     with app.app_context():
         db.create_all()

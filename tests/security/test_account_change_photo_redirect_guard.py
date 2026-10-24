@@ -30,6 +30,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "audit_tmp" / "phase5_3b" / "test_dbs"
 
 CANONICAL_HOST = "bys360.canakkaletarihialan.gov.tr"
@@ -146,8 +148,9 @@ MALICIOUS_NEXT_TARGETS = [
 
 
 @pytest.mark.parametrize("malicious_next", MALICIOUS_NEXT_TARGETS)
-def test_account_change_photo_rejects_malicious_next_and_falls_back_to_account(monkeypatch, malicious_next):
+def test_account_change_photo_rejects_malicious_next_and_falls_back_to_account(monkeypatch, malicious_next, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="p5b3b001", email=f"p5b3b.neg.{uuid.uuid4().hex[:8]}@ktb.gov.tr")
     client = app.test_client()
     _login(client, "p5b3b001")
@@ -169,8 +172,9 @@ def test_account_change_photo_rejects_malicious_next_and_falls_back_to_account(m
 # ---------------------------------------------------------------------------
 
 
-def test_account_change_photo_honors_safe_relative_next(monkeypatch):
+def test_account_change_photo_honors_safe_relative_next(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="p5b3b010", email="p5b3b.posrel@ktb.gov.tr")
     client = app.test_client()
     _login(client, "p5b3b010")
@@ -181,8 +185,9 @@ def test_account_change_photo_honors_safe_relative_next(monkeypatch):
     assert response.headers["Location"] == "/dashboard"
 
 
-def test_account_change_photo_honors_safe_relative_next_with_query_string(monkeypatch):
+def test_account_change_photo_honors_safe_relative_next_with_query_string(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="p5b3b011", email="p5b3b.posrelq@ktb.gov.tr")
     client = app.test_client()
     _login(client, "p5b3b011")
@@ -195,8 +200,9 @@ def test_account_change_photo_honors_safe_relative_next_with_query_string(monkey
     assert response.headers["Location"] == "/dashboard?tab=security&x=1"
 
 
-def test_account_change_photo_honors_canonical_absolute_next(monkeypatch):
+def test_account_change_photo_honors_canonical_absolute_next(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="p5b3b012", email="p5b3b.poscanon@ktb.gov.tr")
     client = app.test_client()
     _login(client, "p5b3b012")
@@ -208,12 +214,13 @@ def test_account_change_photo_honors_canonical_absolute_next(monkeypatch):
     assert response.headers["Location"] == target
 
 
-def test_account_change_photo_real_state_change_then_safe_redirect(monkeypatch):
+def test_account_change_photo_real_state_change_then_safe_redirect(monkeypatch, request):
     """Gerçek durum değişikliği (profil fotoğrafı kaldırma) + güvenli next
     birlikte doğrulanır: giriş sonrası güvenli iç yönlendirme, sahte bir
     çağrı değil, DB'yi gerçekten değiştiren tam akış üzerinden kanıtlanır.
     """
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     user_id = _create_user(app, sicil_no="p5b3b013", email="p5b3b.statechange@ktb.gov.tr")
     client = app.test_client()
     _login(client, "p5b3b013")
@@ -254,7 +261,7 @@ def test_account_change_photo_real_state_change_then_safe_redirect(monkeypatch):
 # sahte host (evil.attacker.example) ile doğrudan kanıtlanıyor.
 
 
-def test_account_change_photo_direct_call_ignores_forged_host_header(monkeypatch):
+def test_account_change_photo_direct_call_ignores_forged_host_header(monkeypatch, request):
     """Werkzeug test client'ın çerez kavanozu (cookie jar), oturumu asıl giriş
     yapılan host'a bağlar; bu yüzden gerçek bir `Host:` başlığı sahteciliğini
     hem giriş yapmış bir oturumla hem de tam bir HTTP round-trip ile aynı anda
@@ -265,6 +272,7 @@ def test_account_change_photo_direct_call_ignores_forged_host_header(monkeypatch
     aynı sonucu (host header'ın karara hiç girmediğini) kanıtlıyoruz.
     """
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     user_id = _create_user(app, sicil_no="p5b3b021", email="p5b3b.forgedhost@ktb.gov.tr")
 
     from flask_login import login_user
@@ -294,10 +302,11 @@ def test_account_change_photo_direct_call_ignores_forged_host_header(monkeypatch
         assert "evil.attacker.example" not in location
 
 
-def test_account_change_photo_direct_call_still_honors_relative_next_under_forged_host(monkeypatch):
+def test_account_change_photo_direct_call_still_honors_relative_next_under_forged_host(monkeypatch, request):
     """Yukarıdaki testin pozitif eşleniği: sahte Host başlığı meşru göreli
     yönlendirmeleri de ETKİLEMEMELİ (yanlış negatif olmamalı)."""
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     user_id = _create_user(app, sicil_no="p5b3b022", email="p5b3b.forgedhostpos@ktb.gov.tr")
 
     from flask_login import login_user

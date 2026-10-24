@@ -37,6 +37,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "phase8_checkpoint_turkish_tmp" / "test_dbs"
 _PASSWORD = "Phase8CheckpointTurkishTest1!"
 
@@ -127,8 +129,9 @@ def _stub_pilot_readiness_snapshot(*, viewer=None):  # K5 F4: callers pass the v
 
 
 @pytest.fixture
-def app(monkeypatch):
+def app(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     import app.services.communication_phase8_service as _phase8_service
 
     monkeypatch.setattr(_phase8_service, "pilot_readiness_snapshot", _stub_pilot_readiness_snapshot)

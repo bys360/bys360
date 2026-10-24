@@ -12,12 +12,14 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "Faz8MissingPeriodTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "faz8_missing_period" / "dbs"
 
 
 @pytest.fixture
-def client(monkeypatch):
+def client(monkeypatch, request):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     uri = "sqlite:///" + (_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3").as_posix()
     for key, value in {
@@ -35,6 +37,7 @@ def client(monkeypatch):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
     from app.models import User

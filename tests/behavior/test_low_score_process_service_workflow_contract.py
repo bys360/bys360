@@ -54,6 +54,8 @@ from typing import Any
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 # Deliberately NOT imported at module level: `app.models` / `app.services...`
 # get imported (transitively pulling in config.py) at pytest COLLECTION time
 # if done here -- i.e. before _make_app()'s monkeypatch.setenv("DATABASE_URL",
@@ -193,8 +195,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def ls_app(monkeypatch: pytest.MonkeyPatch):
-    return _make_app(monkeypatch)
+def ls_app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def _next_suffix() -> int:
@@ -666,8 +670,9 @@ def test_record_first_warning_and_start_second_repeat_admin_process_carry_no_pre
 # ---------------------------------------------------------------------------
 
 
-def test_calculate_sequence_no_falls_back_to_one_when_low_score_tables_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_calculate_sequence_no_falls_back_to_one_when_low_score_tables_missing(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
     app_obj = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app_obj))
     from app.extensions import db
     from app.models import PerformanceLowScoreProcess, PerformanceLowScoreProcessEvent
 
