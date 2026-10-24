@@ -95,6 +95,18 @@ def test_non_sqlite_file_name_is_refused() -> None:
         sqlite_file_of(_fake_app("sqlite:///" + path.as_posix()))
 
 
+@pytest.mark.parametrize("raw", ["relative.sqlite3", "sub/dir/relative.sqlite3"])
+def test_relative_path_is_refused(raw) -> None:
+    with pytest.raises(ValueError, match="absolute"):
+        sqlite_file_of(_fake_app("sqlite:///" + raw))
+
+
+def test_uri_with_query_is_refused() -> None:
+    path = _DB_ROOT / "db.sqlite3"
+    with pytest.raises(ValueError, match="absolute"):
+        sqlite_file_of(_fake_app("sqlite:///" + path.as_posix() + "?mode=ro"))
+
+
 # ---------------------------------------------------------------------------
 # 2. Real app: only its own file and side files go; its connections are closed
 # ---------------------------------------------------------------------------
@@ -105,11 +117,13 @@ def test_release_deletes_only_the_apps_database_and_closes_its_connections(monke
     neighbour = folder / "neighbour.sqlite3"
     neighbour.write_bytes(b"not this fixture's database")
     uri = "sqlite:///" + db_path.as_posix()
-    for key, value in {**_APP_ENV, "DATABASE_URL": uri}.items():
-        monkeypatch.setenv(key, value)
+    # Import before DATABASE_URL is set: Config reads it once, at first import, and other
+    # tests rely on that default; this test must not leave its own path there.
     from app import create_app
     from config import Config
 
+    for key, value in {**_APP_ENV, "DATABASE_URL": uri}.items():
+        monkeypatch.setenv(key, value)
     monkeypatch.setattr(Config, "APP_ENV", "testing")
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
@@ -132,6 +146,12 @@ def test_release_deletes_only_the_apps_database_and_closes_its_connections(monke
     assert neighbour.read_bytes() == b"not this fixture's database"
     assert _open_handles_to(db_path) == []
     release_sqlite_app(flask_app)  # idempotent: a second call finds nothing to delete
+
+    # Configured file and engine file disagree: refuse and delete nothing.
+    flask_app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + neighbour.as_posix()
+    with pytest.raises(ValueError, match="engine uses"):
+        release_sqlite_app(flask_app)
+    assert neighbour.read_bytes() == b"not this fixture's database"
     neighbour.unlink()
     folder.rmdir()
 

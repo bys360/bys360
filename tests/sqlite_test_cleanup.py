@@ -30,9 +30,13 @@ SIDE_FILE_SUFFIXES = ("-journal", "-wal", "-shm")
 def sqlite_file_of(flask_app: Any, *, root: Path | str | None = None) -> Path:
     """The SQLite database file of ``flask_app``; it must lie inside ``root`` (default: the temp dir)."""
     uri = str(flask_app.config.get("SQLALCHEMY_DATABASE_URI") or "")
-    if not uri.startswith(SQLITE_URI_PREFIX) or uri[len(SQLITE_URI_PREFIX):] in ("", ":memory:"):
+    raw = uri[len(SQLITE_URI_PREFIX):]
+    if not uri.startswith(SQLITE_URI_PREFIX) or raw in ("", ":memory:"):
         raise ValueError(f"not a SQLite database file: {uri!r}")
-    path = Path(uri[len(SQLITE_URI_PREFIX):]).resolve()
+    if "?" in raw or not Path(raw).is_absolute():
+        # A relative path is resolved by Flask-SQLAlchemy against instance_path, not the cwd.
+        raise ValueError(f"not an absolute SQLite file path: {uri!r}")
+    path = Path(raw).resolve()
     base = Path(root if root is not None else tempfile.gettempdir()).resolve()
     if base not in path.parents:
         raise ValueError(f"{path} is outside {base}")
@@ -47,6 +51,9 @@ def release_sqlite_app(flask_app: Any, *, root: Path | str | None = None) -> Non
     from app.extensions import db
 
     with flask_app.app_context():
+        engine_file = db.engine.url.database
+        if not engine_file or Path(engine_file).resolve() != path:
+            raise ValueError(f"the engine uses {engine_file!r}, not the configured {path}")
         db.session.remove()
         db.engine.dispose()
     for candidate in (path, *(Path(f"{path}{suffix}") for suffix in SIDE_FILE_SUFFIXES)):

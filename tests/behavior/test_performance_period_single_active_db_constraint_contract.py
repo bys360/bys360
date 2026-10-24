@@ -92,10 +92,8 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 def test_two_independent_sessions_racing_to_activate_different_periods_the_second_commit_fails_at_the_db(
     monkeypatch: pytest.MonkeyPatch,
-    request: pytest.FixtureRequest,
 ) -> None:
     app = _make_app(monkeypatch)
-    request.addfinalizer(lambda: release_sqlite_app(app))
     from app.extensions import db
     from app.models.performance_models import PerformancePeriod
     from app.services import runtime_schema
