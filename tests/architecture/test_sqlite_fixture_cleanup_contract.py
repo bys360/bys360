@@ -34,8 +34,11 @@ from tests.sqlite_test_cleanup import release_sqlite_app, sqlite_file_of
 REPO_ROOT = Path(__file__).resolve().parents[2]
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "sqlite_fixture_cleanup_contract"
 
-# Modules that define a temp SQLite path but never create the file (measured 0 bytes
-# on 60d07e74: their tests do not open the database). They need no teardown.
+# Modules that set DATABASE_URL but do not patch Config, so their app uses Config's
+# import-time default: in CI Step 14 that is sqlite:///:memory: (measured 0 bytes on
+# 60d07e74). Run alone, the module may be the first to import config and then all of its
+# tests share that one file, so a per-test finalizer would delete it under the next test.
+# They need Config patched like the other fixtures before a finalizer can be added.
 _NO_FILE_CREATED = {
     "tests/security/test_phase13b_password_reset.py",
     "tests/security/test_phase13b_setup_admin.py",
