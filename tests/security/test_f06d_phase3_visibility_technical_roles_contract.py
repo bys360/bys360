@@ -28,6 +28,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "F06dPhase3VisibilityTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "f06d_phase3_visibility" / "dbs"
 NOT_GLOBAL = ["sistem_yoneticisi", "sistem_yöneticisi", "system_admin", "yonetici", "yönetici"]
@@ -36,7 +38,7 @@ ARCHIVE = {"owner": "F06D-ARSIV-OWNER-ROW", "yon": "F06D-ARSIV-YONETICI-OWN-ROW"
 
 
 @pytest.fixture
-def env(monkeypatch):
+def env(monkeypatch, request):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     uri = "sqlite:///" + (_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3").as_posix()
     for key, value in {
@@ -54,6 +56,7 @@ def env(monkeypatch):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
     from app.models import PerformanceEvaluation, PerformancePeriod, User

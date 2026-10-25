@@ -38,6 +38,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TMP_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "audit_tmp" / "defect_ar" / "test_dbs"
 
 
@@ -109,8 +111,9 @@ def _login(client, sicil_no):
     assert response.status_code == 302
 
 
-def test_interim_note_id_column_is_not_null_after_insert_on_sqlite(monkeypatch):
+def test_interim_note_id_column_is_not_null_after_insert_on_sqlite(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     manager_id = _create_user(app, sicil_no="ar010", email="ar.manager@ktb.gov.tr", role="birim_sorumlusu")
     subordinate_id = _create_user(
         app, sicil_no="ar011", email="ar.subordinate@ktb.gov.tr", role="personel", yonetici_sicil="ar010",
@@ -144,10 +147,11 @@ def test_interim_note_id_column_is_not_null_after_insert_on_sqlite(monkeypatch):
     assert ids[0] < ids[1]
 
 
-def test_interim_notes_table_id_column_is_not_null_on_sqlite(monkeypatch, install_interim_notes_schema):
+def test_interim_notes_table_id_column_is_not_null_on_sqlite(monkeypatch, install_interim_notes_schema, request):
     # Since G3-A the table comes from Alembic revision x1f3a9c5e7b2 (the readiness helper no
     # longer creates it); the Defect AR guarantee -- a real autoincrement id on SQLite -- holds there.
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     with app.app_context():
         from app.extensions import db
         from app.services.performance.interim_notes_runtime import ensure_interim_notes_table
@@ -174,7 +178,7 @@ def test_interim_notes_table_id_column_is_not_null_on_sqlite(monkeypatch, instal
     assert row[0] is not None
 
 
-def test_interim_notes_list_view_renders_real_created_at_label_not_empty_on_sqlite(monkeypatch):
+def test_interim_notes_list_view_renders_real_created_at_label_not_empty_on_sqlite(monkeypatch, request):
     """BYS360 DEFECT FS (Final Sweep A1-04): the list query in
     performance_interim_notes() used TO_CHAR(n.created_at, 'DD.MM.YYYY
     HH24:MI') -- a PostgreSQL-only function with no SQLite equivalent at
@@ -184,6 +188,7 @@ def test_interim_notes_list_view_renders_real_created_at_label_not_empty_on_sqli
     fetch the raw datetime and format it in Python (same "%d.%m.%Y %H:%M"
     convention already used elsewhere in this codebase)."""
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="fs104", email="fs104.manager@ktb.gov.tr", role="birim_sorumlusu")
     subordinate_id = _create_user(
         app, sicil_no="fs105", email="fs105.subordinate@ktb.gov.tr", role="personel", yonetici_sicil="fs104",

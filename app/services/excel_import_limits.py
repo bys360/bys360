@@ -38,6 +38,7 @@ from openpyxl.utils.cell import coordinate_to_tuple
 from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 from openpyxl.xml.constants import SHARED_STRINGS
+from PIL import Image
 from PIL.Image import DecompressionBombError
 
 logger = logging.getLogger(__name__)
@@ -78,7 +79,8 @@ MESSAGES = {
                            f"yükleyin.{_NO_WRITE}".replace(",", "."),
     "EXCEL_TOO_MANY_COLUMNS": f"Excel sayfasında veri {MAX_COLUMNS} sütun sınırını aşıyor. Şablondaki sütunları "
                               f"kullanın.{_NO_WRITE}",
-    "EXCEL_UNREADABLE": f"Excel dosyası okunamadı: dosya bozuk veya .xlsx biçiminde değil.{_NO_WRITE}",
+    "EXCEL_UNREADABLE": "Excel dosyası okunamadı: dosya bozuk, .xlsx biçiminde değil ya da güvenli boyut sınırını "
+                        f"aşan bir resim içeriyor.{_NO_WRITE}",
 }
 
 # What zipfile, expat and openpyxl raise for a damaged or hostile workbook (openpyxl 3.1.5,
@@ -107,6 +109,7 @@ class ExcelImportRejected(Exception):
 class SheetExtent:
     rows: int
     columns: int
+    max_style: int = -1  # largest style index used by a cell, row or column
 
 
 def _reject(code: str, kind: type[Any] | None = None) -> ExcelImportRejected:
@@ -243,6 +246,24 @@ def count_shared_strings(archive: zipfile.ZipFile, name: str) -> int:
     return strings
 
 
+def check_pictures(archive: zipfile.ZipFile) -> None:
+    """Open every embedded picture header with Pillow, as openpyxl's full load did.
+
+    Read-only mode never touches pictures, but a damaged or hostile one still marks a damaged
+    file: a picture declaring more pixels than Pillow allows raises DecompressionBombError and a
+    zero-sized EMF raises ZeroDivisionError here, before any pixel is decoded. A format Pillow
+    cannot identify (OSError) is tolerated, as openpyxl only drops such pictures.
+    """
+    for name in archive.namelist():
+        if not name.startswith("xl/media/"):
+            continue
+        with archive.open(name) as source:
+            try:
+                Image.open(source).close()
+            except OSError:
+                continue
+
+
 def _row_number(value: str | None, previous: int) -> int:
     """Row index as openpyxl's WorkSheetParser.parse_row computes it."""
     if value is None:
@@ -265,6 +286,7 @@ def scan_sheet_extent(source: IO[bytes]) -> SheetExtent:
     children until the cell itself is done).
     """
     max_row = max_col = 0
+    max_style = -1
     row_index = col_index = 0
     rows = cells = row_cells = cell_elements = extras = 0
     stack: list[Element] = []
@@ -275,6 +297,9 @@ def scan_sheet_extent(source: IO[bytes]) -> SheetExtent:
             depth = len(stack) + 1
             name = _local(element.tag)
             stack.append(element)
+            style = element.get("style") if name == "col" else element.get("s") if name in {"c", "row"} else None
+            if style:
+                max_style = max(max_style, int(style))
             if depth == 1:
                 continue
             if depth == 2 and name == "sheetData":
@@ -329,7 +354,7 @@ def scan_sheet_extent(source: IO[bytes]) -> SheetExtent:
             in_sheet_data = False
         if stack and stack[-1] is not cell:
             stack[-1].remove(element)
-    return SheetExtent(rows=max_row, columns=max_col)
+    return SheetExtent(rows=max_row, columns=max_col, max_style=max_style)
 
 
 def _upload_size(stream: IO[bytes]) -> int:
@@ -345,6 +370,7 @@ def _read_rows(stream: IO[bytes]) -> list[tuple[Any, ...]]:
     loaded = False
     try:
         check_archive(archive)
+        check_pictures(archive)
         guard = _LoadGuard(archive)
         reader.archive = guard
         reader.read_manifest()
@@ -367,6 +393,8 @@ def _read_rows(stream: IO[bytes]) -> list[tuple[Any, ...]]:
         _probe(archive, sheet._worksheet_path)
         with archive.open(sheet._worksheet_path) as source:
             extent = scan_sheet_extent(source)
+        if extent.max_style >= len(workbook._cell_styles):
+            raise _reject("EXCEL_UNREADABLE")  # the full openpyxl load failed on this with IndexError
         if extent.rows == 0:
             return []
         return list(sheet.iter_rows(min_row=1, max_row=extent.rows, min_col=1, max_col=extent.columns,

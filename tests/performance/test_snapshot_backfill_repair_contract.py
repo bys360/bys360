@@ -40,6 +40,8 @@ import pytest
 from sqlalchemy import event, text
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _SERVICE_MODULE = "app.services.performance_snapshot_service"
 _URL = "/performance/snapshots/backfill"
 _PASSWORD = "TestSnapshotBackfillRepair1!"
@@ -160,13 +162,14 @@ def _flashes(client) -> list[tuple[str, str]]:
 
 
 @pytest.fixture
-def env(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+def env(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> SimpleNamespace:
     """Admin (publish screens, Başkan/Üst Onay, backfill) and the Personel ve Destek
     Hizmetleri Grup Başkanı, logged in for real; one criteria set."""
     from app.extensions import db
     from app.models import PerformanceCriteria
 
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     admin_id, admin_sicil = _user(flask_app, role="admin")
     admin = flask_app.test_client()
     _login(admin, admin_sicil)

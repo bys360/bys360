@@ -56,6 +56,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "h1e_systemic_self_fallback_tmp" / "test_dbs"
 
 
@@ -97,8 +99,10 @@ def _make_app(monkeypatch):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def test_ai_module_report_label_functions_never_leak_raw() -> None:

@@ -20,6 +20,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 ROOT = Path(__file__).resolve().parents[2]
 HR_FALLBACKS = ("/institutional/hr/career-planning", "/institutional/hr/reward-discipline")
 # The regex byte in these gate scripts changes gate matching if "fixed"; review separately.
@@ -30,7 +32,7 @@ CONTROL_BYTE_REVIEW_ITEMS = {
 
 
 @pytest.fixture(scope="module")
-def app(tmp_path_factory):
+def app(tmp_path_factory, request):
     with pytest.MonkeyPatch.context() as monkeypatch:
         db_path = os.path.join(str(tmp_path_factory.mktemp("p3")), f"p3_{uuid.uuid4().hex}.sqlite3")
         db_uri = "sqlite:///" + db_path.replace("\\", "/")
@@ -57,6 +59,7 @@ def app(tmp_path_factory):
         monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", db_uri)
         monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
         flask_app = create_app()
+        request.addfinalizer(lambda: release_sqlite_app(flask_app))
         flask_app.config.update(
             TESTING=True,
             WTF_CSRF_ENABLED=False,

@@ -80,6 +80,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tests" / "security"))
 
@@ -898,7 +900,7 @@ _BASE_TEMPLATE_MARKER = "topbarNotificationBadge"
 
 
 @pytest.fixture(scope="module")
-def style2b_env():
+def style2b_env(request):
     """Izole, gecici SQLite DB'li bagimsiz bir Flask app + admin kullanici +
     (feedback_meeting_detail icin) gercek bir geri bildirim gorusme zinciri +
     giris yapilmis test client kurar. Wave2/phase13b/Style-2A dosyalarindaki
@@ -933,6 +935,7 @@ def style2b_env():
     mp.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(
         TESTING=True,
         WTF_CSRF_ENABLED=False,

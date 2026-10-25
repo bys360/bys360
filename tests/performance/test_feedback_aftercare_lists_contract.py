@@ -32,13 +32,15 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _PASSWORD = "FeedbackAftercareListsTest1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_feedback_aftercare_lists")
 _MEETING_NOTE = "FBLISTS-MEETING-NOTE-MARKER"
 
 
 @pytest.fixture
-def aftercare_app(monkeypatch: pytest.MonkeyPatch):
+def aftercare_app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
     for key, value in {
         "APP_ENV": "testing",
         "FLASK_ENV": "testing",
@@ -66,6 +68,7 @@ def aftercare_app(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", db_uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=db_uri)
 
     from app.extensions import db

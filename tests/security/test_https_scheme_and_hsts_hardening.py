@@ -102,6 +102,7 @@ from config import (
     _resolve_secure_cookie,
     _resolve_trusted_hosts,
 )
+from tests.sqlite_test_cleanup import release_sqlite_app
 
 _HARDENING_TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "audit_tmp" / "https_hsts_hardening" / "test_dbs"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -278,8 +279,9 @@ def _make_proxyfix_test_app(monkeypatch):
     return proxied_app
 
 
-def test_hsts_present_via_trusted_proxyfix_hop(monkeypatch):
+def test_hsts_present_via_trusted_proxyfix_hop(monkeypatch, request):
     proxied_app = _make_proxyfix_test_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(proxied_app))
     assert proxied_app.config.get("PROXY_FIX_ENABLED") is True
     proxied_client = proxied_app.test_client()
 
@@ -1094,25 +1096,27 @@ def _make_trusted_hosts_test_app(
     return app
 
 
-def test_trusted_hosts_production_canonical_host_is_accepted(monkeypatch):
+def test_trusted_hosts_production_canonical_host_is_accepted(monkeypatch, request):
     app = _make_trusted_hosts_test_app(
         monkeypatch, app_env="production", app_base_url="https://bys360.canakkaletarihialan.gov.tr",
     )
+    request.addfinalizer(lambda: release_sqlite_app(app))
     client = app.test_client()
     response = client.get("/login", headers={"Host": "bys360.canakkaletarihialan.gov.tr"})
     assert response.status_code != 400
 
 
-def test_trusted_hosts_forged_host_header_is_rejected_with_400(monkeypatch):
+def test_trusted_hosts_forged_host_header_is_rejected_with_400(monkeypatch, request):
     app = _make_trusted_hosts_test_app(
         monkeypatch, app_env="production", app_base_url="https://bys360.canakkaletarihialan.gov.tr",
     )
+    request.addfinalizer(lambda: release_sqlite_app(app))
     client = app.test_client()
     response = client.get("/login", headers={"Host": "evil.attacker.example"})
     assert response.status_code == 400
 
 
-def test_trusted_hosts_rejects_subdomain_suffix_trick_host(monkeypatch):
+def test_trusted_hosts_rejects_subdomain_suffix_trick_host(monkeypatch, request):
     """`trusted.example.evil.example` (kanonik host'u SONEK olarak tasiyan
     ama aslinda tamamen farkli bir domain olan sahte host) reddedilmelidir --
     Werkzeug'un host_is_trusted() kurali, girdi '.' ile BASLAMADIKCA
@@ -1121,23 +1125,25 @@ def test_trusted_hosts_rejects_subdomain_suffix_trick_host(monkeypatch):
     app = _make_trusted_hosts_test_app(
         monkeypatch, app_env="production", app_base_url="https://trusted.example",
     )
+    request.addfinalizer(lambda: release_sqlite_app(app))
     client = app.test_client()
     response = client.get("/login", headers={"Host": "trusted.example.evil.example"})
     assert response.status_code == 400
 
 
-def test_trusted_hosts_rejects_prefix_trick_host(monkeypatch):
+def test_trusted_hosts_rejects_prefix_trick_host(monkeypatch, request):
     """`eviltrusted.example` (kanonik host'u SONUNDA tasiyan ama farkli bir
     domain olan sahte host) reddedilmelidir."""
     app = _make_trusted_hosts_test_app(
         monkeypatch, app_env="production", app_base_url="https://trusted.example",
     )
+    request.addfinalizer(lambda: release_sqlite_app(app))
     client = app.test_client()
     response = client.get("/login", headers={"Host": "eviltrusted.example"})
     assert response.status_code == 400
 
 
-def test_trusted_hosts_development_localhost_is_accepted_when_explicitly_enforced(monkeypatch):
+def test_trusted_hosts_development_localhost_is_accepted_when_explicitly_enforced(monkeypatch, request):
     """Requirement: development'ta localhost kabul edilir. Development'ta
     varsayilan (acik TRUSTED_HOSTS env yokken) enforcement KAPALIDIR (bkz.
     modul docstring'i madde 6) -- bu yuzden ozelligi gercekten Flask
@@ -1149,44 +1155,48 @@ def test_trusted_hosts_development_localhost_is_accepted_when_explicitly_enforce
         monkeypatch, app_env="development", app_base_url="http://127.0.0.1:8000",
         trusted_hosts_env="mydevhost.local",
     )
+    request.addfinalizer(lambda: release_sqlite_app(app))
     client = app.test_client()
     response = client.get("/login", headers={"Host": "localhost"})
     assert response.status_code != 400
 
 
-def test_trusted_hosts_testing_localhost_is_accepted_when_explicitly_enforced(monkeypatch):
+def test_trusted_hosts_testing_localhost_is_accepted_when_explicitly_enforced(monkeypatch, request):
     app = _make_trusted_hosts_test_app(
         monkeypatch, app_env="testing", app_base_url="http://127.0.0.1:8000",
         trusted_hosts_env="mytesthost.local",
     )
+    request.addfinalizer(lambda: release_sqlite_app(app))
     client = app.test_client()
     response = client.get("/login", headers={"Host": "localhost"})
     assert response.status_code != 400
 
 
-def test_trusted_hosts_127_0_0_1_is_accepted_in_test_and_dev(monkeypatch):
+def test_trusted_hosts_127_0_0_1_is_accepted_in_test_and_dev(monkeypatch, request):
     for env in ("development", "testing"):
         app = _make_trusted_hosts_test_app(
             monkeypatch, app_env=env, app_base_url="http://127.0.0.1:8000",
             trusted_hosts_env="mydevhost.local",
         )
+        request.addfinalizer(lambda app=app: release_sqlite_app(app))  # one finalizer per loop app
         client = app.test_client()
         response = client.get("/login", headers={"Host": "127.0.0.1"})
         assert response.status_code != 400, f"127.0.0.1 rejected in {env}"
 
 
-def test_trusted_hosts_production_does_not_accept_localhost(monkeypatch):
+def test_trusted_hosts_production_does_not_accept_localhost(monkeypatch, request):
     """Requirement: production'da localhost KABUL EDILMEZ -- dev/test'e ozel
     otomatik yerel host ekleme production/staging'de ASLA yapilmaz."""
     app = _make_trusted_hosts_test_app(
         monkeypatch, app_env="production", app_base_url="https://bys360.canakkaletarihialan.gov.tr",
     )
+    request.addfinalizer(lambda: release_sqlite_app(app))
     client = app.test_client()
     response = client.get("/login", headers={"Host": "localhost"})
     assert response.status_code == 400
 
 
-def test_trusted_hosts_port_in_canonical_host_is_stripped_and_still_matches(monkeypatch):
+def test_trusted_hosts_port_in_canonical_host_is_stripped_and_still_matches(monkeypatch, request):
     """Requirement: portlu kanonik host dogru islenir -- APP_BASE_URL'in
     kendi portu TRUSTED_HOSTS girdisine dahil edilmez ve Werkzeug'un kendi
     host_is_trusted()'i de hem gelen Host basligindaki hem trusted-list
@@ -1197,6 +1207,7 @@ def test_trusted_hosts_port_in_canonical_host_is_stripped_and_still_matches(monk
         monkeypatch, app_env="production",
         app_base_url="https://bys360.canakkaletarihialan.gov.tr:8443",
     )
+    request.addfinalizer(lambda: release_sqlite_app(app))
     client = app.test_client()
     response = client.get(
         "/login", headers={"Host": "bys360.canakkaletarihialan.gov.tr:9999"}
@@ -1204,7 +1215,7 @@ def test_trusted_hosts_port_in_canonical_host_is_stripped_and_still_matches(monk
     assert response.status_code != 400
 
 
-def test_trusted_hosts_wrong_host_with_matching_port_is_still_rejected(monkeypatch):
+def test_trusted_hosts_wrong_host_with_matching_port_is_still_rejected(monkeypatch, request):
     """Negative control for the port test above: matching the port but not
     the hostname must still be rejected -- proves acceptance above is driven
     by hostname matching (with port correctly ignored), not by accident."""
@@ -1212,6 +1223,7 @@ def test_trusted_hosts_wrong_host_with_matching_port_is_still_rejected(monkeypat
         monkeypatch, app_env="production",
         app_base_url="https://bys360.canakkaletarihialan.gov.tr:8443",
     )
+    request.addfinalizer(lambda: release_sqlite_app(app))
     client = app.test_client()
     response = client.get(
         "/login", headers={"Host": "evil.attacker.example:8443"}

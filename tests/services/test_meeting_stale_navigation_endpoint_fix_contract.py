@@ -49,6 +49,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 DEVELOPMENT_GUIDANCE_ENDPOINT = "main.performance_meeting_p4_development_guidance"
@@ -124,7 +126,7 @@ def _href_for_label(html: str, label: str) -> str:
 
 
 @pytest.fixture(scope="module")
-def nav_app():
+def nav_app(request):
     mp = pytest.MonkeyPatch()
     _TEST_DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_path = _TEST_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
@@ -152,6 +154,7 @@ def nav_app():
     mp.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=db_uri)
 
     from app.extensions import db

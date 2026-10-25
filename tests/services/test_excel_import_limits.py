@@ -67,8 +67,16 @@ def _sheet_xml(sheet_data: str, *, head: str = "", tail: str = "") -> bytes:
             f'<worksheet xmlns="{NS}">{head}<sheetData>{sheet_data}</sheetData>{tail}</worksheet>').encode()
 
 
+def _styled_book() -> bytes:
+    """A workbook whose style table has index 1 (bold), so crafted sheets can use s="1"."""
+    def bold(ws):
+        ws["Z1"].font = Font(bold=True)
+
+    return _book(edit=bold)
+
+
 def _with_sheet(sheet_data: str, **kwargs) -> bytes:
-    return _patch(_book(), {SHEET: _sheet_xml(sheet_data, **kwargs)})
+    return _patch(_styled_book(), {SHEET: _sheet_xml(sheet_data, **kwargs)})
 
 
 def _inline(ref: str, text: str) -> str:
@@ -449,6 +457,53 @@ def test_excel_style_workbook_reads_exactly_as_before():
     assert rows == _old_path_rows(raw)
     assert rows[1] == ("1001", "Ayşe", "Yılmaz", 87.5, True, datetime(2026, 1, 15), 175)
     assert rows[2] == (None,) * 7
+
+
+def _with_picture(picture: bytes) -> bytes:
+    from openpyxl.drawing.image import Image as XImage
+
+    raw = _book(edit=lambda ws: ws.add_image(XImage(io.BytesIO(_png())), "D2"))
+    media = [n for n in zipfile.ZipFile(io.BytesIO(raw)).namelist() if n.startswith("xl/media/")]
+    return _patch(raw, dict.fromkeys(media, picture))
+
+
+def _bomb_png(width: int = 30_000, height: int = 30_000) -> bytes:
+    """A well-formed ~1 KB PNG declaring more pixels than Pillow's decompression-bomb limit."""
+    body = zlib.compress(b"\x00" * (width // 8 + 1) * 10)
+    return (b"\x89PNG\r\n\x1a\n" + _chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 1, 0, 0, 0, 0))
+            + _chunk(b"IDAT", body) + _chunk(b"IEND", b""))
+
+
+@pytest.mark.parametrize(
+    "picture",
+    [_bomb_png(), b"\x01\x00\x00\x00" + b"\x00" * 36 + b" EMF" + b"\x00" * 48],
+    ids=["decompression-bomb", "zero-sized-emf"],
+)
+def test_damaged_picture_marks_the_file_damaged_without_decoding_it(picture):
+    """Read-only mode skips pictures; the header check keeps the full load's refusal of these files."""
+    result, peak = _bounded(_with_picture(picture))
+    assert result == "EXCEL_UNREADABLE"
+    assert peak < MEMORY_BUDGET
+
+
+def test_picture_in_a_format_pillow_cannot_identify_is_tolerated():
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'
+    assert _read(_with_picture(svg)) == [("Sicil No", "Ad"), ("1001", "Ayşe")]
+
+
+@pytest.mark.parametrize(
+    "sheet_data",
+    ['<row r="1"><c r="A1" s="99" t="inlineStr"><is><t>a</t></is></c></row>',
+     '<row r="1" s="99" customFormat="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c></row>'],
+    ids=["cell-style", "row-style"],
+)
+def test_style_index_out_of_range_is_refused(sheet_data):
+    assert _rejected(_with_sheet(sheet_data)) == "EXCEL_UNREADABLE"
+
+
+def test_column_style_index_out_of_range_is_refused():
+    raw = _with_sheet('<row r="1">' + _inline("A1", "a") + "</row>", head='<cols><col min="1" max="1" style="99"/></cols>')
+    assert _rejected(raw) == "EXCEL_UNREADABLE"
 
 
 def test_workbook_with_embedded_pictures_reads():

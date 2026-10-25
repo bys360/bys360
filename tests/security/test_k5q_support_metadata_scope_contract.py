@@ -28,6 +28,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "K5qMetadataScopeTest1!"
 PUB_NO, PUB_TITLE = "K5QM-PUB-01", "K5QM-ACIK-BASLIK"
 PRV_NO, PRV_TITLE = "K5QM-PRV-02", "K5QM-GIZLI-BASLIK"
@@ -75,7 +77,7 @@ NON_HOLDER_SCREENS = [
 
 
 @pytest.fixture
-def env(monkeypatch, tmp_path):
+def env(monkeypatch, tmp_path, request):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     uri = "sqlite:///" + (_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3").as_posix()
     for key, value in {
@@ -93,6 +95,7 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri,
                             UPLOAD_FOLDER=str(tmp_path / "uploads"))
     from app.extensions import db

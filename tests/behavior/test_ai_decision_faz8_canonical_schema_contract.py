@@ -28,6 +28,8 @@ import pytest
 from sqlalchemy import event
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 GHOST_COLUMNS = ("period_name", "evaluated_user_id", "scope_reference", "category_id", "unit_id")
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_live_schema_b")
 
@@ -68,8 +70,9 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch: pytest.MonkeyPatch):
+def app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     with flask_app.app_context():
         from app.extensions import db
         from app.models import EvaluationAssignment, PerformancePeriod

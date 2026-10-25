@@ -24,6 +24,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "F06aInterimNotesTest1!"
 MARKER = "BYS360-F06A-PRIVATE-NOTE-MARKER"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "f06a_interim_notes" / "dbs"
@@ -31,7 +33,7 @@ TECHNICAL = ["sistem_yoneticisi", "system_admin"]
 
 
 @pytest.fixture
-def app(monkeypatch, install_interim_notes_schema):
+def app(monkeypatch, install_interim_notes_schema, request):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     uri = "sqlite:///" + (_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3").as_posix()
     for key, value in {
@@ -49,6 +51,7 @@ def app(monkeypatch, install_interim_notes_schema):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
     from app.models import User
