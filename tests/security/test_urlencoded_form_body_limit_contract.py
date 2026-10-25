@@ -32,11 +32,13 @@ def _urlencoded(size: int) -> bytes:
 
 def test_a_declared_body_over_the_limit_is_refused_before_it_is_parsed():
     app = _bare_app()
-    with app.test_request_context(
-        "/", method="POST", data=_urlencoded(LIMIT + 1), content_type="application/x-www-form-urlencoded"
+    with (
+        app.test_request_context(
+            "/", method="POST", data=_urlencoded(LIMIT + 1), content_type="application/x-www-form-urlencoded"
+        ),
+        pytest.raises(RequestEntityTooLarge),
     ):
-        with pytest.raises(RequestEntityTooLarge):
-            request.form  # noqa: B018 - parsing is the point
+        request.form  # noqa: B018 - parsing is the point
 
 
 def test_a_body_at_the_limit_is_parsed():
