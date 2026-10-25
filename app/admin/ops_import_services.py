@@ -52,19 +52,24 @@ from .ops_helpers import (
 )
 
 # What openpyxl raises for a damaged or hostile upload (measured with openpyxl 3.1.5 and Pillow
-# 12.3/13.0 on truncated, bit-flipped and part-dropped files): ParseError is a SyntaxError, and a
-# picture over Pillow's pixel limit raises DecompressionBombError, which openpyxl does not catch.
+# 12.3/13.0 on truncated, bit-flipped, part-dropped and crafted files): ParseError is a
+# SyntaxError; LookupError covers missing parts (KeyError) and shared-string/style indexes out of
+# range (IndexError); RuntimeError covers zip encryption flags and unsupported compression
+# (NotImplementedError); ArithmeticError covers Pillow's EMF/PSD header maths; a picture over
+# Pillow's pixel limit raises DecompressionBombError, which openpyxl does not catch.
 UNREADABLE_WORKBOOK_ERRORS = (
     zipfile.BadZipFile,
     zlib.error,
     InvalidFileException,
     DecompressionBombError,
     SyntaxError,
-    KeyError,
+    LookupError,
     AttributeError,
     TypeError,
     ValueError,
-    NotImplementedError,
+    RuntimeError,
+    ArithmeticError,
+    MemoryError,
     EOFError,
     OSError,
 )
@@ -85,7 +90,7 @@ def admin_user_import_impl():
             wb = load_workbook(f, data_only=True)
             rows = list(wb.active.iter_rows(values_only=True))
         except UNREADABLE_WORKBOOK_ERRORS as exc:
-            current_app.logger.warning("BYS360 Excel içe aktarma: dosya okunamadı | exc=%s", type(exc).__name__)
+            current_app.logger.warning("BYS360 Excel içe aktarma: dosya okunamadı | exc=%s", type(exc).__name__, exc_info=True)
             flash(UNREADABLE_WORKBOOK_MESSAGE, "danger")
             return safe_render("excel_import.html", "<h3>Excel İçe Aktar</h3>", apply_ai_fixes=False, ai_excel_fix_panel=build_excel_fix_preview_ai_panel())
         if not rows:

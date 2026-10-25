@@ -2,11 +2,12 @@
 
 Both personnel Excel routes read the upload with ``openpyxl.load_workbook``, which hands every
 embedded picture to Pillow. Measured against openpyxl 3.1.5 with Pillow 12.3.0 and 13.0.0, a
-damaged ``.xlsx`` raises ``zipfile.BadZipFile``, ``zlib.error``, ``KeyError``,
+damaged ``.xlsx`` raises ``zipfile.BadZipFile``, ``zlib.error``, ``KeyError``, ``IndexError``
+(shared-string or style index out of range), ``RuntimeError`` (zip encryption flag),
 ``xml.etree.ElementTree.ParseError``, ``AttributeError``, ``ValueError`` or
-``NotImplementedError``, and a picture declaring more pixels than Pillow's limit raises
-``PIL.Image.DecompressionBombError`` -- openpyxl only swallows ``OSError`` for unreadable
-pictures, so the bomb error reaches the route.
+``NotImplementedError``; an EMF picture with a zero-sized frame makes Pillow divide by zero, and a
+picture declaring more pixels than Pillow's limit raises ``PIL.Image.DecompressionBombError`` --
+openpyxl only swallows ``OSError`` for unreadable pictures, so these reach the route.
 
 - ``/personnel/excel-upload`` already turned these into a flash message and a rollback.
 - ``/admin/users/import`` read the workbook outside any handler: every case above was a 500.
@@ -19,6 +20,7 @@ failure in the middle of the rows rolls back the rows that were already flushed.
 from __future__ import annotations
 
 import io
+import re
 import struct
 import tempfile
 import uuid
@@ -69,37 +71,46 @@ def _make_app(monkeypatch, uri):
 def env(monkeypatch, install_interim_notes_schema):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_file = _DB_ROOT / f"xd_{uuid.uuid4().hex}.sqlite3"
-    app = _make_app(monkeypatch, "sqlite:///" + db_file.as_posix())
-    from app.extensions import db
-    from app.models import User
-    from app.services import runtime_schema
+    try:
+        app = _make_app(monkeypatch, "sqlite:///" + db_file.as_posix())
+        from app.extensions import db
+        from app.models import User
+        from app.services import runtime_schema
 
-    with app.app_context():
-        db.create_all()
-        runtime_schema.provision_all()
-        install_interim_notes_schema(db.engine)
-        admin = User(
-            sicil_no=ADMIN_SICIL,
-            email="xd01adm@example.gov.tr",
-            ad="Kisi",
-            soyad="Admin",
-            unvan="Uzman",
-            role="admin",
-            birim="XD Birim",
-            ust_birim="XD Ust Birim",
-            is_active=True,
-            must_change_password=False,
-            must_set_security_question=False,
-            is_first_login=False,
-        )
-        admin.set_password(PASSWORD)
-        db.session.add(admin)
-        db.session.commit()
-    yield SimpleNamespace(app=app)
-    with app.app_context():
-        db.session.remove()
-        db.engine.dispose()
-    db_file.unlink(missing_ok=True)
+        with app.app_context():
+            try:
+                db.create_all()
+                runtime_schema.provision_all()
+                install_interim_notes_schema(db.engine)
+                admin = User(
+                    sicil_no=ADMIN_SICIL,
+                    email="xd01adm@example.gov.tr",
+                    ad="Kisi",
+                    soyad="Admin",
+                    unvan="Uzman",
+                    role="admin",
+                    birim="XD Birim",
+                    ust_birim="XD Ust Birim",
+                    is_active=True,
+                    must_change_password=False,
+                    must_set_security_question=False,
+                    is_first_login=False,
+                )
+                admin.set_password(PASSWORD)
+                db.session.add(admin)
+                db.session.commit()
+            except BaseException:
+                db.session.remove()
+                db.engine.dispose()
+                raise
+        yield SimpleNamespace(app=app)
+        with app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+    finally:
+        # Also on a failing setup; the journal files go with the database file.
+        for leftover in (db_file, *(Path(f"{db_file}{suffix}") for suffix in ("-journal", "-wal", "-shm"))):
+            leftover.unlink(missing_ok=True)
 
 
 def _admin_client(env):
@@ -117,6 +128,17 @@ def _snapshot(env):
         sicils = sorted(user.sicil_no for user in User.query.all())
         creates = AuditLog.query.filter_by(action="account.create").count()
     return sicils, creates
+
+
+def _row_counts(env):
+    """Rows the import writes besides users: audit rows, organization units, personnel categories."""
+    from app.extensions import db
+
+    with env.app.app_context():
+        return {
+            table: db.session.execute(db.text(f"SELECT COUNT(*) FROM {table}")).scalar()
+            for table in ("users", "audit_logs", "organization_units", "personnel_categories")
+        }
 
 
 # --------------------------------------------------------------------------------------
@@ -178,6 +200,27 @@ def _replace_parts(xlsx: bytes, change) -> bytes:
     return out.getvalue()
 
 
+def _sheet_changed(xlsx: bytes, change) -> bytes:
+    def apply(name, data):
+        return change(data.decode("utf-8")).encode("utf-8") if name == "xl/worksheets/sheet1.xml" else data
+
+    return _replace_parts(xlsx, apply)
+
+
+def _encryption_flag_set(xlsx: bytes, part: str = "xl/worksheets/sheet1.xml") -> bytes:
+    """Set the zip 'encrypted' bit on one part, in its local header and its central directory entry."""
+    data = bytearray(xlsx)
+    archive = zipfile.ZipFile(io.BytesIO(xlsx))
+    data[archive.getinfo(part).header_offset + 6] |= 0x01
+    position = archive.start_dir
+    while data[position: position + 4] == b"PK\x01\x02":
+        name_len, extra_len, comment_len = struct.unpack("<HHH", data[position + 28: position + 34])
+        if data[position + 46: position + 46 + name_len].decode() == part:
+            data[position + 8] |= 0x01
+        position += 46 + name_len + extra_len + comment_len
+    return bytes(data)
+
+
 def _bit_flipped(xlsx: bytes) -> bytes:
     """Corrupt the compressed body of the first sheet (its local header stays intact)."""
     data = bytearray(xlsx)
@@ -201,6 +244,14 @@ def _damaged_workbooks() -> dict[str, bytes]:
             good, lambda name, data: b"<worksheet><not-closed" if name == "xl/worksheets/sheet1.xml" else data
         ),
         "decompression_bomb_picture": _workbook([_row("XDNEW01")], picture=_bomb_png()),
+        "shared_string_index_out_of_range": _sheet_changed(
+            good, lambda xml: re.sub(r'<c r="A2"[^>]*>.*?</c>', '<c r="A2" t="s"><v>99999</v></c>', xml, count=1)
+        ),
+        "style_index_out_of_range": _sheet_changed(good, lambda xml: xml.replace('<c r="A2"', '<c r="A2" s="9999"', 1)),
+        "zip_encryption_flag": _encryption_flag_set(good),
+        "zero_sized_emf_picture": _workbook(
+            [_row("XDNEW01")], picture=b"\x01\x00\x00\x00" + b"\x00" * 36 + b" EMF" + b"\x00" * 48
+        ),
     }
 
 
@@ -222,6 +273,23 @@ def test_each_damaged_workbook_really_fails_to_load(case):
     from openpyxl import load_workbook
 
     with pytest.raises(Exception):  # noqa: B017 - which error is the point of the route tests
+        workbook = load_workbook(io.BytesIO(DAMAGED[case]), data_only=True)
+        list(workbook.active.iter_rows(values_only=True))
+
+
+@pytest.mark.parametrize(
+    ("case", "error"),
+    (
+        ("shared_string_index_out_of_range", IndexError),
+        ("style_index_out_of_range", IndexError),
+        ("zip_encryption_flag", RuntimeError),
+        ("zero_sized_emf_picture", ZeroDivisionError),
+    ),
+)
+def test_crafted_workbooks_raise_errors_outside_openpyxls_own_handling(case, error):
+    from openpyxl import load_workbook
+
+    with pytest.raises(error):
         workbook = load_workbook(io.BytesIO(DAMAGED[case]), data_only=True)
         list(workbook.active.iter_rows(values_only=True))
 
@@ -306,10 +374,24 @@ def test_a_failure_on_a_later_row_writes_none_of_the_rows(env, monkeypatch, path
 
     monkeypatch.setattr(module, "assign_user_performance_category", fail_on_third_row)
     client = _admin_client(env)
-    before = _snapshot(env)
+    before = _snapshot(env), _row_counts(env)
+
+    # The request teardown would discard an uncommitted transaction anyway; count the route's own
+    # rollback so that removing it (and committing later in the same request) cannot go unnoticed.
+    from app.extensions import db
+
+    real_rollback = db.session.rollback
+    rollbacks = {"count": 0}
+
+    def counting_rollback():
+        rollbacks["count"] += 1
+        return real_rollback()
+
+    monkeypatch.setattr(db.session, "rollback", counting_rollback)
 
     response = _post(client, path, _workbook([_row("XDRB01"), _row("XDRB02"), _row("XDRB03")]))
 
     assert calls["count"] == 3  # the first two rows really went through before the failure
+    assert rollbacks["count"] >= 1
     assert response.status_code in (200, 302)
-    assert _snapshot(env) == before
+    assert (_snapshot(env), _row_counts(env)) == before
