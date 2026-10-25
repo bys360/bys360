@@ -14,6 +14,7 @@ from typing import Any
 
 from flask import Flask
 
+from app.core.form_body_limit import BYS360Request
 from app.core.reverse_proxy import apply_reverse_proxy_fix
 from app.extensions import csrf, db, login_manager, migrate
 from app.security.startup_audit import validate_live_security_defaults
@@ -24,6 +25,7 @@ from config import Config
 def create_configured_flask_app(import_name: str, config_object: type[Any] = Config) -> Flask:
     """Flask uygulamasini olusturur ve temel config varsayilanlarini yukler."""
     app = Flask(import_name)
+    app.request_class = BYS360Request
     app.config.from_object(config_object)
     configure_application_defaults(app, config_object)
     return app
