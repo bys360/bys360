@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 
 from flask import flash, redirect, request, url_for
 from flask_login import current_user, login_required
-from openpyxl import load_workbook
 from sqlalchemy import func
 
 from app.extensions import db
@@ -18,6 +17,7 @@ from app.models import (
 )
 from app.route_registry import main_bp
 from app.route_support import admin_required, menu_key_required, safe_render
+from app.services.excel_import_limits import ExcelImportRejected, read_import_rows
 from app.services.legacy_import_service import (
     collect_extra_payload as _collect_extra_payload,
     legacy_header_index as _legacy_header_index,
@@ -118,9 +118,10 @@ def performance_history_import():
         return _render_history_import_page(periods, recent_batches)
 
     try:
-        wb = load_workbook(uploaded, data_only=True)
-        ws = wb.active
-        rows = list(ws.iter_rows(values_only=True))
+        rows = read_import_rows(uploaded)
+    except ExcelImportRejected as rejected:
+        flash(rejected.user_message, "danger")
+        return _render_history_import_page(periods, recent_batches)
     except Exception as exc:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)
         flash("Excel dosyası okunamadı.", "danger")
