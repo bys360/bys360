@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 
 from flask import abort, current_app, flash, make_response, redirect, request, session, url_for
 from flask_login import current_user, login_user, logout_user
-from sqlalchemy import or_
 
 from app.core.datetime_utils import utc_now
 from app.extensions import db
@@ -24,6 +23,7 @@ from app.security.request_guard import (
     record_reset_attempt,
     should_log_auth_throttle,
 )
+from app.services.account_lookup import find_user_by_login_identifier, normalize_login_identifier
 
 _MIN_PASSWORD_LENGTH = 8
 
@@ -135,7 +135,7 @@ def login():
     captcha_question = get_login_captcha_question() if captcha_required else None
 
     if request.method == "POST":
-        sicil_or_email = (request.form.get("sicil_or_email") or request.form.get("email") or "").strip()
+        sicil_or_email = normalize_login_identifier(request.form.get("sicil_or_email") or request.form.get("email"))
         password = request.form.get("password") or ""
         captcha_answer = (request.form.get("captcha_answer") or "").strip()
         client_ip = get_client_ip()
@@ -157,12 +157,7 @@ def login():
             captcha_question = create_login_captcha()
             return _render_login(True, captcha_question)
 
-        user = User.query.filter(
-            or_(
-                User.sicil_no == sicil_or_email,
-                User.email == sicil_or_email.lower(),
-            )
-        ).first()
+        user = find_user_by_login_identifier(sicil_or_email)
 
         captcha_required = _should_require_captcha(user)
         if captcha_required:
@@ -229,7 +224,7 @@ def forgot_password():
     question = None
 
     if request.method == "POST":
-        sicil_or_email = (request.form.get("sicil_or_email") or "").strip()
+        sicil_or_email = normalize_login_identifier(request.form.get("sicil_or_email"))
         answer = (request.form.get("security_answer") or "").strip()
         new_password = request.form.get("new_password") or ""
         new_password_repeat = request.form.get("new_password_repeat") or ""
@@ -245,12 +240,7 @@ def forgot_password():
             flash("Çok fazla deneme algılandı. Lütfen birkaç dakika sonra tekrar deneyin.", "danger")
             return safe_render("forgot_password.html", "<h3>Şifremi Unuttum</h3>", found_user=None)
 
-        found_user = User.query.filter(
-            or_(
-                User.sicil_no == sicil_or_email,
-                User.email == sicil_or_email.lower(),
-            )
-        ).first()
+        found_user = find_user_by_login_identifier(sicil_or_email)
 
         if not found_user:
             record_reset_attempt(client_ip, sicil_or_email)

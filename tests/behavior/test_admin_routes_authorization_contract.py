@@ -641,17 +641,12 @@ def test_admin_user_create_success_creates_real_user_with_hashed_password(app, c
 
     response = client.post("/admin/users/create", data=payload, follow_redirects=False)
 
-    assert response.status_code == 302
-    assert response.headers.get("Location", "").endswith("/admin/users")
-    flashes = _flashes(client)
-    assert flashes
-    # flashes[-1], not flashes[0]: _login() above queued its own
-    # ("success", "Giriş başarılı.") flash, which is never consumed (no
-    # template renders across a redirect), so it is still stacked ahead of
-    # this action's own flash in the list -- the newest flash is always
-    # last, regardless of how many earlier ones accumulated.
-    assert flashes[-1][0] == "success"
-    assert f"Başlangıç şifresi: {DEFAULT_FIRST_LOGIN_PASSWORD}" in flashes[-1][1]
+    # The initial password is delivered once in the response body, not in a flash: Flask
+    # flashes travel in the signed (unencrypted) session cookie. The page is never cached.
+    assert response.status_code == 200
+    assert "no-store" in response.headers.get("Cache-Control", "")
+    assert response.get_data(as_text=True).count(DEFAULT_FIRST_LOGIN_PASSWORD) == 1
+    assert DEFAULT_FIRST_LOGIN_PASSWORD not in str(_flashes(client))
 
     assert _user_count(app) == before + 1
     created = _find_user_by_sicil(app, "auc_success_1")

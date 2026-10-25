@@ -16,6 +16,11 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from werkzeug.security import generate_password_hash
 
+from app.admin.admin_accounts_services import (
+    admin_accounts_view_impl,
+    credential_once_response,
+    reissue_initial_password_impl,
+)
 from app.extensions import db
 from app.models import (
     EvaluationAssignment,
@@ -227,6 +232,9 @@ def admin_dashboard():
 @login_required
 @admin_required
 def admin_users():
+    if request.args.get("view") == "admins":
+        # Admin accounts are listed only here, only for a real admin (checked inside).
+        return admin_accounts_view_impl()
     q = (request.args.get("q") or "").strip()
     role = (request.args.get("role") or "").strip()
     birim = (request.args.get("birim") or "").strip()
@@ -402,6 +410,8 @@ def admin_user_create():
             )
             if "sicil_no_exists" in identity_conflicts.errors:
                 flash("Bu sicil numarası zaten kayıtlı.", "danger")
+                if "email_exists" in identity_conflicts.errors:  # report both conflicts, not only the first
+                    flash("Bu e-posta adresi zaten kayıtlı.", "danger")
                 return safe_render(
                     "admin_user_create.html",
                     "<h3>Personel Ekle</h3>",
@@ -506,12 +516,19 @@ def admin_user_create():
             db.session.commit()
 
             assignment_result = _refresh_active_period_assignments(actor_user_id=current_user.id)
-            flash(f"Personel kaydı oluşturuldu. Başlangıç şifresi: {initial_password}", "success")
+            # The initial password is delivered once in this response body (no flash: Flask flashes
+            # travel in the signed, unencrypted session cookie), never cached and never logged.
+            flash("Personel kaydı oluşturuldu.", "success")
             if assignment_result and assignment_result.get("ok"):
                 flash("Aktif dönem görevleri personel kaydı sonrası yeniden senkronlandı.", "success")
             elif assignment_result and not assignment_result.get("ok"):
                 flash(assignment_result.get("message", "Aktif dönem görevleri yeniden senkronlanamadı."), "warning")
-            return redirect(url_for("main.admin_users"))
+            return credential_once_response(
+                title="Personel kaydı oluşturuldu",
+                account=user,
+                credential=initial_password,
+                note="Hesap sahibi ilk girişte gizli sorusunu tanımlayıp şifresini değiştirecek.",
+            )
 
         except Exception as exc:
             logger.exception("Beklenmeyen hata: %s", exc)
@@ -561,6 +578,10 @@ def admin_user_edit(user_id):
         .all()
     )
 
+    if request.method == "POST" and request.form.get("form_action") == "issue_initial_password":
+        # Real admin only, another admin account, re-authentication, audit row, one-time delivery.
+        return reissue_initial_password_impl(user.id)
+
     if request.method == "POST":
         try:
             ad = (request.form.get("ad") or "").strip()
@@ -590,6 +611,8 @@ def admin_user_edit(user_id):
             )
             if "sicil_no_exists" in identity_conflicts.errors:
                 flash("Bu sicil numarası başka bir kullanıcıda kayıtlı.", "danger")
+                if "email_exists" in identity_conflicts.errors:  # report both conflicts, not only the first
+                    flash("Bu e-posta adresi başka bir kullanıcıda kayıtlı.", "danger")
                 return redirect(url_for("main.admin_user_edit", user_id=user.id))
             if "email_exists" in identity_conflicts.errors:
                 flash("Bu e-posta adresi başka bir kullanıcıda kayıtlı.", "danger")
@@ -776,6 +799,8 @@ def personnel_add():
             )
             if "email_exists" in identity_conflicts.errors:
                 flash("Bu e-posta adresi ile kayıtlı bir kullanıcı zaten var.", "danger")
+                if "sicil_no_exists" in identity_conflicts.errors:  # report both conflicts, not only the first
+                    flash("Bu sicil numarası ile kayıtlı bir kullanıcı zaten var.", "danger")
                 return safe_render(
                     "personnel_add.html",
                     "<h3>Yeni Personel Ekle</h3>",
@@ -875,6 +900,8 @@ def personnel_edit(user_id):
             )
             if "email_exists" in identity_conflicts.errors:
                 flash("Bu e-posta başka bir kullanıcı tarafından kullanılıyor.", "danger")
+                if "sicil_no_exists" in identity_conflicts.errors:  # report both conflicts, not only the first
+                    flash("Bu sicil numarası başka bir kullanıcı tarafından kullanılıyor.", "danger")
                 return redirect(url_for("main.personnel_edit", user_id=user.id))
             if "sicil_no_exists" in identity_conflicts.errors:
                 flash("Bu sicil numarası başka bir kullanıcı tarafından kullanılıyor.", "danger")
