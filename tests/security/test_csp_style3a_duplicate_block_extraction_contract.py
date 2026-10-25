@@ -937,15 +937,19 @@ PRE_STYLE3A_STYLE_BLOCK_TOTAL = 270
 # dead app/templates/about_bys360.html, which independently carried
 # exactly one <style> block -- see that same ledger file's FORWARD-
 # COMPATIBILITY FOLLOW-UP 10).
-# 270 - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 = 221.
-EXPECTED_STYLE_BLOCK_TOTAL_AFTER_STYLE3A = PRE_STYLE3A_STYLE_BLOCK_TOTAL - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1
+# -1 from the later BYS360 UX pilot wave (support/new.html's page-level
+# <style> block moved to the scoped external stylesheet
+# app/static/css/bys360_components.css -- see that same ledger file's
+# STYLE_MIGRATION_WAVES["ux_pilot_support_new"]).
+# 270 - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 - 1 = 220.
+EXPECTED_STYLE_BLOCK_TOTAL_AFTER_STYLE3A = PRE_STYLE3A_STYLE_BLOCK_TOTAL - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 - 1
 
 
 def test_repo_wide_style_block_total_dropped_by_exactly_10() -> None:
     inventory = compute_inventory_from_worktree()
     assert inventory.style_block_total == EXPECTED_STYLE_BLOCK_TOTAL_AFTER_STYLE3A, (
         f"Repo-wide <style> block total is {inventory.style_block_total}; expected "
-        f"{PRE_STYLE3A_STYLE_BLOCK_TOTAL} - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 = "
+        f"{PRE_STYLE3A_STYLE_BLOCK_TOTAL} - 10 - 6 - 2 - 4 - 1 - 14 - 8 - 1 - 2 - 1 - 1 = "
         f"{EXPECTED_STYLE_BLOCK_TOTAL_AFTER_STYLE3A} (Style-3A removed exactly one "
         "<style> block from each of its 10 templates and added none; the later "
         "orphan_mail_cleanup wave deleted 6 more dead templates each with exactly "

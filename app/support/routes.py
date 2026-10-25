@@ -759,13 +759,70 @@ def support_setup():
     )
 
 
+# BYS360_UX_PILOT_SUPPORT_NEW: hatalı gönderimde değer koruma ve alan bazlı
+# sabit mesajlar. Kullanıcıya yalnız bu sabit metinler ve upload_security'nin
+# sabit UploadValidationError metinleri gösterilir; istisna ayrıntısı log'da kalır.
+SUPPORT_NEW_GENERIC_ERROR = (
+    "Talebiniz kaydedilemedi. Girdiğiniz bilgiler korundu; lütfen tekrar deneyin. "
+    "Sorun sürerse sistem yöneticisine bildirin."
+)
+SUPPORT_NEW_RESELECT_MESSAGE = "Güvenlik nedeniyle seçtiğiniz dosya korunamadı. Gönderirken dosyayı yeniden seçin."
+SUPPORT_NEW_UPLOAD_RESELECT_MESSAGE = (
+    "Dosya talebe eklenmedi. Göndermek için izin verilen türde bir dosyayı yeniden seçin "
+    "veya dosya alanını boş bırakın."
+)
+
+
+def _support_new_reselect_message(field_errors: dict, previous_attachment_name: str) -> str:
+    """D3: dosya tarayıcıda korunamaz; yeniden seçim gerekiyorsa bunu açıkça söyle."""
+    if "attachment" in field_errors:
+        return SUPPORT_NEW_UPLOAD_RESELECT_MESSAGE
+    if previous_attachment_name:
+        return SUPPORT_NEW_RESELECT_MESSAGE
+    return ""
+
+
+def _support_new_form_values() -> dict:
+    """Yeniden gösterim için ham değerler (şablonda otomatik kaçışla yazılır)."""
+    form = request.form
+    return {
+        "ticket_type": (form.get("ticket_type") or "")[:40],
+        "module_name": (form.get("module_name") or "")[:120],
+        "priority": (form.get("priority") or "")[:20],
+        "title": (form.get("title") or "")[:255],
+        "description": (form.get("description") or "")[:4000],
+        "page_url": (form.get("page_url") or "")[:255],
+        "is_private": bool(form.get("is_private")),
+    }
+
+
+def _support_new_field_errors() -> dict:
+    """Mevcut kuralın (konu ve açıklama zorunlu) alan bazlı karşılığı."""
+    errors = {}
+    if not sanitize_free_text(request.form.get("title"), limit=255):
+        errors["title"] = "Konu alanını doldurun."
+    if not sanitize_free_text(request.form.get("description"), limit=4000):
+        errors["description"] = "Açıklama alanını doldurun."
+    return errors
+
+
 @main_bp.route("/support/new", methods=["GET", "POST"])
 @login_required
 @menu_key_required("support_new")
 def support_new():
+    form_values: dict = {}
+    field_errors: dict = {}
+    form_error = ""
+    previous_attachment_name = ""
     if request.method == "POST":
         if not _support_tables_ready():
             return _support_guard_or_redirect()
+        form_values = _support_new_form_values()
+        selected_upload = request.files.get("attachment")
+        if selected_upload and selected_upload.filename:
+            previous_attachment_name = str(selected_upload.filename)[:255]
+        field_errors = _support_new_field_errors()
+    if request.method == "POST" and not field_errors:
         try:
             title = sanitize_free_text(request.form.get("title"), limit=255)
             description = sanitize_free_text(request.form.get("description"), limit=4000)
@@ -829,11 +886,12 @@ def support_new():
             return redirect(url_for("main.support_detail", ticket_id=ticket.id))
         except UploadValidationError as exc:
             safe_db_rollback()
-            flash(str(exc), "danger")
+            # upload_security yalnız sabit Türkçe metinler üretir; alan altında gösterilir.
+            field_errors["attachment"] = str(exc)
         except Exception as exc:
             logger.exception("BYS360 V6C guarded exception | file=app/support/routes.py | line=832 | exc=%s", exc)
             safe_db_rollback()
-            flash("Talep oluşturulamadı.", "danger")
+            form_error = SUPPORT_NEW_GENERIC_ERROR
 
     categories = SupportCategory.query.filter_by(is_active=True).order_by(SupportCategory.sort_order.asc(), SupportCategory.name.asc()).limit(SUPPORT_CATEGORY_LIMIT).all() if _support_tables_ready() else []
     return safe_render(
@@ -844,6 +902,11 @@ def support_new():
         modules=SUPPORT_MODULE_CHOICES,
         priorities=SUPPORT_PRIORITY_CHOICES,
         is_support_ready=_support_tables_ready(),
+        form_values=form_values,
+        field_errors=field_errors,
+        form_error=form_error,
+        previous_attachment_name=previous_attachment_name,
+        attachment_reselect_message=_support_new_reselect_message(field_errors, previous_attachment_name),
     )
 
 
