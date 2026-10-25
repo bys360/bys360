@@ -16,6 +16,7 @@ from app.models import (
     PerformancePeriod,
     User,
 )
+from app.performance.feedback_helpers import _meeting_relation_clause, _request_relation_clause
 from app.route_registry import main_bp
 from app.route_support import (
     ADMIN_FAMILY_ROLES,
@@ -365,8 +366,10 @@ def performance_feedback_reports():
     postponed_meetings = FeedbackMeeting.query.filter_by(status="ertelendi").count()
     cancelled_meetings = FeedbackMeeting.query.filter_by(status="iptal_edildi").count()
 
+    # #57: the counters above are totals; the record lists show only the user's own duty relations.
     latest_feedback_requests = (
         FeedbackRequest.query
+        .filter(_request_relation_clause(current_user.id))
         .order_by(FeedbackRequest.requested_at.desc(), FeedbackRequest.id.desc())
         .limit(10)
         .all()
@@ -374,6 +377,7 @@ def performance_feedback_reports():
 
     latest_meetings = (
         FeedbackMeeting.query
+        .filter(_meeting_relation_clause(current_user.id))
         .order_by(FeedbackMeeting.created_at.desc(), FeedbackMeeting.id.desc())
         .limit(10)
         .all()
