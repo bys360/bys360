@@ -2,14 +2,16 @@ name: BYS360 Windows Dependency Lock V1
 
 # requirements.lock is the production install set (Windows x64, CPython 3.12). This job proves it
 # on a real Windows runner: the lock regenerates byte-identically, both manifests pass pip-audit
-# with no exceptions, a clean venv installs it hash-checked, the wheelhouse verifies every wheel's
-# SHA256 and installs offline, and both installs pass the dependency smoke test.
+# (PyPI advisories, and OSV for the lock) with no exceptions, a clean venv installs it
+# hash-checked, the wheelhouse verifies every wheel's SHA256 and installs offline with the exact
+# command scripts/windows/prepare_bys360_candidate.ps1 uses, the dependency tests run on Windows,
+# and both installs pass the dependency smoke test. Every step's output is kept as evidence.
 
 on:
   push:
     branches: [ assistant-v2-full ]
   pull_request:
-    branches: [ assistant-v2-full ]
+    branches: [ master, main, assistant-v2-full, docs/ministry-review-readme ]
   workflow_dispatch:
 
 permissions:
@@ -18,13 +20,14 @@ permissions:
 jobs:
   windows-dependency-lock:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     defaults:
       run:
         shell: pwsh
     env:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PYTHONUTF8: "1"
+      EVIDENCE: reports/quality/windows_dependency_lock
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,28 +36,38 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          architecture: x64
 
       - name: Pin the resolver and the audit tool
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
+          New-Item -ItemType Directory -Force -Path $env:EVIDENCE | Out-Null
           python -m pip install pip==26.2.2
           python -m pip install pip-audit==2.10.1
-          python -c "import platform, sys; print(sys.version); print(platform.machine())"
+          python -c "import platform, struct, sys; print(sys.version); print(platform.machine(), struct.calcsize('P') * 8, 'bit')" 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/00_interpreter.txt"
+          $PSNativeCommandUseErrorActionPreference = $false  # git config exits 1 when the key is unset
+          "core.autocrlf=$(git config --get core.autocrlf)" | Tee-Object -FilePath "$env:EVIDENCE/00_autocrlf.txt"
+          $global:LASTEXITCODE = 0
 
       - name: requirements.lock regenerates byte-identically on Windows x64 CPython 3.12
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          python scripts/release/generate_bys360_requirements_lock.py --check
+          python scripts/release/generate_bys360_requirements_lock.py --check 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/01_lock_check.txt"
 
-      - name: Dependency audit -- requirements.lock (every pinned package)
+      - name: Dependency audit -- requirements.lock (PyPI advisories, every pinned package)
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          python -m pip_audit -r requirements.lock --disable-pip --progress-spinner off
+          python -m pip_audit -r requirements.lock --disable-pip --progress-spinner off 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/02_audit_lock_pypi.txt"
+
+      - name: Dependency audit -- requirements.lock (OSV advisories, every pinned package)
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m pip_audit -r requirements.lock --disable-pip -s osv --progress-spinner off 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/03_audit_lock_osv.txt"
 
       - name: Dependency audit -- requirements.txt (as resolved on Windows)
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          python -m pip_audit -r requirements.txt --progress-spinner off
+          python -m pip_audit -r requirements.txt --progress-spinner off 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/04_audit_requirements_txt.txt"
 
       - name: Hash-checked install into a clean venv, then smoke test
         run: |
@@ -63,26 +76,33 @@ jobs:
           python -m venv $venv
           $py = Join-Path $venv "Scripts\python.exe"
           & $py -m pip install pip==26.2.2
-          & $py -m pip install --require-hashes --no-deps -r requirements.lock
-          & $py -m pip check
-          & $py scripts/release/smoke_bys360_dependency_stack.py --root .
+          & $py -m pip install --require-hashes --no-deps -r requirements.lock 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/05_online_install.txt"
+          & $py -m pip check 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/05_online_pip_check.txt"
+          & $py scripts/release/smoke_bys360_dependency_stack.py --root . 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/05_online_smoke.json"
+
+      - name: Dependency tests on Windows (lock generator, image stack, Excel uploads, form body limit)
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $py = Join-Path $env:RUNNER_TEMP "lock-online\Scripts\python.exe"
+          & $py -m pip install pytest==9.0.3
+          & $py -m pytest -p no:cacheprovider -q tests/release/test_generate_bys360_requirements_lock.py tests/release/test_image_stack_dependency_contract.py tests/security/test_excel_import_damaged_workbook_contract.py tests/security/test_urlencoded_form_body_limit_contract.py 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/06_windows_tests.txt"
 
       - name: Wheelhouse build with SHA256 verification
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           $wheelhouse = Join-Path $env:RUNNER_TEMP "wheelhouse"
-          python scripts/release/build_bys360_wheelhouse.py --clean --output $wheelhouse --report reports/quality/windows_dependency_lock/BYS360_WHEELHOUSE_BUILD_REPORT.json
+          python scripts/release/build_bys360_wheelhouse.py --clean --output $wheelhouse --report "$env:EVIDENCE/BYS360_WHEELHOUSE_BUILD_REPORT.json" 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/07_wheelhouse.txt"
 
-      - name: Offline install from the wheelhouse into a clean venv, then smoke test
+      - name: Offline install exactly as prepare_bys360_candidate.ps1 does, then smoke test
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           $wheelhouse = Join-Path $env:RUNNER_TEMP "wheelhouse"
           $venv = Join-Path $env:RUNNER_TEMP "lock-offline"
           python -m venv $venv
           $py = Join-Path $venv "Scripts\python.exe"
-          & $py -m pip install --no-index --find-links $wheelhouse --require-hashes --no-deps -r requirements.lock
-          & $py -m pip check
-          & $py scripts/release/smoke_bys360_dependency_stack.py --root .
+          & $py -m pip install --quiet --disable-pip-version-check --no-index --find-links $wheelhouse -r requirements.lock 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/08_offline_install.txt"
+          & $py -m pip check 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/08_offline_pip_check.txt"
+          & $py scripts/release/smoke_bys360_dependency_stack.py --root . 2>&1 | Tee-Object -FilePath "$env:EVIDENCE/08_offline_smoke.json"
 
       - name: Upload evidence
         if: always()

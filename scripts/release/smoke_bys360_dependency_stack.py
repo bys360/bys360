@@ -1,13 +1,17 @@
 """Smoke-test an environment installed from requirements.lock (run it with that environment's python).
 
 Checks, in order, and stops at the first failure with a non-zero exit code:
-1. every package pinned in requirements.lock is installed at exactly the pinned version;
+1. every package pinned in requirements.lock is installed at exactly the pinned version
+   (the lock targets Windows x64 CPython 3.12: on another OS the Windows-only colorama is
+   reported missing, by design);
 2. the runtime modules import;
 3. Pillow works through openpyxl, XlsxWriter and ReportLab (PNG in .xlsx and in PDF), and
    pandas reads an .xlsx through openpyxl;
-4. the application factory starts on an in-memory SQLite database and serves /login.
+4. the application factory starts on an in-memory SQLite database; once its schema exists,
+   /login answers 200 and no ERROR record is logged during that request.
 
-No network, no database server, no files outside a temporary directory.
+No network and no database server. Logs go to a temporary directory, never to <root>/logs.
+Checks raise SmokeFailure (not assert), so ``python -O`` cannot skip them.
 """
 from __future__ import annotations
 
@@ -15,9 +19,11 @@ import argparse
 import importlib
 import io
 import json
+import logging
 import os
 import re
 import sys
+import tempfile
 import zipfile
 from importlib import metadata
 from pathlib import Path
@@ -31,6 +37,15 @@ RUNTIME_MODULES = (
 )
 
 
+class SmokeFailure(Exception):
+    """A smoke check did not hold."""
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise SmokeFailure(message)
+
+
 def canonical_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
 
@@ -41,8 +56,7 @@ def check_pins(lock: Path) -> dict[str, str]:
         match = LOCK_ENTRY_RE.match(raw.strip())
         if match:
             pins[canonical_name(match.group(1))] = match.group(2)
-    if not pins:
-        raise AssertionError(f"{lock} has no pinned entries")
+    require(bool(pins), f"{lock} icinde sabitlenmis paket yok")
     wrong = {}
     for name, version in pins.items():
         try:
@@ -51,8 +65,7 @@ def check_pins(lock: Path) -> dict[str, str]:
             installed = None
         if installed != version:
             wrong[name] = (version, installed)
-    if wrong:
-        raise AssertionError(f"installed versions differ from requirements.lock (pinned, installed): {wrong}")
+    require(not wrong, f"kurulu surumler requirements.lock ile ayni degil (kilit, kurulu): {wrong}")
     return pins
 
 
@@ -83,25 +96,44 @@ def check_image_stack() -> None:
     workbook.active.add_image(XLImage(io.BytesIO(_png())), "D2")
     xlsx = io.BytesIO()
     workbook.save(xlsx)
-    assert len(load_workbook(io.BytesIO(xlsx.getvalue())).active._images) == 1
+    require(len(load_workbook(io.BytesIO(xlsx.getvalue())).active._images) == 1, "openpyxl PNG resmini geri okuyamadi")
     frame = pd.read_excel(io.BytesIO(xlsx.getvalue()), engine="openpyxl", dtype=str)
-    assert list(frame.columns) == ["Sicil No", "Ad"] and frame.iloc[0].tolist() == ["1001", "Ayse"]
+    require(
+        list(frame.columns) == ["Sicil No", "Ad"] and frame.iloc[0].tolist() == ["1001", "Ayse"],
+        "pandas .xlsx dosyasini openpyxl ile dogru okuyamadi",
+    )
 
     written = io.BytesIO()
     book = xlsxwriter.Workbook(written, {"in_memory": True})
     book.add_worksheet().insert_image("B2", "logo.png", {"image_data": io.BytesIO(_png())})
     book.close()
-    assert "xl/media/image1.png" in zipfile.ZipFile(io.BytesIO(written.getvalue())).namelist()
+    require(
+        "xl/media/image1.png" in zipfile.ZipFile(io.BytesIO(written.getvalue())).namelist(),
+        "XlsxWriter PNG resmini gommedi",
+    )
 
     pdf_bytes = io.BytesIO()
     pdf = canvas.Canvas(pdf_bytes)
     pdf.drawImage(ImageReader(io.BytesIO(_png())), 20, 20, 24, 16)
     pdf.drawImage(ImageReader(io.BytesIO(_png("RGBA"))), 60, 20, 24, 16, mask="auto")
     pdf.save()
-    assert pdf_bytes.getvalue().startswith(b"%PDF") and pdf_bytes.getvalue().count(b"/Subtype /Image") >= 2
+    require(
+        pdf_bytes.getvalue().startswith(b"%PDF") and pdf_bytes.getvalue().count(b"/Subtype /Image") >= 2,
+        "ReportLab PNG resimlerini PDF'e cizemedi",
+    )
+
+
+class _ErrorRecords(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(level=logging.ERROR)
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.messages.append(f"{record.name}: {record.getMessage()}"[:300])
 
 
 def check_app(root: Path) -> None:
+    log_dir = tempfile.mkdtemp(prefix="bys360_smoke_logs_")
     os.environ.update(
         {
             "APP_ENV": "testing",
@@ -109,6 +141,7 @@ def check_app(root: Path) -> None:
             "DATABASE_URL": "sqlite:///:memory:",
             "SECRET_KEY": "dependency-smoke-test-secret-key",
             "DEFAULT_FIRST_LOGIN_PASSWORD": "dependency-smoke-test-first-login",
+            "LOG_FOLDER": log_dir,
             "FLASK_SKIP_SCHEMA_VALIDATION": "1",
             "AUTO_REPAIR_SCHEMA": "false",
             "STRICT_SCHEMA_CHECK": "false",
@@ -120,11 +153,26 @@ def check_app(root: Path) -> None:
     )
     sys.path.insert(0, str(root))
     from app import create_app
+    from app.extensions import db
+    from app.services import runtime_schema
 
+    # create_app() prewarms the menu cache before any schema exists and fails closed with ERROR
+    # records on the empty database; only the request after the schema is in place is judged.
     app = create_app()
     app.config.update(TESTING=True)
-    response = app.test_client().get("/login")
-    assert response.status_code == 200, f"/login returned {response.status_code}"
+    # SQLAlchemy keeps one :memory: connection per thread, so the schema created here is the
+    # one the test client's request (same thread) sees.
+    with app.app_context():
+        db.create_all()
+        runtime_schema.provision_all()
+    errors = _ErrorRecords()
+    logging.getLogger().addHandler(errors)
+    try:
+        response = app.test_client().get("/login")
+    finally:
+        logging.getLogger().removeHandler(errors)
+    require(response.status_code == 200, f"/login {response.status_code} dondu")
+    require(not errors.messages, f"uygulama ERROR kaydi yazdi: {errors.messages[:5]}")
 
 
 def main(argv: list[str] | None = None) -> int:
