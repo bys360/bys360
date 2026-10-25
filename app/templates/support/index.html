@@ -1,258 +1,211 @@
 {% extends "base.html" %}
 {% block title %}BYS360 Yardım Merkezi{% endblock %}
 {% block page_kicker %}Yardım Merkezi{% endblock %}
-{% block page_title %}Canlı Kullanım, Rehber ve Destek Merkezi{% endblock %}
-{% block page_subtitle %}Kullanıcıların doğru ekrana ulaşması, sorunlarını kayıtlı bildirmesi ve destek sürecini izlenebilir şekilde takip etmesi için güncel merkez.{% endblock %}
+{% block page_title %}Yardım Merkezi{% endblock %}
+{% block page_subtitle %}Rehberler, sık yaşanan durumlar ve destek talebi takibi.{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_support_learning.css') }}">
-<div class="support-learning-shell help-center-v2">
-  {% set current_view_key = 'support_index' %}
-  {% include 'support/_tabs.html' %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
+{# BYS360_UX_WAVE4_HELP_CENTER: Yardım Merkezi, pilot (support/new.html) tasarım dilinde.
+   Önce arama, sonra kişinin kendi talep durumu, sonra rehberler; süreç anlatımı tek bölümde.
+   Rota, bağlam verisi, bağlantı hedefleri ve sayaç kuralları değişmedi; yalnız sunum. #}
+{% set current_view_key = 'support_index' %}
+{% set assigned_link = url_for('main.support_assigned') if current_user.is_authenticated and (current_user.is_admin or current_user.is_unit_manager or current_user.is_supervisor or current_user.is_department_head) else url_for('main.support_my_tickets') %}
+<div class="support-learning-shell help-center-v2 bys-ui bys-page">
+    <nav class="bys-tabs skip-mobile-normalize" aria-label="Destek bölümleri">{% include 'support/_tabs.html' %}</nav>
 
-  <section class="support-hero support-hero-v2">
-    <div>
-      <span class="support-kicker"><i class="fa-solid fa-life-ring"></i> Güncel yardım ve destek omurgası</span>
-      <h2 class="support-title">Kullanıcı rehberi, sorun çözüm merkezi ve destek talebi takibi artık tek akışta.</h2>
-      <p class="support-text">Bu merkez; BYS360 içinde kullanıcıların önce doğru rehberi bulmasını, gerekirse kayıtlı destek talebi açmasını, talep yanıtlarını takip etmesini ve tekrar eden konuların yeni yardım içeriğine dönüşmesini sağlar.</p>
-      <form class="support-search" method="get" action="{{ url_for('main.support_help_search') }}">
-        <input class="support-input" type="text" name="q" placeholder="Örnek: yardım merkezi, talep durumu, yetki talebi, CSRF, güvenli veri paylaşımı, performans karne">
-        <button class="support-btn" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Rehber Ara</button>
-      </form>
-      <div class="support-chip-row">
-        {% for query in suggested_queries or [] %}
-          <a class="support-chip" href="{{ url_for('main.support_help_search', q=query) }}"><i class="fa-solid fa-hashtag"></i>{{ query }}</a>
-        {% endfor %}
-      </div>
-    </div>
-    <aside class="support-hero-side">
-      <div class="support-note support-note-strong">
-        <h4>Merkezde ne var?</h4>
-        <p>{{ total_article_count or 0 }} rehber, {{ total_category_count or 0 }} modül paketi, {{ total_role_count or 0 }} rol bazlı öğrenme yolu ve destek talebi akışı hazır.</p>
-      </div>
-      <div class="support-note">
-        <h4>Aradığınız konu yoksa</h4>
-        <p>Ekran adresini, işlem adımını, hata mesajını ve varsa ekran görüntüsünü ekleyerek kayıtlı talep açın.</p>
-        <div class="support-actions" style="margin-top:12px;">
-          <a class="support-btn" href="{{ url_for('main.support_new') }}"><i class="fa-solid fa-plus"></i> Yeni Talep Aç</a>
-          <a class="support-btn-soft" href="{{ url_for('main.support_my_tickets') }}"><i class="fa-solid fa-folder-open"></i> Taleplerim</a>
+    <header class="bys-page-header">
+        <div class="bys-page-header__text">
+            <p class="bys-eyebrow">Destek ve Talep Yönetimi</p>
+            <h2 class="bys-page-title">Size nasıl yardımcı olabiliriz?</h2>
+            <p class="bys-page-lead">Önce rehberlerde arayın. Aradığınızı bulamazsanız ekran adresini ve yaşadığınız durumu yazarak kayıtlı bir destek talebi açın.</p>
         </div>
-      </div>
-    </aside>
-  </section>
-
-  <section class="support-panel support-command-panel">
-    <div class="support-section-head">
-      <div>
-        <h3 class="support-section-title">Destek Durum Panosu</h3>
-        <p class="support-section-text">Kullanıcının kendi talepleri ve yetkili kullanıcıların destek iş yükü aynı merkezden okunur.</p>
-      </div>
-      {% if can_manage_help_content %}
-      <a class="support-btn-soft" href="{{ url_for('main.support_help_admin') }}"><i class="fa-solid fa-pen-to-square"></i> Rehber Yönetimi</a>
-      {% endif %}
-    </div>
-    <div class="support-stats support-live-stats" style="margin-top:16px;">
-      <a class="support-stat stat-link" href="{{ url_for('main.support_my_tickets') }}">
-        <div class="support-stat-icon"><i class="fa-solid fa-folder-open"></i></div>
-        <div class="support-stat-value">{{ counts.my_open if counts is defined else 0 }}</div>
-        <div class="support-stat-label">Açık talebim</div>
-      </a>
-      <a class="support-stat stat-link" href="{{ url_for('main.support_my_tickets') }}">
-        <div class="support-stat-icon"><i class="fa-solid fa-ticket"></i></div>
-        <div class="support-stat-value">{{ counts.my_total if counts is defined else 0 }}</div>
-        <div class="support-stat-label">Toplam talebim</div>
-      </a>
-      <a class="support-stat stat-link" href="{{ url_for('main.support_assigned') if current_user.is_authenticated and (current_user.is_admin or current_user.is_unit_manager or current_user.is_supervisor or current_user.is_department_head) else url_for('main.support_my_tickets') }}">
-        <div class="support-stat-icon"><i class="fa-solid fa-user-check"></i></div>
-        <div class="support-stat-value">{{ counts.assigned_total if counts is defined else 0 }}</div>
-        <div class="support-stat-label">Bana atanan</div>
-      </a>
-      <a class="support-stat stat-link" href="{{ url_for('main.support_help_search', q='talep durumları') }}">
-        <div class="support-stat-icon"><i class="fa-solid fa-circle-check"></i></div>
-        <div class="support-stat-value">{{ counts.resolved_total if counts is defined else 0 }}</div>
-        <div class="support-stat-label">Çözülen kayıt</div>
-      </a>
-    </div>
-    {% if not is_support_ready %}
-      <div class="support-empty" style="margin-top:14px;">Destek talebi tabloları henüz hazır değil. Yetkili kullanıcı kurulum ekranından destek modülünü aktifleştirebilir.</div>
-    {% endif %}
-  </section>
-
-  <section class="support-panel">
-    <div class="support-section-head">
-      <div>
-        <h3 class="support-section-title">Yardım Merkezi Kullanım Akışı</h3>
-        <p class="support-section-text">Basit soru rehberle çözülür; çözülemeyen konu kayıtlı destek talebine dönüşür.</p>
-      </div>
-    </div>
-    <div class="support-process-grid" style="margin-top:16px;">
-      {% for step in support_process_steps or [] %}
-      <article class="support-process-card">
-        <div class="support-icon"><i class="{{ step.icon }}"></i></div>
-        <h4>{{ step.title }}</h4>
-        <p>{{ step.text }}</p>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="support-panel">
-    <div class="support-section-head">
-      <div>
-        <h3 class="support-section-title">Talep Açma Rehberi</h3>
-        <p class="support-section-text">Talep türünü doğru seçmek çözüm süresini ve rapor kalitesini artırır.</p>
-      </div>
-      <a class="support-btn-soft" href="{{ url_for('main.support_help_article', article_slug='destek-talebi-nasil-acilir') }}"><i class="fa-solid fa-book-open"></i> Talep Rehberi</a>
-    </div>
-    <div class="support-intake-grid" style="margin-top:16px;">
-      {% for item in support_intake_examples or [] %}
-      <article class="support-intake-card">
-        <h4>{{ item.title }}</h4>
-        <p>{{ item.text }}</p>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="support-panel">
-    <div class="support-section-head">
-      <div>
-        <h3 class="support-section-title">Talep Durum Akışı</h3>
-        <p class="support-section-text">Kullanıcı talebinin hangi aşamada olduğunu teknik ifade görmeden okuyabilir.</p>
-      </div>
-      <a class="support-btn-soft" href="{{ url_for('main.support_help_article', article_slug='talep-durumlari-nasil-takip-edilir') }}"><i class="fa-solid fa-timeline"></i> Durum Rehberi</a>
-    </div>
-    <div class="support-status-flow" style="margin-top:16px;">
-      {% for item in support_status_flow or [] %}
-      <div class="support-status-item">
-        <span>{{ loop.index }}</span>
-        <div>
-          <h4>{{ item.status }}</h4>
-          <p>{{ item.text }}</p>
+        <div class="bys-header-actions">
+            {% if can_manage_help_content %}
+            <a class="bys-btn bys-btn--ghost" href="{{ url_for('main.support_help_admin') }}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Rehber Yönetimi</a>
+            {% endif %}
+            <a class="bys-btn bys-btn--primary" href="{{ url_for('main.support_new') }}"><i class="fa-solid fa-plus" aria-hidden="true"></i> Yeni Talep Aç</a>
         </div>
-      </div>
-      {% endfor %}
-    </div>
-  </section>
+    </header>
 
-  <section class="support-panel">
-    <div class="support-section-head">
-      <div>
-        <h3 class="support-section-title">Modül Bazlı Rehber Paketleri</h3>
-        <p class="support-section-text">Canlı kullanılan modüllerde neyin neden yapıldığını ve işlem sırasını açıklar.</p>
-      </div>
-    </div>
-    <div class="support-guide-grid" style="margin-top:16px;">
-      {% for group in module_groups or [] %}
-      <article class="support-guide-card">
-        <div class="support-card-head">
-          <div class="support-icon"><i class="{{ group.icon }}"></i></div>
-          <span class="support-badge">{{ group.article_count }} rehber</span>
+    <section class="bys-card bys-help-search" aria-labelledby="helpSearchTitle">
+        <h3 class="bys-card__title" id="helpSearchTitle">Rehberlerde arayın</h3>
+        <form class="bys-help-search__form skip-mobile-normalize" method="get" action="{{ url_for('main.support_help_search') }}" role="search" aria-labelledby="helpSearchTitle">
+            <div class="bys-field bys-help-search__field">
+                <label class="bys-field__label" for="help-search">Aranacak konu</label>
+                <input class="bys-input" type="search" id="help-search" name="q" maxlength="120" autocomplete="off" placeholder="Örnek: talep durumu, yetki talebi, performans karnesi" aria-describedby="help-search-help">
+                <p class="bys-field__help" id="help-search-help">{{ total_article_count or 0 }} rehber, {{ total_category_count or 0 }} modül paketi ve {{ total_role_count or 0 }} rol bazlı öğrenme yolu içinde arar.</p>
+            </div>
+            <button class="bys-btn bys-btn--primary" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Ara</button>
+        </form>
+        {% if suggested_queries %}
+        <div class="bys-help-suggest">
+            <p class="bys-help-suggest__label" id="helpSuggestLabel">Sık aranan konular</p>
+            <ul class="bys-link-chips" aria-labelledby="helpSuggestLabel">
+                {% for query in suggested_queries %}
+                <li><a class="bys-link-chip" href="{{ url_for('main.support_help_search', q=query) }}">{{ query }}</a></li>
+                {% endfor %}
+            </ul>
         </div>
-        <h4 class="support-card-title">{{ group.title }}</h4>
-        <p class="support-card-text">{{ group.description }}</p>
-        {% if group.learning_goal %}<div class="support-goal"><strong>Öğrenme hedefi:</strong> {{ group.learning_goal }}</div>{% endif %}
-        <ul class="support-mini-list">
-          {% for article in group.articles %}
-          <li><a href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">{{ article.title }}</a></li>
-          {% endfor %}
+        {% endif %}
+    </section>
+
+    <section aria-labelledby="helpStatusTitle">
+        <h3 class="bys-section-heading" id="helpStatusTitle">Destek taleplerim</h3>
+        <ul class="bys-stats bys-stats--links skip-mobile-normalize">
+            <li><a class="bys-stat bys-stat--link" href="{{ url_for('main.support_my_tickets') }}"><span class="bys-stat__value">{{ counts.my_open if counts is defined else 0 }}</span><span class="bys-stat__label">Açık talebim</span></a></li>
+            <li><a class="bys-stat bys-stat--link" href="{{ url_for('main.support_my_tickets') }}"><span class="bys-stat__value">{{ counts.my_total if counts is defined else 0 }}</span><span class="bys-stat__label">Toplam talebim</span></a></li>
+            <li><a class="bys-stat bys-stat--link" href="{{ assigned_link }}"><span class="bys-stat__value">{{ counts.assigned_total if counts is defined else 0 }}</span><span class="bys-stat__label">Bana atanan</span></a></li>
+            <li><a class="bys-stat bys-stat--link" href="{{ url_for('main.support_help_search', q='talep durumları') }}"><span class="bys-stat__value">{{ counts.resolved_total if counts is defined else 0 }}</span><span class="bys-stat__label">Çözülen kayıt</span></a></li>
         </ul>
-        <div style="margin-top:auto;padding-top:14px;">
-          <a class="support-btn-soft" href="{{ url_for('main.support_help_category', category_slug=group.slug) }}"><i class="fa-solid fa-arrow-right"></i> Paketi Aç</a>
-        </div>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
+        {% if not is_support_ready %}
+        <p class="bys-notice bys-notice--warning"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Destek talebi tabloları henüz hazır değil. Yetkili kullanıcı kurulum ekranından destek modülünü etkinleştirebilir.</p>
+        {% endif %}
+    </section>
 
-  <section class="support-panel">
-    <div class="support-section-head">
-      <div>
-        <h3 class="support-section-title">Rol Bazlı Öğrenme Yolları</h3>
-        <p class="support-section-text">Kullanıcı türüne göre önerilen okuma sırası.</p>
-      </div>
-    </div>
-    <div class="support-path-grid" style="margin-top:16px;">
-      {% for path in learning_paths or [] %}
-      <article class="support-path-card">
-        <div class="support-path-head">
-          <div class="support-icon"><i class="{{ path.icon }}"></i></div>
-          <div>
-            <h4 class="support-card-title" style="margin:0;">{{ path.title }}</h4>
-            <p class="support-card-text">{{ path.role }}</p>
-          </div>
-        </div>
-        <ol>
-          {% for article in path.steps %}
-            <li><a href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">{{ article.title }}</a></li>
-          {% endfor %}
-        </ol>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
+    <div class="bys-help-columns skip-mobile-normalize">
+        <section class="bys-card" aria-labelledby="helpQuickTitle">
+            <h3 class="bys-card__title" id="helpQuickTitle">Hızlı başlangıç</h3>
+            <p class="bys-muted-text">En sık ihtiyaç duyulan rehberler.</p>
+            <ul class="bys-article-list">
+                {% for article in featured_articles or [] %}
+                <li>
+                    <a class="bys-article-link" href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">
+                        <span class="bys-article-link__title">{{ article.title }}</span>
+                        {% if article.summary %}<span class="bys-article-link__text">{{ article.summary }}</span>{% endif %}
+                    </a>
+                </li>
+                {% else %}
+                <li class="bys-muted-text">Henüz öne çıkan rehber yok.</li>
+                {% endfor %}
+            </ul>
+        </section>
 
-  <section class="support-panel">
-    <div class="support-section-head">
-      <div>
-        <h3 class="support-section-title">Canlı Kullanım Kalite İlkeleri</h3>
-        <p class="support-section-text">Yardım merkezi yalnızca içerik listesi değil; güvenli, ölçülebilir ve kurumsal destek disiplini sağlar.</p>
-      </div>
+        {% if troubleshooting_articles %}
+        <section class="bys-card" aria-labelledby="helpTroubleTitle">
+            <h3 class="bys-card__title" id="helpTroubleTitle">Sık yaşanan durumlar</h3>
+            <p class="bys-muted-text">En çok takılınan konular için kısa çözüm rehberleri.</p>
+            <ul class="bys-article-list">
+                {% for article in troubleshooting_articles %}
+                <li>
+                    <a class="bys-article-link" href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">
+                        <span class="bys-article-link__title">{{ article.title }}</span>
+                        {% if article.summary %}<span class="bys-article-link__text">{{ article.summary }}</span>{% endif %}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
     </div>
-    <div class="support-quality-grid" style="margin-top:16px;">
-      {% for card in help_quality_cards or [] %}
-      <article class="support-quality-card">
-        <div class="support-icon"><i class="{{ card.icon }}"></i></div>
-        <h4>{{ card.title }}</h4>
-        <p>{{ card.text }}</p>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
 
-  <section class="support-panel">
-    <div class="support-section-head">
-      <div>
-        <h3 class="support-section-title">Hızlı Başlangıç</h3>
-        <p class="support-section-text">Canlı kullanımda en sık ihtiyaç duyulan rehberler.</p>
-      </div>
-    </div>
-    <div class="support-article-list" style="margin-top:16px;">
-      {% for article in featured_articles or [] %}
-      <a class="support-article-card" href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">
-        <div>
-          <h4 class="support-article-title">{{ article.title }}</h4>
-          <p class="support-article-summary">{{ article.summary }}</p>
-          <div class="support-meta">
-            {% for tag in article.tags[:3] %}<span class="support-badge">{{ tag }}</span>{% endfor %}
-          </div>
+    <section aria-labelledby="helpModulesTitle">
+        <h3 class="bys-section-heading" id="helpModulesTitle">Modül rehberleri</h3>
+        <p class="bys-section-lead">Her modülde işlemin neden ve hangi sırayla yapıldığını anlatan rehber paketleri.</p>
+        <div class="bys-guide-grid skip-mobile-normalize">
+            {% for group in module_groups or [] %}
+            <article class="bys-guide" aria-labelledby="helpModule{{ loop.index }}">
+                <div class="bys-guide__head">
+                    <span class="bys-guide__icon" aria-hidden="true"><i class="{{ group.icon }}"></i></span>
+                    <span class="bys-chip bys-chip--neutral">{{ group.article_count }} rehber</span>
+                </div>
+                <h4 class="bys-guide__title" id="helpModule{{ loop.index }}">{{ group.title }}</h4>
+                <p class="bys-guide__text">{{ group.description }}</p>
+                {% if group.learning_goal %}<p class="bys-guide__goal"><strong>Öğrenme hedefi:</strong> {{ group.learning_goal }}</p>{% endif %}
+                {% if group.articles %}
+                <ul class="bys-guide__links">
+                    {% for article in group.articles %}
+                    <li><a href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">{{ article.title }}</a></li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                <a class="bys-guide__more" href="{{ url_for('main.support_help_category', category_slug=group.slug) }}">Paketin tamamı<span class="visually-hidden">: {{ group.title }}</span> <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+            </article>
+            {% endfor %}
         </div>
-        <span class="support-badge">Rehberi Aç</span>
-      </a>
-      {% endfor %}
-    </div>
-  </section>
+    </section>
 
-  {% if troubleshooting_articles %}
-  <section class="support-panel">
-    <div class="support-section-head">
-      <div>
-        <h3 class="support-section-title">Sık Yaşanan Durumlar</h3>
-        <p class="support-section-text">Kullanıcıların en çok takıldığı konular için kısa çözüm rehberleri.</p>
-      </div>
-    </div>
-    <div class="support-article-list" style="margin-top:16px;">
-      {% for article in troubleshooting_articles %}
-      <a class="support-article-card" href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">
-        <div>
-          <h4 class="support-article-title">{{ article.title }}</h4>
-          <p class="support-article-summary">{{ article.summary }}</p>
+    {% if learning_paths %}
+    <section aria-labelledby="helpPathsTitle">
+        <h3 class="bys-section-heading" id="helpPathsTitle">Rolünüze göre öğrenme yolları</h3>
+        <p class="bys-section-lead">Kullanıcı türüne göre önerilen okuma sırası.</p>
+        <div class="bys-path-grid skip-mobile-normalize">
+            {% for path in learning_paths %}
+            <article class="bys-card bys-path" aria-labelledby="helpPath{{ loop.index }}">
+                <div class="bys-path__head">
+                    <span class="bys-guide__icon" aria-hidden="true"><i class="{{ path.icon }}"></i></span>
+                    <div>
+                        <h4 class="bys-guide__title" id="helpPath{{ loop.index }}">{{ path.title }}</h4>
+                        <p class="bys-muted-text">{{ path.role }}</p>
+                    </div>
+                </div>
+                <ol class="bys-path__steps">
+                    {% for article in path.steps %}
+                    <li><a href="{{ url_for('main.support_help_article', article_slug=article.slug) }}">{{ article.title }}</a></li>
+                    {% endfor %}
+                </ol>
+            </article>
+            {% endfor %}
         </div>
-        <span class="support-badge">Çözüm</span>
-      </a>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="bys-card" aria-labelledby="helpProcessTitle">
+        <div class="bys-card__head">
+            <h3 class="bys-card__title" id="helpProcessTitle">Destek talebi nasıl işler?</h3>
+            <div class="bys-card__links">
+                <a class="bys-text-link" href="{{ url_for('main.support_help_article', article_slug='destek-talebi-nasil-acilir') }}"><i class="fa-solid fa-book-open" aria-hidden="true"></i> Talep rehberi</a>
+                <a class="bys-text-link" href="{{ url_for('main.support_help_article', article_slug='talep-durumlari-nasil-takip-edilir') }}"><i class="fa-solid fa-timeline" aria-hidden="true"></i> Durum rehberi</a>
+            </div>
+        </div>
+        <div class="bys-process-columns skip-mobile-normalize">
+            <div>
+                <h4 class="bys-subheading">Adımlar</h4>
+                {# Adım başlıkları numarayı kendisi taşır ("1. Rehberi ara"); liste simgeyle gösterilir, numara tekrarlanmaz. #}
+                <ul class="bys-steps bys-steps--icons">
+                    {% for step in support_process_steps or [] %}
+                    <li class="bys-steps__item">
+                        <span class="bys-steps__icon" aria-hidden="true"><i class="{{ step.icon }}"></i></span>
+                        <span class="bys-steps__title">{{ step.title }}</span>
+                        <span class="bys-steps__text">{{ step.text }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <h4 class="bys-subheading">Talep durumları</h4>
+                <ol class="bys-steps">
+                    {% for item in support_status_flow or [] %}
+                    <li class="bys-steps__item">
+                        <span class="bys-steps__title">{{ item.status }}</span>
+                        <span class="bys-steps__text">{{ item.text }}</span>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+        {% if support_intake_examples %}
+        <details class="bys-disclosure">
+            <summary>Hangi talep türünü seçmeliyim?</summary>
+            <dl class="bys-disclosure__list">
+                {% for item in support_intake_examples %}
+                <div><dt>{{ item.title }}</dt><dd>{{ item.text }}</dd></div>
+                {% endfor %}
+            </dl>
+        </details>
+        {% endif %}
+        {% if help_quality_cards %}
+        <details class="bys-disclosure">
+            <summary>Destek ilkelerimiz</summary>
+            <dl class="bys-disclosure__list">
+                {% for card in help_quality_cards %}
+                <div><dt>{{ card.title }}</dt><dd>{{ card.text }}</dd></div>
+                {% endfor %}
+            </dl>
+        </details>
+        {% endif %}
+    </section>
 </div>
 <script src="{{ url_for('static', filename='js/bys360_support_learning.js') }}"></script>
 {% endblock %}

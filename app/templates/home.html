@@ -1,211 +1,400 @@
 {% extends "base.html" %}
-{% block title %}Anasayfa - BYS360{% endblock %}
+{% block title %}Ana Sayfa - BYS360{% endblock %}
 {% block page_kicker %}BYS360{% endblock %}
 {% block page_title %}Gün Özeti{% endblock %}
-{% block page_subtitle %}Hava durumu, görevler, bildirimler ve günlük iş akışı tek ekranda.{% endblock %}
+{% block page_subtitle %}Görevleriniz, bildirimleriniz ve kurum içi gelişmeler tek ekranda.{% endblock %}
 {% block extra_head %}
-<!-- BYS360_PORTAL_EXPERIENCE_V3A_PRESS_NEWS_CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_portal_experience_v3a_press_news.css') }}?v=3a">
-<!-- /BYS360_PORTAL_EXPERIENCE_V3A_PRESS_NEWS_CSS -->
-
-<!-- BYS360_PORTAL_EXPERIENCE_V2_HOME_CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_portal_experience_v2.css') }}?v=2">
-<!-- /BYS360_PORTAL_EXPERIENCE_V2_HOME_CSS -->
-
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_home_festival_portal_v2_5.css') }}?v=home-festival-portal-v2-5-1">
-{# BYS360_HOME_FESTIVAL_PORTAL_V2_5_1_CSS #}
-
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_home_weather.css') }}?v=home-weather-executive-v3">
+{# BYS360_UX_WAVE8_HOME: Ana sayfa, pilot (support/new.html) tasarım dilinde günlük çalışma merkezi.
+   Veri kaynakları değişmedi: home_dashboard_service, portal_service, portal_experience_service,
+   portal_experience_v2_service. Eski portal parçaları (portal/_experience_dashboard.html,
+   portal/_experience_v2_hub.html, portal/_home_feed.html) silinmedi; içerikleri burada tek
+   bilgi mimarisinde, yinelenmeden gösterilir. #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_home.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/announcement_popup.css') }}?v=home-announcement-popup-fix">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_portal.css') }}?v=corporate-portal-v1">
-{# BYS360_CORPORATE_PORTAL_V1_HOME_CSS #}
-
-<!-- BYS360_PORTAL_EXPERIENCE_V1_HOME_CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_portal_experience_v1.css') }}?v=1">
-<!-- /BYS360_PORTAL_EXPERIENCE_V1_HOME_CSS -->
 {% endblock %}
 {% block content %}
 {% set weather = home_weather if home_weather is defined and home_weather else {} %}
 {% set summary = home_summary if home_summary is defined and home_summary else {} %}
-{% set recs = weather.recommendations if weather.recommendations is defined else [] %}
-{% set primary_rec = recs[0] if recs else none %}
+{% set recs = weather.recommendations if weather.recommendations is defined and weather.recommendations else [] %}
+{% set px_enabled = portal_experience_enabled if portal_experience_enabled is defined else false %}
+{% set px = portal_experience if px_enabled and portal_experience is defined and portal_experience else {} %}
+{% set v2_enabled = portal_v2_enabled if portal_v2_enabled is defined else true %}
+{% set v2 = portal_v2 if v2_enabled and portal_v2 is defined and portal_v2 else {} %}
+{% set feed_enabled = portal_home_enabled if portal_home_enabled is defined else true %}
+{% set feed_posts = portal_home_posts if feed_enabled and portal_home_posts is defined and portal_home_posts else [] %}
+{% set feed_featured = portal_home_featured if feed_enabled and portal_home_featured is defined and portal_home_featured else [] %}
+{% set feed_stats = portal_home_stats if portal_home_stats is defined and portal_home_stats else {} %}
+{% set feed_groups = portal_home_groups if feed_enabled and portal_home_groups is defined and portal_home_groups else [] %}
+{% set interactions = portal_recent_interactions if feed_enabled and portal_recent_interactions is defined and portal_recent_interactions else [] %}
+{% set portal_url = safe_url_for('main.portal_feed', fallback='/portal') %}
+{% set profile_url = safe_url_for('main.portal_my_profile', fallback='/portal/profile/me') %}
+{% set tone_chip = {'danger': 'danger', 'warning': 'warning', 'calm': 'success'} %}
 
-<div class="home-faz1-shell">
-  <section class="home-faz1-hero">
-    <div class="home-faz1-hero-main">
-      <div class="home-faz1-kicker"><i class="fa-solid fa-location-dot"></i> {{ weather.location_name|default('Gelibolu Tarihi Alan', true) }}</div>
-      <h1>Gün Özeti</h1>
-      <p>
-        Hava durumu, görevler, bildirimler ve günlük iş akışı tek ekranda özetlenir.
+{% macro post_field(item, field, fallback, length) -%}
+  {%- set post = item.post if item.post is defined else item.get('post') -%}
+  {%- set value = post[field] if post and post[field] else fallback -%}
+  {{- value|striptags|truncate(length, true, '…') -}}
+{%- endmacro %}
+
+<div class="bys-ui bys-page home-page skip-mobile-normalize">
+
+  {# ---- Karşılama ve hava durumu ------------------------------------- #}
+  <section class="home-hero" aria-labelledby="homeGreeting">
+    <div class="home-hero__main">
+      <p class="home-hero__date">
+        <i class="fa-regular fa-calendar" aria-hidden="true"></i> {{ summary.today_label|default('', true) }}
+        {% if px.unit_name %}<span aria-hidden="true">·</span> {{ px.unit_name }}{% endif %}
       </p>
-      <div class="home-faz1-actions">
-        <a href="{{ safe_url_for('main.performance_tasks', fallback='#') }}" class="home-faz1-btn primary"><i class="fa-solid fa-list-check"></i> Görevlerime Git</a>
-        <a href="{{ safe_url_for('main.dashboard', fallback='#') }}" class="home-faz1-btn"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
-        <a href="{{ safe_url_for('main.support_index', fallback='#') }}" class="home-faz1-btn"><i class="fa-solid fa-circle-info"></i> Yardım Merkezi</a>
+      <h2 class="home-hero__title" id="homeGreeting">Hoş geldiniz{% if px.display_name %}, {{ px.display_name }}{% endif %}</h2>
+      {% if px.priority_label %}
+      <p class="home-hero__status">
+        <span class="bys-chip bys-chip--{{ tone_chip.get(px.priority_tone, 'neutral') }}">{{ px.priority_label }}</span>
+        <span>{{ px.priority_note }}</span>
+      </p>
+      {% endif %}
+      <div class="home-hero__actions">
+        <a href="{{ safe_url_for('main.performance_tasks', fallback='#') }}" class="bys-btn bys-btn--primary"><i class="fa-solid fa-list-check" aria-hidden="true"></i> Görevlerime Git</a>
+        <a href="{{ safe_url_for('main.support_new', fallback='#') }}" class="bys-btn bys-btn--secondary"><i class="fa-solid fa-plus" aria-hidden="true"></i> Destek Talebi Aç</a>
+        <a href="{{ safe_url_for('main.dashboard', fallback='#') }}" class="bys-btn bys-btn--ghost"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Gösterge Paneli</a>
+        <a href="{{ safe_url_for('main.support_index', fallback='#') }}" class="bys-btn bys-btn--ghost"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Yardım Merkezi</a>
       </div>
-      {# BYS360_PORTAL_EXPERIENCE_V3A_HOME_HERO_PRESS_NEWS_DISABLED_BY_V4: Basında Tarihi Alan ana sayfa hero alanından kaldırıldı. #}
     </div>
 
-    <aside class="home-faz1-weather-card home-weather-executive is-{{ weather.status|default('fallback', true) }}">
-      <div class="home-weather-glow glow-one"></div>
-      <div class="home-weather-glow glow-two"></div>
-      <div class="home-weather-header">
-        <div>
-          <span class="home-faz1-card-label"><i class="fa-solid fa-location-dot"></i> {{ weather.location_name|default('Gelibolu Tarihi Alan', true) }}</span>
-          <h2>Günlük Saha Hava Paneli</h2>
-        </div>
-        <span class="home-weather-status">
-          <i class="fa-solid {% if weather.status == 'live' %}fa-signal{% elif weather.status == 'disabled' %}fa-pause{% else %}fa-shield-halved{% endif %}"></i>
-          {{ weather.source_label|default('Güvenli mod', true) }}
-        </span>
+    {% set code = weather.weather_code %}
+    {% if code in [0, 1] %}{% set w_icon = 'fa-sun' %}
+    {% elif code == 2 %}{% set w_icon = 'fa-cloud-sun' %}
+    {% elif code == 3 %}{% set w_icon = 'fa-cloud' %}
+    {% elif code in [45, 48] %}{% set w_icon = 'fa-smog' %}
+    {% elif code in [51, 53, 55, 61, 63, 65, 80, 81, 82] %}{% set w_icon = 'fa-cloud-rain' %}
+    {% elif code in [71, 73, 75] %}{% set w_icon = 'fa-snowflake' %}
+    {% elif code in [95, 96, 99] %}{% set w_icon = 'fa-cloud-bolt' %}
+    {% else %}{% set w_icon = 'fa-cloud' %}{% endif %}
+    <aside class="home-weather is-{{ weather.status|default('fallback', true) }}" aria-labelledby="homeWeatherTitle">
+      <div class="home-weather__head">
+        <h2 class="home-weather__title" id="homeWeatherTitle"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> {{ weather.location_name|default('Gelibolu Tarihi Alan', true) }}</h2>
+        <span class="bys-chip bys-chip--{{ 'success' if weather.status == 'live' else 'neutral' }}">{{ 'Canlı' if weather.status == 'live' else ('Kapalı' if weather.status == 'disabled' else 'Güvenli mod') }}</span>
       </div>
-
-      <div class="home-weather-visual-row">
-        <div class="home-weather-orb" aria-hidden="true">
-          <i class="fa-solid {% if weather.weather_code in [0, 1] %}fa-sun{% elif weather.weather_code in [45, 48] %}fa-smog{% elif weather.weather_code in [51, 53, 55, 61, 63, 65, 80, 81, 82] %}fa-cloud-rain{% elif weather.weather_code in [71, 73, 75] %}fa-snowflake{% elif weather.weather_code in [95, 96, 99] %}fa-cloud-bolt{% else %}fa-cloud-sun{% endif %}"></i>
-        </div>
-        <div class="home-weather-main-value">
-          {% if weather.temperature is not none and weather.temperature is defined %}
-            <strong>{{ weather.temperature|round(0)|int }}°</strong>
-          {% else %}
-            <strong>—</strong>
-          {% endif %}
-          <div>
-            <b>{{ weather.weather_label|default('Tahmin alınıyor', true) }}</b>
-            <span>
-              {% if weather.daily_min is not none and weather.daily_min is defined and weather.daily_max is not none and weather.daily_max is defined %}
-                Günlük aralık {{ weather.daily_min|round(0)|int }}° / {{ weather.daily_max|round(0)|int }}°
-              {% else %}
-                Günlük aralık bekleniyor
-              {% endif %}
-            </span>
-          </div>
+      <div class="home-weather__now">
+        <i class="fa-solid {{ w_icon }} home-weather__icon" aria-hidden="true"></i>
+        <p class="home-weather__temp">
+          {% if weather.temperature is defined and weather.temperature is not none %}{{ weather.temperature|round(0)|int }}°{% else %}—{% endif %}
+        </p>
+        <div>
+          <p class="home-weather__label">{{ weather.weather_label|default('Tahmin alınıyor', true) }}</p>
+          <p class="home-weather__range">
+            {% if weather.daily_min is defined and weather.daily_min is not none and weather.daily_max is defined and weather.daily_max is not none %}En düşük {{ weather.daily_min|round(0)|int }}° · En yüksek {{ weather.daily_max|round(0)|int }}°{% else %}Günlük aralık bekleniyor{% endif %}
+          </p>
         </div>
       </div>
-
-      <div class="home-weather-metrics">
-        <div>
-          <i class="fa-solid fa-wind"></i>
-          <span>Rüzgâr</span>
-          <b>{% if weather.wind_speed is not none and weather.wind_speed is defined %}{{ weather.wind_speed|round(0)|int }} km/sa{% else %}—{% endif %}</b>
-        </div>
-        <div>
-          <i class="fa-solid fa-cloud-rain"></i>
-          <span>Yağış</span>
-          <b>{% if weather.rain_probability is not none and weather.rain_probability is defined %}%{{ weather.rain_probability|round(0)|int }}{% else %}—{% endif %}</b>
-        </div>
-        <div>
-          <i class="fa-solid fa-temperature-half"></i>
-          <span>Hissedilen</span>
-          <b>{% if weather.apparent_temperature is not none and weather.apparent_temperature is defined %}{{ weather.apparent_temperature|round(0)|int }}°C{% else %}—{% endif %}</b>
-        </div>
-        <div>
-          <i class="fa-solid fa-droplet"></i>
-          <span>Nem</span>
-          <b>{% if weather.humidity is not none and weather.humidity is defined %}%{{ weather.humidity|round(0)|int }}{% else %}—{% endif %}</b>
-        </div>
-      </div>
-
-      <div class="home-weather-insight">
-        <div class="home-weather-insight-icon">
-          <i class="fa-solid {{ primary_rec.icon if primary_rec else 'fa-shield-halved' }}"></i>
-        </div>
-        <div>
-          <span>Karar destek notu</span>
-          <p>{{ primary_rec.title if primary_rec else (weather.message|default('Hava durumuna göre günlük saha notu hazırlanıyor.', true)) }}</p>
-        </div>
-      </div>
-
-      <div class="home-weather-footer">
-        <span><i class="fa-regular fa-clock"></i> Güncelleme: {{ weather.updated_at|default('anlık', true) }}</span>
-        {% if weather.message %}<span class="home-weather-soft-alert">{{ weather.message }}</span>{% endif %}
-      </div>
+      <dl class="home-weather__metrics">
+        <div><dt>Rüzgâr</dt><dd>{% if weather.wind_speed is defined and weather.wind_speed is not none %}{{ weather.wind_speed|round(0)|int }} km/sa{% else %}—{% endif %}</dd></div>
+        <div><dt>Yağış</dt><dd>{% if weather.rain_probability is defined and weather.rain_probability is not none %}%{{ weather.rain_probability|round(0)|int }}{% else %}—{% endif %}</dd></div>
+        <div><dt>Hissedilen</dt><dd>{% if weather.apparent_temperature is defined and weather.apparent_temperature is not none %}{{ weather.apparent_temperature|round(0)|int }}°{% else %}—{% endif %}</dd></div>
+        <div><dt>Nem</dt><dd>{% if weather.humidity is defined and weather.humidity is not none %}%{{ weather.humidity|round(0)|int }}{% else %}—{% endif %}</dd></div>
+      </dl>
+      <p class="home-weather__foot">
+        {% if weather.message %}{{ weather.message }}{% else %}Kaynak: {{ weather.source_label|default('Güvenli mod', true) }}{% endif %}
+        {% if weather.updated_label %} · Güncelleme {{ weather.updated_label }}{% endif %}
+      </p>
     </aside>
   </section>
 
-  <section class="home-faz1-quick-grid">
-    {% for item in home_quick_actions %}
-    <a href="{{ safe_url_for(item.endpoint, fallback='#') }}" class="home-faz1-quick-card tone-{{ item.tone }}">
-      <i class="fa-solid {{ item.icon }}"></i>
-      <div><span>{{ item.label }}</span><strong>{{ item.value }}</strong><small>{{ item.note }}</small></div>
-    </a>
-    {% endfor %}
-  </section>
-
-  {# BYS360_PORTAL_EXPERIENCE_V1_HOME_INCLUDE #}
-  {% include 'portal/_experience_dashboard.html' ignore missing %}
-
-  {# BYS360_PORTAL_EXPERIENCE_V2_HOME_INCLUDE #}
-  {% include 'portal/_experience_v2_hub.html' ignore missing %}
-
-  {# BYS360_CORPORATE_PORTAL_V1_HOME_FEED #}
-  {% include 'portal/_home_feed.html' ignore missing %}
-
-  <section class="home-faz1-two-col">
-    <div class="home-faz1-panel">
-      <div class="home-faz1-section-head">
-        <div>
-          <span class="home-faz1-card-label">Tarihi Alan önerileri</span>
-          <h2>Hava koşuluna göre günlük dikkat noktaları</h2>
-        </div>
-        <span class="home-faz1-pill"><i class="fa-solid fa-shield-halved"></i> Karar destek</span>
-      </div>
-      <div class="home-faz1-recs">
-        {% for rec in recs %}
-        <article class="home-faz1-rec level-{{ rec.level }}">
-          <i class="fa-solid {{ rec.icon }}"></i>
-          <div><b>{{ rec.title }}</b><p>{{ rec.text }}</p></div>
-        </article>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="home-faz1-panel">
-      <div class="home-faz1-section-head">
-        <div>
-          <span class="home-faz1-card-label">Günlük operasyon</span>
-          <h2>Canlı omurga hızlı özeti</h2>
-        </div>
-        <span class="home-faz1-pill"><i class="fa-solid fa-calendar-day"></i> {{ summary.today_label|default('', true) }}</span>
-      </div>
-      <div class="home-faz1-op-list">
-        {% for card in home_operational_cards %}
-        <a href="{{ safe_url_for(card.endpoint, fallback='#') }}" class="home-faz1-op-card">
-          <i class="fa-solid {{ card.icon }}"></i>
-          <div><b>{{ card.title }}</b><p>{{ card.text }}</p></div>
+  {# ---- Günün öncelikleri -------------------------------------------- #}
+  <section class="home-section" aria-labelledby="homeKpiTitle">
+    <h2 class="home-section__title" id="homeKpiTitle">Günün öncelikleri</h2>
+    <ul class="home-kpis">
+      {% for item in home_quick_actions|default([], true) %}
+      <li>
+        <a class="home-kpi{% if item.value %} is-active{% endif %}" href="{{ safe_url_for(item.endpoint, fallback='#') }}">
+          <span class="home-kpi__icon" aria-hidden="true"><i class="fa-solid {{ item.icon }}"></i></span>
+          <span class="home-kpi__label">{{ item.label }}</span>
+          <span class="home-kpi__value">{{ item.value }}</span>
+          <span class="home-kpi__note">{{ item.note }}</span>
         </a>
-        {% endfor %}
-      </div>
-    </div>
+      </li>
+      {% endfor %}
+      {% for card in px.my_day_cards|default([], true) if card.key == 'surveys' %}
+      <li>
+        <a class="home-kpi{% if card.value %} is-active{% endif %}" href="{{ safe_url_for('main.surveys_list', fallback='/surveys') }}">
+          <span class="home-kpi__icon" aria-hidden="true"><i class="fa-solid fa-square-poll-vertical"></i></span>
+          <span class="home-kpi__label">Anketler</span>
+          <span class="home-kpi__value">{{ card.value|default(0, true) }}</span>
+          <span class="home-kpi__note">Yanıt bekleyen anket</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
   </section>
 
-  <section class="home-faz1-status-band">
-    <div>
-      <span>Aktif dönem</span>
-      <strong>{{ summary.active_period.title if summary.active_period else 'Aktif dönem tanımlı değil' }}</strong>
-    </div>
-    <div>
-      <span>Geciken görev</span>
-      <strong>{{ summary.overdue_tasks|default(0, true) }}</strong>
-    </div>
-    <div>
-      <span>Aktif vekâlet</span>
-      <strong>{{ summary.active_delegations|default(0, true) }}</strong>
-    </div>
-    <div>
-      <span>Personel kapsamı</span>
-      <strong>{{ summary.user_count|default(0, true) if summary.user_count else 'Yetkili görünüm' }}</strong>
-    </div>
-  </section>
+  <div class="home-grid">
+    <div class="home-grid__main">
 
+      {# ---- Dikkat gerektirenler ---------------------------------------- #}
+      <section class="bys-card home-panel" aria-labelledby="homeAttentionTitle">
+        <div class="home-panel__head">
+          <h2 class="home-panel__title" id="homeAttentionTitle">Dikkat gerektirenler</h2>
+        </div>
+        {% set has_attention = summary.overdue_tasks or px.notifications or px.support_items or px.survey_items %}
+        {% if has_attention %}
+        <ul class="home-list">
+          {% if summary.overdue_tasks %}
+          <li><a class="home-list__item is-danger" href="{{ safe_url_for('main.performance_tasks', fallback='#') }}">
+            <span class="home-list__icon" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></span>
+            <span class="home-list__body"><span class="home-list__kicker">Geciken görev</span><span class="home-list__title">{{ summary.overdue_tasks }} değerlendirme görevinin süresi geçti</span></span>
+          </a></li>
+          {% endif %}
+          {% for n in (px.notifications or [])[:3] %}
+          <li><a class="home-list__item" href="{{ n.link_url|default('/notifications', true) }}">
+            <span class="home-list__icon" aria-hidden="true"><i class="fa-regular fa-bell"></i></span>
+            <span class="home-list__body"><span class="home-list__kicker">Bildirim</span><span class="home-list__title">{{ n.title }}</span><span class="home-list__text">{{ n.body }}</span></span>
+          </a></li>
+          {% endfor %}
+          {% for t in (px.support_items or [])[:2] %}
+          <li><a class="home-list__item" href="{{ t.link_url|default(safe_url_for('main.support_my_tickets', fallback='#'), true) }}">
+            <span class="home-list__icon" aria-hidden="true"><i class="fa-solid fa-life-ring"></i></span>
+            <span class="home-list__body"><span class="home-list__kicker">Destek talebi</span><span class="home-list__title">{{ t.title }}</span><span class="home-list__text">{{ t.status }} · {{ t.priority }}</span></span>
+          </a></li>
+          {% endfor %}
+          {% for s in (px.survey_items or [])[:2] %}
+          <li><a class="home-list__item" href="{{ s.link_url|default('/surveys', true) }}">
+            <span class="home-list__icon" aria-hidden="true"><i class="fa-solid fa-square-poll-vertical"></i></span>
+            <span class="home-list__body"><span class="home-list__kicker">Anket</span><span class="home-list__title">{{ s.title }}</span><span class="home-list__text">{{ s.description }}</span></span>
+          </a></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="bys-empty home-empty">
+          <span class="bys-empty__icon" aria-hidden="true"><i class="fa-regular fa-circle-check"></i></span>
+          <p class="bys-empty__title">Şu an dikkat gerektiren bir işiniz yok.</p>
+          <p class="bys-empty__text">Yeni görev, bildirim veya talep geldiğinde burada görünür.</p>
+        </div>
+        {% endif %}
+      </section>
+
+      {# ---- Kurumsal duyurular ------------------------------------------ #}
+      {% if v2_enabled %}
+      <section class="bys-card home-panel" aria-labelledby="homeAnnouncementsTitle">
+        <div class="home-panel__head">
+          <h2 class="home-panel__title" id="homeAnnouncementsTitle">Kurumsal duyurular</h2>
+          <a class="bys-text-link" href="{{ portal_url }}">Tüm duyurular</a>
+        </div>
+        {% if v2.featured_announcements %}
+        <ul class="home-list">
+          {% for item in v2.featured_announcements %}
+          <li><a class="home-list__item" href="{{ item.link_url }}">
+            <span class="home-list__icon" aria-hidden="true"><i class="fa-solid fa-bullhorn"></i></span>
+            <span class="home-list__body"><span class="home-list__title">{{ item.title }}</span><span class="home-list__text">{{ item.body }}</span><span class="home-list__meta">{{ item.author }}</span></span>
+          </a></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="bys-empty home-empty">
+          <span class="bys-empty__icon" aria-hidden="true"><i class="fa-regular fa-newspaper"></i></span>
+          <p class="bys-empty__title">Henüz öne çıkan duyuru yok.</p>
+        </div>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      {# ---- Yayın akışı ------------------------------------------------- #}
+      {% if feed_enabled %}
+      <section class="bys-card home-panel" aria-labelledby="homeFeedTitle">
+        <div class="home-panel__head">
+          <h2 class="home-panel__title" id="homeFeedTitle">Kurumsal portal</h2>
+          <a class="bys-text-link" href="{{ portal_url }}">Portala git</a>
+        </div>
+        <dl class="home-pills">
+          <div><dt>Paylaşım</dt><dd>{{ feed_stats.visible_posts|default(feed_posts|length, true) }}</dd></div>
+          <div><dt>Yorum</dt><dd>{{ feed_stats.comments|default(0, true) }}</dd></div>
+          <div><dt>Tepki</dt><dd>{{ feed_stats.reactions|default(0, true) }}</dd></div>
+          <div><dt>Grup</dt><dd>{{ feed_groups|length }}</dd></div>
+        </dl>
+        {% if feed_featured %}
+        <h3 class="home-subtitle">Öne çıkanlar</h3>
+        <ul class="home-featured">
+          {% for item in feed_featured[:3] %}
+          {% set post = item.post if item.post is defined else item.get('post') %}
+          <li><a class="home-featured__item" href="{{ portal_url }}#post-{{ post.id if post else '' }}">
+            <span class="home-list__kicker">{% if post and post.post_type == 'instagram' %}Instagram{% else %}{{ item.post_type_label if item.post_type_label is defined else 'Paylaşım' }}{% endif %}</span>
+            <span class="home-list__title">{{ post_field(item, 'title', 'Portal paylaşımı', 72) }}</span>
+            <span class="home-list__text">{{ post_field(item, 'body', 'Kurumsal portal içeriği', 110) }}</span>
+          </a></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <h3 class="home-subtitle">Son paylaşımlar</h3>
+        {% if feed_posts %}
+        <ul class="home-list">
+          {% for item in feed_posts[:5] %}
+          {% set post = item.post if item.post is defined else item.get('post') %}
+          {% set image_count = item.image_attachments|length if item.image_attachments is defined and item.image_attachments else 0 %}
+          {% set has_video = item.video_embed_url if item.video_embed_url is defined else none %}
+          {% set author = post.author if post else none %}
+          <li><a class="home-list__item" href="{{ portal_url }}#post-{{ post.id if post else '' }}">
+            <span class="home-list__icon" aria-hidden="true"><i class="{{ 'fa-brands fa-instagram' if post and post.post_type == 'instagram' else 'fa-regular fa-newspaper' }}"></i></span>
+            <span class="home-list__body">
+              <span class="home-list__title">{{ post_field(item, 'title', 'Portal paylaşımı', 72) }}</span>
+              <span class="home-list__text">{{ post_field(item, 'body', 'Kurumsal portal içeriği', 132) }}</span>
+              <span class="home-list__meta">
+                {{ author.full_name if author and author.full_name else 'BYS360 Kullanıcısı' }} · {{ post.created_at.strftime('%d.%m.%Y') if post and post.created_at else 'Bugün' }}
+                {% if image_count %} · {{ image_count }} fotoğraf{% endif %}{% if has_video %} · Video{% endif %}
+                · {{ item.total_reactions|default(0, true) }} tepki · {{ item.comments_count|default(0, true) }} yorum
+              </span>
+            </span>
+          </a></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="bys-empty home-empty">
+          <span class="bys-empty__icon" aria-hidden="true"><i class="fa-regular fa-newspaper"></i></span>
+          <p class="bys-empty__title">Portalda henüz paylaşım yok.</p>
+          <p class="bys-empty__text">Yetkiniz dahilindeki duyuru ve paylaşımlar burada görünür.</p>
+        </div>
+        {% endif %}
+      </section>
+      {% endif %}
+    </div>
+
+    <div class="home-grid__side">
+      {# ---- Günlük operasyon -------------------------------------------- #}
+      <section class="bys-card home-panel" aria-labelledby="homeOpsTitle">
+        <div class="home-panel__head">
+          <h2 class="home-panel__title" id="homeOpsTitle">Günlük operasyon</h2>
+        </div>
+        <dl class="home-facts">
+          <div><dt>Aktif dönem</dt><dd>{{ summary.active_period.title if summary.active_period else 'Aktif dönem tanımlı değil' }}</dd></div>
+          <div><dt>Geciken görev</dt><dd>{{ summary.overdue_tasks|default(0, true) }}</dd></div>
+          <div><dt>Aktif vekâlet</dt><dd>{{ summary.active_delegations|default(0, true) }}</dd></div>
+          <div><dt>Bugünkü izin kaydınız</dt><dd>{{ summary.approved_leaves_today|default(0, true) }}</dd></div>
+          <div><dt>Yayındaki anket</dt><dd>{{ summary.active_surveys|default(0, true) }}</dd></div>
+          {% if summary.user_count %}<div><dt>Personel sayısı</dt><dd>{{ summary.user_count }}</dd></div>{% endif %}
+        </dl>
+        <ul class="home-links">
+          {% for card in home_operational_cards|default([], true) %}
+          <li><a href="{{ safe_url_for(card.endpoint, fallback='#') }}"><i class="fa-solid {{ card.icon }}" aria-hidden="true"></i><span><b>{{ card.title }}</b><small>{{ card.text }}</small></span></a></li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      {# ---- Saha notları (hava durumuna göre) --------------------------- #}
+      {% if recs %}
+      <section class="bys-card home-panel" aria-labelledby="homeFieldTitle">
+        <div class="home-panel__head">
+          <h2 class="home-panel__title" id="homeFieldTitle">Saha notları</h2>
+        </div>
+        <ul class="home-notes">
+          {% for rec in recs %}
+          <li class="home-note level-{{ rec.level }}"><i class="fa-solid {{ rec.icon }}" aria-hidden="true"></i><span><b>{{ rec.title }}</b><small>{{ rec.text }}</small></span></li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      {# ---- Hızlı işlemler ---------------------------------------------- #}
+      <section class="bys-card home-panel" aria-labelledby="homeQuickTitle">
+        <div class="home-panel__head">
+          <h2 class="home-panel__title" id="homeQuickTitle">Hızlı işlemler</h2>
+        </div>
+        <ul class="home-links">
+          {% for card in v2.quick_share_cards|default([], true) %}
+          <li><a href="{{ portal_url }}#portal-body"><i class="{{ card.icon }}" aria-hidden="true"></i><span><b>{{ card.title }}</b><small>{{ card.hint }}</small></span></a></li>
+          {% endfor %}
+          <li><a href="{{ safe_url_for('main.support_new', fallback='#') }}"><i class="fa-solid fa-circle-question" aria-hidden="true"></i><span><b>Destek talebi</b><small>Yardım talebi oluşturun</small></span></a></li>
+          <li><a href="{{ safe_url_for('main.portal_groups', fallback='/portal/groups') }}"><i class="fa-solid fa-users" aria-hidden="true"></i><span><b>Gruplar</b><small>Üyesi olduğunuz gruplar</small></span></a></li>
+        </ul>
+      </section>
+
+      {# ---- Profil ------------------------------------------------------ #}
+      {% if v2_enabled %}
+      {% set p = v2.profile if v2.profile is defined and v2.profile else {} %}
+      <section class="bys-card home-panel" aria-labelledby="homeProfileTitle">
+        <div class="home-panel__head">
+          <h2 class="home-panel__title" id="homeProfileTitle">Profiliniz</h2>
+          <a class="bys-text-link" href="{{ profile_url }}">Profilimi aç</a>
+        </div>
+        <div class="home-profile">
+          <span class="home-avatar">{% if p.photo_url %}<img src="{{ p.photo_url }}" alt="" loading="lazy" data-fallback-class="is-empty">{% else %}<i class="fa-regular fa-user" aria-hidden="true"></i>{% endif %}</span>
+          <span><b>{{ p.name|default(current_user.full_name or current_user.email, true) }}</b><small>{{ p.title|default('Kurumsal kullanıcı', true) }} · {{ p.unit|default('Birim bilgisi bekleniyor', true) }}</small></span>
+        </div>
+        <label class="home-meter" for="homeProfileMeter">Profil tamamlanma oranı <b>%{{ p.completion|default(0, true) }}</b></label>
+        <meter id="homeProfileMeter" min="0" max="100" value="{{ p.completion|default(0, true) }}">%{{ p.completion|default(0, true) }}</meter>
+        <p class="home-muted">{% if p.missing %}Tamamlanabilecek alanlar: {{ p.missing|join(', ') }}{% else %}Profil bilgileri güncel görünüyor.{% endif %}</p>
+      </section>
+      {% endif %}
+
+      {# ---- Teşekkür ve başarılar --------------------------------------- #}
+      {% set recognitions = v2.recognition_highlights if v2.recognition_highlights else (px.recognition_items if px.recognition_items else []) %}
+      <section class="bys-card home-panel" aria-labelledby="homeRecognitionTitle">
+        <div class="home-panel__head">
+          <h2 class="home-panel__title" id="homeRecognitionTitle">Teşekkür ve başarılar</h2>
+        </div>
+        {% if px.culture_stats %}
+        <p class="home-muted">Son 30 günde {{ px.culture_stats.recognitions|default(0, true) }} takdir, {{ px.culture_stats.reactions|default(0, true) }} tepki.</p>
+        {% endif %}
+        {% if recognitions %}
+        <ul class="home-list home-list--compact">
+          {% for item in recognitions[:3] %}
+          <li><a class="home-list__item" href="{{ item.link_url }}">
+            <span class="home-list__icon" aria-hidden="true"><i class="fa-solid fa-award"></i></span>
+            <span class="home-list__body"><span class="home-list__title">{{ item.title }}</span><span class="home-list__meta">{{ item.author }}</span></span>
+          </a></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="home-muted">İlk teşekkür veya başarı paylaşımı yapıldığında burada görünür.</p>
+        {% endif %}
+      </section>
+
+      {# ---- Gruplar ve etkileşimler ------------------------------------- #}
+      {% if feed_enabled %}
+      <section class="bys-card home-panel" aria-labelledby="homeGroupsTitle">
+        <div class="home-panel__head">
+          <h2 class="home-panel__title" id="homeGroupsTitle">Gruplar ve etkileşimler</h2>
+        </div>
+        <h3 class="home-subtitle">Aktif gruplar</h3>
+        {% if feed_groups %}
+        <ul class="home-links">
+          {% for group in feed_groups[:4] %}
+          <li><a href="{{ safe_url_for('main.portal_groups', fallback='/portal/groups') }}"><i class="fa-solid fa-users" aria-hidden="true"></i><span><b>{{ group.name }}</b><small>{{ group.member_count|default(0, true) }} üye · {{ group.visibility_label|default('Grup', true) }}</small></span></a></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="home-muted">Görüntülenecek aktif grup bulunmuyor.</p>
+        {% endif %}
+        <h3 class="home-subtitle">Son etkileşimler</h3>
+        {% if interactions %}
+        <ul class="home-activity">
+          {% for activity in interactions[:4] %}<li>{{ activity.text }}</li>{% endfor %}
+        </ul>
+        {% else %}
+        <p class="home-muted">Etkileşim oluştuğunda burada görünür.</p>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      {# ---- Kurumdan kişiler (portal v2 vitrini; veri kapsamı değişmedi) - #}
+      {% if v2.people_spotlight %}
+      <section class="bys-card home-panel" aria-labelledby="homePeopleTitle">
+        <div class="home-panel__head">
+          <h2 class="home-panel__title" id="homePeopleTitle">Kurumdan kişiler</h2>
+        </div>
+        <ul class="home-people">
+          {% for person in v2.people_spotlight %}
+          <li><span class="home-avatar">{% if person.photo_url %}<img src="{{ person.photo_url }}" alt="" loading="lazy" data-fallback-class="is-empty">{% else %}<i class="fa-regular fa-user" aria-hidden="true"></i>{% endif %}</span><span><b>{{ person.name }}</b><small>{{ person.title }} · {{ person.unit }}</small></span></li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+    </div>
+  </div>
 </div>
 {% include "communication/_announcement_popup_runtime.html" %}
 {% endblock %}
 
 {% block extra_scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/bys360_home_festival_portal_v2_5.js') }}?v=home-festival-portal-v2-5-1"></script>
-{# BYS360_HOME_FESTIVAL_PORTAL_V2_5_1_JS #}
-
+<script src="{{ url_for('static', filename='js/bys360_home.js') }}"></script>
 <script src="{{ url_for('static', filename='js/announcement_popup.js') }}?v=home-announcement-popup-fix"></script>
 {% endblock %}
