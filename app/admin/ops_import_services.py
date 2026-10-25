@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from flask import current_app, flash, redirect, request, url_for
 from flask_login import current_user
-from openpyxl import load_workbook
 
 from app.extensions import db
 from app.models import User
@@ -27,6 +26,7 @@ from app.services.account_change_guard import (
 )
 from app.services.ai import build_excel_fix_preview_ai_panel
 from app.services.auto_hierarchy_service import auto_apply_manager_chains, infer_role_from_profile
+from app.services.excel_import_limits import ExcelImportRejected, read_import_rows
 from app.services.hierarchy_admin_service import normalize_text
 from app.services.performance_service import generate_assignments_for_active_period
 from app.services.personnel.categories import (
@@ -54,9 +54,11 @@ def admin_user_import_impl():
             flash("Lütfen bir Excel dosyası seçin.", "warning")
             return safe_render("excel_import.html", "<h3>Excel İçe Aktar</h3>", apply_ai_fixes=False, ai_excel_fix_panel=build_excel_fix_preview_ai_panel())
 
-        wb = load_workbook(f, data_only=True)
-        ws = wb.active
-        rows = list(ws.iter_rows(values_only=True))
+        try:
+            rows = read_import_rows(f)
+        except ExcelImportRejected as exc:
+            flash(exc.user_message, "danger")
+            return safe_render("excel_import.html", "<h3>Excel İçe Aktar</h3>", apply_ai_fixes=False, ai_excel_fix_panel=build_excel_fix_preview_ai_panel())
         if not rows:
             flash("Excel dosyası boş.", "danger")
             return safe_render("excel_import.html", "<h3>Excel İçe Aktar</h3>", apply_ai_fixes=False, ai_excel_fix_panel=build_excel_fix_preview_ai_panel())
