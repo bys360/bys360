@@ -26,6 +26,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 
 def _make_app(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("APP_ENV", "testing")
@@ -64,8 +66,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def test_fetch_people_options_returns_real_rows_not_silently_empty_on_sqlite(app):

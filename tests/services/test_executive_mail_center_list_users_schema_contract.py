@@ -56,6 +56,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SERVICE_FILE = "app/services/executive_mail_center.py"
 TEMPLATE_FILE = "app/templates/executive_summary/executive_mail_center.html"
@@ -77,7 +79,7 @@ _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "audit_tmp" / "executiv
 
 
 @pytest.fixture(scope="module")
-def app_and_db():
+def app_and_db(request):
     """Isolated, temp-SQLite Flask app (module-scoped). Never touches a
     real/production database. Same established pattern as this repo's
     other CSP/bugfix contract tests (UUID-based temp SQLite file,
@@ -107,6 +109,7 @@ def app_and_db():
     mp.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(
         TESTING=True,
         WTF_CSRF_ENABLED=False,

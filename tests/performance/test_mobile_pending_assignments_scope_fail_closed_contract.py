@@ -39,6 +39,8 @@ import pytest
 from sqlalchemy import event, text
 from sqlalchemy.exc import OperationalError
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _ROUTES_MODULE = "app.api.mobile.performance_routes"
 _PASSWORD = "TestPendingScope1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_post_overnight_p2_pending_scope")
@@ -125,12 +127,13 @@ def _user(flask_app, *, role: str) -> int:
 
 
 @pytest.fixture
-def env(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+def env(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> SimpleNamespace:
     """Person A (one own open task), person B (two open tasks) and an admin (global mobile role)."""
     from app.extensions import db
     from app.models import EvaluationAssignment, PerformancePeriod
 
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     person_a = _user(flask_app, role="personel")
     person_b = _user(flask_app, role="personel")
     employee = _user(flask_app, role="personel")

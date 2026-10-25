@@ -64,6 +64,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Tip of phase5-critical-lint-clean-v1 immediately before Style-3C's own
@@ -378,7 +380,7 @@ _BASE_TEMPLATE_MARKER = "topbarNotificationBadge"
 
 
 @pytest.fixture(scope="module")
-def style3c_env():
+def style3c_env(request):
     mp = pytest.MonkeyPatch()
     _TEST_DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_path = _TEST_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
@@ -407,6 +409,7 @@ def style3c_env():
     mp.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(
         TESTING=True,
         WTF_CSRF_ENABLED=False,

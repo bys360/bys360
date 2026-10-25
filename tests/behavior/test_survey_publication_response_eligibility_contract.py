@@ -79,6 +79,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_wave6_agent2")
 
 DEFAULT_PASSWORD = "Wave6Agent2SurveyTest1!"
@@ -149,8 +151,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 @pytest.fixture

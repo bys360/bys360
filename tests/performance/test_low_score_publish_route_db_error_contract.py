@@ -46,6 +46,8 @@ from typing import Any
 import pytest
 from sqlalchemy import text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _SERVICE_MODULE = "app.services.performance.low_score_process_service"
 _PREFLIGHT_MODULE = "app.services.performance.publish_preflight_rules"
 _ROUTE_MODULE = "app.performance.engagement_publish_routes"
@@ -148,9 +150,10 @@ def _user(flask_app, *, role: str) -> tuple[int, str]:
 
 
 @pytest.fixture
-def publish_env(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+def publish_env(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> SimpleNamespace:
     """App + logged-in admin test client; only the two unrelated gates are bypassed."""
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     monkeypatch.setattr(importlib.import_module("app.route_support"), "can_access_menu", lambda user, key: True)
     monkeypatch.setattr(
         importlib.import_module(_PREFLIGHT_MODULE),

@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 pytestmark = pytest.mark.ci_safe
 
 _CSRF_TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "audit_tmp" / "assistant_v2_csrf" / "test_dbs"
@@ -103,12 +105,13 @@ def _login(client, sicil_no, password=_PASSWORD):
     return response
 
 
-def test_ask_endpoint_is_csrf_protected_by_the_global_middleware(monkeypatch):
+def test_ask_endpoint_is_csrf_protected_by_the_global_middleware(monkeypatch, request):
     """Confirms this is genuinely case B (missing, not an established
     exemption): with CSRF enabled and no token sent at all, the endpoint
     must reject the request, exactly like every other state-changing POST
     in this app."""
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="av2_csrf_missing_admin")
     client = app.test_client()
     _login(client, "av2_csrf_missing_admin")
@@ -123,8 +126,9 @@ def test_ask_endpoint_is_csrf_protected_by_the_global_middleware(monkeypatch):
     assert body.get("code") == "csrf_refresh_required"
 
 
-def test_ask_endpoint_rejects_invalid_csrf_token(monkeypatch):
+def test_ask_endpoint_rejects_invalid_csrf_token(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="av2_csrf_invalid_admin")
     client = app.test_client()
     _login(client, "av2_csrf_invalid_admin")
@@ -136,11 +140,12 @@ def test_ask_endpoint_rejects_invalid_csrf_token(monkeypatch):
     assert response.status_code == 400
 
 
-def test_ask_endpoint_succeeds_with_valid_csrf_token(monkeypatch):
+def test_ask_endpoint_succeeds_with_valid_csrf_token(monkeypatch, request):
     """Positive control -- proves the fix (widget now sends this exact
     header, matching panel.html's own established pattern) does not
     collateral-damage a legitimate authorized request."""
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="av2_csrf_valid_admin")
     client = app.test_client()
     _login(client, "av2_csrf_valid_admin")
@@ -155,7 +160,7 @@ def test_ask_endpoint_succeeds_with_valid_csrf_token(monkeypatch):
     assert body["answer"]
 
 
-def test_ask_endpoint_still_enforces_authorization_with_valid_csrf(monkeypatch):
+def test_ask_endpoint_still_enforces_authorization_with_valid_csrf(monkeypatch, request):
     """A valid CSRF token must never substitute for real authorization --
     a denied capability must still be denied even with a technically valid
     token attached."""
@@ -163,6 +168,7 @@ def test_ask_endpoint_still_enforces_authorization_with_valid_csrf(monkeypatch):
     from app.services.assistant_v2.capability_registry import ASSISTANT_CAPABILITY_REGISTRY
 
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_user(app, sicil_no="av2_csrf_authz_personel", role="personel")
     client = app.test_client()
     _login(client, "av2_csrf_authz_personel")

@@ -74,6 +74,7 @@ from app.services.ai_decision.visibility_scope import (
     same_scope_label,
     user_matches_scope,
 )
+from tests.sqlite_test_cleanup import release_sqlite_app
 
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_agent1_aidecision")
 
@@ -593,8 +594,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def test_filter_evaluations_for_user_manager_scope_restricts_real_query(app):

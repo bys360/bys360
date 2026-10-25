@@ -107,6 +107,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "h1e_n1_comm_admin_role_display_tmp" / "test_dbs"
 _PASSWORD = "H1EN1CommAdminRoleDisplayTest1!"
 
@@ -289,8 +291,10 @@ def _make_app(monkeypatch):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 @pytest.fixture

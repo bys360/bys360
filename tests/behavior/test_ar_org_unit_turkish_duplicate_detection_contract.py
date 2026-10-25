@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TMP_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "audit_tmp" / "defect_ar_org_unit" / "test_dbs"
 
 
@@ -87,8 +89,9 @@ def _login(client, sicil_no):
     assert response.status_code == 302
 
 
-def test_turkish_cased_duplicate_org_unit_name_is_rejected(monkeypatch):
+def test_turkish_cased_duplicate_org_unit_name_is_rejected(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_admin(app, sicil_no="ar020", email="ar.admin@ktb.gov.tr")
 
     client = app.test_client()
@@ -121,8 +124,9 @@ def test_turkish_cased_duplicate_org_unit_name_is_rejected(monkeypatch):
     assert count == 1
 
 
-def test_genuinely_different_org_unit_names_are_both_created(monkeypatch):
+def test_genuinely_different_org_unit_names_are_both_created(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_admin(app, sicil_no="ar021", email="ar.admin2@ktb.gov.tr")
 
     client = app.test_client()

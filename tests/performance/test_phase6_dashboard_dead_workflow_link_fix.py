@@ -80,6 +80,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360_pytest_tmp" / "phase6_dead_link_fix_dbs"
 
@@ -184,8 +186,9 @@ def _login(client, sicil_no="p6dlf-admin", password="Phase6DeadLinkTestKey1!"):
 
 
 @pytest.fixture()
-def isolated_admin_app(monkeypatch):
+def isolated_admin_app(monkeypatch, request):
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_admin_user(app)
     return app
 

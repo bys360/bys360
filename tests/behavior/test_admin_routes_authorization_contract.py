@@ -60,6 +60,8 @@ from pathlib import Path
 import pytest
 from flask import template_rendered
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "admin_routes_authz_tmp" / "test_dbs"
 DEFAULT_PASSWORD = "AdminRoutesAuthzTest1!"
 DEFAULT_FIRST_LOGIN_PASSWORD = "admin-routes-first-login-test-pw"
@@ -109,8 +111,10 @@ def _make_app(monkeypatch, **env_overrides):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 @pytest.fixture
