@@ -6,6 +6,7 @@ anasayfa/portal beyaz ekrana düşmesin.
 """
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
@@ -163,7 +164,7 @@ def _latest_support(uid: int, limit: int = 3) -> list[dict[str, str]]:
     if q is None or or_ is None:
         return []
     rows = _safe(lambda: q.filter(or_(SupportTicket.created_by_user_id == uid, SupportTicket.assigned_to_user_id == uid), SupportTicket.status.in_(list(OPEN_SUPPORT_STATUSES))).order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).limit(limit).all(), []) or []
-    return [{"title": sanitize_free_text(getattr(ticket, "title", ""), limit=120) or "Destek talebi", "status": sanitize_free_text(getattr(ticket, "status_label", ""), limit=60) or sanitize_free_text(getattr(ticket, "status", ""), limit=60) or "Açık", "priority": sanitize_free_text(getattr(ticket, "priority_label", ""), limit=60) or sanitize_free_text(getattr(ticket, "priority", ""), limit=60) or "Normal", "link_url": f"/support/tickets/{getattr(ticket, 'id', '')}"} for ticket in rows]
+    return [{"title": sanitize_free_text(getattr(ticket, "title", ""), limit=120) or "Destek talebi", "status": sanitize_free_text(getattr(ticket, "status_label", ""), limit=60) or sanitize_free_text(getattr(ticket, "status", ""), limit=60) or "Açık", "priority": sanitize_free_text(getattr(ticket, "priority_label", ""), limit=60) or sanitize_free_text(getattr(ticket, "priority", ""), limit=60) or "Normal", "link_url": f"/support/{getattr(ticket, 'id', '')}"} for ticket in rows]
 
 
 def _active_surveys_for_user(user: Any, limit: int = 3) -> list[dict[str, str]]:
@@ -194,13 +195,45 @@ def _active_surveys_for_user(user: Any, limit: int = 3) -> list[dict[str, str]]:
     return [{"title": sanitize_free_text(getattr(survey, "title", ""), limit=140) or "Anket", "description": sanitize_free_text(getattr(survey, "description", ""), limit=160) or "Yanıt bekleyen anket.", "link_url": f"/surveys/{getattr(survey, 'id', '')}/take"} for survey in rows]
 
 
-def _recent_recognition(limit: int = 4) -> list[dict[str, str]]:
+def _can_view_post(user: Any, post: Any) -> bool:
+    """Portal akışının görünürlük kuralı (portal_service.can_user_view_post); hata = görünmez."""
+    def check() -> bool:
+        from app.services.portal_service import can_user_view_post
+
+        return bool(can_user_view_post(user, post))
+
+    return bool(_safe(check, False))
+
+
+def _visible_post_ids(user: Any, post_ids: set[int]) -> set[int]:
+    PortalPost = _model("PortalPost")
+    q = _query(PortalPost)
+    if q is None or not post_ids:
+        return set()
+    rows = _safe(lambda: q.filter(PortalPost.id.in_(list(post_ids))).all(), []) or []
+    return {int(row.id) for row in rows if _can_view_post(user, row)}
+
+
+def _visible_activity_count(user: Any, model_name: str, since: datetime) -> int:
+    """Son dönemdeki yorum/tepki sayısı; yalnız kullanıcının görebildiği gönderilerdeki kayıtlar."""
+    model = _model(model_name)
+    q = _query(model)
+    if q is None:
+        return 0
+    rows = _safe(lambda: q.filter(model.created_at >= since).with_entities(model.post_id).all(), []) or []
+    per_post = Counter(int(row[0]) for row in rows if row[0])
+    visible = _visible_post_ids(user, set(per_post))
+    return sum(count for post_id, count in per_post.items() if post_id in visible)
+
+
+def _recent_recognition(user: Any, limit: int = 4) -> list[dict[str, str]]:
     PortalPost = _model("PortalPost")
     q = _query(PortalPost)
     if q is None:
         return []
     since = utc_now() - timedelta(days=45)
-    rows = _safe(lambda: q.filter(PortalPost.status == "published", PortalPost.post_type.in_(["thanks", "success", "best_practice"]), PortalPost.published_at >= since).order_by(PortalPost.published_at.desc(), PortalPost.id.desc()).limit(limit).all(), []) or []
+    rows = _safe(lambda: q.filter(PortalPost.status == "published", PortalPost.post_type.in_(["thanks", "success", "best_practice"]), PortalPost.published_at >= since).order_by(PortalPost.published_at.desc(), PortalPost.id.desc()).limit(120).all(), []) or []
+    rows = [row for row in rows if _can_view_post(user, row)][:limit]
     items: list[dict[str, str]] = []
     for row in rows:
         author = getattr(row, "author", None)
@@ -209,7 +242,7 @@ def _recent_recognition(limit: int = 4) -> list[dict[str, str]]:
 
 
 def _base_experience(user: Any) -> dict[str, Any]:
-    return {"display_name": _display_name(user), "unit_name": _user_unit(user) or _user_upper_unit(user) or "BYS360", "priority_label": "Gün Özeti", "priority_tone": "calm", "priority_note": "Bekleyen işleriniz ve kurumsal akışınız bu alanda özetlenir.", "my_day_cards": [{"key": "notifications", "label": "Bildirim", "value": 0, "note": "okunmamış", "href": "/notifications", "icon": "fa-regular fa-bell", "tone": "neutral"}, {"key": "performance", "label": "Performans", "value": 0, "note": "bekleyen görev", "href": "/performance/tasks", "icon": "fa-solid fa-chart-line", "tone": "neutral"}, {"key": "support", "label": "Destek", "value": 0, "note": "açık talep", "href": "/support/tickets", "icon": "fa-solid fa-life-ring", "tone": "neutral"}, {"key": "surveys", "label": "Anket", "value": 0, "note": "yanıt bekleyen", "href": "/surveys", "icon": "fa-solid fa-square-poll-vertical", "tone": "neutral"}, {"key": "messages", "label": "Mesaj", "value": 0, "note": "aktif konuşma", "href": "/messages", "icon": "fa-regular fa-comments", "tone": "neutral"}], "notifications": [], "support_items": [], "survey_items": [], "recognition_items": [], "culture_stats": {"recognitions": 0, "comments": 0, "reactions": 0}, "quick_actions": [{"label": "Duyuru paylaş", "href": "/portal", "icon": "fa-solid fa-bullhorn", "hint": "Kurumsal bilgilendirme oluştur"}, {"label": "Teşekkür / Takdir", "href": "/portal", "icon": "fa-solid fa-award", "hint": "Emeği görünür hale getir"}, {"label": "Destek talebi", "href": "/support/tickets/new", "icon": "fa-solid fa-circle-question", "hint": "Yardım talebi oluştur"}]}
+    return {"display_name": _display_name(user), "unit_name": _user_unit(user) or _user_upper_unit(user) or "BYS360", "priority_label": "Gün Özeti", "priority_tone": "calm", "priority_note": "Bekleyen işleriniz ve kurumsal akışınız bu alanda özetlenir.", "my_day_cards": [{"key": "notifications", "label": "Bildirim", "value": 0, "note": "okunmamış", "href": "/notifications", "icon": "fa-regular fa-bell", "tone": "neutral"}, {"key": "performance", "label": "Performans", "value": 0, "note": "bekleyen görev", "href": "/performance/tasks", "icon": "fa-solid fa-chart-line", "tone": "neutral"}, {"key": "support", "label": "Destek", "value": 0, "note": "açık talep", "href": "/support/my-tickets", "icon": "fa-solid fa-life-ring", "tone": "neutral"}, {"key": "surveys", "label": "Anket", "value": 0, "note": "yanıt bekleyen", "href": "/surveys", "icon": "fa-solid fa-square-poll-vertical", "tone": "neutral"}, {"key": "messages", "label": "Mesaj", "value": 0, "note": "aktif konuşma", "href": "/messages", "icon": "fa-regular fa-comments", "tone": "neutral"}], "notifications": [], "support_items": [], "survey_items": [], "recognition_items": [], "culture_stats": {"recognitions": 0, "comments": 0, "reactions": 0}, "quick_actions": [{"label": "Duyuru paylaş", "href": "/portal", "icon": "fa-solid fa-bullhorn", "hint": "Kurumsal bilgilendirme oluştur"}, {"label": "Teşekkür / Takdir", "href": "/portal", "icon": "fa-solid fa-award", "hint": "Emeği görünür hale getir"}, {"label": "Destek talebi", "href": "/support/new", "icon": "fa-solid fa-circle-question", "hint": "Yardım talebi oluştur"}]}
 
 
 def portal_experience_context(user: Any) -> dict[str, Any]:
@@ -253,16 +286,17 @@ def portal_experience_context(user: Any) -> dict[str, Any]:
             px.update(priority_label="Sakin gün", priority_tone="calm", priority_note="Bekleyen kritik işlem görünmüyor; portal akışını takip edebilirsiniz.")
         def tone(value: int) -> str:
             return "warning" if value else "neutral"
-        px["my_day_cards"] = [{"key": "notifications", "label": "Bildirim", "value": unread_notifications, "note": "okunmamış", "href": "/notifications", "icon": "fa-regular fa-bell", "tone": tone(unread_notifications)}, {"key": "performance", "label": "Performans", "value": pending_performance, "note": "bekleyen görev", "href": "/performance/tasks", "icon": "fa-solid fa-chart-line", "tone": tone(pending_performance)}, {"key": "support", "label": "Destek", "value": open_support, "note": "açık talep", "href": "/support/tickets", "icon": "fa-solid fa-life-ring", "tone": tone(open_support)}, {"key": "surveys", "label": "Anket", "value": active_surveys, "note": "yanıt bekleyen", "href": "/surveys", "icon": "fa-solid fa-square-poll-vertical", "tone": tone(active_surveys)}, {"key": "messages", "label": "Mesaj", "value": active_messages, "note": "aktif konuşma", "href": "/messages", "icon": "fa-regular fa-comments", "tone": "primary" if active_messages else "neutral"}]
+        px["my_day_cards"] = [{"key": "notifications", "label": "Bildirim", "value": unread_notifications, "note": "okunmamış", "href": "/notifications", "icon": "fa-regular fa-bell", "tone": tone(unread_notifications)}, {"key": "performance", "label": "Performans", "value": pending_performance, "note": "bekleyen görev", "href": "/performance/tasks", "icon": "fa-solid fa-chart-line", "tone": tone(pending_performance)}, {"key": "support", "label": "Destek", "value": open_support, "note": "açık talep", "href": "/support/my-tickets", "icon": "fa-solid fa-life-ring", "tone": tone(open_support)}, {"key": "surveys", "label": "Anket", "value": active_surveys, "note": "yanıt bekleyen", "href": "/surveys", "icon": "fa-solid fa-square-poll-vertical", "tone": tone(active_surveys)}, {"key": "messages", "label": "Mesaj", "value": active_messages, "note": "aktif konuşma", "href": "/messages", "icon": "fa-regular fa-comments", "tone": "primary" if active_messages else "neutral"}]
         px["notifications"] = _latest_notifications(uid)
         px["support_items"] = _latest_support(uid)
         px["survey_items"] = survey_items[:3]
-        px["recognition_items"] = _recent_recognition()
+        px["recognition_items"] = _recent_recognition(user)
         since = utc_now() - timedelta(days=30)
         q_posts = _query(PortalPost)
         q_comments = _query(PortalPostComment)
         q_reactions = _query(PortalPostReaction)
-        px["culture_stats"] = {"recognitions": _safe_count(lambda: q_posts.filter(PortalPost.post_type.in_(["thanks", "success", "best_practice"]), PortalPost.created_at >= since)) if q_posts is not None else 0, "comments": _safe_count(lambda: q_comments.filter(PortalPostComment.created_at >= since)) if q_comments is not None else 0, "reactions": _safe_count(lambda: q_reactions.filter(PortalPostReaction.created_at >= since)) if q_reactions is not None else 0}
+        recognition_rows = (_safe(lambda: q_posts.filter(PortalPost.post_type.in_(["thanks", "success", "best_practice"]), PortalPost.created_at >= since).all(), []) or []) if q_posts is not None else []
+        px["culture_stats"] = {"recognitions": sum(1 for row in recognition_rows if _can_view_post(user, row)), "comments": _visible_activity_count(user, "PortalPostComment", since) if q_comments is not None else 0, "reactions": _visible_activity_count(user, "PortalPostReaction", since) if q_reactions is not None else 0}
         return {"portal_experience_enabled": True, "portal_experience": px}
     except Exception:
         return {"portal_experience_enabled": True, "portal_experience": _base_experience(user)}
