@@ -79,6 +79,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_h1e_n3")
 
 _PASSWORD = "H1EN3MobileAiContractTest1!"
@@ -201,8 +203,9 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch, install_interim_notes_schema):
+def app(monkeypatch, install_interim_notes_schema, request):
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     from app.extensions import db
 
     with flask_app.app_context():

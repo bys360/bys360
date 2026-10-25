@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 from app.core.datetime_utils import utc_now
 from app.models import PerformanceEvaluation, PerformancePeriod
 from app.services.performance import low_score_process_service as svc
+from tests.sqlite_test_cleanup import release_sqlite_app
 
 # _period_year/_is_completed/is_low_score_evaluation all read their argument
 # purely through getattr(x, attr, default) (verified in
@@ -399,8 +400,10 @@ def _phase5_make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def ls_app(monkeypatch: pytest.MonkeyPatch):
-    return _phase5_make_app(monkeypatch)
+def ls_app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    flask_app = _phase5_make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def _phase5_next_suffix() -> int:
@@ -662,8 +665,10 @@ def test_phase4t_ensure_low_score_processes_for_period_handles_missing_period() 
 
 def test_phase4t_ensure_low_score_processes_for_period_reports_schema_missing_when_tables_absent(
     monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
 ) -> None:
     app_obj = _phase5_make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app_obj))
 
     from app.extensions import db
     from app.models import (

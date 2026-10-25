@@ -78,6 +78,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_FILE = "app/templates/performance/meeting_development_faz4.html"
 ROUTE_FILE = "app/performance/meeting_development_faz4_routes.py"
@@ -413,7 +415,7 @@ _SAFE_RENDER_FALLBACK_MARKERS = ("\u015fablonunda hata var", "\u015fablonu hatal
 
 
 @pytest.fixture(scope="module")
-def final_gate_env():
+def final_gate_env(request):
     mp = pytest.MonkeyPatch()
     _TEST_DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_path = _TEST_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
@@ -440,6 +442,7 @@ def final_gate_env():
     mp.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(
         TESTING=True,
         WTF_CSRF_ENABLED=False,

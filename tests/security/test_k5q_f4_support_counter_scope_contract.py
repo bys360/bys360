@@ -26,6 +26,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = f"K5qF4-{secrets.token_hex(8)}-aA1!"  # synthetic test users only; generated per run
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "k5q_f4_counters" / "dbs"
 OTHER_TICKETS = 9  # created by "creator" in Birim-A; one of them private
@@ -74,7 +76,7 @@ def _replay_tckn_scan(original):
 
 
 @pytest.fixture
-def env(monkeypatch, tmp_path):
+def env(monkeypatch, tmp_path, request):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     uri = "sqlite:///" + (_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3").as_posix()
     for key, value in {
@@ -95,6 +97,7 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri,
                             UPLOAD_FOLDER=str(tmp_path / "uploads"))
     from app.extensions import db

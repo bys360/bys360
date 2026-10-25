@@ -34,6 +34,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360_pytest_tmp_final" / "auth_guard_behavior_contract" / "test_dbs"
 
 _PROBE_ROLE_REQUIRED_PATH = "/bys360-test-only/auth-guard/role-required-admin"
@@ -59,7 +61,7 @@ class _RaisingPermsQuery:
 
 
 @pytest.fixture(scope="module")
-def auth_guard_env():
+def auth_guard_env(request):
     mp = pytest.MonkeyPatch()
     _TEST_DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_path = _TEST_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
@@ -87,6 +89,7 @@ def auth_guard_env():
     mp.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=db_uri)
 
     from app.route_support import (

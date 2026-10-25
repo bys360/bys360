@@ -27,6 +27,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_defect_ar_table_exists")
 
 
@@ -74,8 +76,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch: pytest.MonkeyPatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 _MODULES = [

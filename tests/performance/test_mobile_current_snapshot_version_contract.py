@@ -40,6 +40,8 @@ from typing import Any
 import pytest
 from sqlalchemy import event, text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _PASSWORD = "TestMobileCurrentSnapshot1!"
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_p02w_current_snapshot")
 _COMMENT = "Dönem boyunca hedeflerin önemli bir kısmı karşılanamadı; gelişim planı gereklidir."
@@ -158,11 +160,12 @@ def _flashes(client) -> list[tuple[str, str]]:
 
 
 @pytest.fixture
-def env(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+def env(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> SimpleNamespace:
     from app.extensions import db
     from app.models import PerformanceCriteria
 
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     admin_id, admin_sicil = _user(flask_app, role="admin")
     admin = flask_app.test_client()
     _login(admin, admin_sicil)
