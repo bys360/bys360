@@ -34,6 +34,8 @@
     var panel = panelEl(root);
     var launcher = launcherEl(root);
     if (!root || !panel) return false;
+    // BYS360_ASSISTANT_MOBILE_LAUNCHER_FIX_2026_10: kapanırken odak paneldeyse düğmeye döner.
+    var focusWasInside = !open && panel.contains(document.activeElement);
     if (open) {
       panel.hidden = false;
       panel.removeAttribute('hidden');
@@ -44,6 +46,7 @@
       root.classList.remove('is-open');
     }
     if (launcher) launcher.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (focusWasInside && launcher && typeof launcher.focus === 'function') launcher.focus();
     try { localStorage.setItem(STORAGE_OPEN, open ? '1' : '0'); } catch (e) {}
     scrub();
     return true;

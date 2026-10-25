@@ -434,3 +434,48 @@
 }
 .bys360-am-intro strong{display:block;font-size:14px;font-weight:900;color:#8B0000;margin-bottom:4px;}
 .bys360-am-intro span{display:block;font-size:12.5px;line-height:1.45;color:#3d3d3d;}
+
+
+/* BYS360_ASSISTANT_MOBILE_LAUNCHER_FIX_2026_10_START
+   Mobil (<= 620 px) düzeltmeleri. Yeni önem bayrağı eklenmez; geniş ekran kuralları
+   bys360_assistant_chatgpt_like_v31.css içinde min-width: 621px koşuluna alındı.
+   1) Kapalı düğme: etiket gizli olduğu için boş hap yerine 56 px yuvarlak düğme;
+      erişilebilir adı aria-label="BYS360 Asistanı" verir.
+   2) Panel açıkken kapalı düğme gizlenir; sayfanın önünü kapatmaz.
+      Panel kendi kapatma (×) düğmesiyle kapanır, odak düğmeye döner.
+   3) Ekran klavyesi: bys360_assistant_module.js görünür alan yüksekliğini
+      (--bys360-am-vvh) ve klavye payını (--bys360-am-kb) yazar; kök klavyenin
+      üstüne taşınır, panel yüksekliği (v31 dosyasında) bu alana sığar.
+   4) Güvenli alan (çentik / ana ekran çubuğu) boşlukları. */
+@media (max-width: 620px) {
+  #bys360-assistant-module-root {
+    right: calc(10px + env(safe-area-inset-right, 0px));
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px) + var(--bys360-am-kb, 0px));
+  }
+  #bys360-assistant-module-root .bys360-am-launcher {
+    justify-content: center;
+    width: 56px;
+    min-width: 56px;
+    height: 56px;
+    min-height: 56px;
+    padding: 4px;
+    border-radius: 50%;
+  }
+  #bys360-assistant-module-root .bys360-am-launcher-icon {
+    width: 46px;
+    height: 46px;
+  }
+  #bys360-assistant-module-root .bys360-am-launcher[aria-expanded="true"] {
+    display: none;
+  }
+  #bys360-assistant-module-root .bys360-am-panel {
+    min-height: 0;
+  }
+}
+/* 5) Geniş ekranda panel ekrandan taşmaz (ör. 1366×768'de üst kısım kesiliyordu). */
+@media (min-width: 621px) {
+  #bys360-assistant-module-root .bys360-am-panel {
+    max-height: calc(100vh - 116px);
+  }
+}
+/* BYS360_ASSISTANT_MOBILE_LAUNCHER_FIX_2026_10_END */
