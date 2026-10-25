@@ -120,11 +120,23 @@ def test_new_template_new_class_markup_present_verbatim() -> None:
     assert '<div class="privacy-box section-spacing-bottom-md">' in text
     # new.html:35 ve new.html:74 ayni birebir deklarasyona sahipti -> ayni
     # sinif (field-helper-text) TEKRAR KULLANILDI, iki ayri sinif ACILMADI.
-    assert text.count('<div class="field-helper-text">') == 2
-    assert (
-        '<label class="checkbox-inline checkbox-inline--emphasis"><input type="checkbox" name="is_private" '
-        'value="1"> Sadece yetkili kullanıcılar görsün</label>' in text
+    # BYS360 UX PILOT (PR #75, E2): gizlilik yardim metni artik bir id tasiyor
+    # ve onay kutusu ona aria-describedby ile bagli. Sinif yine tam olarak
+    # "field-helper-text" (ek sinif yok), iki kez kullaniliyor.
+    assert text.count('class="field-helper-text"') == 2
+    assert len(re.findall(r'<div class="field-helper-text"(?: id="[a-z-]+")?>', text)) == 2
+    label = re.search(
+        r'<label class="checkbox-inline checkbox-inline--emphasis">(<input [^>]*>) Sadece yetkili kullanıcılar görsün</label>',
+        text,
     )
+    assert label, "Gizlilik onay kutusu etiketi (checkbox-inline checkbox-inline--emphasis) bulunamadi."
+    checkbox = label.group(1)
+    for required in ('type="checkbox"', 'name="is_private"', 'value="1"', 'id="ticket-private"'):
+        assert required in checkbox, f"Onay kutusunda {required} yok: {checkbox!r}"
+    described = re.search(r'aria-describedby="([^"]+)"', checkbox)
+    assert described, "Onay kutusu yardim metnine aria-describedby ile bagli degil."
+    assert f'<div class="field-helper-text" id="{described.group(1)}">' in text
+    assert not _INLINE_STYLE_ATTR_RE.search(checkbox)
 
 
 def test_notifications_list_new_class_markup_present_verbatim() -> None:
@@ -155,7 +167,12 @@ def test_style_blocks_and_style_links_untouched_count() -> None:
     ayrica CSS dosyasi testlerinde (Bolum B) yapilir."""
     assert _read(HELP_ADMIN_LIST_TEMPLATE).count("<style>") == 1
     assert _read(DETAIL_TEMPLATE).count("<style>") == 1
-    assert _read(NEW_TEMPLATE).count("<style>") == 1
+    # BYS360 UX PILOT (PR #75, plan K2/K3): support/new.html'in tek <style>
+    # blogu kapsamli dis CSS'e (app/static/css/bys360_components.css) tasindi;
+    # tasima stil ratchet manifestinde STYLE_MIGRATION_WAVES["ux_pilot_support_new"]
+    # olarak kayitli (repo geneli blok sayisi 221 -> 220). Bu sablonda artik
+    # hic <style> blogu olmamali; yeniden eklenmesi bu testi kirar.
+    assert _read(NEW_TEMPLATE).count("<style") == 0
     notif_text = _read(NOTIFICATIONS_TEMPLATE)
     assert notif_text.count("<style>") == 2  # @import blogu + asil blok, ikisi de mevcut/dokunulmadi
     for relative_path in OWNED_TEMPLATES:

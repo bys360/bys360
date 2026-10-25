@@ -207,7 +207,7 @@ def build_weather_recommendations(weather: dict[str, Any]) -> list[dict[str, str
             "level": "muted",
             "icon": "fa-circle-info",
             "title": "Hava durumu kapalı",
-            "text": "WEATHER_ENABLED kapalı olduğu için saha önerileri bilgi amaçlı varsayılan düzeyde gösterilir.",
+            "text": "Hava durumu bilgisi bu ortamda kapalı; saha önerileri genel bilgi düzeyinde gösterilir.",
         }]
 
     wind_speed = max(_number(weather.get("wind_speed")), _number(weather.get("daily_wind_max")))
