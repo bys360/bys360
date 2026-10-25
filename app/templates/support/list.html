@@ -5,280 +5,148 @@
 {% block page_subtitle %}{{ page_text }}{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/faz4_support_account_mobile.css') }}">
-<style>
-.support-shell{display:grid;gap:18px}
-.support-tabs{display:flex;flex-wrap:wrap;gap:10px}
-.support-tab{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid rgba(15,23,42,.08);text-decoration:none;color:#374151;font-weight:800}
-.support-tab.active{background:rgba(139,0,0,.08);color:#8B0000;border-color:rgba(139,0,0,.16)}
-.hero-card,.toolbar-card,.list-card,.stream-card{background:rgba(255,255,255,.94);border:1px solid rgba(139,0,0,.10);border-radius:24px;box-shadow:0 18px 36px rgba(15,23,42,.08)}
-.hero-card{position:relative;overflow:hidden;padding:24px;background:linear-gradient(135deg,rgba(139,0,0,.08),rgba(255,255,255,.96) 38%,rgba(255,255,255,.98))}
-.hero-card::after{content:"";position:absolute;right:-70px;top:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(139,0,0,.08),transparent 68%)}
-.hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(320px,.9fr);gap:18px;align-items:start}
-.hero-title{margin:0 0 8px;font-size:1.25rem;font-weight:900;color:#111827}
-.hero-text{margin:0;color:#4b5563;line-height:1.7}
-.hero-badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border-radius:999px;background:#fff;border:1px solid rgba(15,23,42,.08);font-weight:800;color:#334155}
-.hero-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.mini-stat{padding:14px;border-radius:20px;background:#fff;border:1px solid rgba(15,23,42,.08)}
-.mini-stat-value{font-size:1.35rem;font-weight:900;color:#8B0000;line-height:1}
-.mini-stat-label{margin-top:6px;font-size:.8rem;font-weight:800;color:#64748b}
-.toolbar-card{padding:18px}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-.toolbar form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.toolbar input,.toolbar select{min-height:42px;border-radius:12px;border:1px solid rgba(15,23,42,.08);padding:0 14px;background:#fff;min-width:220px}
-.mini-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border-radius:12px;border:1px solid rgba(15,23,42,.08);background:#eef2f7;color:#374151;text-decoration:none;font-weight:800}
-.mini-btn.primary{background:#8B0000;color:#fff;border-color:#8B0000}
-.stream-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
-.stream-card{padding:18px}
-.stream-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
-.stream-title{margin:0;font-size:1rem;font-weight:900;color:#111827}
-.stream-text{margin:4px 0 0;color:#64748b;font-size:.84rem;line-height:1.6}
-.stream-count{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:42px;border-radius:14px;background:rgba(139,0,0,.08);color:#8B0000;font-weight:900}
-.stream-list{display:grid;gap:10px}
-.stream-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:16px;background:#fff;border:1px solid rgba(15,23,42,.06);text-decoration:none}
-.stream-item:hover{border-color:rgba(139,0,0,.18);background:rgba(139,0,0,.02)}
-.stream-item-title{margin:0;font-size:.9rem;font-weight:900;color:#111827;line-height:1.5}
-.stream-item-meta{margin-top:4px;font-size:.77rem;color:#64748b;line-height:1.5}
-.stream-open{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:12px;background:#f8fafc;color:#8B0000;flex-shrink:0}
-.list-card{padding:22px}
-.table-wrap{overflow:auto;border-radius:20px;border:1px solid rgba(15,23,42,.08)}
-.ticket-table{width:100%;border-collapse:separate;border-spacing:0;min-width:1580px;background:#fff}
-.ticket-table thead th{position:sticky;top:0;z-index:1;background:#f7f8fa;color:#334155;font-size:.78rem;font-weight:900;text-align:left;padding:14px 12px;border-bottom:1px solid rgba(15,23,42,.08);white-space:nowrap}
-.ticket-table tbody td{padding:14px 12px;border-bottom:1px solid rgba(15,23,42,.06);vertical-align:top;color:#334155;font-size:.88rem;line-height:1.6}
-.ticket-table tbody tr:hover{background:rgba(139,0,0,.03)}
-.cell-strong{font-weight:900;color:#111827}
-.cell-link{display:inline-flex;align-items:center;gap:8px;color:#8B0000;text-decoration:none;font-weight:900}
-.cell-muted{display:block;color:#6b7280;font-size:.78rem;margin-top:4px}
-.solution-text,.substatus-text{max-width:250px;color:#4b5563}
-.support-chip{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 10px;border-radius:999px;font-size:.76rem;font-weight:900;white-space:nowrap}
-.priority-critical,.status-open{background:rgba(254,242,242,.95);color:#b91c1c}
-.priority-high,.status-reviewing,.status-waiting_info{background:rgba(255,247,237,.95);color:#c2410c}
-.priority-normal,.status-assigned,.status-planned{background:rgba(239,246,255,.95);color:#1d4ed8}
-.priority-low,.status-resolved,.status-closed{background:rgba(236,253,245,.95);color:#047857}
-.status-rejected{background:rgba(243,244,246,.95);color:#4b5563}
-.empty-box{padding:26px;border-radius:18px;border:1px dashed rgba(15,23,42,.12);background:#f8fafc;color:#6b7280}
-@media (max-width: 1200px){.hero-grid,.stream-grid{grid-template-columns:1fr}}
-@media (max-width: 768px){.hero-stats{grid-template-columns:1fr}.toolbar form{width:100%}.toolbar input,.toolbar select{min-width:0;width:100%}}
-</style>
-<div class="support-shell">
-    {% include 'support/_tabs.html' %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_components.css') }}">
+{# BYS360_UX_WAVE2_SUPPORT_LIST: Taleplerim / Bana Atananlar / Tüm Talepler ortak liste ekranı.
+   Pilot (support/new.html) tasarım dili: sade başlık, özet şeridi, arama, tablo (masaüstü) ve kart listesi (mobil).
+   Rota, yetki ve sorgular değişmedi; yalnız sunum. #}
+{% set open_statuses = ['open', 'reviewing', 'waiting_info', 'assigned', 'planned'] %}
+{% set done_statuses = ['resolved', 'closed'] %}
+{% set open_count = tickets|selectattr('status', 'in', open_statuses)|list|length %}
+{% set done_count = tickets|selectattr('status', 'in', done_statuses)|list|length %}
+{% set show_requester = current_view_key != 'support_my_tickets' %}
+{% set has_filter = search_query or status_filter %}
+{% set status_icons = {'open': 'fa-circle-dot', 'reviewing': 'fa-magnifying-glass', 'waiting_info': 'fa-circle-question', 'assigned': 'fa-user-check', 'planned': 'fa-calendar-check', 'resolved': 'fa-circle-check', 'closed': 'fa-lock', 'rejected': 'fa-circle-xmark'} %}
+{% set status_tones = {'open': 'info', 'reviewing': 'warning', 'waiting_info': 'warning', 'assigned': 'info', 'planned': 'info', 'resolved': 'success', 'closed': 'neutral', 'rejected': 'neutral'} %}
+{% set priority_tones = {'critical': 'danger', 'high': 'warning', 'normal': 'neutral', 'low': 'neutral'} %}
+{# Türkçe arayüz standardı: kayıtlı alan adı (module_name) değişmez; yalnız gösterilen ad Türkçeleştirilir (support/new.html ile aynı eşleme). #}
+{% set module_display_labels = {'Raporlama ve Dashboard': 'Raporlama ve Gösterge Paneli', 'KPI / Hedef Yönetimi': 'Performans Göstergesi (KPI) / Hedef Yönetimi'} %}
+<div class="support-shell bys-ui bys-page">
+    <nav class="bys-tabs skip-mobile-normalize" aria-label="Destek bölümleri">{% include 'support/_tabs.html' %}</nav>
 
-    <section class="hero-card">
-        <div class="hero-grid">
-            <div>
-                {% if current_view_key == 'support_my_tickets' %}
-                <h3 class="hero-title">Taleplerim görünümü hazırlandı</h3>
-                <p class="hero-text">Destek akışları, yardım merkezinin altında kaybolmayacak şekilde daha görünür bir yapıda düzenlendi. Bu ekranda kayıt tablosu ile son işlem akışlarını aynı kurumsal çizgide takip edebilirsiniz.</p>
-                {% elif current_view_key == 'support_assigned' %}
-                <h3 class="hero-title">Bana Atananlar görünümü hazırlandı</h3>
-                <p class="hero-text">Atandığınız destek kayıtları daha görünür ve düzenli bir yapıda sunuldu. Bu ekranda kayıt tablosu ile son işlem akışlarını aynı kurumsal çizgide takip edebilirsiniz.</p>
-                {% else %}
-                <h3 class="hero-title">Tüm Talepler görünümü hazırlandı</h3>
-                <p class="hero-text">Kurum genelindeki destek kayıtları daha görünür ve düzenli bir yapıda listelenir. Bu ekranda kayıt tablosu ile son işlem akışlarını aynı kurumsal çizgide takip edebilirsiniz.</p>
-                {% endif %}
-                <div class="hero-badges">
-                    <!-- BYS360_SOURCE_SYNC_SUPPORT_ALL_MARKER_V1_2: Yetkili talep görünümü -->
-                    <span class="hero-badge"><i class="fa-solid fa-list-check"></i> Kayıt tablosu</span>
-                    <span class="hero-badge"><i class="fa-solid fa-clock-rotate-left"></i> Son işlem akışı</span>
-                    {% if is_manager_view %}<span class="hero-badge"><i class="fa-solid fa-user-gear"></i> Yetkili talep görünümü</span>{% elif can_assigned_view|default(false) %}<span class="hero-badge"><i class="fa-solid fa-user-check"></i> Üzerime atanan kayıtlar</span>{% endif %}
-                </div>
-            </div>
-            <div class="hero-stats">
-                <div class="mini-stat">
-                    <div class="mini-stat-value">{{ tickets|length }}</div>
-                    <div class="mini-stat-label">Listelenen kayıt</div>
-                </div>
-                <div class="mini-stat">
-                    <div class="mini-stat-value">{{ my_recent_tickets|length if my_recent_tickets is defined else 0 }}</div>
-                    <div class="mini-stat-label">Taleplerim akışı</div>
-                </div>
-                {% if is_manager_view or can_assigned_view|default(false) %}
-                <div class="mini-stat">
-                    <div class="mini-stat-value">{{ assigned_recent_tickets|length if assigned_recent_tickets is defined else 0 }}</div>
-                    <div class="mini-stat-label">Bana atananlar</div>
-                </div>
-                <div class="mini-stat">
-                    <div class="mini-stat-value">{{ all_recent_tickets|length if is_manager_view and all_recent_tickets is defined else 0 }}</div>
-                    <div class="mini-stat-label">{{ 'Tüm talep akışı' if is_manager_view else 'Yetki kapsamı' }}</div>
-                </div>
-                {% else %}
-                <div class="mini-stat">
-                    <div class="mini-stat-value">{{ search_query|length if search_query else 0 }}</div>
-                    <div class="mini-stat-label">Arama karakteri</div>
-                </div>
-                <div class="mini-stat">
-                    <div class="mini-stat-value">{{ '1' if search_query or status_filter else '0' }}</div>
-                    <div class="mini-stat-label">Aktif filtre seti</div>
-                </div>
-                {% endif %}
-            </div>
+    <header class="bys-page-header">
+        <div class="bys-page-header__text">
+            <p class="bys-eyebrow">Destek ve Talep Yönetimi</p>
+            <h2 class="bys-page-title">{{ page_heading }}</h2>
+            <p class="bys-page-lead">{{ page_text }}</p>
         </div>
+        <a class="bys-btn bys-btn--primary" href="{{ url_for('main.support_new') }}"><i class="fa-solid fa-plus" aria-hidden="true"></i> Yeni Talep Aç</a>
+    </header>
+
+    <section class="bys-stats skip-mobile-normalize" aria-label="Liste özeti">
+        <div class="bys-stat"><span class="bys-stat__value">{{ tickets|length }}</span><span class="bys-stat__label">{{ 'Bulunan talep' if has_filter else 'Listelenen talep' }}</span></div>
+        <div class="bys-stat"><span class="bys-stat__value">{{ open_count }}</span><span class="bys-stat__label">Devam eden</span></div>
+        <div class="bys-stat"><span class="bys-stat__value">{{ done_count }}</span><span class="bys-stat__label">Çözülen veya kapatılan</span></div>
     </section>
 
-    <div class="toolbar-card">
-        <div class="toolbar">
-            <form method="get">
-                <input type="text" name="q" value="{{ search_query or '' }}" placeholder="Başvuru no, konu, kişi veya modül ara">
-                {% if status_choices is defined %}
-                <select name="status">
+    <section class="bys-card bys-list-card" aria-labelledby="bysListTitle">
+        <form class="bys-toolbar skip-mobile-normalize" method="get" role="search" aria-label="Talepleri ara">
+            <div class="bys-field bys-toolbar__search">
+                <label class="bys-field__label" for="support-search">Talep ara</label>
+                <input class="bys-input" type="search" id="support-search" name="q" value="{{ search_query or '' }}" maxlength="120" placeholder="Başvuru no, konu, kişi veya alan" autocomplete="off">
+            </div>
+            {% if status_choices is defined %}
+            <div class="bys-field bys-toolbar__status">
+                <label class="bys-field__label" for="support-status">Durum</label>
+                <select class="bys-input" id="support-status" name="status">
                     <option value="">Tüm durumlar</option>
-                    {% for value,label in status_choices %}<option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    {% for value, label in status_choices %}<option value="{{ value }}"{% if status_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
                 </select>
-                {% endif %}
-                <button type="submit" class="mini-btn"><i class="fa-solid fa-filter"></i> Filtrele</button>
-                {% if search_query or status_filter %}<a href="{{ request.path }}" class="mini-btn"><i class="fa-solid fa-rotate-left"></i> Temizle</a>{% endif %}
-            </form>
-            <a href="{{ url_for('main.support_new') }}" class="mini-btn primary"><i class="fa-solid fa-plus"></i> Yeni Talep</a>
-        </div>
-    </div>
+            </div>
+            {% endif %}
+            <div class="bys-toolbar__actions">
+                <button type="submit" class="bys-btn bys-btn--secondary"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Ara</button>
+                {% if has_filter %}<a href="{{ request.path }}" class="bys-btn bys-btn--ghost">Aramayı temizle</a>{% endif %}
+            </div>
+        </form>
 
-    <section class="stream-grid">
-        <article class="stream-card">
-            <div class="stream-head">
-                <div>
-                    <h4 class="stream-title">Taleplerim</h4>
-                    <p class="stream-text">Açtığınız kayıtların son güncellenen akışı.</p>
-                </div>
-                <span class="stream-count">{{ my_recent_tickets|length if my_recent_tickets is defined else 0 }}</span>
-            </div>
-            <div class="stream-list">
-                {% for ticket in (my_recent_tickets or [])[:5] %}
-                <a class="stream-item" href="{{ url_for('main.support_detail', ticket_id=ticket.id) }}">
-                    <div>
-                        <p class="stream-item-title">{{ ticket.ticket_no }} · {{ ticket.title }}</p>
-                        <div class="stream-item-meta">{{ ticket.status_label }} · {{ ticket.priority_label }} · {{ ticket.updated_at.strftime('%d.%m.%Y %H:%M') if ticket.updated_at else '-' }}</div>
-                    </div>
-                    <span class="stream-open"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
-                </a>
-                {% else %}
-                <div class="empty-box">Henüz sizin adınıza açılmış kayıt görünmüyor.</div>
-                {% endfor %}
-            </div>
-        </article>
+        <h3 class="bys-list-title" id="bysListTitle">
+            {% if has_filter %}Arama sonuçları{% else %}{{ page_heading }}{% endif %}
+            <span class="bys-list-title__count">{{ tickets|length }} kayıt</span>
+        </h3>
 
-        {% if is_manager_view or can_assigned_view|default(false) %}
-        <article class="stream-card">
-            <div class="stream-head">
-                <div>
-                    <h4 class="stream-title">Bana Atananlar</h4>
-                    <p class="stream-text">İşlem bekleyen veya üzerinize yönlendirilmiş kayıtlar.</p>
-                </div>
-                <span class="stream-count">{{ assigned_recent_tickets|length if assigned_recent_tickets is defined else 0 }}</span>
-            </div>
-            <div class="stream-list">
-                {% for ticket in (assigned_recent_tickets or [])[:5] %}
-                <a class="stream-item" href="{{ url_for('main.support_detail', ticket_id=ticket.id) }}">
-                    <div>
-                        <p class="stream-item-title">{{ ticket.ticket_no }} · {{ ticket.title }}</p>
-                        <div class="stream-item-meta">{{ ticket.full_name_snapshot or '-' }} · {{ ticket.status_label }} · {{ ticket.updated_at.strftime('%d.%m.%Y %H:%M') if ticket.updated_at else '-' }}</div>
-                    </div>
-                    <span class="stream-open"><i class="fa-solid fa-user-check"></i></span>
-                </a>
-                {% else %}
-                <div class="empty-box">Üzerinize atanmış güncel kayıt görünmüyor.</div>
-                {% endfor %}
-            </div>
-        </article>
-        {% endif %}
-
-        {% if is_manager_view and show_all_stream %}
-        <article class="stream-card">
-            <div class="stream-head">
-                <div>
-                    <h4 class="stream-title">Tüm Talepler</h4>
-                    <p class="stream-text">Yetki verilen kullanıcılarda tüm kayıtların son güncellenen görünümü.</p>
-                </div>
-                <span class="stream-count">{{ all_recent_tickets|length if all_recent_tickets is defined else 0 }}</span>
-            </div>
-            <div class="stream-list">
-                {% for ticket in (all_recent_tickets or [])[:5] %}
-                <a class="stream-item" href="{{ url_for('main.support_detail', ticket_id=ticket.id) }}">
-                    <div>
-                        <p class="stream-item-title">{{ ticket.ticket_no }} · {{ ticket.title }}</p>
-                        <div class="stream-item-meta">{{ ticket.full_name_snapshot or '-' }} · {{ ticket.module_name }} · {{ ticket.updated_at.strftime('%d.%m.%Y %H:%M') if ticket.updated_at else '-' }}</div>
-                    </div>
-                    <span class="stream-open"><i class="fa-solid fa-building-shield"></i></span>
-                </a>
-                {% else %}
-                <div class="empty-box">Kurum genelinde gösterilecek güncel kayıt bulunamadı.</div>
-                {% endfor %}
-            </div>
-        </article>
-        {% elif is_manager_view %}
-        <article class="stream-card">
-            <div class="stream-head">
-                <div>
-                    <h4 class="stream-title">Yönetici Notu</h4>
-                    <p class="stream-text">Tüm kayıt akışını görmek için “Tüm Talepler” sekmesini açabilirsiniz.</p>
-                </div>
-                <span class="stream-count"><i class="fa-solid fa-table-list"></i></span>
-            </div>
-            <div class="stream-list">
-                <a class="stream-item" href="{{ url_for('main.support_all') }}">
-                    <div>
-                        <p class="stream-item-title">Kurum geneli tüm talepler</p>
-                        <div class="stream-item-meta">Admin ve yönetici görünümünde tüm kayıtları tek tabloda açar.</div>
-                    </div>
-                    <span class="stream-open"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
-                </a>
-            </div>
-        </article>
-        {% endif %}
-    </section>
-
-    <div class="list-card">
         {% if tickets %}
-        <div class="table-wrap">
-            <table class="ticket-table">
+        <div class="bys-table-wrap" role="region" aria-labelledby="bysListTitle" tabindex="0">
+            <table class="bys-table">
+                <caption class="visually-hidden">{{ page_heading }}: başvuru numarası, konu, öncelik, durum, atanan kişi ve son güncelleme</caption>
                 <thead>
                     <tr>
-                        <th>Başvuru No</th>
-                        <th>Başvuru Sahibi</th>
-                        <th>Başvuru Konusu</th>
-                        <th>Öncelik</th>
-                        <th>Başvuru Tarihi</th>
-                        <th>Durum</th>
-                        <th>Alt Durum</th>
-                        <th>Atanan Personel</th>
-                        <th>Çözüm</th>
-                        <th>Durum Tarihi</th>
-                        <th>Süre</th>
+                        <th scope="col">Başvuru</th>
+                        {% if show_requester %}<th scope="col">Başvuru sahibi</th>{% endif %}
+                        <th scope="col">Öncelik</th>
+                        <th scope="col">Durum</th>
+                        <th scope="col">Atanan</th>
+                        <th scope="col">Son güncelleme</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for ticket in tickets %}
                     <tr>
                         <td>
-                            <a class="cell-link" href="{{ url_for('main.support_detail', ticket_id=ticket.id) }}">
-                                <i class="fa-solid fa-arrow-up-right-from-square"></i> {{ ticket.ticket_no }}
-                            </a>
+                            <a class="bys-table__primary" href="{{ url_for('main.support_detail', ticket_id=ticket.id) }}">{{ ticket.title }}</a>
+                            <span class="bys-table__meta">{{ ticket.ticket_no }} · {{ module_display_labels.get(ticket.module_name, ticket.module_name) or 'Genel' }}</span>
                         </td>
+                        {% if show_requester %}
                         <td>
-                            <span class="cell-strong">{{ ticket.full_name_snapshot or '-' }}</span>
-                            <span class="cell-muted">{{ ticket.sicil_no_snapshot or '-' }}</span>
+                            <span class="bys-table__strong">{{ ticket.full_name_snapshot or '-' }}</span>
+                            <span class="bys-table__meta">{{ ticket.sicil_no_snapshot or '-' }}</span>
                         </td>
+                        {% endif %}
+                        <td><span class="bys-chip bys-chip--{{ priority_tones.get(ticket.priority, 'neutral') }}">{{ ticket.priority_label }}</span></td>
                         <td>
-                            <span class="cell-strong">{{ ticket.title }}</span>
-                            <span class="cell-muted">{{ ticket.module_name }}</span>
+                            <span class="bys-chip bys-chip--{{ status_tones.get(ticket.status, 'neutral') }}"><i class="fa-solid {{ status_icons.get(ticket.status, 'fa-circle') }}" aria-hidden="true"></i> {{ ticket.status_label }}</span>
+                            {% if ticket.sub_status_text and ticket.sub_status_text != '-' %}<span class="bys-table__meta">{{ ticket.sub_status_text }}</span>{% endif %}
                         </td>
-                        <td><span class="support-chip priority-{{ ticket.priority }}">{{ ticket.priority_label }}</span></td>
-                        <td>{{ ticket.created_at.strftime('%d.%m.%Y %H:%M') if ticket.created_at else '-' }}</td>
-                        <td><span class="support-chip status-{{ ticket.status }}">{{ ticket.status_label }}</span></td>
-                        <td><div class="substatus-text">{{ ticket.sub_status_text }}</div></td>
                         <td>{{ ticket.assigned_to.full_name if ticket.assigned_to else 'Atanmadı' }}</td>
-                        <td><div class="solution-text">{{ ticket.resolution_text }}</div></td>
-                        <td>{{ ticket.status_date.strftime('%d.%m.%Y %H:%M') if ticket.status_date else '-' }}</td>
-                        <td>{{ ticket.elapsed_label }}</td>
+                        <td>
+                            <span class="bys-table__strong">{{ ticket.status_date.strftime('%d.%m.%Y %H:%M') if ticket.status_date else '-' }}</span>
+                            <span class="bys-table__meta">{{ ticket.elapsed_label }}</span>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <ul class="bys-ticket-cards" aria-labelledby="bysListTitle">
+            {% for ticket in tickets %}
+            <li class="bys-ticket-card">
+                <div class="bys-ticket-card__top">
+                    <span class="bys-chip bys-chip--{{ status_tones.get(ticket.status, 'neutral') }}"><i class="fa-solid {{ status_icons.get(ticket.status, 'fa-circle') }}" aria-hidden="true"></i> {{ ticket.status_label }}</span>
+                    <span class="bys-chip bys-chip--{{ priority_tones.get(ticket.priority, 'neutral') }}">{{ ticket.priority_label }}</span>
+                </div>
+                <a class="bys-ticket-card__title" href="{{ url_for('main.support_detail', ticket_id=ticket.id) }}">{{ ticket.title }}</a>
+                <p class="bys-ticket-card__meta">{{ ticket.ticket_no }} · {{ module_display_labels.get(ticket.module_name, ticket.module_name) or 'Genel' }}</p>
+                <dl class="bys-ticket-card__facts">
+                    {% if show_requester %}<div><dt>Başvuru sahibi</dt><dd>{{ ticket.full_name_snapshot or '-' }}</dd></div>{% endif %}
+                    <div><dt>Atanan</dt><dd>{{ ticket.assigned_to.full_name if ticket.assigned_to else 'Atanmadı' }}</dd></div>
+                    <div><dt>Son güncelleme</dt><dd>{{ ticket.status_date.strftime('%d.%m.%Y %H:%M') if ticket.status_date else '-' }}</dd></div>
+                </dl>
+            </li>
+            {% endfor %}
+        </ul>
         {% else %}
-        <div class="empty-box">Bu görünümde gösterilecek kayıt bulunamadı.</div>
+        <div class="bys-empty">
+            <span class="bys-empty__icon" aria-hidden="true"><i class="fa-solid {{ 'fa-magnifying-glass' if has_filter else 'fa-inbox' }}"></i></span>
+            {% if has_filter %}
+            <p class="bys-empty__title">Aramanıza uygun talep bulunamadı.</p>
+            <p class="bys-empty__text">Farklı bir kelime deneyin veya aramayı temizleyin.</p>
+            <a class="bys-btn bys-btn--secondary" href="{{ request.path }}">Aramayı temizle</a>
+            {% elif current_view_key == 'support_my_tickets' %}
+            <p class="bys-empty__title">Henüz talebiniz yok.</p>
+            <p class="bys-empty__text">Bir sorun yaşadığınızda veya yeni bir ihtiyacınız olduğunda talep açabilirsiniz.</p>
+            <a class="bys-btn bys-btn--primary" href="{{ url_for('main.support_new') }}"><i class="fa-solid fa-plus" aria-hidden="true"></i> Yeni Talep Aç</a>
+            {% elif current_view_key == 'support_assigned' %}
+            <p class="bys-empty__title">Size atanmış talep yok.</p>
+            <p class="bys-empty__text">Size bir talep atandığında burada görünür.</p>
+            {% else %}
+            <p class="bys-empty__title">Bu görünümde gösterilecek talep yok.</p>
+            {% endif %}
+        </div>
         {% endif %}
-    </div>
+    </section>
 </div>
 <script src="{{ url_for('static', filename='js/faz4_support_account_mobile.js') }}"></script>
 {% endblock %}
 
+{# BYS360_SOURCE_SYNC_SUPPORT_ALL_MARKER_V1_2: Yetkili talep görünümü (Tüm Talepler, rota ve yetki kontrolü değişmedi). #}
