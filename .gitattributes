@@ -1,0 +1,4 @@
+# Dependency manifests are hashed and compared byte for byte (requirements.lock header,
+# generate_bys360_requirements_lock.py --check, release manifests): keep them LF on every checkout.
+requirements.txt text eol=lf
+requirements.lock text eol=lf
