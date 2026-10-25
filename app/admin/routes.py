@@ -13,7 +13,6 @@ from collections import defaultdict
 
 from flask import current_app, flash, redirect, request, send_file, url_for
 from flask_login import current_user, login_required
-from openpyxl import load_workbook
 from sqlalchemy import or_
 from werkzeug.security import generate_password_hash
 
@@ -59,6 +58,7 @@ from app.services.ai import (
     build_personnel_list_ai_panel,
 )
 from app.services.auto_hierarchy_service import auto_apply_manager_chains, infer_role_from_profile
+from app.services.excel_import_limits import ExcelImportRejected, read_import_rows
 from app.services.hierarchy_admin_service import ensure_unit_exists_strict, normalize_text
 from app.services.performance_service import generate_assignments_for_active_period
 from app.services.personnel import (
@@ -1024,9 +1024,11 @@ def personnel_excel_upload():
             update_existing = bool_from_form(request.form.get("update_existing"))
             activate_new_users = bool_from_form(request.form.get("activate_new_users"))
 
-            wb = load_workbook(file, data_only=True)
-            ws = wb.active
-            rows_for_preflight = list(ws.iter_rows(values_only=True))
+            try:
+                rows_for_preflight = read_import_rows(file)
+            except ExcelImportRejected as rejected:
+                flash(rejected.user_message, "danger")
+                return redirect(url_for("main.personnel_excel_upload"))
             import_preflight = validate_personnel_import_rows_for_commit(rows_for_preflight)
             if not import_preflight.get("ok"):
                 for error in list(import_preflight.get("errors") or [])[:12]:
@@ -1054,7 +1056,7 @@ def personnel_excel_upload():
             touched_users = []
             created_users = []
 
-            for row_number, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            for row_number, row in enumerate(rows_for_preflight[1:], start=2):
                 row_payload = build_personnel_excel_row_payload(
                     row,
                     header_idx=header_idx,
