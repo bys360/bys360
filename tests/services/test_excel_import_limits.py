@@ -409,14 +409,14 @@ def test_large_sheet_without_a_dimension_is_refused_while_loading():
 
 def test_rejections_log_a_code_and_never_file_content(caplog):
     caplog.set_level(logging.WARNING, logger=limits.__name__)
-    secret = "GIZLI-HUCRE-ICERIGI"
+    cell_text = "GIZLI-HUCRE-ICERIGI"
     with pytest.raises(ExcelImportRejected):
-        _read(_with_sheet('<row r="1">' + _inline("A1", secret) + '</row><row r="90000"><c r="A90000"><v>1</v></c></row>'))
+        _read(_with_sheet('<row r="1">' + _inline("A1", cell_text) + '</row><row r="90000"><c r="A90000"><v>1</v></c></row>'))
     with pytest.raises(ExcelImportRejected):
-        _read(_patch(_book(rows=((secret,),)), {SHEET: b"<worksheet>" + secret.encode()}))
+        _read(_patch(_book(rows=((cell_text,),)), {SHEET: b"<worksheet>" + cell_text.encode()}))
     text = caplog.text
     assert "code=EXCEL_TOO_MANY_ROWS" in text and "code=EXCEL_UNREADABLE" in text and "exc_type=" in text
-    assert secret not in text
+    assert cell_text not in text
 
 
 def test_messages_are_turkish_and_say_nothing_was_written():
