@@ -1,8 +1,9 @@
 """The pinned Pillow works with the libraries that hand it pictures: openpyxl, XlsxWriter, ReportLab.
 
-The application never imports PIL itself; Pillow is reached through openpyxl (pictures inside an
-uploaded or generated .xlsx) and ReportLab (pictures in a PDF). XlsxWriter parses PNG headers on
-its own. A Pillow major upgrade (12.3.0 -> 13.0.0 removed ``Image._show``, moved
+The application does not process images with PIL itself (it only imports
+``DecompressionBombError`` to refuse hostile uploads); Pillow is reached through openpyxl
+(pictures inside an uploaded or generated .xlsx) and ReportLab (pictures in a PDF). XlsxWriter
+parses PNG headers on its own. A Pillow major upgrade (12.3.0 -> 13.0.0 removed ``Image._show``, moved
 ``get_child_images``, stopped clipping I-mode PNG saves) must keep these paths working, and the
 suite must really run on the pinned version.
 """

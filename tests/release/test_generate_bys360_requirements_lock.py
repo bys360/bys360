@@ -141,11 +141,53 @@ def test_render_is_sorted_and_independent_of_report_order():
     assert "# Uploaded-prior-to: 2026-10-25T00:00:00Z" in first
 
 
-def test_diagnostic_output_never_targets_the_lock(tmp_path):
+def test_diagnostic_output_never_targets_the_lock_the_requirements_or_an_existing_file(tmp_path):
     lock = tmp_path / "requirements.lock"
+    requirements = tmp_path / "requirements.txt"
+    existing = tmp_path / "existing.lock"
+    existing.write_text("keep\n", encoding="utf-8")
+    other_lock = tmp_path / "other.lock"
     assert gen.main(["--root", str(tmp_path), "--diagnostic-output", str(lock)]) == 2
+    assert gen.main(["--root", str(tmp_path), "--diagnostic-output", str(requirements)]) == 2
+    # --lock pointing elsewhere does not unprotect the canonical lock
+    assert gen.main(["--root", str(tmp_path), "--lock", str(other_lock), "--diagnostic-output", str(lock)]) == 2
+    assert gen.main(["--root", str(tmp_path), "--diagnostic-output", str(existing)]) == 2
     assert gen.main(["--root", str(tmp_path), "--check", "--diagnostic-output", str(tmp_path / "x.lock")]) == 2
-    assert not lock.exists()
+    assert not lock.exists() and not requirements.exists() and existing.read_text(encoding="utf-8") == "keep\n"
+
+
+def test_diagnostic_output_is_marked_as_not_a_lock(tmp_path, monkeypatch):
+    (tmp_path / "requirements.txt").write_text("Flask==3.1.3\nPillow==13.0.0\n", encoding="utf-8")
+    monkeypatch.setattr(gen, "run_pip_report", lambda *args, **kwargs: _report(*GOOD_ITEMS, environment={"sys_platform": "linux"}))
+    target = tmp_path / "diag.lock"
+    assert gen.main(["--root", str(tmp_path), "--uploaded-prior-to", "2026-10-25T00:00:00Z", "--diagnostic-output", str(target)]) == 0
+    assert target.read_text(encoding="utf-8").startswith("# DIAGNOSTIC OUTPUT -- NOT A LOCK.")
+
+
+def test_check_compares_bytes(tmp_path, monkeypatch):
+    (tmp_path / "requirements.txt").write_text("Flask==3.1.3\nPillow==13.0.0\n", encoding="utf-8")
+    monkeypatch.setattr(gen, "run_pip_report", lambda *args, **kwargs: _report(*GOOD_ITEMS))
+    monkeypatch.setattr(gen, "interpreter_is_64bit", lambda python_exe: True)
+    args = ["--root", str(tmp_path), "--uploaded-prior-to", "2026-10-25T00:00:00Z"]
+    assert gen.main(args) == 0
+    lock = tmp_path / "requirements.lock"
+    assert gen.main([*args, "--check"]) == 0
+    lock.write_bytes(lock.read_bytes().replace(b"\n", b"\r\n"))
+    assert gen.main([*args, "--check"]) == 1
+
+
+def test_a_32_bit_resolver_is_refused(tmp_path, monkeypatch):
+    (tmp_path / "requirements.txt").write_text("Flask==3.1.3\nPillow==13.0.0\n", encoding="utf-8")
+    monkeypatch.setattr(gen, "run_pip_report", lambda *args, **kwargs: _report(*GOOD_ITEMS))
+    monkeypatch.setattr(gen, "interpreter_is_64bit", lambda python_exe: False)
+    assert gen.main(["--root", str(tmp_path), "--uploaded-prior-to", "2026-10-25T00:00:00Z"]) == 1
+    assert not (tmp_path / "requirements.lock").exists()
+
+
+def test_the_repository_keeps_the_dependency_manifests_lf():
+    attributes = (REPO_ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+    assert "requirements.txt text eol=lf" in attributes and "requirements.lock text eol=lf" in attributes
+    assert b"\r" not in (REPO_ROOT / "requirements.lock").read_bytes()
 
 
 # --------------------------------------------------------------------------------------

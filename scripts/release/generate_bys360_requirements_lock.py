@@ -53,6 +53,8 @@ TARGET_ENVIRONMENT = {
     "python_version": "3.12",
 }
 WHEEL_PLATFORMS = {TARGET_PLATFORM, "any"}
+PIP_TIMEOUT_SECONDS = 900
+DIAGNOSTIC_BANNER = "# DIAGNOSTIC OUTPUT -- NOT A LOCK. Resolved outside the target environment; never commit it.\n"
 
 REQUIREMENT_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(\[[A-Za-z0-9,._ -]+\])?==([A-Za-z0-9][A-Za-z0-9._!+-]*)$")
 LOCK_ENTRY_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([A-Za-z0-9][A-Za-z0-9._!+-]*)\s*\\?$")
@@ -226,12 +228,26 @@ def run_pip_report(python_exe: str, requirements: Path, constraints: list[str], 
         "--only-binary=:all:",
         "--uploaded-prior-to", cutoff,
     ]
-    proc = subprocess.run(command, capture_output=True, text=True)
+    try:
+        proc = subprocess.run(command, capture_output=True, text=True, timeout=PIP_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as exc:
+        raise LockGenerationError(f"pip cozumlemesi {PIP_TIMEOUT_SECONDS} sn icinde bitmedi") from exc
     if proc.returncode != 0:
         raise LockGenerationError(
             f"pip cozumlemesi basarisiz (rc={proc.returncode}):\n{proc.stdout[-4000:]}\n{proc.stderr[-4000:]}"
         )
     return json.loads(report_path.read_text(encoding="utf-8"))
+
+
+def interpreter_is_64bit(python_exe: str) -> bool:
+    """32-bit Python under WOW64 still reports platform_machine AMD64; the pointer size does not lie."""
+    proc = subprocess.run(
+        [python_exe, "-c", "import struct; print(struct.calcsize('P') * 8)"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    return proc.returncode == 0 and proc.stdout.strip() == "64"
 
 
 def generate(
@@ -243,7 +259,7 @@ def generate(
     python_exe: str,
     check_environment: bool = True,
 ) -> str:
-    # Text mode reads CRLF as LF, so a Windows checkout with core.autocrlf hashes the same bytes.
+    # Text mode reads CRLF as LF, so the digest is the same even where .gitattributes is ignored.
     requirements_bytes = requirements.read_text(encoding="utf-8").encode("utf-8")
     direct = parse_requirements(requirements_bytes.decode("utf-8"))
     lock_text = lock.read_text(encoding="utf-8") if lock.is_file() else ""
@@ -253,6 +269,8 @@ def generate(
     if not CUTOFF_FORMAT_RE.match(effective_cutoff):
         raise LockGenerationError(f"--uploaded-prior-to UTC 'YYYY-MM-DDTHH:MM:SSZ' olmali: {effective_cutoff!r}")
     constraints = constraint_lines(parse_lock_pins(lock_text), direct, {canonical_name(n) for n in upgrade})
+    if check_environment and not interpreter_is_64bit(python_exe):
+        raise LockGenerationError(f"cozumleyici 64 bit bir Python degil: {python_exe}")
     with tempfile.TemporaryDirectory(prefix="bys360_lock_") as tmp:
         report = run_pip_report(python_exe, requirements, constraints, effective_cutoff, Path(tmp))
     packages = packages_from_report(report, direct, check_environment=check_environment)
@@ -279,8 +297,12 @@ def main(argv: list[str] | None = None) -> int:
     requirements = (root / args.requirements).resolve()
     lock = (root / args.lock).resolve()
     diagnostic = Path(args.diagnostic_output).resolve() if args.diagnostic_output else None
-    if diagnostic is not None and (args.check or diagnostic == lock):
-        print(f"{PACKAGE}: --diagnostic-output kilit dosyasina ya da --check ile kullanilamaz", file=sys.stderr)
+    protected = {lock, requirements, (root / "requirements.lock").resolve(), (root / "requirements.txt").resolve()}
+    if diagnostic is not None and (args.check or diagnostic in protected or diagnostic.exists()):
+        print(
+            f"{PACKAGE}: --diagnostic-output --check ile, kilit/requirements dosyasina ya da var olan bir dosyaya kullanilamaz",
+            file=sys.stderr,
+        )
         return 2
     try:
         generated = generate(
@@ -296,12 +318,14 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if diagnostic is not None:
-        diagnostic.write_text(generated, encoding="utf-8", newline="\n")
+        diagnostic.write_text(DIAGNOSTIC_BANNER + generated, encoding="utf-8", newline="\n")
         print(f"{PACKAGE}: tani ciktisi (kilit degil) yazildi: {diagnostic}")
         return 0
     if args.check:
-        current = lock.read_text(encoding="utf-8") if lock.is_file() else ""
-        if current == generated:
+        # Byte comparison: .gitattributes keeps requirements.txt/requirements.lock LF on every checkout.
+        current_bytes = lock.read_bytes() if lock.is_file() else b""
+        current = current_bytes.decode("utf-8", errors="replace")
+        if current_bytes == generated.encode("utf-8"):
             print(f"{PACKAGE}: PASS -- {lock.name} yeniden uretimle birebir ayni (sha256 {hashlib.sha256(generated.encode()).hexdigest()})")
             return 0
         print(f"{PACKAGE}: FAIL -- {lock.name} yeniden uretilen kilitle ayni degil", file=sys.stderr)
