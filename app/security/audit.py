@@ -68,6 +68,13 @@ def collect_runtime_security_findings(config: Any) -> list[SecurityAuditFinding]
             message='MAX_CONTENT_LENGTH etkisiz gorunuyor.',
             action='Tum yukleme akislari icin boyut limiti tanimla.',
         ))
+    elif int(config.get('MAX_CONTENT_LENGTH', 0) or 0) > 16 * 1024 * 1024:
+        findings.append(SecurityAuditFinding(
+            level='warning',
+            code='wide_request_body_limit',
+            message='MAX_CONTENT_LENGTH 16 MB ustunde: yukleme disi tum oturumlu isteklerin govde siniri da yukselir.',
+            action='Buyuk dosyalar icin UPLOAD_MAX_CONTENT_LENGTH kullan; MAX_CONTENT_LENGTH degerini 16 MB veya altinda tut.',
+        ))
 
     if not _is_truthy(config.get('REQUEST_GUARD_ENABLED', True)):
         findings.append(SecurityAuditFinding(
