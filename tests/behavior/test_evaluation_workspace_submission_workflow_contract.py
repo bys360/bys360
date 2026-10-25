@@ -48,6 +48,8 @@ from typing import Any
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 # Deliberately NOT imported at module level -- see the block comment in
 # tests/behavior/test_low_score_process_service_workflow_contract.py's own
 # `PerformanceEvaluation: Any = None` placeholder for the full forensic
@@ -170,8 +172,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def eval_app(monkeypatch: pytest.MonkeyPatch):
-    return _make_app(monkeypatch)
+def eval_app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def _next_suffix() -> int:

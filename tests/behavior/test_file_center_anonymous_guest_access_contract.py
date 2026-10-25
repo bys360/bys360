@@ -78,6 +78,8 @@ import pytest
 from sqlalchemy.pool import StaticPool
 from werkzeug.security import generate_password_hash
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_agent2_filecenter")
 _RUN_ID = uuid.uuid4().hex
 _TMP_STORAGE_ROOT = os.path.join(_TMP_DB_DIR, f"storage_{_RUN_ID}")
@@ -172,8 +174,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 @pytest.fixture

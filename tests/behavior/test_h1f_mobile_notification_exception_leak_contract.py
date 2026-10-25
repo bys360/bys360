@@ -102,6 +102,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _SENTINEL = "TECHNICAL_SENTINEL_DO_NOT_SHOW_9F3A"
 
 _TMP_DB_DIR = str(Path(tempfile.gettempdir()) / "bys360_pytest_tmp_h1f_mobile")
@@ -175,8 +177,9 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def app(monkeypatch):
+def app(monkeypatch, request):
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     yield flask_app
     from app.extensions import db
 

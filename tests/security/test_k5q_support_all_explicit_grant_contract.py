@@ -30,6 +30,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "K5qSupportGrantTest1!"
 MARKER = "BYS360-K5Q-SUPPORT-MARKER"
 KEY = "support_all"
@@ -58,7 +60,7 @@ NON_ADMIN_SETTINGS_ROLES = ["baskan", "baskan_yardimcisi", "grup_baskani", "mali
 
 
 @pytest.fixture
-def env(monkeypatch):
+def env(monkeypatch, request):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     uri = "sqlite:///" + (_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3").as_posix()
     for key, value in {
@@ -76,6 +78,7 @@ def env(monkeypatch):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
     from app.models import SupportTicket, User

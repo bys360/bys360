@@ -4,9 +4,14 @@ Route decorators stay in ops_routes.py. This module contains the heavy implement
 """
 from __future__ import annotations
 
+import zipfile
+import zlib
+
 from flask import current_app, flash, redirect, request, url_for
 from flask_login import current_user
 from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
+from PIL.Image import DecompressionBombError
 
 from app.extensions import db
 from app.models import User
@@ -46,6 +51,33 @@ from .ops_helpers import (
     get_default_first_login_password,
 )
 
+# What openpyxl raises for a damaged or hostile upload (measured with openpyxl 3.1.5 and Pillow
+# 12.3/13.0 on truncated, bit-flipped, part-dropped and crafted files): ParseError is a
+# SyntaxError; LookupError covers missing parts (KeyError) and shared-string/style indexes out of
+# range (IndexError); RuntimeError covers zip encryption flags and unsupported compression
+# (NotImplementedError); ArithmeticError covers Pillow's EMF/PSD header maths; a picture over
+# Pillow's pixel limit raises DecompressionBombError, which openpyxl does not catch.
+UNREADABLE_WORKBOOK_ERRORS = (
+    zipfile.BadZipFile,
+    zlib.error,
+    InvalidFileException,
+    DecompressionBombError,
+    SyntaxError,
+    LookupError,
+    AttributeError,
+    TypeError,
+    ValueError,
+    RuntimeError,
+    ArithmeticError,
+    MemoryError,
+    EOFError,
+    OSError,
+)
+UNREADABLE_WORKBOOK_MESSAGE = (
+    "Excel dosyası okunamadı: dosya bozuk, .xlsx biçiminde değil ya da güvenli boyut sınırını aşan "
+    "bir resim içeriyor. Hiçbir kayıt veritabanına yazılmadı."
+)
+
 
 def admin_user_import_impl():
     if request.method == "POST":
@@ -54,9 +86,13 @@ def admin_user_import_impl():
             flash("Lütfen bir Excel dosyası seçin.", "warning")
             return safe_render("excel_import.html", "<h3>Excel İçe Aktar</h3>", apply_ai_fixes=False, ai_excel_fix_panel=build_excel_fix_preview_ai_panel())
 
-        wb = load_workbook(f, data_only=True)
-        ws = wb.active
-        rows = list(ws.iter_rows(values_only=True))
+        try:
+            wb = load_workbook(f, data_only=True)
+            rows = list(wb.active.iter_rows(values_only=True))
+        except UNREADABLE_WORKBOOK_ERRORS as exc:
+            current_app.logger.warning("BYS360 Excel içe aktarma: dosya okunamadı | exc=%s", type(exc).__name__, exc_info=True)
+            flash(UNREADABLE_WORKBOOK_MESSAGE, "danger")
+            return safe_render("excel_import.html", "<h3>Excel İçe Aktar</h3>", apply_ai_fixes=False, ai_excel_fix_panel=build_excel_fix_preview_ai_panel())
         if not rows:
             flash("Excel dosyası boş.", "danger")
             return safe_render("excel_import.html", "<h3>Excel İçe Aktar</h3>", apply_ai_fixes=False, ai_excel_fix_panel=build_excel_fix_preview_ai_panel())

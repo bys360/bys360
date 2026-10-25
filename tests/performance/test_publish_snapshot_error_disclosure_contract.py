@@ -39,6 +39,8 @@ import pytest
 from sqlalchemy import event, text
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _ROUTES_MODULE = "app.performance.engagement_publish_routes"
 _SERVICE_MODULE = "app.services.performance_snapshot_service"
 _SENTINEL = "TECHNICAL_SENTINEL_DO_NOT_SHOW_9F3A"
@@ -160,13 +162,14 @@ def _flashes(client) -> list[tuple[str, str]]:
 
 
 @pytest.fixture
-def env(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+def env(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> SimpleNamespace:
     """Admin and the Personel ve Destek Hizmetleri Grup Başkanı, logged in for real;
     one criteria set; one open, ended quarter; three approved 90/70/100 cards."""
     from app.extensions import db
     from app.models import PerformanceCriteria, PerformancePeriod
 
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     admin_id, admin_sicil = _user(flask_app, role="admin")
     admin = flask_app.test_client()
     _login(admin, admin_sicil)

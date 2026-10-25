@@ -33,6 +33,8 @@ from typing import Any
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 # Deliberately not imported at module level -- importing app.models/
 # app.services here at collection time would transitively import config.py
 # before this file's own _make_app() can patch Config.SQLALCHEMY_DATABASE_URI,
@@ -146,8 +148,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def ap_app(monkeypatch: pytest.MonkeyPatch):
-    return _make_app(monkeypatch)
+def ap_app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def _next_suffix() -> int:

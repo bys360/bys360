@@ -309,6 +309,12 @@ jobs:
       - name: Dependency vulnerability audit
         run: python -m pip_audit -r requirements.txt --progress-spinner off
 
+      # requirements.txt above is resolved fresh on Linux; production installs the hash-pinned
+      # Windows lock, whose transitive pins can lag behind. --disable-pip audits exactly the pinned
+      # versions (every entry carries a hash), with no exceptions.
+      - name: Dependency vulnerability audit (requirements.lock)
+        run: python -m pip_audit -r requirements.lock --disable-pip --progress-spinner off
+
       - name: Upload quality reports
         if: always()
         uses: actions/upload-artifact@v4

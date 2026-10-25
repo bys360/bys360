@@ -49,6 +49,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 WAVE2_AGENT2_TEMPLATES = [
@@ -260,8 +262,9 @@ def _login(client, sicil_no, password="Phase5CspWave2TestKey1!"):
     return response
 
 
-def test_personnel_list_page_render_has_no_inline_handlers_and_renders_wired_script(monkeypatch) -> None:
+def test_personnel_list_page_render_has_no_inline_handlers_and_renders_wired_script(monkeypatch, request) -> None:
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_admin_user(app, sicil_no="cspw2001", email="cspw2.list@ktb.gov.tr")
     client = app.test_client()
     _login(client, "cspw2001")
@@ -286,11 +289,12 @@ def test_personnel_list_page_render_has_no_inline_handlers_and_renders_wired_scr
     assert "data-fallback-src=" in html
 
 
-def test_personnel_list_render_includes_per_row_delete_confirm_when_rows_exist(monkeypatch) -> None:
+def test_personnel_list_render_includes_per_row_delete_confirm_when_rows_exist(monkeypatch, request) -> None:
     """`user_rows` bos olmayan bir listede, dongu-ici Sil formunun da
     data-confirm-submit'e tasindigini (yalnizca toplu-islem alaninin degil)
     render edilmis HTML uzerinden dogrular."""
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     _create_admin_user(app, sicil_no="cspw2002", email="cspw2.list2@ktb.gov.tr")
 
     from app.extensions import db
@@ -324,8 +328,9 @@ def test_personnel_list_render_includes_per_row_delete_confirm_when_rows_exist(m
     assert 'data-confirm-submit="Bu personel kaydını silmek istediğinize emin misiniz?"' in html
 
 
-def test_personnel_edit_page_render_has_no_inline_handlers(monkeypatch) -> None:
+def test_personnel_edit_page_render_has_no_inline_handlers(monkeypatch, request) -> None:
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     user_id = _create_admin_user(app, sicil_no="cspw2010", email="cspw2.edit@ktb.gov.tr")
     client = app.test_client()
     _login(client, "cspw2010")
@@ -339,8 +344,9 @@ def test_personnel_edit_page_render_has_no_inline_handlers(monkeypatch) -> None:
     assert "data-fallback-src=" in html
 
 
-def test_personnel_profile_page_render_has_no_inline_handlers(monkeypatch) -> None:
+def test_personnel_profile_page_render_has_no_inline_handlers(monkeypatch, request) -> None:
     app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(app))
     user_id = _create_admin_user(app, sicil_no="cspw2020", email="cspw2.profile@ktb.gov.tr")
     client = app.test_client()
     _login(client, "cspw2020")

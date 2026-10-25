@@ -59,6 +59,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy import bindparam, create_engine, text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TARGET_FILE = "app/services/performance/meeting_p0_completion.py"
 
@@ -299,7 +301,7 @@ _SAFE_RENDER_FALLBACK_MARKERS = ("\u015fablonunda hata var", "\u015fablonu hatal
 
 
 @pytest.fixture(scope="module")
-def p0_fix_env():
+def p0_fix_env(request):
     mp = pytest.MonkeyPatch()
     _TEST_DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_path = _TEST_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
@@ -326,6 +328,7 @@ def p0_fix_env():
     mp.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(
         TESTING=True,
         WTF_CSRF_ENABLED=False,

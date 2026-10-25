@@ -44,6 +44,8 @@ from typing import Any
 import pytest
 from sqlalchemy import text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _PREFLIGHT_MODULE = "app.services.performance.publish_preflight_rules"
 _ROUTE_MODULE = "app.performance.engagement_publish_routes"
 _PASSWORD = "TestPublishFailClosedContract1!"
@@ -176,13 +178,14 @@ def _flashes(client) -> list[tuple[str, str]]:
 
 
 @pytest.fixture
-def env(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+def env(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> SimpleNamespace:
     """Admin (publish + Başkan/Üst Onay screen) and the Personel ve Destek
     Hizmetleri Grup Başkanı, both logged in for real; one criteria set."""
     from app.extensions import db
     from app.models import PerformanceCriteria
 
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     admin_id, admin_sicil = _user(flask_app, role="admin")
     admin = flask_app.test_client()
     _login(admin, admin_sicil)
