@@ -21,6 +21,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "R06MobilePickerTest1!"
 SICIL = "R6SICIL7788"
 TITLE = "R6-UNVAN-MARKER"
@@ -31,7 +33,7 @@ TITLE_KEYS = ("title_name", "unvan")
 
 
 @pytest.fixture
-def app(monkeypatch):
+def app(monkeypatch, request):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     uri = "sqlite:///" + (_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3").as_posix()
     for key, value in {
@@ -49,6 +51,7 @@ def app(monkeypatch):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
     from app.models import MessageThread, MessageThreadParticipant, User

@@ -100,6 +100,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 # Final pre-live audit P2-07: this authorization integrity audit carried no
 # ci_safe marker, so `pytest tests/quality -m ci_safe` never ran it in CI.
 pytestmark = pytest.mark.ci_safe
@@ -421,7 +423,7 @@ def test_orphan_auth_closure_did_not_broaden_access_beyond_manager_tier(app) -> 
 
 
 @pytest.fixture
-def app(monkeypatch):
+def app(monkeypatch, request):
     monkeypatch.setenv("APP_ENV", "testing")
     monkeypatch.setenv("FLASK_ENV", "testing")
     monkeypatch.setenv("SECRET_KEY", "test-secret-key-for-menu-authorization-integrity-audit")
@@ -452,6 +454,7 @@ def app(monkeypatch):
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(
         TESTING=True,
         WTF_CSRF_ENABLED=False,

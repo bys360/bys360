@@ -29,7 +29,17 @@ jobs:
     # and repository-worktree paths) were fixed -- the Step2 runtime itself,
     # not a defect, was the bottleneck. 90 minutes leaves a real margin
     # (~20 min) over that measured total without being an unbounded budget.
-    timeout-minutes: 180
+    # (The budget was later raised to 180 minutes in eb5f531d, 2026-09-21.)
+    #
+    # Third recalibration (2026-10-19, owner-approved): 180 minutes is
+    # insufficient in the same failure mode. Runs were cancelled by the
+    # 180-minute job limit with 0 test failures (38967292704 attempt 1,
+    # 38992501593, 39004392842 attempt 1; PR #95 run 39211601598 twice, at
+    # 90% and 91% of Step2), and successful runs from 13-17 Oct took
+    # 103-178 min. 240 minutes leaves ~60 min over the slowest observed
+    # success. Step selection, commands and every gate below are unchanged;
+    # reducing the runtime itself is separate work (see PR #84).
+    timeout-minutes: 240
 
     # TD-032 closure: real PostgreSQL 15 target for the migration-integrity
     # gate below. Disposable, CI-only credentials -- never production
@@ -105,6 +115,31 @@ jobs:
 
       - name: Run quality tests
         run: python -m pytest tests/quality -m "ci_safe" --cov=app --cov-report= --cov-fail-under=0 --tb=short -q
+
+      # PG15 race gate (2026-10-20): the admin-continuity race tests need two
+      # independent connections and a real FOR UPDATE row lock, so they only
+      # mean something on PostgreSQL. Before this step they never ran in CI
+      # (BYS360_R05C_PG_URL was unset: the R05c pair was skipped and
+      # tests/postgresql was not selected). They now run here against the same
+      # postgres:15 service, in their own disposable database, before the long
+      # Step2 so a race failure is reported within minutes. The gate checks the
+      # server major version and fails on any skip; it adds no coverage data.
+      # Host 127.0.0.1 for the same host-runner reason as the migration steps.
+      - name: Create disposable PostgreSQL 15 race-test database
+        run: |
+          python -c "
+          import psycopg2
+          conn = psycopg2.connect(host='127.0.0.1', port=5432, user='postgres', password='bys360_ci_test_only_password', dbname='postgres')
+          conn.autocommit = True
+          with conn.cursor() as cur:
+              cur.execute('CREATE DATABASE bys360_race_test_ci;')
+          conn.close()
+          "
+
+      - name: PostgreSQL 15 race tests
+        env:
+          BYS360_R05C_PG_URL: postgresql://postgres:bys360_ci_test_only_password@127.0.0.1:5432/bys360_race_test_ci
+        run: python scripts/quality/bys360_postgres_race_gate.py
 
       # NOT (BYS360 Phase 6, CI Coverage Scope Policy Closure, 2026-07-27): tests/services
       # (422 tests) was identified back in Campaign 1 as the lowest-risk, highest-priority
@@ -273,6 +308,12 @@ jobs:
 
       - name: Dependency vulnerability audit
         run: python -m pip_audit -r requirements.txt --progress-spinner off
+
+      # requirements.txt above is resolved fresh on Linux; production installs the hash-pinned
+      # Windows lock, whose transitive pins can lag behind. --disable-pip audits exactly the pinned
+      # versions (every entry carries a hash), with no exceptions.
+      - name: Dependency vulnerability audit (requirements.lock)
+        run: python -m pip_audit -r requirements.lock --disable-pip --progress-spinner off
 
       - name: Upload quality reports
         if: always()

@@ -23,6 +23,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "F09KpiExactGlobalRoleTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "f09_kpi_exact_global" / "dbs"
 SAME_UNIT, OTHER_UNIT, OWNERLESS = "F09-AYNI-BIRIM-HEDEFI", "F09-DIGER-BIRIM-HEDEFI", "F09-KURUM-HEDEFI"
@@ -42,7 +44,7 @@ GLOBAL = ["F9ADM", "F9BSK", "F9BYR"]
 
 
 @pytest.fixture
-def app(monkeypatch):
+def app(monkeypatch, request):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     uri = "sqlite:///" + (_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3").as_posix()
     for key, value in {
@@ -60,6 +62,7 @@ def app(monkeypatch):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     flask_app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     flask_app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI=uri)
     from app.extensions import db
     from app.models import User

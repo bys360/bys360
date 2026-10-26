@@ -26,6 +26,8 @@ import pytest
 from sqlalchemy import event, text
 from sqlalchemy.orm import Session
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "ScorecardGuidanceContractTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "scorecard_guidance_contract" / "dbs"
 
@@ -106,13 +108,14 @@ def _insert_recommendation(db, **values):
 
 
 @pytest.fixture
-def env(monkeypatch, install_interim_notes_schema, install_development_recommendations_schema):
+def env(monkeypatch, install_interim_notes_schema, install_development_recommendations_schema, request):
     from app.extensions import db
     from app.models import EvaluationAssignment, PerformanceEvaluation, PerformancePeriod, User
 
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_file = _DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
     app = _make_app(monkeypatch, "sqlite:///" + db_file.as_posix())
+    request.addfinalizer(lambda: release_sqlite_app(app))
     ids: dict[str, int] = {}
     with app.app_context():
         db.create_all()

@@ -18,6 +18,8 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "development_publish_gate_contract" / "dbs"
 GATE_SETTING = "performance_development_recommendation_required_below_70"
 BLOCK_MESSAGE = "70 altı sonuçlarda gelişim önerisi kaydı oluşturulmadan personele yayın açılamaz."
@@ -51,13 +53,14 @@ def _make_app(monkeypatch, uri):
 
 
 @pytest.fixture
-def gate(monkeypatch, install_development_recommendations_schema):
+def gate(monkeypatch, install_development_recommendations_schema, request):
     from app.extensions import db
     from app.models import ModuleSetting, PerformanceEvaluation, PerformancePeriod, User
 
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_file = _DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
     app = _make_app(monkeypatch, "sqlite:///" + db_file.as_posix())
+    request.addfinalizer(lambda: release_sqlite_app(app))
     ids: dict[str, int] = {}
     with app.app_context():
         db.create_all()

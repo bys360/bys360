@@ -32,6 +32,8 @@ from pathlib import Path
 import pytest
 from flask import template_rendered
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "settings_behavior_tmp" / "test_dbs"
 DEFAULT_PASSWORD = "SettingsBehaviorTest1!"
 
@@ -80,8 +82,10 @@ def _make_app(monkeypatch, **env_overrides):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 @pytest.fixture
@@ -294,12 +298,11 @@ def test_get_authenticated_wrong_role_returns_403(app, client, role):
     assert response.status_code == 403
 
 
-def test_get_request_seeds_phase1_defaults_once_and_is_idempotent(app, client):
-    """settings_page()'s always-run GET prefix (account_settings_helpers.py
-    line 181, ensure_settings_phase1_seeded) is a real, deliberate side
-    effect: on a fresh DB it INSERTs + COMMITs RoleMenuDefault/SystemSetting/
-    ModuleSetting rows; it must be idempotent on a second hit. Pinned as
-    current behavior, not a design recommendation."""
+def test_get_request_writes_no_seed_and_the_explicit_sync_is_idempotent(app, client):
+    """K13 (owner decision 19 Oct 2026): rendering /settings writes nothing; the phase-1
+    seed (ensure_settings_phase1_seeded: RoleMenuDefault/SystemSetting/ModuleSetting rows)
+    runs only on the real admin's explicit form_action "sync_role_defaults" and stays
+    idempotent on a second sync. Replaces the former pin of the per-request GET seed."""
     _create_user(app, sicil_no="sb002", email="sb002@ktb.gov.tr", role="admin")
     _login(client, "sb002")
 
@@ -311,11 +314,17 @@ def test_get_request_seeds_phase1_defaults_once_and_is_idempotent(app, client):
     assert first.status_code == 200
     with app.app_context():
         from app.models import RoleMenuDefault
+        assert RoleMenuDefault.query.count() == 0
+
+    synced = client.post("/settings", data={"form_action": "sync_role_defaults"})
+    assert synced.status_code == 302
+    with app.app_context():
+        from app.models import RoleMenuDefault
         seeded_count = RoleMenuDefault.query.filter_by(source_type="seed").count()
         assert seeded_count > 0
 
-    second = client.get("/settings")
-    assert second.status_code == 200
+    second = client.post("/settings", data={"form_action": "sync_role_defaults"})
+    assert second.status_code == 302
     with app.app_context():
         from app.models import RoleMenuDefault
         assert RoleMenuDefault.query.filter_by(source_type="seed").count() == seeded_count
@@ -998,8 +1007,9 @@ def test_rollback_settings_change_entry_restores_previous_system_setting_value(a
     _create_user(app, sicil_no="sb112", email="sb112@ktb.gov.tr", role="admin")
     _login(client, "sb112")
 
-    # GET first so phase1 seeding has already run and a baseline value exists.
-    client.get("/settings", follow_redirects=False)
+    # Sync first so phase1 seeding has already run and a baseline value exists
+    # (K13: the seed runs on the real admin's explicit sync, not on GET).
+    client.post("/settings", data={"form_action": "sync_role_defaults"}, follow_redirects=False)
     before_value = _system_setting_value(app, setting_key="general.system_name")
 
     save_response = client.post(

@@ -41,6 +41,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.pool import StaticPool
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _MRE_MODULE = "app.services.performance.meeting_rule_enforcement"
 _SERVICE_MODULE = "app.services.performance.low_score_process_service"
 _LOW_SCORE_WARNING = "Düşük performans süreç kontrolü uygulanamadı."
@@ -119,8 +121,10 @@ def _make_app(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def ls_app(monkeypatch: pytest.MonkeyPatch):
-    return _make_app(monkeypatch)
+def ls_app(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 def _next() -> int:

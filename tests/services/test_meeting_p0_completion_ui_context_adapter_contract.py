@@ -44,6 +44,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_FILE = "app/templates/performance/meeting_p0_completion.html"
 ROUTE_FILE = "app/performance/meeting_p0_completion_routes.py"
@@ -433,7 +435,7 @@ _TOGGLED_OFF_SETTING_KEY = "require_criterion_comment_for_score_1_5"
 
 
 @pytest.fixture(scope="module")
-def p0_ui_env():
+def p0_ui_env(request):
     mp = pytest.MonkeyPatch()
     _TEST_DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_path = _TEST_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
@@ -460,6 +462,7 @@ def p0_ui_env():
     mp.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(
         TESTING=True,
         WTF_CSRF_ENABLED=False,

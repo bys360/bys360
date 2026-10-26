@@ -56,6 +56,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 PASSWORD = "PrivateUploadServingTest1!"
 _DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "b2f06_private_uploads" / "dbs"
 _STATIC_UPLOAD_SUBDIRS = (
@@ -118,7 +120,7 @@ def _restore(root: Path, before: tuple[set[Path], set[Path]]) -> None:
 
 
 @pytest.fixture
-def env(monkeypatch, tmp_path):
+def env(monkeypatch, tmp_path, request):
     _DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_file = _DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
     uri = "sqlite:///" + db_file.as_posix()
@@ -148,6 +150,7 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(Config, "SQLALCHEMY_DATABASE_URI", uri)
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     real_static = Path(str(app.static_folder)).resolve()
     # A throwaway static folder laid out like app/static holds the legacy files.
     app_root = tmp_path / "app_root"

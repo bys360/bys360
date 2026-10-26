@@ -40,6 +40,8 @@ from typing import Any
 import pytest
 from sqlalchemy import text
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _SERVICE_MODULE = "app.services.performance.low_score_process_service"
 _TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "app" / "templates" / "performance_low_score_processes.html"
 _PAGE_URL = "/performance/low-score-processes"
@@ -163,11 +165,12 @@ def _login(client, sicil_no: str):
 
 
 @pytest.fixture
-def page_env(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+def page_env(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> SimpleNamespace:
     """App + logged-in admin client. Only the live menu matrix is bypassed (same
     as tests/behavior/test_h1f_route_exception_leak_contract.py); login_required
     and admin_required run for real."""
     flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
     monkeypatch.setattr(importlib.import_module("app.route_support"), "can_access_menu", lambda user, key: True)
     admin_id, admin_sicil = _user(flask_app, role="admin")
     client = flask_app.test_client()

@@ -35,6 +35,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "phase5_digest_contract_tmp" / "test_dbs"
 _PASSWORD = "Phase5DigestContractTest1!"
 _DIGEST_PATH = "/communication/faz5/preferences/digest"
@@ -78,8 +80,10 @@ def _make_app(monkeypatch):
 
 
 @pytest.fixture
-def app(monkeypatch):
-    return _make_app(monkeypatch)
+def app(monkeypatch, request):
+    flask_app = _make_app(monkeypatch)
+    request.addfinalizer(lambda: release_sqlite_app(flask_app))
+    return flask_app
 
 
 @pytest.fixture
@@ -208,8 +212,8 @@ def _seed_tickets(user_id, other_id):
     db.session.commit()
 
 
-def _seed_all(app):
-    user_id = _create_user(app, sicil_no="p5dg_user", birim="p5dg birimi")
+def _seed_all(app, user_role="personel"):
+    user_id = _create_user(app, sicil_no="p5dg_user", role=user_role, birim="p5dg birimi")
     other_id = _create_user(app, sicil_no="p5dg_other", birim="Başka Birim", grant_menu_keys=())
     with app.app_context():
         _seed_notifications(user_id, other_id)
@@ -234,10 +238,16 @@ def _create_digest(app, user_id, digest_type="daily"):
 # ---------------------------------------------------------------------------
 
 
+# P0 menü matrisi (17 Ekim 2026): bu rota ``menu_key_required("settings")`` ile korunur ve ``settings``
+# menü kaydında admin_only'dir. Rota testleri önceden sıradan bir personel hesabına kişi bazlı
+# ``settings`` kaydı vererek erişiyordu; bu, kapatılan yetki yükseltme yolunun kendisiydi. Özet
+# içeriği yalnız kişinin kendi verisinden hesaplandığından (bildirim, kendi talepleri, kendisine
+# atanmış anketler; "baskan" hedefli anket bu rolleri kapsamaz) rota testleri meşru erişimi olan
+# admin ile çalışır ve beklenen içerik aynen korunur. Eski yol ayrı bir negatif testle sabitlenir.
 def test_digest_route_redirects_and_creates_job_on_empty_db(app, client) -> None:
     from app.models.communication_phase5_models import CommunicationDigestJob
 
-    user_id = _create_user(app, sicil_no="p5dg_route")
+    user_id = _create_user(app, sicil_no="p5dg_route", role="admin")
     _login(client, "p5dg_route")
 
     response = client.post(_DIGEST_PATH, data={"digest_type": "daily"}, follow_redirects=False)
@@ -259,7 +269,7 @@ def test_digest_route_redirects_and_creates_job_on_empty_db(app, client) -> None
 def test_digest_route_with_populated_data_writes_expected_payload(app, client) -> None:
     from app.models.communication_phase5_models import CommunicationDigestJob
 
-    user_id, _other_id, _survey_ids = _seed_all(app)
+    user_id, _other_id, _survey_ids = _seed_all(app, user_role="admin")
     _login(client, "p5dg_user")
 
     response = client.post(_DIGEST_PATH, data={"digest_type": "weekly"}, follow_redirects=False)
@@ -274,6 +284,20 @@ def test_digest_route_with_populated_data_writes_expected_payload(app, client) -
             "surveys_pending": 2,
             "tickets_open": 2,
         }
+
+
+def test_digest_route_refuses_an_ordinary_account_with_a_legacy_settings_override(app, client) -> None:
+    """Kişi bazlı ``settings`` kaydı admin_only anahtarı admin olmayana açmaz: 403, özet kaydı yok."""
+    from app.models.communication_phase5_models import CommunicationDigestJob
+
+    user_id = _create_user(app, sicil_no="p5dg_legacy")  # personel + eski kişi bazlı settings kaydı
+    _login(client, "p5dg_legacy")
+
+    response = client.post(_DIGEST_PATH, data={"digest_type": "daily"}, follow_redirects=False)
+
+    assert response.status_code == 403
+    with app.app_context():
+        assert CommunicationDigestJob.query.filter_by(user_id=user_id).count() == 0
 
 
 # ---------------------------------------------------------------------------

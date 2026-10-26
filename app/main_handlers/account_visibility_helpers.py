@@ -80,6 +80,7 @@ from app.main_handlers.account_communication_helpers import (
     utc_now,
 )
 from app.services.personnel_read_grant import EXPLICIT_GRANT_KEYS
+from app.services.settings.menu_grant_ceiling import ADMIN_EXCEPTION_SOURCE
 
 
 def _build_settings_matrix(grouped_menu_definitions, selected_rule_map: dict[str, bool], role_defaults: set[str], *, selected_user=None, users=None):
@@ -443,7 +444,10 @@ def _resolve_bulk_profile_keys(profile_key: str, user, grouped_menu_definitions)
     if not profile_key:
         return []
     if profile_key == "dynamic::role_defaults":
-        return sorted(get_role_default_menu_keys(getattr(user, "role", "")))
+        # K13: only the settings menu keys the bulk save writes (the seed stores exactly these). With no
+        # stored role rows the static default also lists non-menu keys, which the grant ceiling refuses.
+        settings_keys = {str(item.get("key") or "").strip() for item in flatten_settings_menu_definitions()}
+        return sorted(set(get_role_default_menu_keys(getattr(user, "role", ""))) & settings_keys)
     if profile_key.startswith("unit::"):
         return sorted(get_unit_profile_menu_keys(profile_key.split("::", 1)[1]))
     for profile in _build_bulk_settings_profiles(grouped_menu_definitions):
@@ -816,9 +820,19 @@ def _collect_form_visible_keys(form, flat_menu_items):
     return visible
 
 
-def _apply_visibility_keys_to_user(user, flat_menu_items, visible_keys: set[str]):
+def _apply_visibility_keys_to_user(user, flat_menu_items, visible_keys: set[str], admin_exception_keys=()):
     # B1-F1, K5-Q2: bulk profiles never write, prune or grant the per-user explicit grant rows
     # (personnel_read_all, support_all).
+    # K2: a real admin's grant outside the role definition is recorded as such; an existing one is
+    # kept while the key stays visible.
+    kept_exceptions = {
+        row.menu_key
+        for row in UserMenuPermission.query.filter(
+            UserMenuPermission.user_id == user.id,
+            UserMenuPermission.source_type == ADMIN_EXCEPTION_SOURCE,
+        ).all()
+    }
+    exceptions = kept_exceptions | {str(key).strip() for key in admin_exception_keys or () if str(key).strip()}
     UserMenuPermission.query.filter(
         UserMenuPermission.user_id == user.id,
         UserMenuPermission.menu_key.notin_(EXPLICIT_GRANT_KEYS),
@@ -829,12 +843,13 @@ def _apply_visibility_keys_to_user(user, flat_menu_items, visible_keys: set[str]
         key = str(item.get("key") or "").strip()
         if not key or key in EXPLICIT_GRANT_KEYS:
             continue
+        visible = key in visible_keys
         db.session.add(
             UserMenuPermission(
                 user_id=user.id,
                 menu_key=key,
-                is_visible=key in visible_keys,
-                source_type="user_override",
+                is_visible=visible,
+                source_type=ADMIN_EXCEPTION_SOURCE if visible and key in exceptions else "user_override",
             )
         )
 

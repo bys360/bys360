@@ -59,6 +59,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.sqlite_test_cleanup import release_sqlite_app
+
 _SENTINEL = "TECHNICAL_SENTINEL_DO_NOT_SHOW_9F3A"
 
 
@@ -70,7 +72,7 @@ _TEST_DB_ROOT = Path(tempfile.gettempdir()) / "bys360" / "h1f_final_audit_servic
 
 
 @pytest.fixture
-def app(monkeypatch):
+def app(monkeypatch, request):
     _TEST_DB_ROOT.mkdir(parents=True, exist_ok=True)
     db_path = _TEST_DB_ROOT / f"{uuid.uuid4().hex}.sqlite3"
 
@@ -97,6 +99,7 @@ def app(monkeypatch):
     monkeypatch.setattr(Config, "SQLALCHEMY_ENGINE_OPTIONS", {})
 
     app = create_app()
+    request.addfinalizer(lambda: release_sqlite_app(app))
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, SQLALCHEMY_DATABASE_URI="sqlite:///" + db_path.as_posix())
 
     from app.extensions import db
