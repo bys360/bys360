@@ -84,6 +84,10 @@ def _create_test_user(db: Any, User: Any, password: str) -> Any:
     _set_if_column(user, columns, "role_label", "Personel")
     _set_if_column(user, columns, "is_active", True)
     _set_if_column(user, columns, "force_password_change", False)
+    # A completed account: the forced first-login steps are done (the model defaults leave
+    # both open, and the mobile API refuses such accounts: F-08).
+    _set_if_column(user, columns, "must_change_password", False)
+    _set_if_column(user, columns, "must_set_security_question", False)
 
     if hasattr(user, "set_password") and callable(user.set_password):
         user.set_password(password)
