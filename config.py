@@ -576,8 +576,18 @@ class Config:
 
     PUBLICATION_UPLOAD_MAX_CONTENT_LENGTH = int(os.getenv('PUBLICATION_UPLOAD_MAX_CONTENT_LENGTH', 150 * 1024 * 1024))
     EDUCATION_EBOOK_MAX_CONTENT_LENGTH = int(os.getenv('EDUCATION_EBOOK_MAX_CONTENT_LENGTH', 150 * 1024 * 1024))
-    _base_max_content_length = int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
-    MAX_CONTENT_LENGTH = max(_base_max_content_length, PUBLICATION_UPLOAD_MAX_CONTENT_LENGTH, EDUCATION_EBOOK_MAX_CONTENT_LENGTH)
+    # Request body limits (#105, app/core/form_body_limit.py). MAX_CONTENT_LENGTH is the default for
+    # logged-in requests; only the endpoints that accept files get UPLOAD_MAX_CONTENT_LENGTH (the
+    # former global value), anonymous requests and JSON bodies get much less.
+    MAX_CONTENT_LENGTH = _coerce_positive_int(os.getenv('MAX_CONTENT_LENGTH'), 16 * 1024 * 1024)
+    UPLOAD_MAX_CONTENT_LENGTH = _coerce_positive_int(
+        os.getenv('UPLOAD_MAX_CONTENT_LENGTH'),
+        max(MAX_CONTENT_LENGTH, PUBLICATION_UPLOAD_MAX_CONTENT_LENGTH, EDUCATION_EBOOK_MAX_CONTENT_LENGTH),
+    )
+    ANONYMOUS_MAX_CONTENT_LENGTH = _coerce_positive_int(os.getenv('ANONYMOUS_MAX_CONTENT_LENGTH'), 1024 * 1024)
+    AUTH_ENDPOINT_MAX_CONTENT_LENGTH = _coerce_positive_int(os.getenv('AUTH_ENDPOINT_MAX_CONTENT_LENGTH'), 64 * 1024)
+    JSON_MAX_CONTENT_LENGTH = _coerce_positive_int(os.getenv('JSON_MAX_CONTENT_LENGTH'), 1024 * 1024)
+    MAX_FORM_TEXT_BYTES = _coerce_positive_int(os.getenv('MAX_FORM_TEXT_BYTES'), 2 * 1024 * 1024)
 
     # BYS360_MAINTENANCE_ROADMAP_PHASE2_SECURITY_HARDENING_V1
     ALLOWED_UPLOAD_EXTENSIONS = os.getenv('ALLOWED_UPLOAD_EXTENSIONS', 'pdf,png,jpg,jpeg,gif,webp,docx,xlsx,pptx,zip,csv,txt').strip() or 'pdf,png,jpg,jpeg,gif,webp,docx,xlsx,pptx,zip,csv,txt'

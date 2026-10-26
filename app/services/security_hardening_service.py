@@ -612,7 +612,7 @@ def build_security_posture_snapshot() -> dict[str, Any]:
         "info_count": int(getattr(report, "info_count", 0) or 0),
         "note_count": len(getattr(report, "notes", []) or []),
         "allowed_upload_extensions": normalized_extensions,
-        "max_upload_mb": round(int(current_app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024)) / (1024 * 1024), 2),
+        "max_upload_mb": round(int(current_app.config.get("UPLOAD_MAX_CONTENT_LENGTH") or current_app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024)) / (1024 * 1024), 2),
         "session_cookie_secure": bool(current_app.config.get("SESSION_COOKIE_SECURE", False)),
         "session_cookie_httponly": bool(current_app.config.get("SESSION_COOKIE_HTTPONLY", True)),
         "remember_cookie_secure": bool(current_app.config.get("REMEMBER_COOKIE_SECURE", False)),
