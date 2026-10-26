@@ -14,6 +14,7 @@ from app.models import (
     PersonnelLeave,
     User,
 )
+from app.services.performance.period_freeze import period_is_frozen
 
 APPROVED_STATUSES = {"onaylandi", "aktif", "tamamlandi", "kayit"}
 PERFORMANCE_MODE_DEFAULT = "partial"
@@ -387,8 +388,18 @@ def refresh_assignment_live_coverages(period_id: int | None = None, on_date: dat
         query = query.filter(EvaluationAssignment.period_id == period_id)
 
     result = AssignmentCoverageRefreshResult()
+    frozen_period_ids: dict[int, bool] = {}
 
     for assignment in query.all():
+        # P0 (M-1 Q2/Q4): kilitli/yayımlanmış dönemin görevleri ve tamamlanmış görevler (görev
+        # üreticisinin tanımı: completed_at veya tamamlandi/submitted) vekâletle yeniden yönlendirilmez.
+        if assignment.period_id not in frozen_period_ids:
+            period = db.session.get(PerformancePeriod, assignment.period_id)
+            frozen_period_ids[assignment.period_id] = period is not None and period_is_frozen(period)
+        if frozen_period_ids[assignment.period_id]:
+            continue
+        if getattr(assignment, "completed_at", None) or (getattr(assignment, "status", None) or "").strip().lower() in {"tamamlandi", "submitted"}:
+            continue
         original_id = getattr(assignment, "original_evaluator_id", None) or getattr(assignment, "evaluator_id", None)
         resolution = resolve_effective_manager(original_id, assignment.manager_level, on_date)
 

@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.models import PerformancePeriod
 from app.services import runtime_schema
 from app.services.performance.assignment_rule_audit import build_assignment_generation_preflight
+from app.services.performance.period_freeze import FROZEN_PERIOD_TASKS_MESSAGE, period_is_frozen
 from app.services.performance.v2_1_6_category_period_integration import (
     INTEGRATION_TABLE,
     PRECHECK_TABLE,
@@ -241,6 +242,19 @@ def build_assignment_launch_guard(
         }
 
     period_id = int(period.id)
+    # P0 (M-1 Q3): kilitli/yayımlanmış dönemde görev üretimi başlatılmaz (gerçek admin dahil);
+    # ön kontrol de yazılmaz.
+    if period_is_frozen(period):
+        return {
+            "ok": False,
+            "can_launch": False,
+            "plan_key": key,
+            "period_id": period_id,
+            "period_title": getattr(period, "title", None) or getattr(period, "name", None),
+            "status": "donem_kilitli_veya_yayimlanmis",
+            "message": FROZEN_PERIOD_TASKS_MESSAGE,
+            "rule_version": RULE_VERSION,
+        }
     if rebuild_missing_precheck and _precheck_count(key, period_id) == 0:
         build_assignment_preintegration(key, period_id, write=True)
         integration = _integration_for_plan(key) or integration

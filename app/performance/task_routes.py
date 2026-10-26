@@ -11,7 +11,10 @@ from app.extensions import db
 from app.models import PerformancePeriod, User
 from app.route_registry import main_bp
 from app.route_support import admin_required, menu_key_required, safe_all, safe_render
-from app.security.critical_operations import critical_operation_required
+from app.security.critical_operations import (
+    critical_operation_required,
+    frozen_period_generation_refusal,
+)
 from app.services.availability_service import refresh_assignment_live_coverages
 from app.services.performance.assignments import build_assignment_log_summary
 from app.services.performance.hardening_service import (
@@ -123,6 +126,10 @@ def performance_task_management_generate():
 
     try:
         selected_period = db.session.get(PerformancePeriod, period_id) if period_id else None
+        # P0 (M-1 Q3): kilitli/yayımlanmış dönemde görev üretimi yok (gerçek admin dahil).
+        refusal = frozen_period_generation_refusal(selected_period, url_for("main.performance_task_management", **redirect_args))
+        if refusal is not None:
+            return refusal
         full_preflight_report = build_task_management_preflight_report(selected_period, None)
 
         if preflight_has_blockers(full_preflight_report) and not force_generate:

@@ -843,3 +843,96 @@ def test_an_unrelated_link_column_with_the_same_name_does_not_block_a_deletion(e
         assert db.session.get(User, former_id) is None
     assert _tasks(env) == tasks
     assert not _audits(env, "assignment_sync_frozen_period")
+
+
+# ---------------------------------------------------------------------------
+# Q3 (proje sahibi kararı): doğrudan görev üretimi/senkronu kilitli veya yayımlanmış dönemi
+# değiştiremez; gerçek admin dahil. Yeniden açma yetkisi tanımlanmamıştır.
+# ---------------------------------------------------------------------------
+def _direct_generation_requests(period_id):
+    return {
+        "faz2": lambda c: c.post(f"/performance/v2/faz2?period_id={period_id}"),
+        "task_management_generate": lambda c: c.post("/performance/task-management/generate",
+                                                     data={"period_id": str(period_id), "force_generate": "1"}),
+        "assignments_generate": lambda c: c.post("/performance/assignments/generate", data={"period_id": str(period_id)}),
+    }
+
+
+@pytest.mark.parametrize("how", ["locked", "results_published", "evaluation_published"])
+@pytest.mark.parametrize("name", ["faz2", "task_management_generate", "assignments_generate"])
+def test_direct_generation_never_changes_a_frozen_period_even_for_the_real_admin(env, name, how):
+    period_id = _setup(env)
+    _freeze(env, period_id, how)
+    _set_chain_in_db(env, "plain", SICIL["koordinator"])  # bir sonraki üretim görevleri değiştirirdi
+    tasks = _tasks(env)
+
+    response = _direct_generation_requests(period_id)[name](_fresh_admin(env))
+
+    assert response.status_code == 302, (name, how)
+    assert _tasks(env) == tasks, (name, how)
+    assert _audits(env, f"assignment_generate_frozen_period:{period_id}"), (name, how)
+
+
+@pytest.mark.parametrize("how", ["locked", "results_published", "evaluation_published"])
+def test_the_generator_itself_refuses_a_frozen_period(env, how):
+    from app.services.performance.assignments import generate_assignments_for_active_period
+
+    period_id = _setup(env)
+    _freeze(env, period_id, how)
+    _set_chain_in_db(env, "plain", SICIL["koordinator"])
+    tasks = _tasks(env)
+
+    with env.app.app_context():
+        result = generate_assignments_for_active_period(period_id=period_id)
+
+    assert result["ok"] is False and result.get("frozen") is True, how
+    assert _tasks(env) == tasks, how
+
+
+@pytest.mark.parametrize("name", ["faz2", "task_management_generate", "assignments_generate"])
+def test_direct_generation_still_works_on_an_open_period(env, name):
+    period_id = _setup(env)
+    _set_chain_in_db(env, "plain", SICIL["koordinator"])
+
+    response = _direct_generation_requests(period_id)[name](_fresh_admin(env))
+
+    assert response.status_code in {200, 302}, name
+    assert (env.ids["koordinator"], 1) in _evaluators_of(env, "plain", period_id), name
+
+
+def test_period_center_launch_never_changes_a_frozen_period(env):
+    from app.extensions import db
+    from app.models import PerformancePeriod
+    from app.services.performance.assignments import generate_assignments_for_active_period
+    from app.services.performance.v2_1_5_category_period_scope import (
+        upsert_category_period_scope_plan,
+    )
+    from app.services.performance.v2_1_6_category_period_integration import (
+        create_or_update_period_from_plan,
+    )
+    from app.services.performance.v2_1_8_period_center_assignment_launch import (
+        build_assignment_launch_guard,
+    )
+
+    _setup(env, active=False)
+    with env.app.app_context():
+        plan_key = str(upsert_category_period_scope_plan("diger", "M1 Merkez Planı", "special", "2026-01-01", "2026-06-30", "m1")["plan_key"])
+        db.session.commit()
+        link = create_or_update_period_from_plan(plan_key)
+        db.session.commit()
+        period_id = int(link["period_id"])
+        assert generate_assignments_for_active_period(period_id=period_id).get("ok")
+        period = db.session.get(PerformancePeriod, period_id)
+        assert period is not None
+        period.is_locked = True
+        db.session.commit()
+    _set_chain_in_db(env, "plain", SICIL["koordinator"])
+    tasks = _tasks(env)
+
+    response = _fresh_admin(env).post("/performans/donem-yonetim-merkezi", data={"action": "launch_assignments", "plan_key": plan_key})
+
+    assert response.status_code == 302
+    assert _tasks(env) == tasks
+    with env.app.app_context():
+        guard = build_assignment_launch_guard(plan_key)
+    assert guard["can_launch"] is False and guard["status"] == "donem_kilitli_veya_yayimlanmis"

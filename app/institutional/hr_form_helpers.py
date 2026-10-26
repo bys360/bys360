@@ -29,6 +29,31 @@ from app.institutional.hr_common import (
     utc_now,
 )
 
+HR_SCOPE_REFUSAL_MESSAGE = "Bu kayıt yetki kapsamınız dışındaki bir personeli içeriyor; kayıt oluşturulmadı."
+
+
+def _people_outside_caller_scope(*user_ids: int | None) -> bool:
+    """P0 (M-1 Q4): oluşturma da durum/silme ile aynı kapsam kuralına tabidir.
+
+    Onaylı izin/devamsızlık ve vekâlet kayıtları performans görevlerinin değerlendiricisini
+    değiştirir; kaydın içerdiği her kişi çağıranın en geniş kapsamında olmalıdır (çağıranın kendisi
+    ve sorumlu olduğu personel; gerçek admin için tüm kurum).
+    """
+    from flask_login import current_user
+
+    from app.services.ui_context.scope import build_user_scope_context
+
+    scope_ids = set(build_user_scope_context(current_user, "all").get("scope_user_ids") or [])
+    return any(user_id not in scope_ids for user_id in user_ids if user_id)
+
+
+def _refuse_out_of_scope(reason: str, redirect_endpoint: str) -> Any:
+    from app.services.account_change_guard import audit_refusal
+
+    audit_refusal(None, f"hr_scope:{reason}")
+    flash(HR_SCOPE_REFUSAL_MESSAGE, "danger")
+    return redirect(url_for(redirect_endpoint, scope=request.form.get("scope") or "personal"))
+
 
 def _create_delegation_from_form(*, delegator_user_id: int, start_date: date, end_date: date, source_leave_id: int | None = None, source_attendance_id: int | None = None) -> bool:
     delegate_user_id = _safe_int(request.form.get("delegate_user_id"))
@@ -84,6 +109,8 @@ def _handle_leave_post() -> Any:
     if end < start:
         flash("Bitiş tarihi başlangıç tarihinden önce olamaz.", "danger")
         return redirect(url_for("main.hr_leave_management", scope=request.form.get("scope") or "personal"))
+    if _people_outside_caller_scope(user_id):
+        return _refuse_out_of_scope("leave_create", "main.hr_leave_management")
     if _leave_overlaps(user_id, start, end):
         flash("Bu personel için seçilen tarih aralığında zaten izin kaydı var. Mükerrer kayıt engellendi.", "warning")
         return redirect(url_for("main.hr_leave_management", scope=request.form.get("scope") or "personal", user_id=user_id))
@@ -160,6 +187,8 @@ def _handle_attendance_post() -> Any:
     if not user_id or not record_date:
         flash("Personel ve kayıt tarihi zorunludur.", "danger")
         return redirect(url_for("main.hr_attendance_management", scope=request.form.get("scope") or "personal"))
+    if _people_outside_caller_scope(user_id):
+        return _refuse_out_of_scope("attendance_create", "main.hr_attendance_management")
     if _attendance_overlaps(user_id, record_date):
         flash("Bu personel için aynı tarihte devamsızlık/istisna kaydı var. Mükerrer kayıt engellendi.", "warning")
         return redirect(url_for("main.hr_attendance_management", scope=request.form.get("scope") or "personal", user_id=user_id))
@@ -223,6 +252,8 @@ def _handle_manual_delegation_post() -> Any:
     if delegate_user_id == delegator_user_id:
         flash("Vekil personel asıl kişiyle aynı olamaz.", "danger")
         return redirect(url_for("main.hr_attendance_management", scope=request.form.get("scope") or "personal"))
+    if _people_outside_caller_scope(delegator_user_id, delegate_user_id):
+        return _refuse_out_of_scope("delegation_create", "main.hr_attendance_management")
     delegation = DelegationAssignment(
         delegator_user_id=delegator_user_id,
         delegate_user_id=delegate_user_id,

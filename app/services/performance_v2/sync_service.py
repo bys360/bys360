@@ -21,6 +21,7 @@ from app.services.availability_service import (
 from app.services.hierarchy_rulebook_service import build_lookup
 from app.services.performance.chain_rule_engine import resolve_authoritative_desired_chain
 from app.services.performance.common import is_president
+from app.services.performance.period_freeze import FROZEN_PERIOD_TASKS_MESSAGE, period_is_frozen
 
 # BYS360_PHASE8_4_PERIOD_SCOPE_IMPORT_START
 from app.services.performance.period_scope_assignment import (
@@ -639,6 +640,22 @@ def sync_employee_assignments(period, employee, *, run_key: str | None = None, a
 
 
 def ensure_assignments_for_period(period, employee_ids: list[int] | None = None, actor_user_id: int | None = None):
+    # P0 (M-1 Q3): kilitli/yayımlanmış dönemin görevleri hiçbir yoldan yeniden üretilmez (gerçek admin
+    # dahil); kontrol her yazımdan (puanlama penceresi alanı dahil) önce yapılır.
+    if period_is_frozen(period):
+        logger.warning("BYS360 P0 görev üretimi reddedildi: dönem kilitli/yayımlanmış | period_id=%s | actor=%s", period.id, actor_user_id)
+        return {
+            'ok': False,
+            'frozen': True,
+            'period_id': getattr(period, 'id', None),
+            'created': 0,
+            'updated': 0,
+            'created_count': 0,
+            'updated_count': 0,
+            'warnings': [FROZEN_PERIOD_TASKS_MESSAGE],
+            'message': FROZEN_PERIOD_TASKS_MESSAGE,
+            'actor_user_id': actor_user_id,
+        }
     issues = validate_period_ready(period)
     rows = []
     run_key = uuid4().hex

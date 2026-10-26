@@ -20,7 +20,10 @@ from app.models import (
 )
 from app.route_registry import main_bp
 from app.route_support import admin_required, ensure_boolean_toggle, menu_key_required, safe_render
-from app.security.critical_operations import critical_operation_required
+from app.security.critical_operations import (
+    critical_operation_required,
+    frozen_period_generation_refusal,
+)
 from app.services.ai.dashboard_panels import build_period_form_ai_panel, build_periods_ai_panel
 from app.services.hierarchy_admin_service import parse_date
 from app.services.performance.assignment_rule_audit import build_assignment_generation_preflight
@@ -678,6 +681,10 @@ def performance_generate_assignments():
         if not period:
             flash("Geçerli bir dönem seçiniz.", "danger")
             return redirect(url_for("main.performance_generate_assignments"))
+        # P0 (M-1 Q3): kilitli/yayımlanmış dönemde görev üretimi yok (gerçek admin dahil).
+        refusal = frozen_period_generation_refusal(period, url_for("main.performance_generate_assignments"))
+        if refusal is not None:
+            return refusal
 
         try:
             preflight = build_assignment_generation_preflight(period_id=period.id)

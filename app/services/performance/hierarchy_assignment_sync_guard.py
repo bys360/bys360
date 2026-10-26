@@ -36,6 +36,7 @@ from app.models import (
 )
 from app.services.account_change_guard import is_real_admin
 from app.services.performance.assignments import generate_assignments_for_active_period
+from app.services.performance.period_freeze import period_is_frozen
 
 logger = logging.getLogger(__name__)
 
@@ -98,17 +99,6 @@ def assignment_relevant_user_state() -> dict[int, tuple[Any, ...]]:
         .order_by(User.id)
     )
     return {row[0]: tuple(row) for row in db.session.execute(query).all()}
-
-
-def period_is_frozen(period: PerformancePeriod) -> bool:
-    if bool(getattr(period, "is_locked", False)) or bool(getattr(period, "results_published", False)):
-        return True
-    published = (
-        db.session.query(PerformanceEvaluation.id)
-        .filter(PerformanceEvaluation.period_id == period.id, PerformanceEvaluation.is_published_to_employee.is_(True))
-        .first()
-    )
-    return published is not None
 
 
 def begin_hierarchy_change(explicit_period_id: int | None = None, *, actor: Any = None) -> HierarchyChangePlan:

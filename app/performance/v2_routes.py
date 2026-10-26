@@ -20,7 +20,11 @@ from app.extensions import db
 from app.models import EvaluationAssignment, PerformancePeriod, User
 from app.route_registry import main_bp
 from app.route_support import admin_required, menu_key_required
-from app.security.critical_operations import critical_action_refusal, critical_operation_required
+from app.security.critical_operations import (
+    critical_action_refusal,
+    critical_operation_required,
+    frozen_period_generation_refusal,
+)
 from app.services.ai.dashboard_panels import (
     build_management_ai_panel,
     build_publish_ai_panel,
@@ -179,9 +183,15 @@ def performance_v2_phase2_dashboard():
     period = _resolve_period(request.values.get('period_id', type=int))
     result = None
     if request.method == 'POST' and period:
+        refusal = frozen_period_generation_refusal(period, url_for('main.performance_v2_phase2_dashboard', period_id=period.id))
+        if refusal is not None:
+            return refusal
         employee_id = request.form.get('employee_id', type=int)
         result = ensure_assignments_for_period(period=period, employee_ids=[employee_id] if employee_id else None)
-        flash('V2 görev senkronu tamamlandı.', 'success')
+        if result.get('ok', True):
+            flash('V2 görev senkronu tamamlandı.', 'success')
+        else:
+            flash(result.get('message') or 'V2 görev senkronu tamamlanamadı.', 'danger')
     employee_options = (
         User.query.filter(User.is_active.is_(True), User.role != 'admin')
         .order_by(User.ad.asc(), User.soyad.asc())
