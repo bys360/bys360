@@ -50,6 +50,10 @@ SETTING_DEFINITIONS: list[FileCenterSettingDefinition] = [
     FileCenterSettingDefinition("chunk_upload_enabled", "Parçalı yükleme aktif", "true", "bool", "Büyük Dosya", "Büyük dosyalar için parçalı yükleme altyapısını etkinleştirir."),
     FileCenterSettingDefinition("chunk_upload_real_enabled", "Gerçek parçalı yükleme aktif", "true", "bool", "Büyük Dosya", "Gerçek parça yükleme, devam etme ve birleştirme işlemlerini etkinleştirir."),
     FileCenterSettingDefinition("default_chunk_mb", "Varsayılan parça boyutu", "10", "float", "Büyük Dosya", "Parçalı yüklemede varsayılan parça boyutu, MB."),
+    FileCenterSettingDefinition("chunk_min_mb", "En küçük parça boyutu", "1", "float", "Büyük Dosya", "Parçalı yüklemede kabul edilen en küçük parça, MB. Bundan küçük bir dosya tek parça olarak yüklenir."),
+    FileCenterSettingDefinition("chunk_max_mb", "En büyük parça boyutu", "100", "float", "Büyük Dosya", "Parçalı yüklemede kabul edilen en büyük parça, MB. Yükleme isteği gövde sınırını (UPLOAD_MAX_CONTENT_LENGTH) aşamaz."),
+    FileCenterSettingDefinition("chunk_max_parts", "En fazla parça sayısı", "10000", "int", "Büyük Dosya", "Bir parçalı yükleme oturumundaki en fazla parça sayısı."),
+    FileCenterSettingDefinition("chunk_max_open_sessions", "Kullanıcı başına açık yükleme oturumu", "3", "int", "Büyük Dosya", "Bir kullanıcının aynı anda tamamlanmamış parçalı yükleme oturumu sayısı. Süresi dolan oturumlar sayılmaz, geçici dosyaları silinir. Toplam dosya boyutu Tek dosya sınırını aşamaz."),
     FileCenterSettingDefinition("mail_enabled", "E-posta gönderimi aktif", "false", "bool", "E-posta", "Dosya isteği e-posta gönderimini etkinleştirir."),
     FileCenterSettingDefinition("automatic_reminders_enabled", "Otomatik hatırlatma aktif", "false", "bool", "E-posta", "Son tarih yaklaşınca otomatik hatırlatma scriptinin çalışmasına izin verir."),
 ]
