@@ -466,6 +466,38 @@ def test_activity_endpoint_does_not_accept_a_mobile_bearer_token(env):
     assert response.status_code in {302, 401}
 
 
+def test_activity_endpoint_keeps_the_request_body_limits(env, clock, csrf_on):
+    """PR #110: the activity endpoint is an ordinary non-upload endpoint. With CSRF on (as in
+    production) an oversized body is refused with 413 before it is read and records nothing."""
+    from app.core.form_body_limit import body_limit_for, configured_limit
+
+    config = env.app.config
+    assert body_limit_for("session_activity", authenticated=True, is_json=False, config=config) == \
+        configured_limit(config, "MAX_CONTENT_LENGTH")
+    assert body_limit_for("session_activity", authenticated=False, is_json=False, config=config) == \
+        configured_limit(config, "ANONYMOUS_MAX_CONTENT_LENGTH")
+    assert body_limit_for("session_activity", authenticated=True, is_json=True, config=config) == \
+        configured_limit(config, "JSON_MAX_CONTENT_LENGTH")
+    client = _web(env, "plain")
+    csrf_on()
+    token = _csrf_token(client)
+    seen = _seen(client)
+    clock(5)
+    over_form = configured_limit(config, "MAX_CONTENT_LENGTH") + 1
+    over_json = configured_limit(config, "JSON_MAX_CONTENT_LENGTH") + 1
+    for body, content_type in ((b"a=" + b"x" * over_form, "application/x-www-form-urlencoded"),
+                               (b"x" * over_json, "application/json")):
+        response = client.post(ACTIVITY_URL, data=body, content_type=content_type,
+                               headers={**SCRIPT_WRITE, "X-CSRFToken": token})
+        assert response.status_code == 413, content_type
+        assert _seen(client) == seen
+    anonymous = env.app.test_client()
+    too_big = anonymous.post(ACTIVITY_URL, data=b"a=" + b"x" * (configured_limit(config, "ANONYMOUS_MAX_CONTENT_LENGTH") + 1),
+                             content_type="application/x-www-form-urlencoded", headers=SCRIPT_WRITE)
+    assert too_big.status_code == 413
+    assert _notify(client, token).status_code == 204 and _seen(client) != seen
+
+
 def test_activity_endpoint_writes_at_most_once_a_minute(env, clock):
     client = _web(env, "plain")
     clock(5)
