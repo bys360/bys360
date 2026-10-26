@@ -1,7 +1,8 @@
 """urlencoded form bodies are refused above MAX_FORM_MEMORY_SIZE (Werkzeug 3.1.9 dropped the limit).
 
 Werkzeug 3.1.8 answered a urlencoded body declared larger than ``max_form_memory_size`` with 413;
-3.1.9 applies only ``MAX_CONTENT_LENGTH``, which BYS360 raises to 150 MB for uploads. Measured
+3.1.9 applies only ``MAX_CONTENT_LENGTH``, which BYS360 raised to 150 MB for uploads (since #105,
+only upload endpoints get that limit). Measured
 on the real app: a 2 MB and a 20 MB urlencoded POST to /login were 413 on 3.1.8 and parsed on
 3.1.9. ``app.core.form_body_limit.BYS360Request`` restores the 3.1.8 rule; uploads keep their
 150 MB limit.
@@ -111,7 +112,7 @@ def test_an_oversized_urlencoded_login_post_is_413_on_the_real_app(real_app, csr
     real_app.config["WTF_CSRF_ENABLED"] = csrf_enabled
     assert real_app.request_class is BYS360Request
     assert real_app.config.get("MAX_FORM_MEMORY_SIZE", LIMIT) == LIMIT
-    assert real_app.config["MAX_CONTENT_LENGTH"] >= 150 * 1024 * 1024  # uploads keep their limit
+    assert real_app.config["UPLOAD_MAX_CONTENT_LENGTH"] >= 150 * 1024 * 1024  # uploads keep their limit (#105)
 
     response = real_app.test_client().post(
         "/login", data=_urlencoded(2 * 1024 * 1024), content_type="application/x-www-form-urlencoded"
