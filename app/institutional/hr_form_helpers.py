@@ -109,7 +109,7 @@ def _handle_leave_post() -> Any:
     if end < start:
         flash("Bitiş tarihi başlangıç tarihinden önce olamaz.", "danger")
         return redirect(url_for("main.hr_leave_management", scope=request.form.get("scope") or "personal"))
-    if _people_outside_caller_scope(user_id):
+    if _people_outside_caller_scope(user_id, _safe_int(request.form.get("delegate_user_id"))):
         return _refuse_out_of_scope("leave_create", "main.hr_leave_management")
     if _leave_overlaps(user_id, start, end):
         flash("Bu personel için seçilen tarih aralığında zaten izin kaydı var. Mükerrer kayıt engellendi.", "warning")
@@ -187,7 +187,7 @@ def _handle_attendance_post() -> Any:
     if not user_id or not record_date:
         flash("Personel ve kayıt tarihi zorunludur.", "danger")
         return redirect(url_for("main.hr_attendance_management", scope=request.form.get("scope") or "personal"))
-    if _people_outside_caller_scope(user_id):
+    if _people_outside_caller_scope(user_id, _safe_int(request.form.get("delegate_user_id"))):
         return _refuse_out_of_scope("attendance_create", "main.hr_attendance_management")
     if _attendance_overlaps(user_id, record_date):
         flash("Bu personel için aynı tarihte devamsızlık/istisna kaydı var. Mükerrer kayıt engellendi.", "warning")

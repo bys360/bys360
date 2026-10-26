@@ -208,3 +208,123 @@ def test_an_authorised_delegation_never_redirects_a_completed_task(app):
     _client(app, "HRS_EA").get(f"/performance/evaluate/{task_id}")
 
     assert _task_of(app, period_id, ids["HRS_EB"]) == before_task
+
+
+# --------------------------------------------------------------------------- review round 4
+# Making a delegation effective, or creating one through the leave/attendance form, follows the
+# creation rule above (every person in the record in the caller's scope). Cancelling or deleting a
+# delegation keeps the status/delete rule. Task generation keeps the evaluator of completed tasks,
+# as the live delegation refresh already does.
+
+
+def _delegation_rows(app):
+    from app.models import DelegationAssignment
+
+    with app.app_context():
+        return {(r.delegator_user_id, r.delegate_user_id): (r.id, r.status) for r in DelegationAssignment.query.all()}
+
+
+def test_activating_an_out_of_scope_delegation_through_the_status_route_is_refused(app):
+    ids = _ids(app)
+    period_id = _period_with_tasks(app)
+    before_task = _task_of(app, period_id, ids["HRS_EB"])
+    admin = _client(app, "HRS_AD")
+    assert _create_leave(admin, ids["HRS_MB"]).status_code == 302
+    today = date.today().isoformat()
+    admin.post("/hr-management/attendance", data={
+        "action": "create_delegation", "_form_token": _tokens(admin, "/hr-management/attendance")[-1],
+        "delegator_user_id": str(ids["HRS_MB"]), "delegate_user_id": str(ids["HRS_MA"]), "start_date": today,
+        "end_date": today, "status": "bekliyor", "scope_type": "performance", "applies_level_1": "on"})
+    delegation_id, status = _delegation_rows(app)[(ids["HRS_MB"], ids["HRS_MA"])]
+    assert status == "bekliyor"
+
+    response = _client(app, "HRS_MA").post(f"/hr-management/delegations/{delegation_id}/status", data={"status": "aktif"})
+    _client(app, "HRS_EA").get(f"/performance/evaluate/{before_task[0]}")
+
+    assert response.status_code == 302
+    assert _delegation_rows(app)[(ids["HRS_MB"], ids["HRS_MA"])] == (delegation_id, "bekliyor")
+    _task_id, evaluator, original, source, task_delegation = _task_of(app, period_id, ids["HRS_EB"])
+    # MB is on leave without an active delegate (the refresh may mark the task uncovered), but the
+    # task never moves to the out-of-scope manager.
+    assert (evaluator, original, task_delegation) == (before_task[1], before_task[2], None) and source != "delegated"
+    assert _refusal_audits(app, "hr_scope:delegation_status")
+
+
+def test_cancelling_a_delegation_keeps_the_status_rule(app):
+    ids = _ids(app)
+    admin = _client(app, "HRS_AD")
+    assert _create_delegation(admin, ids["HRS_MB"], ids["HRS_MA"]).status_code == 302
+    delegation_id, _status = _delegation_rows(app)[(ids["HRS_MB"], ids["HRS_MA"])]
+
+    _client(app, "HRS_MA").post(f"/hr-management/delegations/{delegation_id}/status", data={"status": "iptal"})
+
+    assert _delegation_rows(app)[(ids["HRS_MB"], ids["HRS_MA"])] == (delegation_id, "iptal")
+    assert not _refusal_audits(app, "hr_scope:")
+
+
+@pytest.mark.parametrize("kind", ["leave", "attendance"])
+def test_a_delegate_named_in_a_leave_or_attendance_form_must_be_in_the_callers_scope(app, kind):
+    ids = _ids(app)
+    period_id = _period_with_tasks(app)
+    before_task = _task_of(app, period_id, ids["HRS_EA"])
+    assert before_task[1] == ids["HRS_MA"]
+    hr_before = _hr_rows(app)
+    manager_a = _client(app, "HRS_MA")
+    if kind == "leave":
+        response = _create_leave(manager_a, ids["HRS_MA"], delegate_user_id=str(ids["HRS_EB"]))
+    else:
+        data = {"action": "create_attendance", "_form_token": _tokens(manager_a, "/hr-management/attendance")[0],
+                "user_id": str(ids["HRS_MA"]), "record_date": date.today().isoformat(), "status": "onaylandi",
+                "blocks_manager_duties": "on", "exception_type": "devamsizlik", "delegate_user_id": str(ids["HRS_EB"])}
+        response = manager_a.post("/hr-management/attendance", data=data)
+    _client(app, "HRS_EA").get(f"/performance/evaluate/{before_task[0]}")
+
+    assert response.status_code == 302
+    assert _hr_rows(app) == hr_before
+    assert _task_of(app, period_id, ids["HRS_EA"]) == before_task
+    assert _refusal_audits(app, f"hr_scope:{kind}_create")
+
+
+def test_a_delegate_inside_the_callers_scope_is_still_recorded_with_the_leave(app):
+    ids = _ids(app)
+    manager_a = _client(app, "HRS_MA")
+
+    response = _create_leave(manager_a, ids["HRS_MA"], delegate_user_id=str(ids["HRS_EA"]))
+
+    assert response.status_code == 302
+    assert _delegation_rows(app)[(ids["HRS_MA"], ids["HRS_EA"])][1] == "aktif"
+    assert not _refusal_audits(app, "hr_scope:")
+
+
+def test_task_generation_keeps_the_evaluator_of_a_completed_task(app):
+    """A completed task keeps the evaluator who completed it when the hierarchy changes later."""
+    from app.extensions import db
+    from app.models import EvaluationAssignment, PerformanceEvaluation, User
+    from app.services.performance.assignments import generate_assignments_for_active_period
+
+    ids = _ids(app)
+    period_id = _period_with_tasks(app)
+    task_id = _task_of(app, period_id, ids["HRS_EB"])[0]
+    with app.app_context():
+        row = db.session.get(EvaluationAssignment, task_id)
+        assert row is not None
+        row.status = "tamamlandi"
+        row.completed_at = datetime(2026, 7, 1, 10, 0)
+        for sicil in ("HRS_EB", "HRS_EB2"):  # the unit's manager changes after the evaluation was done
+            user = User.query.filter_by(sicil_no=sicil).one()
+            user.yonetici_sicil = "HRS_MA"
+        db.session.commit()
+    before_task = _task_of(app, period_id, ids["HRS_EB"])
+    with app.app_context():
+        evaluation = PerformanceEvaluation.query.filter_by(period_id=period_id, employee_id=ids["HRS_EB"]).one()
+        level_1_before = evaluation.level_1_evaluator_id
+        assert level_1_before == ids["HRS_MB"]
+        assert generate_assignments_for_active_period(period_id=period_id).get("ok")
+        db.session.commit()
+
+    assert _task_of(app, period_id, ids["HRS_EB"]) == before_task
+    with app.app_context():
+        evaluation = PerformanceEvaluation.query.filter_by(period_id=period_id, employee_id=ids["HRS_EB"]).one()
+        assert evaluation.level_1_evaluator_id == level_1_before
+    open_task = _task_of(app, period_id, ids["HRS_EB2"])  # an open task follows the new hierarchy
+    assert open_task[1] == ids["HRS_MA"]
