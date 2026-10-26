@@ -7,6 +7,7 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
 from app.models import PerformancePeriod, User
@@ -225,6 +226,29 @@ def _find_period(period_id: Any) -> PerformancePeriod | None:
     if not pid:
         return None
     return db.session.get(PerformancePeriod, pid)
+
+
+def linked_period_reset_flags(plan_key: str) -> tuple[bool, bool]:
+    """Plana bağlı dönemin (kilitli, sonuçları yayında) durumu; yalnız okur.
+
+    ``create_or_update_period_from_plan`` mevcut dönemi yeniden bağlarken ``is_locked`` ve
+    ``results_published`` alanlarını sıfırlar; rotalar bu bayraklarla kilit açma ve yayından
+    kaldırma yetkisini ayrıca ister. Bağlı dönem yoksa (False, False); okunamazsa kapalı
+    kalır: (True, True).
+    """
+    try:
+        row = _db().session.execute(
+            text(f"SELECT period_id FROM {INTEGRATION_TABLE} WHERE plan_key=:plan_key"),
+            {"plan_key": str(plan_key or "")},
+        ).mappings().first()
+        period = _find_period(row.get("period_id") if row else None)
+    except SQLAlchemyError:
+        logger.exception("BYS360 P0: plana bağlı dönemin kilit/yayın durumu okunamadı.")
+        _db().session.rollback()
+        return True, True
+    if period is None:
+        return False, False
+    return bool(getattr(period, "is_locked", False)), bool(getattr(period, "results_published", False))
 
 
 def _set_if_has(obj: Any, attr: str, value: Any) -> None:

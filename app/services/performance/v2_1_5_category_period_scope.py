@@ -226,6 +226,11 @@ def make_plan_key(category_key: str, period_type: str, start_date: str | None, e
     return f"cat_period_{cat}_{ptype}_{s}_{e}"[:150]
 
 
+def resolve_plan_key(category_key: str, period_type: Any = "special", start_date: Any = None, end_date: Any = None) -> str:
+    """``upsert_category_period_scope_plan`` bu girdilerle hangi plan anahtarını yazacaksa onu döndürür."""
+    return make_plan_key(canonical_category_key(category_key), _valid_period_type(period_type), _parse_date(start_date), _parse_date(end_date))
+
+
 def _category_display_name(category_key: str) -> str:
     key = canonical_category_key(category_key)
     for cat in list_categories(include_inactive=True):
@@ -308,7 +313,7 @@ def upsert_category_period_scope_plan(
     if not plan_name:
         label = _category_display_name(key)
         plan_name = f"{label} {PERIOD_TYPES.get(ptype, 'Özel Dönem')} Performans Kapsamı"
-    plan_key = make_plan_key(key, ptype, start, end)
+    plan_key = resolve_plan_key(category_key, period_type, start_date, end_date)
     vm = scope_visibility_mode if scope_visibility_mode in {"summary_only", "detail_allowed"} else "summary_only"
     db = _db()
     exists = db.session.execute(text(f"SELECT id FROM {PLAN_TABLE} WHERE plan_key=:plan_key"), {"plan_key": plan_key}).mappings().first()

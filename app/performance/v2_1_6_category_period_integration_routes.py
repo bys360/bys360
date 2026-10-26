@@ -7,13 +7,14 @@ from flask_login import current_user, login_required
 
 from app.route_registry import main_bp
 from app.route_support import admin_required, safe_render
-from app.security.critical_operations import critical_action_refusal
+from app.security.critical_operations import critical_action_refusal, period_reset_refusal
 from app.services.performance.v2_1_5_category_period_scope import list_category_period_scope_plans
 from app.services.performance.v2_1_6_category_period_integration import (
     build_assignment_preintegration,
     create_or_update_period_from_plan,
     ensure_category_period_integration_schema,
     integration_summary,
+    linked_period_reset_flags,
     list_integrations,
     list_preintegration_rows,
 )
@@ -35,6 +36,8 @@ def performance_v2_1_6_category_period_integration():
         refusal = critical_action_refusal("period_manage", "performance_periods")
         if refusal is None and request.form.get("activate_period"):
             refusal = critical_action_refusal("period_activate", "performance_periods")
+        if refusal is None:
+            refusal = period_reset_refusal(*linked_period_reset_flags(request.form.get("plan_key") or ""))
         if refusal is not None:
             return refusal
     ensure_category_period_integration_schema()

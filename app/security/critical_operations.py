@@ -71,6 +71,19 @@ def critical_action_refusal(operation: str, menu_key: str):
     return deny_critical_operation(operation)
 
 
+def period_reset_refusal(is_locked: bool, results_published: bool):
+    """Mevcut dönemi plana yeniden bağlamak kilidi açar ve yayını kaldırır; bu yetkiler ayrıca istenir."""
+    if is_locked:
+        refusal = critical_action_refusal("period_lock", "performance_periods")
+        if refusal is not None:
+            return refusal
+    if results_published:
+        refusal = critical_action_refusal("period_publish", "performance_publish")
+        if refusal is not None:
+            return refusal
+    return None
+
+
 def critical_operation_required(operation: str):
     def decorator(view_func):
         @wraps(view_func)

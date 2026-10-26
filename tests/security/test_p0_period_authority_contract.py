@@ -540,6 +540,128 @@ def test_alt_period_center_and_integration_refuse_period_creation(app, role) -> 
     assert _assignment_count(app) == 0, role
 
 
+# F-A: planı mevcut döneme yeniden bağlamak servis içinde ``is_locked`` ve ``results_published``
+# alanlarını sıfırlar. Doğrudan kilit/yayın rotalarında reddedilen rol bu yoldan kilit açamaz ve
+# yayını kaldıramaz.
+CENTER_URL = "/performans/donem-yonetim-merkezi"
+INTEGRATION_URL = "/performance/v2-1-6-category-period-integration"
+FA_PLAN = {"category_key": "diger", "period_type": "special", "start_date": "2027-01-01", "end_date": "2027-06-30"}
+
+
+def _provision_plan_schema(app) -> None:
+    from app.extensions import db
+    from app.services import runtime_schema
+
+    with app.app_context():
+        runtime_schema.forget_verified()
+        runtime_schema.provision_all()
+        db.session.commit()
+
+
+def _linked_plan_period(app, *, is_locked: bool, results_published: bool) -> tuple[str, int]:
+    """Admin planı v2.1.6 rotasıyla gerçek döneme bağlar; dönem istenen kilit/yayın durumuna getirilir."""
+    from app.extensions import db
+    from app.models import PerformancePeriod
+    from app.services.performance.v2_1_5_category_period_scope import (
+        upsert_category_period_scope_plan,
+    )
+
+    _provision_plan_schema(app)
+    with app.app_context():
+        plan_key = str(upsert_category_period_scope_plan(
+            FA_PLAN["category_key"], "Sahte FA Planı", FA_PLAN["period_type"], FA_PLAN["start_date"], FA_PLAN["end_date"], "p0",
+        )["plan_key"])
+        db.session.commit()
+    admin = _client_for(app, "admin", "P0-FA-ADMIN")
+    assert admin.post(INTEGRATION_URL, data={"action": "link_period", "plan_key": plan_key}).status_code == 302
+    with app.app_context():
+        period = db.session.query(PerformancePeriod).filter_by(title="Sahte FA Planı").one()
+        period.is_locked = is_locked
+        period.results_published = results_published
+        db.session.commit()
+        return plan_key, period.id
+
+
+def _relink_requests(plan_key: str) -> list[tuple[str, dict]]:
+    return [
+        (INTEGRATION_URL, {"action": "link_period", "plan_key": plan_key}),
+        (INTEGRATION_URL, {"plan_key": plan_key}),
+        (CENTER_URL, {"action": "link_period", "plan_key": plan_key}),
+        (CENTER_URL, {"action": "prepare_and_link", "plan_name": "Sahte FA Planı", **FA_PLAN}),
+        (CENTER_URL, {"action": "prepare_link_precheck", "plan_name": "Sahte FA Planı", **FA_PLAN}),
+    ]
+
+
+# Başkan sonuç yayınlayabildiği için yalnız yayında olan (kilitsiz) dönemi yeniden bağlayabilir;
+# o durum aşağıdaki ayrı testte ölçülür.
+_FA_REFUSED = [
+    (role, is_locked, results_published)
+    for role in ROLES if role != "admin"
+    for is_locked, results_published in ((True, True), (True, False), (False, True))
+    if not (role == "baskan" and not is_locked)
+]
+
+
+@pytest.mark.parametrize(("role", "is_locked", "results_published"), _FA_REFUSED)
+def test_fa_relinking_a_plan_cannot_unlock_or_unpublish_its_period(app, role, is_locked, results_published) -> None:
+    plan_key, period_id = _linked_plan_period(app, is_locked=is_locked, results_published=results_published)
+    client = _client_for(app, role)
+    for menu_key in ("performance_periods", "performance_publish", "performance_period_management_center"):
+        _grant_role_menu(app, role, menu_key)
+    before = _state(app, period_id)
+    titles = _period_titles(app)
+    for url, data in _relink_requests(plan_key):
+        response = client.post(url, data=data)
+        assert _state(app, period_id) == before, (role, url, data, response.status_code)
+        if url == INTEGRATION_URL or role in {"baskan", "baskan_yardimcisi", "grup_baskani", "mali_musavir"}:
+            assert _denied(response), (role, url, data, response.status_code)
+    assert _period_titles(app) == titles, role
+
+
+@pytest.mark.parametrize("role", ["baskan", "baskan_yardimcisi"])
+def test_fa_period_managers_still_link_an_unlocked_unpublished_period(app, role) -> None:
+    plan_key, period_id = _linked_plan_period(app, is_locked=False, results_published=False)
+    client = _client_for(app, role)
+    response = client.post(INTEGRATION_URL, data={"action": "link_period", "plan_key": plan_key})
+    assert response.status_code == 302, role
+    assert _state(app, period_id)["title"] == "Sahte FA Planı"
+    assert _period_titles(app) == ["Sahte FA Planı"]
+
+
+def test_fa_president_relinks_a_published_period_only_through_the_publish_right(app) -> None:
+    plan_key, period_id = _linked_plan_period(app, is_locked=False, results_published=True)
+    client = _client_for(app, "baskan")
+    assert client.post(INTEGRATION_URL, data={"action": "link_period", "plan_key": plan_key}).status_code == 302
+    assert _state(app, period_id)["results_published"] is False
+
+
+@pytest.mark.parametrize("url", [INTEGRATION_URL, CENTER_URL])
+def test_fa_admin_relink_keeps_resetting_lock_and_publish(app, url) -> None:
+    plan_key, period_id = _linked_plan_period(app, is_locked=True, results_published=True)
+    admin = _client_for(app, "admin")
+    data = {"action": "link_period", "plan_key": plan_key} if url == INTEGRATION_URL else {
+        "action": "prepare_and_link", "plan_name": "Sahte FA Planı", **FA_PLAN}
+    assert admin.post(url, data=data).status_code == 302
+    state = _state(app, period_id)
+    assert (state["is_locked"], state["results_published"]) == (False, False)
+    assert _period_titles(app) == ["Sahte FA Planı"]
+
+
+def test_fa_linked_period_lookup_fails_closed(app) -> None:
+    from app.services.performance.v2_1_5_category_period_scope import resolve_plan_key
+    from app.services.performance.v2_1_6_category_period_integration import (
+        linked_period_reset_flags,
+    )
+
+    with app.app_context():
+        assert linked_period_reset_flags("sahte-plan") == (True, True)  # entegrasyon tablosu henüz yok
+    plan_key, _ = _linked_plan_period(app, is_locked=True, results_published=False)
+    with app.app_context():
+        assert linked_period_reset_flags("sahte-plan") == (False, False)
+        assert linked_period_reset_flags(plan_key) == (True, False)
+        assert resolve_plan_key(**FA_PLAN) == plan_key
+
+
 @pytest.mark.parametrize("role", ROLES)
 def test_alt_task_management_generate_is_real_admin_only(app, role) -> None:
     """Görev yönetimi ekranındaki ikinci görev üretimi yolu (ön kontrol override dahil): yalnız gerçek admin.

@@ -8,10 +8,12 @@ from flask_login import current_user, login_required
 
 from app.route_registry import main_bp
 from app.route_support import menu_key_required, safe_render
-from app.security.critical_operations import critical_action_refusal
+from app.security.critical_operations import critical_action_refusal, period_reset_refusal
+from app.services.performance.v2_1_5_category_period_scope import resolve_plan_key
 from app.services.performance.v2_1_6_category_period_integration import (
     build_assignment_preintegration,
     create_or_update_period_from_plan,
+    linked_period_reset_flags,
 )
 from app.services.performance.v2_1_6a_category_ui_cleanup import corporate_gate_label, label_status
 from app.services.performance.v2_1_7_period_management_center import (
@@ -209,6 +211,19 @@ def performance_v2_1_7_period_management_center():
             refusal = critical_action_refusal("period_manage", "performance_periods")
             if refusal is None and request.form.get("activate_period"):
                 refusal = critical_action_refusal("period_activate", "performance_periods")
+            if refusal is None:
+                # Aynı kategori/tür/tarih planı aynı anahtarı üretir: "hazırla ve bağla" da mevcut
+                # dönemi yeniden bağlayabilir.
+                if center_action == "link_period":
+                    relink_plan_key = request.form.get("plan_key") or ""
+                else:
+                    relink_plan_key = resolve_plan_key(
+                        request.form.get("category_key") or "diger",
+                        request.form.get("period_type") or "special",
+                        request.form.get("start_date") or None,
+                        request.form.get("end_date") or None,
+                    )
+                refusal = period_reset_refusal(*linked_period_reset_flags(relink_plan_key))
             if refusal is not None:
                 return refusal
         elif center_action == "launch_assignments":
