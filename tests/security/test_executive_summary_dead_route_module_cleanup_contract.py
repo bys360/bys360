@@ -143,8 +143,13 @@ RESIDUAL_TEMPLATE_FILE = "app/templates/dashboard/executive_summary.html"
 # additive route (GET /portal/attachments/<int:attachment_id>) raised the
 # count 996->997 and changed the endpoint-list hash accordingly --
 # mechanically re-verified against a fresh app.url_map, unrelated to this wave.
-EXPECTED_ROUTE_COUNT = 997
-EXPECTED_ENDPOINT_LIST_SHA256 = "269dc9216997f412a6323e22a365605535f4214aab4fdb87c0dabb74e7820e4e"
+#
+# FORWARD-COMPATIBILITY FOLLOW-UP (BYS360 session lifetime): one new, additive
+# app-level route (POST /session/activity, endpoint session_activity) raised the
+# count 997->998 and changed the endpoint-list hash accordingly -- mechanically
+# re-verified against a fresh app.url_map, unrelated to this wave.
+EXPECTED_ROUTE_COUNT = 998
+EXPECTED_ENDPOINT_LIST_SHA256 = "9a04a93cb5e7edbb1246849f767b54c0f4c03752b717a52669bb56098b7024dd"
 
 STARTUP_FILES_THAT_MUST_NOT_REFERENCE_THE_DEAD_MODULE = (
     "app/dashboard/routes.py",

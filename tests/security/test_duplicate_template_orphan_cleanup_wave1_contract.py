@@ -431,7 +431,12 @@ def wave1_app():
 # additive route (GET /portal/attachments/<int:attachment_id>) raised the
 # count 996->997 -- mechanically re-verified against a fresh app.url_map,
 # unrelated to this wave.
-EXPECTED_URL_MAP_TOTAL = 997
+#
+# FORWARD-COMPATIBILITY FOLLOW-UP (BYS360 session lifetime): one new, additive
+# app-level route (POST /session/activity, endpoint session_activity) raised the
+# count 997->998 -- mechanically re-verified against a fresh app.url_map,
+# unrelated to this wave.
+EXPECTED_URL_MAP_TOTAL = 998
 
 
 def test_url_map_route_count_is_unchanged(wave1_app) -> None:

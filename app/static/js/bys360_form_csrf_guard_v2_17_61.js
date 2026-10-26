@@ -38,4 +38,35 @@
     syncForms();
   }, true);
   window.addEventListener('pageshow', function(){ refreshToken(); });
+
+  /* BYS360 session activity (30-minute idle policy): tells the server the user is working on this
+   * page. Sends POST {data-session-activity-url} only from keyboard, pointer, touch, wheel and
+   * text-input events, at most once a minute and only while the page is visible. There is no timer:
+   * polling and other background code never reach this request. event.isTrusted only filters events
+   * that page scripts dispatch themselves; it is not proof of a human, and the server treats this
+   * request as a rate-limited, CSRF-protected activity notice from the logged-in page. */
+  (function sessionActivity(){
+    var body=document.body;
+    var url=body && body.getAttribute('data-session-activity-url');
+    if(!url || typeof window.fetch !== 'function') return;
+    var MIN_INTERVAL_MS = 60000;
+    var last=Date.now();
+    function notify(event){
+      if(!event.isTrusted || document.visibilityState !== 'visible') return;
+      var now=Date.now();
+      if(now - last < MIN_INTERVAL_MS) return;
+      var token=metaToken();
+      if(!token) return;
+      last=now;
+      window.fetch(url,{
+        method:'POST',
+        credentials:'same-origin',
+        keepalive:true,
+        headers:{'X-CSRFToken':token,'X-Requested-With':'XMLHttpRequest'}
+      }).catch(function(){});
+    }
+    ['keydown','pointerdown','touchstart','wheel','input'].forEach(function(type){
+      document.addEventListener(type, notify, {capture:true, passive:true});
+    });
+  })();
 })();

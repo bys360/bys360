@@ -375,7 +375,7 @@ html, body { min-height: 100% !important; }
 <!-- BYS360_RESPONSIVE_FOUNDATION_V11A_CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bys360_responsive_foundation_v11a.css') }}?v=11a">
 </head>
-<body class="{% block body_class %}{% endblock %}" data-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}">
+<body class="{% block body_class %}{% endblock %}" data-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}"{% if current_user.is_authenticated %} data-session-activity-url="{{ safe_url_for('session_activity', fallback='') }}"{% endif %}>
 <div id="pageLoader" class="page-loader">
     <div class="page-loader-inner">
         <div class="page-loader-ring"></div>
