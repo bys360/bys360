@@ -426,6 +426,11 @@ def test_style_and_handler_inventory_is_completely_unaffected() -> None:
 # main.portal_attachment_file, app/portal/routes.py) raised ROUTE_COUNT from
 # 996 to 997 and changed ENDPOINT_SHA256 accordingly -- mechanically
 # re-derived from a fresh, isolated create_app() run.
+#
+# FORWARD-COMPATIBILITY FOLLOW-UP (BYS360 session lifetime): one new, additive
+# app-level route (POST /session/activity, endpoint session_activity) raised
+# ROUTE_COUNT from 997 to 998 and changed ENDPOINT_SHA256 accordingly --
+# mechanically re-derived from a fresh, isolated create_app() run.
 def test_url_map_route_count_and_hash_are_unaffected() -> None:
     probe_script = (
         "import hashlib\n"
@@ -437,8 +442,8 @@ def test_url_map_route_count_and_hash_are_unaffected() -> None:
     )
     output_lines = _run_isolated_probe(probe_script)
     values = dict(line.split("=", 1) for line in output_lines if "=" in line)
-    assert values.get("ROUTE_COUNT") == "997"
-    assert values.get("ENDPOINT_SHA256") == "269dc9216997f412a6323e22a365605535f4214aab4fdb87c0dabb74e7820e4e"
+    assert values.get("ROUTE_COUNT") == "998"
+    assert values.get("ENDPOINT_SHA256") == "9a04a93cb5e7edbb1246849f767b54c0f4c03752b717a52669bb56098b7024dd"
 
 
 # ---------------------------------------------------------------------------

@@ -31,6 +31,43 @@ def _file_center_endpoint_limits() -> dict[str, str]:
     }
 
 
+def _session_activity_limit() -> str:
+    # Per user: the page script calls it at most once a minute per tab; a few tabs stay under this.
+    return os.getenv("SESSION_ACTIVITY_RATE_LIMIT", "6 per minute")
+
+
+def _session_activity_ip_limit() -> str:
+    # Per client address: an abuse ceiling only. Many staff can share one NAT or proxy address,
+    # each sending at most one call a minute, so this stays far above the per-user limit.
+    return os.getenv("SESSION_ACTIVITY_IP_RATE_LIMIT", "1200 per minute")
+
+
+def _session_activity_user_key() -> str:
+    """Rate limit key: the user id from the signed session cookie, else the client address.
+
+    Flask-Login keeps the id in the session, which Flask only reads from a cookie with a valid
+    signature, so a client cannot pick another user's bucket. Request headers such as
+    X-Forwarded-For are never read here; the address fallback is ``request.remote_addr`` as set
+    by the app's trusted proxy configuration (ProxyFix).
+    """
+    from flask import request, session
+
+    user_id = session.get("_user_id")
+    if user_id:
+        return f"session-activity:user:{user_id}"
+    return f"session-activity:anon:{request.remote_addr or '127.0.0.1'}"
+
+
+def _apply_session_activity_limit(app: Any, limiter: Any, address_key: Any) -> None:
+    view = app.view_functions.get("session_activity")
+    if view is None or getattr(view, "_bys360_session_activity_limited", False):
+        return
+    wrapped = limiter.limit(_session_activity_ip_limit(), key_func=address_key)(view)
+    wrapped = limiter.limit(_session_activity_limit(), key_func=_session_activity_user_key)(wrapped)
+    wrapped._bys360_session_activity_limited = True
+    app.view_functions["session_activity"] = wrapped
+
+
 def _apply_file_center_limits(app: Any, limiter: Any) -> None:
     applied: list[str] = []
     for endpoint, limit_value in _file_center_endpoint_limits().items():
@@ -84,4 +121,5 @@ def init_api_rate_limit(app: Any) -> None:
     app.extensions["bys360_limiter"] = limiter
     app._bys360_rate_limit_ready = True
     _apply_file_center_limits(app, limiter)
+    _apply_session_activity_limit(app, limiter, get_remote_address)
     app.logger.info("BYS360 API rate limit aktif")
