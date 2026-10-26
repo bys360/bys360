@@ -22,10 +22,18 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from flask_login import current_user
-from sqlalchemy import select
+from sqlalchemy import bindparam, inspect, select, text
+from sqlalchemy.orm import aliased
 
 from app.extensions import db
-from app.models import PerformanceEvaluation, PerformancePeriod, User
+from app.models import (
+    EvaluationAssignment,
+    OrganizationUnit,
+    PerformanceEvaluation,
+    PerformancePeriod,
+    PersonnelCategory,
+    User,
+)
 from app.services.account_change_guard import is_real_admin
 from app.services.performance.assignments import generate_assignments_for_active_period
 
@@ -75,9 +83,20 @@ def assignment_relevant_user_state() -> dict[int, tuple[Any, ...]]:
 
     Senkron yalnız aktif ve admin olmayan kullanıcıları okur (``performance_v2.sync_service``
     ``_employee_query``); bu kümeye giren veya kümeden çıkan kullanıcı da değişiklik sayılır.
+    Dönem kapsamı kullanıcının birim, üst birim ve kategori adlarını da okur
+    (``period_scope_assignment``); bunlar da karşılaştırılır.
     """
     columns = [column for column in User.__table__.columns if column.name not in ASSIGNMENT_NEUTRAL_USER_COLUMNS]
-    query = select(*columns).where(User.is_active.is_(True), User.role != "admin").order_by(User.id)
+    unit = aliased(OrganizationUnit)
+    parent = aliased(OrganizationUnit)
+    query = (
+        select(*columns, unit.name, unit.parent_id, parent.name, PersonnelCategory.name, PersonnelCategory.code)
+        .outerjoin(unit, unit.id == User.organization_unit_id)
+        .outerjoin(parent, parent.id == unit.parent_id)
+        .outerjoin(PersonnelCategory, PersonnelCategory.id == User.performance_category_id)
+        .where(User.is_active.is_(True), User.role != "admin")
+        .order_by(User.id)
+    )
     return {row[0]: tuple(row) for row in db.session.execute(query).all()}
 
 
@@ -118,15 +137,115 @@ def hierarchy_change_refusal(plan: HierarchyChangePlan) -> str | None:
     return None
 
 
-def commit_hierarchy_change(plan: HierarchyChangePlan, *, actor_user_id: int | None = None) -> dict[str, Any] | None:
-    """Değişikliği yazar; gerçek admin ve açık hedef dönemde görev senkronuyla aynı işlemde.
+# Dönem kaydına bağlantı: tablonun kendi dönem sütunu ya da bağlı olduğu değerlendirme/görev satırı.
+# Yabancı anahtarı tanımlı sütunda gerçek hedef tablo kullanılır; tanımsız sütunda (eski ham SQL
+# tabloları) ad kuralı geçerlidir.
+_PERIOD_PARENT_TABLES = (PerformanceEvaluation.__tablename__, EvaluationAssignment.__tablename__)
+_PERIOD_PARENT_LINKS = (
+    ("evaluation_id", PerformanceEvaluation.__tablename__),
+    ("performance_evaluation_id", PerformanceEvaluation.__tablename__),
+    ("assignment_id", EvaluationAssignment.__tablename__),
+    ("evaluation_assignment_id", EvaluationAssignment.__tablename__),
+)
+
+
+def _period_link(names: set[str], foreign_keys: dict[str, str]) -> tuple[str, str | None] | None:
+    """(sütun, ara tablo) — ara tablo None ise sütun doğrudan dönem kimliğidir."""
+    period_table = PerformancePeriod.__tablename__
+    for column, target in foreign_keys.items():
+        if target == period_table:
+            return column, None
+    if "period_id" in names and "period_id" not in foreign_keys:
+        return "period_id", None
+    for column, target in foreign_keys.items():
+        if target in _PERIOD_PARENT_TABLES:
+            return column, target
+    for column, parent in _PERIOD_PARENT_LINKS:
+        if column in names and column not in foreign_keys:
+            return column, parent
+    return None
+
+
+def _users_period_ids(user_ids: list[int]) -> set[int]:
+    """Silme işleminin dokunacağı dönemler.
+
+    ``safe_delete_user_by_id`` kullanıcıya yabancı anahtarla bağlı her tablodaki satırı siler veya
+    boşaltır (yayın kaydı, anlık görüntü, yayımlayan kişi dahil). Aynı tablo listesi
+    veritabanından okunur; satır dönem kaydının kendisiyse, ``period_id`` taşıyorsa ya da bir
+    değerlendirme/görev satırına bağlıysa o dönem dokunulmuş sayılır.
+    """
+    from app.services.safe_user_delete_service import _q, _user_fk_refs
+
+    period_ids: set[int] = set()
+    if not user_ids:
+        return period_ids
+    inspector = inspect(db.engine)
+    links: dict[str, tuple[str, str | None] | None] = {}
+    for ref in _user_fk_refs():
+        table, column = ref["table"], ref["column"]
+        if table not in links:
+            names = {item["name"] for item in inspector.get_columns(table)}
+            foreign_keys = {
+                constrained: str(foreign_key.get("referred_table") or "")
+                for foreign_key in inspector.get_foreign_keys(table)
+                for constrained in foreign_key.get("constrained_columns") or []
+            }
+            links[table] = _period_link(names, foreign_keys)
+        user_filter = f"t.{_q(column)} IN :user_ids"
+        link = links[table]
+        if table == PerformancePeriod.__tablename__:
+            sql = f"SELECT t.id FROM {_q(table)} t WHERE {user_filter}"
+        elif link is None:
+            continue
+        elif link[1] is None:
+            sql = f"SELECT DISTINCT t.{_q(link[0])} FROM {_q(table)} t WHERE {user_filter}"
+        else:
+            sql = (
+                f"SELECT DISTINCT p.period_id FROM {_q(table)} t JOIN {_q(link[1])} p ON p.id = t.{_q(link[0])} "
+                f"WHERE {user_filter}"
+            )
+        query = text(sql).bindparams(bindparam("user_ids", expanding=True))
+        period_ids |= {row[0] for row in db.session.execute(query, {"user_ids": list(user_ids)}).all() if row[0] is not None}
+    return period_ids
+
+
+def user_deletion_refusal(user_ids: list[int], plan: HierarchyChangePlan) -> str | None:
+    """Silme bağlı satırları siler veya boşaltır: kilitli/yayımlanmış dönemde satırı olan kullanıcı
+    kimse tarafından silinmez; aktif dönemi etkileyen silme gerçek admin dışında reddedilir."""
+    touched = _users_period_ids(user_ids)
+    for period_id in touched:
+        period = db.session.get(PerformancePeriod, period_id)
+        if period is not None and period_is_frozen(period):
+            return FROZEN_PERIOD
+    if plan.target is not None and not plan.actor_is_real_admin and user_deletion_requires_sync(user_ids, plan, touched):
+        return NON_ADMIN_PERIOD_SYNC
+    return None
+
+
+def user_deletion_requires_sync(user_ids: list[int], plan: HierarchyChangePlan, touched: set[int] | None = None) -> bool:
+    if plan.target is None:
+        return False
+    touched = _users_period_ids(user_ids) if touched is None else touched
+    return plan.target.id in touched or any(user_id in plan.before for user_id in user_ids)
+
+
+def commit_hierarchy_change(
+    plan: HierarchyChangePlan, *, actor_user_id: int | None = None, force_sync: bool = False
+) -> dict[str, Any] | None:
+    """Değişikliği yazar; gerçek admin, açık hedef dönem ve görev üretimini etkileyen değişiklikte
+    görev senkronuyla aynı işlemde.
 
     Senkronun döndürdüğü başarısızlık ``AssignmentSyncFailed`` olur; senkron sırasında çıkan
     hata olduğu gibi yükselir. İki durumda da hiçbir kayıt yazılmamıştır (senkron tek commit'ini
-    en sonda yapar).
+    en sonda yapar). Görev senkronu gerçekten çalıştıysa sonucunu, aksi halde None döndürür.
     """
     target = plan.target
-    if target is None or not plan.actor_is_real_admin or period_is_frozen(target):
+    if (
+        target is None
+        or not plan.actor_is_real_admin
+        or period_is_frozen(target)
+        or not (force_sync or assignment_relevant_user_state() != plan.before)
+    ):
         # Gerçek admin olmayan için buraya yalnız görev üretimini etkilemeyen değişiklik gelir.
         db.session.commit()
         return None
@@ -136,9 +255,10 @@ def commit_hierarchy_change(plan: HierarchyChangePlan, *, actor_user_id: int | N
         message = (result or {}).get("message") or "Görev senkronu tamamlanamadı."
         logger.warning("BYS360 M-1 görev senkronu başarısız; hiyerarşi değişikliği geri alındı | period_id=%s | message=%s", target.id, message)
         raise AssignmentSyncFailed(message)
-    # Senkron puanlama penceresi açılmadan erken döndüğünde kendi commit'ini yapmaz.
+    # Senkron puanlama penceresi açılmadan erken döndüğünde kendi commit'ini yapmaz ve görev
+    # yazmaz; bu durumda senkron yapılmış gibi gösterilmez.
     db.session.commit()
-    return result
+    return result if result.get("run_key") else None
 
 
 __all__ = [
@@ -152,4 +272,6 @@ __all__ = [
     "commit_hierarchy_change",
     "hierarchy_change_refusal",
     "period_is_frozen",
+    "user_deletion_refusal",
+    "user_deletion_requires_sync",
 ]

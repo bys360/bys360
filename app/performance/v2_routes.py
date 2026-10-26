@@ -20,7 +20,7 @@ from app.extensions import db
 from app.models import EvaluationAssignment, PerformancePeriod, User
 from app.route_registry import main_bp
 from app.route_support import admin_required, menu_key_required
-from app.security.critical_operations import critical_operation_required
+from app.security.critical_operations import critical_action_refusal, critical_operation_required
 from app.services.ai.dashboard_panels import (
     build_management_ai_panel,
     build_publish_ai_panel,
@@ -171,6 +171,11 @@ def performance_v2_phase1_preview(employee_id: int):
 @login_required
 @admin_required
 def performance_v2_phase2_dashboard():
+    if request.method == 'POST':
+        # P0 / M-1: görev üretimi sabit rol sınırına (gerçek admin) ve görev yönetimi menüsüne tabidir.
+        refusal = critical_action_refusal('assignment_generate', 'performance_task_management')
+        if refusal is not None:
+            return refusal
     period = _resolve_period(request.values.get('period_id', type=int))
     result = None
     if request.method == 'POST' and period:

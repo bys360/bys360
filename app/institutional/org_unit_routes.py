@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 
 from flask import current_app, flash, redirect, request, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy import func, or_
 from sqlalchemy.orm import aliased
 
@@ -26,9 +26,15 @@ from app.route_support import (
     safe_db_rollback,
     safe_render,
 )
+from app.security.critical_operations import hierarchy_sync_refusal
 from app.services.ai import build_org_unit_detail_ai_panel, build_org_units_risk_map_ai_panel
 from app.services.hierarchy_admin_service import (
     sync_organization_units_from_users_if_stale,
+)
+from app.services.performance.hierarchy_assignment_sync_guard import (
+    begin_hierarchy_change,
+    commit_hierarchy_change,
+    hierarchy_change_refusal,
 )
 from app.utils.turkish_text import turkish_casefold
 
@@ -219,6 +225,7 @@ def admin_org_unit_edit(unit_id: int):
                 flash("Aynı üst birim altında bu isimde başka bir birim zaten mevcut.", "warning")
                 return redirect(url_for("main.admin_org_unit_edit", unit_id=unit.id))
 
+            plan = begin_hierarchy_change()
             unit.name = name
             unit.unit_type = unit_type
             unit.parent_id = parent_id
@@ -242,7 +249,12 @@ def admin_org_unit_edit(unit_id: int):
                     if not (linked_user.ust_birim or "").strip() or (linked_user.ust_birim or "").strip() == old_name:
                         linked_user.ust_birim = new_parent_name or name
 
-            db.session.commit()
+            # M-1: personelin birim/üst birim ve dönem kapsamını değiştiren düzenleme, aktif dönemde
+            # gerçek admin dışında reddedilir; gerçek admin için görev senkronuyla birlikte yazılır.
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, None, url_for("main.admin_org_unit_edit", unit_id=unit.id))
+            commit_hierarchy_change(plan, actor_user_id=getattr(current_user, "id", None))
             flash("Birim bilgileri güncellendi.", "success")
             return redirect(url_for("main.admin_org_units"))
 
@@ -473,6 +485,7 @@ def org_unit_edit(unit_id: int):
                 flash("Aynı üst birim altında bu isimde başka bir kayıt zaten var.", "danger")
                 return redirect(url_for("main.org_unit_edit", unit_id=unit.id))
 
+            plan = begin_hierarchy_change()
             unit.name = name
             if hasattr(unit, "position_name"):
                 unit.position_name = position_name
@@ -483,7 +496,11 @@ def org_unit_edit(unit_id: int):
             if hasattr(unit, "is_active"):
                 unit.is_active = bool(request.form.get("is_active"))
 
-            db.session.commit()
+            # M-1: birim adı/üst birimi dönem kapsamını değiştirir; aktif dönemde gerçek admin dışında reddedilir.
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, None, url_for("main.org_unit_edit", unit_id=unit.id))
+            commit_hierarchy_change(plan, actor_user_id=getattr(current_user, "id", None))
             flash("Birim kaydı güncellendi.", "success")
             return redirect(url_for("main.org_units_list"))
 

@@ -6,10 +6,15 @@ denetim kaydına yazılır. Aktif dönem yoksa R05 hiyerarşi yetkileri aynen ka
 kayıt ve görev senkronu tek işlemdir; senkron başarısızsa ikisi de geri alınır. Kilitli veya
 yayımlanmış dönem bu yoldan değişmez (gerçek admin dahil).
 
-Bilinçli R05 değişikliği: R05 sözleşmesi admin olmayan editörün sıradan bir hesabın amir zincirini
-değiştirmesine izin verir (``test_p5_non_admin_cannot_change_protected_chain_nor_add_itself``,
-"Another evaluator for an ordinary account stays allowed"). Bu hak aktif dönem yokken aynen
-korunur (R05 testlerinin ortamında dönem yoktur); aktif dönem varken artık reddedilir.
+Bilinçli R05 değişikliği: R05 sözleşmesi admin olmayan editörün sıradan hesaplarda amir zinciri,
+kimlik/ad/e-posta/unvan/birim/kategori düzenlemesine, hesap oluşturmaya, Excel içe aktarmaya,
+pasife/arşive almaya ve silmeye izin verir (ör. ``test_p5_non_admin_cannot_change_protected_chain_nor_add_itself``,
+"Another evaluator for an ordinary account stays allowed"). Bu haklar aktif dönem yokken aynen
+korunur (R05 testlerinin ortamında dönem yoktur). Aktif dönem varken, görev üretiminin okuduğu bir
+alanı (aktif ve admin olmayan personelin parola/güvenlik/fotoğraf/zaman damgası dışındaki her alanı,
+birim/üst birim/kategori adları dahil; e-posta ve ad da dönem kapsamı eşleştirmesinde okunur)
+değiştiren bu işlemler admin olmayan için artık reddedilir. Görev üretiminin okumadığı değişiklik
+(ör. pasif hesapta düzenleme, parola sıfırlama) etkilenmez.
 
 Gerçek HTTP isteği ve veritabanı önce/sonra karşılaştırmasıyla ölçülür (R05 ortamı: gerçek
 formlar, gerçek Excel dosyaları, geçici SQLite).
@@ -45,7 +50,8 @@ def _period(env, title="M1 Dönem", **fields) -> int:
     from app.models import PerformancePeriod
 
     with env.app.app_context():
-        row = PerformancePeriod(title=title, period_type="6 Aylık", start_date=date(2026, 1, 1), end_date=date(2026, 6, 30),
+        row = PerformancePeriod(title=title, period_type="6 Aylık", start_date=fields.pop("start_date", date(2026, 1, 1)),
+                                end_date=fields.pop("end_date", date(2026, 6, 30)),
                                 is_active=fields.pop("is_active", True), is_locked=fields.pop("is_locked", False),
                                 results_published=fields.pop("results_published", False), **fields)
         db.session.add(row)
@@ -362,10 +368,11 @@ def test_a_frozen_period_refuses_a_non_admin_with_403(env):
     _freeze(env, period_id, "locked")
     users, tasks = _users(env), _tasks(env)
 
-    response = dict(_change_requests(env))["hierarchy_assignment_edit"](_web(env, "mali_musavir"))
+    response = dict(_change_requests(env))["bulk_assign"](_web(env, "mali_musavir"))
 
     assert response.status_code == 403
     assert _users(env) == users and _tasks(env) == tasks
+    assert _audits(env, "critical_operation:assignment_generate")
 
 
 # ---------------------------------------------------------------------------
@@ -411,3 +418,428 @@ def test_a_sync_that_fails_midway_rolls_back_tasks_and_hierarchy_together(env, m
     with client.session_transaction() as session:
         flashes = session.get("_flashes", [])
     assert not any(category == "success" for category, _message in flashes), (name, flashes)
+
+
+# ---------------------------------------------------------------------------
+# Bağımsız inceleme sonrası: aynı kural diğer yollarda (BLOCKER-1, MAJOR-2..4, MINOR-6/7)
+# ---------------------------------------------------------------------------
+def _set_chain_in_db(env, key, manager_sicil):
+    """Senkronlanmamış bir zincir farkı: bir sonraki görev üretimi görevleri değiştirir."""
+    from app.extensions import db
+    from app.models import User
+
+    with env.app.app_context():
+        user = db.session.get(User, env.ids[key])
+        assert user is not None
+        user.yonetici_sicil = manager_sicil
+        db.session.commit()
+
+
+@pytest.mark.parametrize("how", [None, "locked", "results_published"])
+@pytest.mark.parametrize("actor", NON_ADMIN_EDITORS)
+def test_faz2_task_generation_is_real_admin_only(env, actor, how):
+    period_id = _setup(env)
+    if how:
+        _freeze(env, period_id, how)
+    _set_chain_in_db(env, "plain", SICIL["koordinator"])
+    tasks = _tasks(env)
+
+    response = _web(env, actor).post(f"/performance/v2/faz2?period_id={period_id}")
+
+    assert response.status_code == 403, (actor, how)
+    assert _tasks(env) == tasks, (actor, how)
+    assert _audits(env, "critical_operation:assignment_generate"), (actor, how)
+
+
+def test_faz2_real_admin_still_generates(env):
+    period_id = _setup(env)
+    _set_chain_in_db(env, "plain", SICIL["koordinator"])
+
+    response = _web(env, "admin").post(f"/performance/v2/faz2?period_id={period_id}")
+
+    assert response.status_code == 200
+    assert (env.ids["koordinator"], 1) in _evaluators_of(env, "plain", period_id)
+
+
+def _deactivation_requests(env):
+    plain = env.ids["plain"]
+    return {
+        "admin_toggle": lambda c: c.post(f"/admin/users/{plain}/toggle-active", data={"target_state": "0"}),
+        "personnel_toggle": lambda c: c.post(f"/personnel/{plain}/toggle-active"),
+        "admin_archive": lambda c: c.post(f"/admin/users/{plain}/archive"),
+        "bulk_passive": lambda c: c.post("/admin/users/bulk-passive", data={"user_ids": [str(plain)]}),
+        "bulk_archive": lambda c: c.post("/admin/users/bulk-archive", data={"user_ids": [str(plain)]}),
+    }
+
+
+_DEACTIVATIONS = ["admin_toggle", "personnel_toggle", "admin_archive", "bulk_passive", "bulk_archive"]
+
+
+def _is_active(env, key):
+    from app.extensions import db
+    from app.models import User
+
+    with env.app.app_context():
+        user = db.session.get(User, env.ids[key])
+        return None if user is None else bool(user.is_active)
+
+
+@pytest.mark.parametrize("name", _DEACTIVATIONS)
+@pytest.mark.parametrize("actor", ("grup_baskani", "mali_musavir"))
+def test_non_admin_deactivation_with_an_active_period_is_refused(env, actor, name):
+    _setup(env)
+    users, tasks = _users(env), _tasks(env)
+
+    response = _deactivation_requests(env)[name](_web(env, actor))
+
+    assert response.status_code == 403, (actor, name)
+    assert _is_active(env, "plain") is True, (actor, name)
+    assert _users(env) == users and _tasks(env) == tasks, (actor, name)
+    assert _audits(env, "critical_operation:assignment_generate"), (actor, name)
+
+
+@pytest.mark.parametrize("name", _DEACTIVATIONS)
+def test_real_admin_deactivation_is_saved_with_its_task_sync(env, name):
+    period_id = _setup(env)
+    before = _evaluators_of(env, "plain", period_id)
+
+    response = _deactivation_requests(env)[name](_web(env, "admin"))
+
+    assert response.status_code == 302, name
+    assert _is_active(env, "plain") is False, name
+    from app.extensions import db
+    from app.models import EvaluationAssignment
+
+    with env.app.app_context():
+        statuses = {a.status for a in db.session.query(EvaluationAssignment).filter_by(period_id=period_id, employee_id=env.ids["plain"])}
+    assert before and "bekliyor" not in statuses, (name, statuses)
+
+
+@pytest.mark.parametrize("name", _DEACTIVATIONS)
+def test_deactivation_without_an_active_period_keeps_r05_rights(env, name):
+    _setup(env, active=False)
+
+    response = _deactivation_requests(env)[name](_web(env, "grup_baskani"))
+
+    assert response.status_code == 302, name
+    assert _is_active(env, "plain") is False, name
+
+
+def _deletion_requests(env):
+    plain = env.ids["plain"]
+    return {
+        "admin_delete": lambda c: c.post(f"/admin/users/{plain}/delete"),
+        "personnel_delete": lambda c: c.post(f"/personnel/{plain}/delete"),
+        "bulk_delete": lambda c: c.post("/admin/users/bulk-delete", data={"user_ids": [str(plain)]}),
+    }
+
+
+_DELETIONS = ["admin_delete", "personnel_delete", "bulk_delete"]
+
+
+@pytest.mark.parametrize("name", _DELETIONS)
+@pytest.mark.parametrize("actor", ("grup_baskani", "mali_musavir"))
+def test_non_admin_deletion_with_an_active_period_is_refused(env, actor, name):
+    _setup(env)
+    users, tasks = _users(env), _tasks(env)
+
+    response = _deletion_requests(env)[name](_web(env, actor))
+
+    assert response.status_code == 403, (actor, name)
+    assert _users(env) == users and _tasks(env) == tasks, (actor, name)
+
+
+@pytest.mark.parametrize("how", ["locked", "results_published", "evaluation_published", "past_locked"])
+@pytest.mark.parametrize("name", _DELETIONS)
+def test_a_user_with_rows_in_a_frozen_period_is_deleted_by_nobody(env, name, how):
+    from app.extensions import db
+    from app.models import PerformancePeriod
+
+    period_id = _setup(env)
+    if how == "past_locked":
+        with env.app.app_context():
+            period = db.session.get(PerformancePeriod, period_id)
+            assert period is not None
+            period.is_active = False
+            period.is_locked = True
+            db.session.commit()
+    else:
+        _freeze(env, period_id, how)
+    users, tasks = _users(env), _tasks(env)
+
+    response = _deletion_requests(env)[name](_web(env, "admin"))
+
+    assert response.status_code == 302, (name, how)
+    assert _users(env) == users and _tasks(env) == tasks, (name, how)
+    assert _audits(env, "assignment_sync_frozen_period"), (name, how)
+
+
+@pytest.mark.parametrize("name", _DELETIONS)
+def test_real_admin_deletion_in_an_open_period_is_saved_with_its_task_sync(env, name):
+    period_id = _setup(env)
+
+    response = _deletion_requests(env)[name](_web(env, "admin"))
+
+    assert response.status_code == 302, name
+    assert _is_active(env, "plain") is None, name
+    assert _evaluators_of(env, "plain", period_id) == [], name
+    assert _tasks(env)[0], name  # diğer personelin görevleri yerinde
+
+
+def test_non_admin_still_deletes_an_account_that_touches_no_period(env):
+    from app.extensions import db
+    from app.models import User
+
+    _setup(env)
+    with env.app.app_context():
+        user = User(sicil_no="M1DEL1", email="m1del1@example.gov.tr", ad="Kisi", soyad="M1DEL1", role="personel",
+                    birim="R05 Birim", is_active=False, must_change_password=False, must_set_security_question=False)
+        user.set_password("M1-Sahte-Parola-9x!")
+        db.session.add(user)
+        db.session.commit()
+        user_id = user.id
+    tasks = _tasks(env)
+
+    response = _web(env, "grup_baskani").post(f"/admin/users/{user_id}/delete")
+
+    assert response.status_code == 302
+    with env.app.app_context():
+        assert db.session.get(User, user_id) is None
+    assert _tasks(env) == tasks
+
+
+def _linked_unit(env) -> int:
+    from app.extensions import db
+    from app.models import OrganizationUnit, User
+
+    with env.app.app_context():
+        unit = OrganizationUnit(name=M1_UNIT, unit_type="diger")
+        db.session.add(unit)
+        db.session.flush()
+        plain = db.session.get(User, env.ids["plain"])
+        assert plain is not None
+        plain.organization_unit_id = unit.id
+        db.session.commit()
+        return unit.id
+
+
+def _unit_edit_requests(env, unit_id):
+    return {
+        "admin_org_unit_edit": lambda c: c.post(f"/admin/org-units/{unit_id}/edit", data={
+            "name": "M1 Yeni Birim", "unit_type": "diger", "parent_id": "", "sort_order": "0", "is_active": "on"}),
+        "org_unit_edit": lambda c: c.post(f"/org-units/{unit_id}/edit", data={"name": "M1 Yeni Birim", "is_active": "on"}),
+    }
+
+
+def _unit_name(env, unit_id):
+    from app.extensions import db
+    from app.models import OrganizationUnit
+
+    with env.app.app_context():
+        unit = db.session.get(OrganizationUnit, unit_id)
+        assert unit is not None
+        return unit.name
+
+
+@pytest.mark.parametrize("name", ["admin_org_unit_edit", "org_unit_edit"])
+@pytest.mark.parametrize("actor", ("grup_baskani", "mali_musavir"))
+def test_non_admin_unit_edit_that_changes_period_scope_is_refused(env, actor, name):
+    _setup(env)
+    unit_id = _linked_unit(env)
+    users, tasks = _users(env), _tasks(env)
+
+    response = _unit_edit_requests(env, unit_id)[name](_web(env, actor))
+
+    assert response.status_code == 403, (actor, name)
+    assert _unit_name(env, unit_id) == M1_UNIT, (actor, name)
+    assert _users(env) == users and _tasks(env) == tasks, (actor, name)
+    assert _audits(env, "critical_operation:assignment_generate"), (actor, name)
+
+
+@pytest.mark.parametrize("name", ["admin_org_unit_edit", "org_unit_edit"])
+def test_real_admin_unit_edit_is_saved(env, name):
+    _setup(env)
+    unit_id = _linked_unit(env)
+
+    response = _unit_edit_requests(env, unit_id)[name](_web(env, "admin"))
+
+    assert response.status_code == 302, name
+    assert _unit_name(env, unit_id) == "M1 Yeni Birim", name
+
+
+def _mobile_create(env, sicil):
+    from app.api.mobile.shared import _issue_token
+    from app.extensions import db
+    from app.models import User
+
+    with env.app.app_context():
+        admin = db.session.get(User, env.ids["admin"])
+        assert admin is not None
+        token = _issue_token(admin)
+    payload = {"sicil_no": sicil, "ad": "Yeni", "soyad": "Personel", "unvan": "Uzman", "birim": M1_UNIT,
+               "ust_birim": "R05 Ust Birim", "yonetici_sicil": SICIL["plain2"], "role": "personel"}
+    return env.app.test_client().post("/api/mobile/personnel/create", json=payload, headers={"Authorization": f"Bearer {token}"})
+
+
+def test_mobile_create_never_changes_a_frozen_period(env):
+    period_id = _setup(env)
+    _freeze(env, period_id, "locked")
+    users, tasks = _users(env), _tasks(env)
+
+    response = _mobile_create(env, "M1MOB1")
+
+    assert response.status_code == 409
+    assert _users(env) == users and _tasks(env) == tasks
+    assert _audits(env, "assignment_sync:frozen_period:mobile_actor_id=")
+
+
+def test_mobile_create_by_the_real_admin_is_saved_with_its_task_sync(env):
+    from app.extensions import db
+    from app.models import PerformanceEvaluation, User
+
+    period_id = _setup(env)
+
+    response = _mobile_create(env, "M1MOB2")
+
+    assert response.status_code == 201
+    with env.app.app_context():
+        user = User.query.filter_by(sicil_no="M1MOB2").one()
+        assert db.session.query(PerformanceEvaluation).filter_by(period_id=period_id, employee_id=user.id).count() == 1
+
+
+def test_no_sync_message_while_the_scoring_window_is_not_open(env):
+    """Puanlama penceresi açılmadan senkron görev yazmaz; senkron yapılmış gibi gösterilmez."""
+    _setup(env, active=False)
+    _period(env, title="M1 Gelecek Dönem", start_date=date(2026, 7, 1), end_date=date(2026, 12, 31))
+    client = _fresh_admin(env)
+
+    response = dict(_change_requests(env))["bulk_assign"](client)
+
+    assert response.status_code == 302
+    assert _chain(env, "plain") == SICIL["koordinator"]
+    with client.session_transaction() as session:
+        flashes = session.get("_flashes", [])
+    assert not any("senkronlandı" in message for _category, message in flashes), flashes
+
+
+def test_a_real_admin_save_without_a_relevant_change_runs_no_sync(env, monkeypatch):
+    from app.services.performance import hierarchy_assignment_sync_guard as guard
+
+    _setup(env)
+    admin = _web(env, "admin")
+    form = _admin_edit_form(env, "plain", birim=M1_UNIT, yonetici_sicil=SICIL["plain2"])
+    assert admin.post(f"/admin/users/{env.ids['plain']}/edit", data=form).status_code == 302
+    tasks = _tasks(env)
+
+    def _no_sync(**_kwargs):
+        raise AssertionError("görev üretimini etkilemeyen kayıtta senkron çalışmamalı")
+
+    monkeypatch.setattr(guard, "generate_assignments_for_active_period", _no_sync)
+
+    response = admin.post(f"/admin/users/{env.ids['plain']}/edit", data=form)
+
+    assert response.status_code == 302
+    assert _tasks(env) == tasks
+
+
+def _former_publisher(env, period_id, how) -> int:
+    """Değerlendirme/görev satırı olmayan, dönemi yayımlamış ve yayın kaydı yazmış pasif eski personel."""
+    from app.extensions import db
+    from app.models import PerformancePeriod, PerformancePublishLog, User
+
+    with env.app.app_context():
+        user = User(sicil_no="M1PUB1", email="m1pub1@example.gov.tr", ad="Kisi", soyad="M1PUB1", role="personel",
+                    birim="R05 Birim", is_active=False, must_change_password=False, must_set_security_question=False)
+        user.set_password("M1-Sahte-Parola-9x!")
+        db.session.add(user)
+        db.session.flush()
+        period = db.session.get(PerformancePeriod, period_id)
+        assert period is not None
+        period.published_by_id = user.id
+        if how == "locked":
+            period.is_locked = True
+        else:
+            period.results_published = True
+        db.session.add(PerformancePublishLog(period_id=period_id, actor_user_id=user.id, action_type="publish"))
+        db.session.commit()
+        return user.id
+
+
+def _publication_record(env, period_id):
+    from app.extensions import db
+    from app.models import PerformancePeriod, PerformancePublishLog
+
+    with env.app.app_context():
+        period = db.session.get(PerformancePeriod, period_id)
+        assert period is not None
+        return period.published_by_id, db.session.query(PerformancePublishLog).filter_by(period_id=period_id).count()
+
+
+@pytest.mark.parametrize("how", ["locked", "results_published"])
+@pytest.mark.parametrize("actor", ("admin", "grup_baskani"))
+def test_deleting_a_former_publisher_never_changes_a_frozen_periods_publication_record(env, actor, how):
+    from app.extensions import db
+    from app.models import User
+
+    period_id = _setup(env)
+    user_id = _former_publisher(env, period_id, how)
+    record = _publication_record(env, period_id)
+    assert record == (user_id, 1)
+
+    response = _web(env, actor).post(f"/admin/users/{user_id}/delete")
+
+    assert response.status_code == 302, (actor, how)
+    assert _publication_record(env, period_id) == record, (actor, how)
+    with env.app.app_context():
+        assert db.session.get(User, user_id) is not None, (actor, how)
+    assert _audits(env, "assignment_sync_frozen_period"), (actor, how)
+
+
+def test_a_bulk_delete_sync_failure_is_reported_as_a_sync_failure(env, monkeypatch):
+    from app.services.performance import hierarchy_assignment_sync_guard as guard
+
+    _setup(env)
+    users, tasks = _users(env), _tasks(env)
+    monkeypatch.setattr(guard, "generate_assignments_for_active_period", lambda **_kw: {"ok": False, "message": "Sahte senkron hatası"})
+    client = _fresh_admin(env)
+
+    response = _deletion_requests(env)["bulk_delete"](client)
+
+    assert response.status_code == 302
+    assert _users(env) == users and _tasks(env) == tasks
+    with client.session_transaction() as session:
+        flashes = session.get("_flashes", [])
+    assert any(category == "danger" and "görev senkronu tamamlanamadı" in message for category, message in flashes), flashes
+    assert not any(category == "success" for category, _message in flashes), flashes
+
+
+def test_an_unrelated_link_column_with_the_same_name_does_not_block_a_deletion(env):
+    """survey_responses.assignment_id anket atamasına bağlıdır; aynı kimlikli kilitli dönem görevi silmeyi engellemez."""
+    from app.extensions import db
+    from app.models import EvaluationAssignment, Survey, SurveyAssignment, SurveyResponse, User
+
+    period_id = _setup(env)
+    _freeze(env, period_id, "locked")
+    with env.app.app_context():
+        task_id = db.session.query(EvaluationAssignment.id).filter_by(period_id=period_id).first()[0]
+        former = User(sicil_no="M1SRV1", email="m1srv1@example.gov.tr", ad="Kisi", soyad="M1SRV1", role="personel",
+                      birim="R05 Birim", is_active=False, must_change_password=False, must_set_security_question=False)
+        former.set_password("M1-Sahte-Parola-9x!")
+        db.session.add(former)
+        survey = Survey(title="M1 Anket", created_by_user_id=env.ids["admin"])
+        db.session.add(survey)
+        db.session.flush()
+        db.session.add(SurveyAssignment(id=task_id, survey_id=survey.id, target_type="all"))
+        db.session.flush()
+        db.session.add(SurveyResponse(survey_id=survey.id, user_id=former.id, assignment_id=task_id))
+        db.session.commit()
+        former_id = former.id
+    tasks = _tasks(env)
+
+    response = _web(env, "admin").post(f"/admin/users/{former_id}/delete")
+
+    assert response.status_code == 302
+    with env.app.app_context():
+        assert db.session.get(User, former_id) is None
+    assert _tasks(env) == tasks
+    assert not _audits(env, "assignment_sync_frozen_period")

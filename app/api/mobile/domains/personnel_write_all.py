@@ -152,6 +152,17 @@ def _bys360_legacy_mobile_personnel_create(user: User):
     if yonetici_sicil and not User.query.filter(User.sicil_no == yonetici_sicil).first():
         return jsonify({"message": "Yönetici Sicil No sistemde bulunamadı."}), 400
 
+    # M-1: aktif dönemi etkileyen kayıt görev senkronuyla birlikte yazılır; kilitli/yayımlanmış
+    # dönem bu yoldan değişmez (web /personnel/add ile aynı kural).
+    from app.services.account_change_guard import audit_refusal
+    from app.services.performance.hierarchy_assignment_sync_guard import (
+        NON_ADMIN_PERIOD_SYNC,
+        begin_hierarchy_change,
+        commit_hierarchy_change,
+        hierarchy_change_refusal,
+    )
+
+    plan = begin_hierarchy_change(actor=user)
     try:
         new_user = User(
             sicil_no=sicil_no,
@@ -186,7 +197,15 @@ def _bys360_legacy_mobile_personnel_create(user: User):
         except Exception:
             __import__("logging").getLogger(__name__).exception("BYS360 kalite denetimi: sessiz except/pass yakalandi (app/api/mobile/routes.py:1511)")
         db.session.add(new_user)
-        db.session.commit()
+        db.session.flush()
+        refusal = hierarchy_change_refusal(plan)
+        if refusal is not None:
+            # Geri alır, yalnız red kaydını yazar; mobil istekte web oturumu yok, işlemi yapan kayda eklenir.
+            audit_refusal(None, f"assignment_sync:{refusal}:mobile_actor_id={getattr(user, 'id', None)}")
+            if refusal == NON_ADMIN_PERIOD_SYNC:
+                return jsonify({"message": "Bu işlem için personel ekleme yetkiniz bulunmamaktadır."}), 403
+            return jsonify({"message": "Kilitli veya sonuçları yayımlanmış dönem bu işlemle değiştirilemez; kayıt oluşturulmadı."}), 409
+        commit_hierarchy_change(plan, actor_user_id=user.id)
     except IntegrityError:
         db.session.rollback()
         return jsonify({"message": "Personel kaydı oluşturulamadı. Sicil veya e-posta bilgisi daha önce kullanılmış olabilir."}), 400

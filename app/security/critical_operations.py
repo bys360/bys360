@@ -90,7 +90,13 @@ FROZEN_PERIOD_HIERARCHY_MESSAGE = (
 )
 
 
-def hierarchy_sync_refusal(reason: str, target_user: Any, redirect_url: str):
+FROZEN_PERIOD_DELETE_MESSAGE = (
+    "Bu personelin kilitli veya sonuçları yayımlanmış dönemde kaydı var; silme o dönemi değiştirir. "
+    "Hiçbir kayıt silinmedi. Silmek yerine arşivleyin."
+)
+
+
+def hierarchy_sync_refusal(reason: str, target_user: Any, redirect_url: str, *, frozen_message: str = FROZEN_PERIOD_HIERARCHY_MESSAGE):
     """M-1: hiyerarşi değişikliği bütün olarak reddedilir; oturumdaki her şey geri alınır.
 
     Gerçek admin olmayan için dönem geneli görev üretimi sabit sınırın dışındadır (403); kilitli
@@ -101,7 +107,7 @@ def hierarchy_sync_refusal(reason: str, target_user: Any, redirect_url: str):
     if reason == NON_ADMIN_PERIOD_SYNC:
         return deny_critical_operation("assignment_generate")
     audit_refusal(target_user, "assignment_sync_frozen_period")
-    flash(FROZEN_PERIOD_HIERARCHY_MESSAGE, "danger")
+    flash(frozen_message, "danger")
     return redirect(redirect_url)
 
 

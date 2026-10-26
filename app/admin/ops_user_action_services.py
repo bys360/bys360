@@ -14,6 +14,7 @@ from app.core.datetime_utils import utc_now
 from app.extensions import db
 from app.models import User
 from app.route_support import ensure_boolean_toggle, normalize_int_list
+from app.security.critical_operations import FROZEN_PERIOD_DELETE_MESSAGE, hierarchy_sync_refusal
 from app.services.account_change_guard import (
     ADMIN_CONTINUITY_MESSAGE,
     REFUSAL_MESSAGE,
@@ -25,6 +26,14 @@ from app.services.account_change_guard import (
     record_account_changes,
 )
 from app.services.hierarchy_admin_service import reset_all_personnel_and_related_data
+from app.services.performance.hierarchy_assignment_sync_guard import (
+    AssignmentSyncFailed,
+    begin_hierarchy_change,
+    commit_hierarchy_change,
+    hierarchy_change_refusal,
+    user_deletion_refusal,
+    user_deletion_requires_sync,
+)
 from app.services.profile_photo_service import (
     delete_profile_photo_file as _delete_profile_photo_file,
     save_profile_photo as _save_profile_photo,
@@ -54,6 +63,7 @@ def admin_users_bulk_delete_impl():
 
     deleted_count = 0
     blocked_count = 0
+    eligible = []
 
     for user_id in ids:
         user = db.session.get(User, user_id)
@@ -67,12 +77,26 @@ def admin_users_bulk_delete_impl():
             audit_refusal(user, "bulk_delete")
             blocked_count += 1
             continue
+        eligible.append(user)
 
+    # M-1: kilitli/yayımlanmış dönem kaydı olan personel silinmez; aktif dönemi etkileyen silme
+    # gerçek admin dışında bütün olarak reddedilir.
+    refusal = user_deletion_refusal([user.id for user in eligible], begin_hierarchy_change())
+    if refusal is not None:
+        return hierarchy_sync_refusal(refusal, None, url_for("main.admin_users"), frozen_message=FROZEN_PERIOD_DELETE_MESSAGE)
+
+    sync_failed_count = 0
+    for user in eligible:
+        plan = begin_hierarchy_change()
+        force_sync = user_deletion_requires_sync([user.id], plan)
         try:
             _audit_deletion(user)
             safe_delete_user_by_id(getattr(user, "id", user), commit=False)
-            db.session.commit()
+            commit_hierarchy_change(plan, actor_user_id=current_user.id, force_sync=force_sync)
             deleted_count += 1
+        except AssignmentSyncFailed:
+            # commit_hierarchy_change geri aldı: bu kullanıcı silinmedi.
+            sync_failed_count += 1
         except IntegrityError:
             db.session.rollback()
             blocked_count += 1
@@ -80,6 +104,11 @@ def admin_users_bulk_delete_impl():
             db.session.rollback()
             blocked_count += 1
 
+    if sync_failed_count:
+        flash(
+            f"{sync_failed_count} personel için görev senkronu tamamlanamadı; bu kayıtlar silinmedi.",
+            "danger",
+        )
     if blocked_count > 0:
         flash(
             f"Toplu silme tamamlandı. Silinen: {deleted_count}, silinemeyen: {blocked_count}. "
@@ -87,7 +116,7 @@ def admin_users_bulk_delete_impl():
             "warning",
         )
     else:
-        flash(f"Toplu silme tamamlandı. Silinen kayıt: {deleted_count}", "success")
+        flash(f"Toplu silme tamamlandı. Silinen kayıt: {deleted_count}", "success" if not sync_failed_count else "warning")
 
     return redirect(url_for("main.admin_users"))
 
@@ -148,6 +177,7 @@ def admin_user_archive_impl(user_id: int):
             audit_refusal(user, continuity_refusal)
             flash(ADMIN_CONTINUITY_MESSAGE, "danger")
             return redirect(url_for("main.admin_users"))
+        plan = begin_hierarchy_change()
         old_active = bool(user.is_active)
         user.is_active = False
         if hasattr(user, "is_archived"):
@@ -155,7 +185,11 @@ def admin_user_archive_impl(user_id: int):
         if hasattr(user, "archived_at") and not getattr(user, "archived_at", None):
             user.archived_at = utc_now()
         record_account_changes(user, old_role=user.role, old_active=old_active)
-        db.session.commit()
+        # M-1: aktif dönemde görev üretimini etkileyen değişiklik gerçek admin dışında reddedilir.
+        refusal = hierarchy_change_refusal(plan)
+        if refusal is not None:
+            return hierarchy_sync_refusal(refusal, user, url_for("main.admin_users"))
+        commit_hierarchy_change(plan, actor_user_id=current_user.id)
         flash("Kullanıcı arşive alındı.", "success")
     except ValueError as exc:
         flash(str(exc), "warning")
@@ -174,6 +208,7 @@ def admin_users_bulk_archive_impl():
     updated = 0
     refused = []
     continuity_refused = []
+    plan = begin_hierarchy_change()
     for user_id in ids:
         user = db.session.get(User, user_id)
         if not user or user.id == current_user.id:
@@ -196,7 +231,13 @@ def admin_users_bulk_archive_impl():
         record_account_changes(user, old_role=user.role, old_active=old_active)
         updated += 1
 
-    db.session.commit()
+    # M-1: aktif dönemde görev üretimini etkileyen toplu değişiklik gerçek admin dışında bütün olarak reddedilir.
+    refusal = hierarchy_change_refusal(plan)
+    if refusal is not None:
+        response = hierarchy_sync_refusal(refusal, None, url_for("main.admin_users"))
+        _report_bulk_refusals(refused, "bulk_archive")
+        return response
+    commit_hierarchy_change(plan, actor_user_id=current_user.id)
     _report_bulk_refusals(refused, "bulk_archive")
     _report_continuity_refusals(continuity_refused, "bulk_archive")
     flash(f"Toplu arşivleme tamamlandı. Güncellenen kayıt: {updated}", "success")
@@ -215,10 +256,17 @@ def admin_user_delete_impl(user_id: int):
         flash(REFUSAL_MESSAGE, "danger")
         return redirect(url_for("main.admin_users"))
 
+    # M-1: kilitli/yayımlanmış dönem kaydı olan personel silinmez; aktif dönemi etkileyen silme
+    # gerçek admin dışında reddedilir.
+    plan = begin_hierarchy_change()
+    refusal = user_deletion_refusal([user.id], plan)
+    if refusal is not None:
+        return hierarchy_sync_refusal(refusal, user, url_for("main.admin_users"), frozen_message=FROZEN_PERIOD_DELETE_MESSAGE)
+    force_sync = user_deletion_requires_sync([user.id], plan)
     try:
         _audit_deletion(user)
         safe_delete_user_by_id(getattr(user, "id", user), commit=False)
-        db.session.commit()
+        commit_hierarchy_change(plan, actor_user_id=current_user.id, force_sync=force_sync)
         flash("Kullanıcı silindi.", "success")
     except IntegrityError:
         db.session.rollback()
@@ -238,6 +286,7 @@ def admin_users_bulk_passive_impl():
     updated = 0
     refused = []
     continuity_refused = []
+    plan = begin_hierarchy_change()
     for user_id in ids:
         user = db.session.get(User, user_id)
         if not user or user.id == current_user.id:
@@ -255,7 +304,13 @@ def admin_users_bulk_passive_impl():
         record_account_changes(user, old_role=user.role, old_active=True)
         updated += 1
 
-    db.session.commit()
+    # M-1: aktif dönemde görev üretimini etkileyen toplu değişiklik gerçek admin dışında bütün olarak reddedilir.
+    refusal = hierarchy_change_refusal(plan)
+    if refusal is not None:
+        response = hierarchy_sync_refusal(refusal, None, url_for("main.admin_users"))
+        _report_bulk_refusals(refused, "bulk_passive")
+        return response
+    commit_hierarchy_change(plan, actor_user_id=current_user.id)
     _report_bulk_refusals(refused, "bulk_passive")
     _report_continuity_refusals(continuity_refused, "bulk_passive")
     flash(f"Toplu pasif yapma tamamlandı. Güncellenen kayıt: {updated}", "success")
@@ -279,9 +334,14 @@ def admin_user_toggle_active_impl(user_id: int):
             audit_refusal(user, continuity_refusal)
             flash(ADMIN_CONTINUITY_MESSAGE, "danger")
             return redirect(url_for("main.admin_users"))
+        plan = begin_hierarchy_change()
         user.is_active = new_active
         record_account_changes(user, old_role=user.role, old_active=old_active)
-        db.session.commit()
+        # M-1: aktif dönemde görev üretimini etkileyen değişiklik gerçek admin dışında reddedilir.
+        refusal = hierarchy_change_refusal(plan)
+        if refusal is not None:
+            return hierarchy_sync_refusal(refusal, user, url_for("main.admin_users"))
+        commit_hierarchy_change(plan, actor_user_id=current_user.id)
         flash("Kullanıcı durumu güncellendi.", "success")
     except ValueError as exc:
         flash(str(exc), "warning")
