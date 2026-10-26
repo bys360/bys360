@@ -70,7 +70,9 @@ def _allowed_extensions() -> set[str]:
 
 
 def _max_size(max_size: int | None = None) -> int:
-    return int(max_size or current_app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
+    # The upload request limit, not MAX_CONTENT_LENGTH (the smaller default for other requests, #105).
+    config = current_app.config
+    return int(max_size or config.get("UPLOAD_MAX_CONTENT_LENGTH") or config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
 
 
 def _max_filename_length() -> int:

@@ -330,7 +330,7 @@ def _store_ticket_attachment(ticket: SupportTicket, file_obj, attachment_type: s
     meta = validate_upload(
         file_obj,
         allowed_extensions={"png", "jpg", "jpeg", "pdf", "docx", "xlsx", "txt", "webp"},
-        max_size=current_app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024),
+        max_size=current_app.config.get("UPLOAD_MAX_CONTENT_LENGTH") or current_app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024),
     )
     stored_name = safe_store_filename(file_obj.filename)
     ticket_folder = private_upload_dir("support_tickets", str(ticket.id))
