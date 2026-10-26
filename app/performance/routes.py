@@ -18,6 +18,7 @@ from app.route_support import (
     safe_db_rollback,
     safe_render,
 )
+from app.security.critical_operations import hierarchy_sync_refusal
 from app.services.account_change_guard import (
     MANAGER_CHAIN_REFUSAL_MESSAGE,
     audit_refusal,
@@ -33,6 +34,11 @@ from app.services.ai.dashboard_panels import (
 from app.services.auto_hierarchy_service import auto_apply_manager_chains
 from app.services.hierarchy_admin_service import sync_organization_units_from_users
 from app.services.performance.context import build_period_weight_context, list_performance_periods
+from app.services.performance.hierarchy_assignment_sync_guard import (
+    begin_hierarchy_change,
+    commit_hierarchy_change,
+    hierarchy_change_refusal,
+)
 from app.services.performance.period_state_guard import validate_period_scores_mutable
 from app.services.performance.reason_codes import (
     is_informational_reason,
@@ -42,7 +48,6 @@ from app.services.performance.reason_codes import (
 from app.services.performance_service import (
     _safe_str,
     analyze_hierarchy_rows,
-    generate_assignments_for_active_period,
     get_period_level_3_flags,
     normalize_weight_inputs,
     recalculate_all_evaluations,
@@ -303,16 +308,15 @@ def performance_hierarchy_assignments_alias():
                 flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
                 return redirect(url_for("main.hierarchy_assignments", q=q, birim=birim, period_id=period_id))
 
+            plan = begin_hierarchy_change(period_id)
             target_user.yonetici_sicil = _safe_str(getattr(manager_1, "sicil_no", "")) or None
             target_user.ikinci_yonetici_sicil = _safe_str(getattr(manager_2, "sicil_no", "")) or None
             target_user.ucuncu_yonetici_sicil = _safe_str(getattr(manager_3, "sicil_no", "")) or None
-            db.session.commit()
-
-            active_period = db.session.get(PerformancePeriod, period_id) if period_id else None
-            if not active_period:
-                active_period = PerformancePeriod.query.filter_by(is_active=True).order_by(PerformancePeriod.id.desc()).first()
-            if active_period:
-                generate_assignments_for_active_period(period_id=active_period.id, actor_user_id=current_user.id)
+            # M-1: aktif dönemde görev üretimini etkileyen değişiklik gerçek admin dışında reddedilir.
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, target_user, url_for("main.hierarchy_assignments", user_id=target_user.id, q=q, birim=birim, period_id=period_id))
+            commit_hierarchy_change(plan, actor_user_id=current_user.id)
 
             flash("Amir atamaları explicit zincir kaynağı olarak kaydedildi.", "success")
             return redirect(url_for("main.hierarchy_assignments", user_id=target_user.id, q=q, birim=birim, period_id=period_id))
@@ -417,25 +421,22 @@ def performance_hierarchy_settings():
             if scope_employee_ids:
                 query = query.filter(User.id.in_(scope_employee_ids))
             target_users = query.order_by(User.id.asc()).all()
-            summary = auto_apply_manager_chains(target_users, fill_only_missing=True, commit=True, preserve_explicit_chain=True, persist_inferred_roles=is_real_admin(current_user))  # BYS360_EXPLICIT_MANAGER_CHAIN_V2 / R05
-            assignment_period_id = selected_period_id
-            if not assignment_period_id:
-                active_period = PerformancePeriod.query.filter_by(is_active=True).order_by(PerformancePeriod.id.desc()).first()
-                assignment_period_id = active_period.id if active_period else None
-            assignment_result = None
-            if assignment_period_id:
-                assignment_result = generate_assignments_for_active_period(period_id=assignment_period_id, actor_user_id=current_user.id)
+            plan = begin_hierarchy_change(selected_period_id)
+            summary = auto_apply_manager_chains(target_users, fill_only_missing=True, commit=False, preserve_explicit_chain=True, persist_inferred_roles=is_real_admin(current_user))  # BYS360_EXPLICIT_MANAGER_CHAIN_V2 / R05
+            # M-1: aktif dönemde görev üretimini etkileyen değişiklik gerçek admin dışında reddedilir.
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, None, url_for("main.performance_hierarchy_settings", period_id=selected_period_id, scope=selected_scope))
+            assignment_result = commit_hierarchy_change(plan, actor_user_id=current_user.id)
             flash(
                 f"Excel/veri kartlarından otomatik amir zinciri yeniden kuruldu. Güncellenen: {summary.get('updated_count', 0)}, değişmeyen: {summary.get('skipped_count', 0)}",
                 "success",
             )
-            if assignment_result and assignment_result.get("ok"):
+            if assignment_result:
                 flash(
                     f"Aktif dönem görevleri zincire göre otomatik senkronlandı. Oluşturulan/güncellenen görev: {assignment_result.get('created', 0)}, atlanan: {assignment_result.get('skipped', 0)}, gerçek uyarı: {assignment_result.get('warning_count', 0)}.",
                     "success" if not assignment_result.get("warning_count") else "warning",
                 )
-            elif assignment_result and not assignment_result.get("ok"):
-                flash(assignment_result.get("message", "Aktif dönem görevleri senkronlanamadı."), "warning")
             if summary.get("warnings"):
                 current_app.logger.warning(
                     "Performans hiyerarsi otomatik zincir ham uyarıları gizlendi: %s",
@@ -689,30 +690,19 @@ def performance_hierarchy_assignment_edit(user_id):
                 audit_refusal(user_obj, "hierarchy_assignment_chain_change")
                 flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
                 return redirect(url_for("main.performance_hierarchy_assignment_edit", user_id=user_id, period_id=selected_period_id, scope=selected_scope))
+            plan = begin_hierarchy_change(selected_period_id)
             user_obj.yonetici_sicil = yonetici_sicil
             user_obj.ikinci_yonetici_sicil = ikinci_yonetici_sicil
             user_obj.ucuncu_yonetici_sicil = ucuncu_yonetici_sicil
-            db.session.commit()
-
-            assignment_result = None
-            if selected_period_id:
-                assignment_result = generate_assignments_for_active_period(
-                    period_id=selected_period_id,
-                    actor_user_id=current_user.id,
-                )
-            else:
-                active_period = PerformancePeriod.query.filter_by(is_active=True).order_by(PerformancePeriod.id.desc()).first()
-                if active_period:
-                    assignment_result = generate_assignments_for_active_period(
-                        period_id=active_period.id,
-                        actor_user_id=current_user.id,
-                    )
+            # M-1: aktif dönemde görev üretimini etkileyen değişiklik gerçek admin dışında reddedilir.
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, user_obj, url_for("main.performance_hierarchy_assignment_edit", user_id=user_id, period_id=selected_period_id, scope=selected_scope))
+            assignment_result = commit_hierarchy_change(plan, actor_user_id=current_user.id)
 
             flash("Amir zinciri güncellendi.", "success")
-            if assignment_result and assignment_result.get("ok"):
+            if assignment_result:
                 flash("Görevler amir zinciri güncellemesi sonrası yeniden senkronlandı.", "success")
-            elif assignment_result and not assignment_result.get("ok"):
-                flash(assignment_result.get("message", "Görevler yeniden senkronlanamadı."), "warning")
             return redirect(url_for("main.performance_hierarchy_settings", period_id=selected_period_id, scope=selected_scope))
         except Exception as exc:
             logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)

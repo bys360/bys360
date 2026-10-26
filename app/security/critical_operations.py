@@ -15,7 +15,7 @@ import logging
 from functools import wraps
 from typing import Any
 
-from flask import redirect, request, url_for
+from flask import flash, redirect, request, url_for
 from flask_login import current_user
 
 from app.route_support import can_access_menu, normalize_role_name, render_access_denied
@@ -82,6 +82,27 @@ def period_reset_refusal(is_locked: bool, results_published: bool):
         if refusal is not None:
             return refusal
     return None
+
+
+FROZEN_PERIOD_HIERARCHY_MESSAGE = (
+    "Bu değişiklik kilitli veya sonuçları yayımlanmış dönemin görevlerini değiştirir; hiçbir kayıt "
+    "yazılmadı. Önce dönemin kilidi veya yayını yetkili rotadan kaldırılmalıdır."
+)
+
+
+def hierarchy_sync_refusal(reason: str, target_user: Any, redirect_url: str):
+    """M-1: hiyerarşi değişikliği bütün olarak reddedilir; oturumdaki her şey geri alınır.
+
+    Gerçek admin olmayan için dönem geneli görev üretimi sabit sınırın dışındadır (403); kilitli
+    veya yayımlanmış dönem için gerçek admin de reddedilir.
+    """
+    from app.services.performance.hierarchy_assignment_sync_guard import NON_ADMIN_PERIOD_SYNC
+
+    if reason == NON_ADMIN_PERIOD_SYNC:
+        return deny_critical_operation("assignment_generate")
+    audit_refusal(target_user, "assignment_sync_frozen_period")
+    flash(FROZEN_PERIOD_HIERARCHY_MESSAGE, "danger")
+    return redirect(redirect_url)
 
 
 def critical_operation_required(operation: str):

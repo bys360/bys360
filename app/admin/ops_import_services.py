@@ -10,6 +10,7 @@ from flask_login import current_user
 from app.extensions import db
 from app.models import User
 from app.route_support import safe_render
+from app.security.critical_operations import hierarchy_sync_refusal
 from app.services.account_change_guard import (
     MANAGER_CHAIN_REFUSAL_MESSAGE,
     REFUSAL_MESSAGE,
@@ -28,7 +29,12 @@ from app.services.ai import build_excel_fix_preview_ai_panel
 from app.services.auto_hierarchy_service import auto_apply_manager_chains, infer_role_from_profile
 from app.services.excel_import_limits import ExcelImportRejected, read_import_rows
 from app.services.hierarchy_admin_service import normalize_text
-from app.services.performance_service import generate_assignments_for_active_period
+from app.services.performance.hierarchy_assignment_sync_guard import (
+    AssignmentSyncFailed,
+    begin_hierarchy_change,
+    commit_hierarchy_change,
+    hierarchy_change_refusal,
+)
 from app.services.personnel.categories import (
     assign_user_performance_category,
     normalize_personnel_category_label,
@@ -110,6 +116,7 @@ def admin_user_import_impl():
         errors = []
         touched_users = []
         created_users = []
+        plan = begin_hierarchy_change()
         refused_rows = []
 
         for rowno, row in enumerate(rows[1:], start=2):
@@ -326,25 +333,26 @@ def admin_user_import_impl():
                 touched_users,
                 user_model=User,
             )
-        db.session.commit()
-        assignment_result = None
-        from app.models import PerformancePeriod
-        active_period = PerformancePeriod.query.filter_by(is_active=True).order_by(PerformancePeriod.id.desc()).first()
-        if active_period:
-            assignment_result = generate_assignments_for_active_period(period_id=active_period.id, actor_user_id=current_user.id)
+        # M-1: aktif dönemde görev üretimini etkileyen içe aktarma gerçek admin dışında bütün olarak reddedilir.
+        refusal = hierarchy_change_refusal(plan)
+        if refusal is not None:
+            return hierarchy_sync_refusal(refusal, None, url_for("main.admin_user_import"))
+        try:
+            assignment_result = commit_hierarchy_change(plan, actor_user_id=current_user.id)
+        except AssignmentSyncFailed as exc:
+            flash(f"Görev senkronu tamamlanamadı; içe aktarma kaydedilmedi. {exc}", "danger")
+            return safe_render("excel_import.html", "<h3>Excel İçe Aktar</h3>", apply_ai_fixes=apply_ai_fixes, ai_excel_fix_panel=build_excel_fix_preview_ai_panel())
         flash(
             f"İçe aktarma tamamlandı. Yeni: {created}, Güncellenen: {updated}, Atlanan admin: {skipped_admin}, kategori alanı işlendi, kaynak kurala göre yeniden kurulan zincir: {auto_summary.get('updated_count', 0)}",
             "success",
         )
         if has_explicit_manager_columns:
             flash('Excel içindeki yönetici sicil ve ikinci yönetici sicil alanları kaynak veri olarak korundu; amir seçili görünümü bu sicillere göre senkronlandı.', 'info')
-        if assignment_result and assignment_result.get("ok"):
+        if assignment_result:
             flash(
                 f"Aktif dönem görevleri de otomatik yenilendi. Oluşturulan/güncellenen görev: {assignment_result.get('created', 0)}, atlanan: {assignment_result.get('skipped', 0)}, gerçek uyarı: {assignment_result.get('warning_count', 0)}.",
                 "success" if not assignment_result.get("warning_count") else "warning",
             )
-        elif assignment_result and not assignment_result.get("ok"):
-            flash(assignment_result.get("message", "Aktif dönem görevleri otomatik yenilenemedi."), "warning")
         if apply_ai_fixes and sum(int(v or 0) for v in autofix_stats.values()) > 0:
             flash(f"AI otomatik düzeltme akışı uygulandı. Başlık eşleştirme: {autofix_stats.get('header_alias_count', 0)}, metin temizliği: {autofix_stats.get('whitespace_trim_count', 0)}, rol çıkarımı: {autofix_stats.get('inferred_role_count', 0)}, varsayılan aktiflik: {autofix_stats.get('default_active_count', 0)}", "info")
         if auto_summary.get("warnings"):

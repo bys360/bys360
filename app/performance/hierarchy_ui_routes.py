@@ -61,6 +61,9 @@ from app.route_support import (  # noqa: E402 - deferred import (staged facade/r
     safe_db_rollback,
     safe_render,
 )
+from app.security.critical_operations import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
+    hierarchy_sync_refusal,
+)
 from app.services.account_change_guard import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
     MANAGER_CHAIN_REFUSAL_MESSAGE,
     audit_refusal,
@@ -71,6 +74,11 @@ from app.services.hierarchy_admin_service import (  # noqa: E402 - deferred impo
 )
 from app.services.performance.context import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
     list_performance_periods,  # noqa: E402 - deferred import (staged facade/route-registration architecture)
+)
+from app.services.performance.hierarchy_assignment_sync_guard import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
+    begin_hierarchy_change,
+    commit_hierarchy_change,
+    hierarchy_change_refusal,
 )
 from app.services.performance.hierarchy_ui_service import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
     SPECIAL_SINGLE_MANAGER_UNITS,
@@ -188,9 +196,17 @@ def performance_hierarchy_assignments_live():
             flash(MANAGER_CHAIN_REFUSAL_MESSAGE, "danger")
             return redirect(url_for("main.performance_hierarchy_assignments_live", user_id=user.id, q=q, birim=birim))
         try:
+            plan = begin_hierarchy_change()
             user.yonetici_sicil, user.ikinci_yonetici_sicil, user.ucuncu_yonetici_sicil = new_chain
-            db.session.commit()
+            # M-1: aktif dönemde görev üretimini etkileyen değişiklik gerçek admin dışında reddedilir;
+            # gerçek admin için kayıt ve görev senkronu tek işlemdir.
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, user, url_for("main.performance_hierarchy_assignments_live", user_id=user.id, q=q, birim=birim))
+            assignment_result = commit_hierarchy_change(plan, actor_user_id=current_user.id)
             flash("Hiyerarşi ataması kaydedildi.", "success")
+            if assignment_result:
+                flash("Aktif dönem görevleri amir zinciri güncellemesi sonrası yeniden senkronlandı.", "success")
             return redirect(url_for("main.performance_hierarchy_assignments_live", user_id=user.id, q=q, birim=birim))
         except Exception as exc:
             logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)

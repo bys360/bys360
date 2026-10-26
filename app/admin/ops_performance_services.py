@@ -7,14 +7,19 @@ from __future__ import annotations
 from flask import flash, redirect, request, url_for
 from flask_login import current_user
 
-from app.extensions import db
-from app.models import PerformancePeriod, User
+from app.models import User
+from app.security.critical_operations import hierarchy_sync_refusal
 from app.services.account_change_guard import (
     MANAGER_CHAIN_REFUSAL_MESSAGE,
     audit_refusal,
     may_change_manager_chain,
 )
-from app.services.performance_service import generate_assignments_for_active_period
+from app.services.performance.hierarchy_assignment_sync_guard import (
+    AssignmentSyncFailed,
+    begin_hierarchy_change,
+    commit_hierarchy_change,
+    hierarchy_change_refusal,
+)
 
 
 def performance_hierarchy_bulk_assign_impl():
@@ -49,6 +54,7 @@ def performance_hierarchy_bulk_assign_impl():
         flash(MANAGER_CHAIN_REFUSAL_MESSAGE + " Toplu atama yapılmadı.", "danger")
         return redirect(url_for("main.performance_hierarchy_settings"))
 
+    plan = begin_hierarchy_change()
     updated_count = 0
     for user_obj in users:
         # Rol/ünvan anahtar kelimesine göre otomatik daraltma yapılmaz.
@@ -60,16 +66,17 @@ def performance_hierarchy_bulk_assign_impl():
         user_obj.ucuncu_yonetici_sicil = ucuncu_yonetici_sicil if level_3_enabled else None
         updated_count += 1
 
-    db.session.commit()
-
-    active_period = PerformancePeriod.query.filter_by(is_active=True).order_by(PerformancePeriod.id.desc()).first()
-    assignment_result = None
-    if active_period:
-        assignment_result = generate_assignments_for_active_period(period_id=active_period.id, actor_user_id=current_user.id)
+    # M-1: aktif dönemde görev üretimini etkileyen toplu değişiklik gerçek admin dışında bütün olarak reddedilir.
+    refusal = hierarchy_change_refusal(plan)
+    if refusal is not None:
+        return hierarchy_sync_refusal(refusal, None, url_for("main.performance_hierarchy_settings"))
+    try:
+        assignment_result = commit_hierarchy_change(plan, actor_user_id=current_user.id)
+    except AssignmentSyncFailed as exc:
+        flash(f"Görev senkronu tamamlanamadı; toplu hiyerarşi ataması kaydedilmedi. {exc}", "danger")
+        return redirect(url_for("main.performance_hierarchy_settings"))
 
     flash(f"Toplu hiyerarşi ataması tamamlandı. Güncellenen personel: {updated_count}", "success")
-    if assignment_result and assignment_result.get("ok"):
+    if assignment_result:
         flash("Aktif dönem görevleri toplu hiyerarşi ataması sonrası yeniden senkronlandı.", "success")
-    elif assignment_result and not assignment_result.get("ok"):
-        flash(assignment_result.get("message", "Aktif dönem görevleri yeniden senkronlanamadı."), "warning")
     return redirect(url_for("main.performance_hierarchy_settings"))

@@ -32,6 +32,7 @@ from app.security import (
     save_profile_photo_to_user,
     validate_excel_file,
 )
+from app.security.critical_operations import hierarchy_sync_refusal
 from app.services.account_change_guard import (
     ADMIN_CONTINUITY_MESSAGE,
     MANAGER_CHAIN_REFUSAL_MESSAGE,
@@ -60,7 +61,11 @@ from app.services.ai import (
 from app.services.auto_hierarchy_service import auto_apply_manager_chains, infer_role_from_profile
 from app.services.excel_import_limits import ExcelImportRejected, read_import_rows
 from app.services.hierarchy_admin_service import ensure_unit_exists_strict, normalize_text
-from app.services.performance_service import generate_assignments_for_active_period
+from app.services.performance.hierarchy_assignment_sync_guard import (
+    begin_hierarchy_change,
+    commit_hierarchy_change,
+    hierarchy_change_refusal,
+)
 from app.services.personnel import (
     apply_admin_user_org_hierarchy_fields,
     apply_personnel_profile_photo_action,
@@ -157,18 +162,6 @@ def _get_user_role_text(user):
     if hasattr(user, "role_label") and (getattr(user, "role_label", "") or "").strip():
         return user.role_label
     return ""
-
-def _refresh_active_period_assignments(actor_user_id=None):
-    active_period = (
-        PerformancePeriod.query
-        .filter_by(is_active=True)
-        .order_by(PerformancePeriod.id.desc())
-        .first()
-    )
-    if not active_period:
-        return None
-    return generate_assignments_for_active_period(period_id=active_period.id, actor_user_id=actor_user_id)
-
 
 # ---------------------------------------------------------------------------
 # Admin routes
@@ -456,6 +449,7 @@ def admin_user_create():
 
             initial_password = get_default_first_login_password()
 
+            plan = begin_hierarchy_change()
             user = User(
                 ad=ad,
                 soyad=soyad,
@@ -492,6 +486,11 @@ def admin_user_create():
 
             db.session.add(user)
             db.session.flush()
+            # M-1: aktif dönemde görev üretimini etkileyen kayıt gerçek admin dışında reddedilir
+            # (fotoğraf dosyası yazılmadan önce).
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, user, url_for("main.admin_users"))
             audit_account_change("account.create", user, new={"role": user.role, "is_active": bool(user.is_active)})
 
             photo = request.files.get("profile_photo")
@@ -503,14 +502,10 @@ def admin_user_create():
                 save_photo_func=save_profile_photo_to_user,
             )
 
-            db.session.commit()
-
-            assignment_result = _refresh_active_period_assignments(actor_user_id=current_user.id)
+            assignment_result = commit_hierarchy_change(plan, actor_user_id=current_user.id)
             flash(f"Personel kaydı oluşturuldu. Başlangıç şifresi: {initial_password}", "success")
-            if assignment_result and assignment_result.get("ok"):
+            if assignment_result:
                 flash("Aktif dönem görevleri personel kaydı sonrası yeniden senkronlandı.", "success")
-            elif assignment_result and not assignment_result.get("ok"):
-                flash(assignment_result.get("message", "Aktif dönem görevleri yeniden senkronlanamadı."), "warning")
             return redirect(url_for("main.admin_users"))
 
         except Exception as exc:
@@ -632,6 +627,7 @@ def admin_user_edit(user_id):
                 flash(ADMIN_CONTINUITY_MESSAGE, "danger")
                 return redirect(url_for("main.admin_user_edit", user_id=user_id))
 
+            plan = begin_hierarchy_change()
             user.ad = ad
             user.soyad = soyad
             user.sicil_no = sicil_no
@@ -651,6 +647,11 @@ def admin_user_edit(user_id):
             assign_user_performance_category(user, edit_personnel_category, db_session=db.session)  # BYS360_PHASE2_ADMIN_EDIT_CATEGORY_BINDING
             assign_user_performance_category(user, edit_personnel_category, db_session=db.session)  # BYS360_PHASE2_2_ADMIN_EDIT_CATEGORY_BINDING
             user.is_active = is_active
+            # M-1: aktif dönemde görev üretimini etkileyen düzenleme gerçek admin dışında reddedilir
+            # (fotoğraf dosyası yazılmadan önce).
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, user, url_for("main.admin_user_edit", user_id=user_id))
 
             remove_photo = bool_from_form(request.form.get("remove_profile_photo"))
             photo = request.files.get("profile_photo")
@@ -665,14 +666,10 @@ def admin_user_edit(user_id):
 
             record_account_changes(user, old_role=old_role, old_active=old_active)
             db.session.add(user)
-            db.session.commit()
-
-            assignment_result = _refresh_active_period_assignments(actor_user_id=current_user.id)
+            assignment_result = commit_hierarchy_change(plan, actor_user_id=current_user.id)
             flash("Personel bilgileri güncellendi.", "success")
-            if assignment_result and assignment_result.get("ok"):
+            if assignment_result:
                 flash("Aktif dönem görevleri personel güncellemesi sonrası yeniden senkronlandı.", "success")
-            elif assignment_result and not assignment_result.get("ok"):
-                flash(assignment_result.get("message", "Aktif dönem görevleri yeniden senkronlanamadı."), "warning")
             return redirect(url_for("main.admin_users"))
 
         except Exception as exc:
@@ -790,6 +787,7 @@ def personnel_add():
                     **form_context,
                 )
 
+            plan = begin_hierarchy_change()
             user = build_new_personnel_user_from_payload(
                 payload=payload,
                 user_model=User,
@@ -801,6 +799,11 @@ def personnel_add():
 
             db.session.add(user)
             db.session.flush()
+            # M-1: aktif dönemde görev üretimini etkileyen kayıt gerçek admin dışında reddedilir
+            # (fotoğraf dosyası yazılmadan önce).
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, user, url_for("main.personnel_list"))
             audit_account_change("account.create", user, new={"role": user.role, "is_active": bool(user.is_active)})
 
             photo = request.files.get("profile_photo")
@@ -812,8 +815,10 @@ def personnel_add():
                 save_photo_func=save_profile_photo_to_user,
             )
 
-            db.session.commit()
+            assignment_result = commit_hierarchy_change(plan, actor_user_id=current_user.id)
             flash("Personel kaydı başarıyla oluşturuldu.", "success")
+            if assignment_result:
+                flash("Aktif dönem görevleri personel kaydı sonrası yeniden senkronlandı.", "success")
             return redirect(url_for("main.personnel_list"))
 
         except Exception as exc:
@@ -945,6 +950,7 @@ def personnel_edit(user_id):
                 flash(ADMIN_CONTINUITY_MESSAGE, "danger")
                 return redirect(url_for("main.personnel_edit", user_id=user_id))
 
+            plan = begin_hierarchy_change()
             password_reset_applied = update_existing_personnel_user_from_payload(
                 user=user,
                 payload=payload,
@@ -957,6 +963,11 @@ def personnel_edit(user_id):
                 must_change_password=new_must_change_password,
                 must_set_security_question=new_must_set_security_question,
             )
+            # M-1: aktif dönemde görev üretimini etkileyen düzenleme gerçek admin dışında reddedilir
+            # (fotoğraf dosyası yazılmadan önce).
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, user, url_for("main.personnel_edit", user_id=user_id))
 
             remove_photo = bool_from_form(request.form.get("remove_profile_photo"))
             photo = request.files.get("profile_photo")
@@ -970,7 +981,9 @@ def personnel_edit(user_id):
             )
 
             record_account_changes(user, old_role=old_role, old_active=old_active, password_set=password_reset_applied)
-            db.session.commit()
+            assignment_result = commit_hierarchy_change(plan, actor_user_id=current_user.id)
+            if assignment_result:
+                flash("Aktif dönem görevleri personel güncellemesi sonrası yeniden senkronlandı.", "success")
             if password_reset_applied:
                 flash("Personel kaydı güncellendi. Yönetici tarafından yeni geçici şifre tanımlandı; kullanıcı ilk girişte şifre değiştirip gizli sorusunu yeniden tanımlayacak.", "success")
             else:
@@ -1055,6 +1068,7 @@ def personnel_excel_upload():
             initial_password = get_default_first_login_password()
             touched_users = []
             created_users = []
+            plan = begin_hierarchy_change()
 
             for row_number, row in enumerate(rows_for_preflight[1:], start=2):
                 row_payload = build_personnel_excel_row_payload(
@@ -1263,9 +1277,11 @@ def personnel_excel_upload():
                     touched_users,
                     user_model=User,
                 )
-            db.session.commit()
-
-            assignment_result = _refresh_active_period_assignments(actor_user_id=current_user.id)
+            # M-1: aktif dönemde görev üretimini etkileyen içe aktarma gerçek admin dışında bütün olarak reddedilir.
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, None, url_for("main.personnel_excel_upload"))
+            assignment_result = commit_hierarchy_change(plan, actor_user_id=current_user.id)
 
             flash(
                 f"Excel işlemi tamamlandı. Yeni: {created_count}, Güncellenen: {updated_count}, Atlanan: {skipped_count}, Otomatik yeniden kurulan zincir: {auto_summary.get('updated_count', 0)}",
@@ -1282,7 +1298,7 @@ def personnel_excel_upload():
                     f"Amir zinciri denetiminde {len(auto_summary.get('warnings', []))} kayıt için teknik not üretildi; ham liste kullanıcı ekranında gösterilmedi.",
                     "info",
                 )
-            if assignment_result and assignment_result.get("ok"):
+            if assignment_result:
                 flash(
                     f"Aktif dönem için görevler otomatik yenilendi. Oluşturulan: {assignment_result.get('created', 0)}, atlanan/muaf kalan: {assignment_result.get('skipped', 0)}.",
                     "success",
