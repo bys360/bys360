@@ -11,6 +11,7 @@ from app.extensions import db
 from app.models import PerformancePeriod, User
 from app.route_registry import main_bp
 from app.route_support import admin_required, menu_key_required, safe_all, safe_render
+from app.security.critical_operations import critical_operation_required
 from app.services.availability_service import refresh_assignment_live_coverages
 from app.services.performance.assignments import build_assignment_log_summary
 from app.services.performance.hardening_service import (
@@ -102,6 +103,7 @@ def performance_task_management():
 @main_bp.route("/performance/task-management/generate", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("assignment_generate")
 @menu_key_required("performance_task_management")
 def performance_task_management_generate():
     period_id = request.form.get("period_id", type=int)

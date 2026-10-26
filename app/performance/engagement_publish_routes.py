@@ -201,6 +201,7 @@ def performance_unpublish_period(period_id):
 @main_bp.route("/performance/publish/evaluation/<int:evaluation_id>", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_publish")
 @menu_key_required("performance_publish")
 def performance_publish_evaluation(evaluation_id):
     evaluation = db.session.get(PerformanceEvaluation, evaluation_id)
@@ -259,6 +260,7 @@ def performance_publish_evaluation(evaluation_id):
 @main_bp.route("/performance/unpublish/evaluation/<int:evaluation_id>", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_publish")
 @menu_key_required("performance_publish")
 def performance_unpublish_evaluation(evaluation_id):
     evaluation = db.session.get(PerformanceEvaluation, evaluation_id)

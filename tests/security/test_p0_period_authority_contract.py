@@ -186,6 +186,16 @@ def _grant_menu(app, sicil: str, menu_key: str, visible: bool) -> None:
         db.session.commit()
 
 
+def _grant_role_menu(app, role: str, menu_key: str) -> None:
+    """Ayarlar > Rol Matrisi satırı: kişisel izinden farklı olarak menü tavanına takılmaz."""
+    from app.extensions import db
+    from app.models.settings_models import RoleMenuDefault
+
+    with app.app_context():
+        db.session.add(RoleMenuDefault(role_name=role, menu_key=menu_key, is_visible=True))
+        db.session.commit()
+
+
 def _seed_publishable_evaluation(app, period_id: int) -> int:
     """Yayına uygun, tamamlanmış ve 70 üstü (üst onay gerektirmeyen) sahte değerlendirme."""
     from app.extensions import db
@@ -339,6 +349,28 @@ def test_08_menu_grant_does_not_exceed_fixed_role_policy(app, role) -> None:
         assert VALID_PERIOD_FORM["title"] not in _period_titles(app)
     state = _state(app, period_id)
     assert state == {"title": "Sahte P0 Dönem", "is_active": False, "is_locked": False, "results_published": False}
+
+
+@pytest.mark.parametrize("role", ["baskan_yardimcisi", "grup_baskani", "mali_musavir"])
+def test_08b_role_matrix_grant_does_not_exceed_fixed_role_policy(app, role) -> None:
+    """F-01: Ayarlar > Rol Matrisi dönem ve yayın menülerini açsa da grup başkanı ve Hukuk Müşaviri dönem
+    oluşturamaz, düzenleyemez, silemez; Başkan Yardımcısı yayınlayamaz ve silemez. Her red 403 ve veri aynı."""
+    period_id = _period(app)
+    for key in ("performance_periods", "performance_publish", "performance_task_management"):
+        _grant_role_menu(app, role, key)
+    client = _client_for(app, role, f"P0-RM-{role[:10]}")
+    titles_before = _period_titles(app)
+    assert _denied(client.post(f"/performance/periods/{period_id}/delete")), role
+    assert _denied(client.post(f"/performance/periods/{period_id}/toggle-publish", data={"target_state": "true"})), role
+    assert _denied(client.post(f"/performance/periods/{period_id}/toggle-lock", data={"target_state": "true"})), role
+    assert _denied(client.post(f"/performance/periods/{period_id}/toggle-active", data={"target_state": "true"})), role
+    if role not in PERIOD_MANAGERS:
+        assert _denied(client.post("/performance/periods/create", data=VALID_PERIOD_FORM)), role
+        assert _denied(client.post(f"/performance/periods/{period_id}/edit", data=EDIT_FORM)), role
+        assert _denied(client.get("/performance/periods")), role
+        assert _period_titles(app) == titles_before, role
+    assert _state(app, period_id) == {"title": "Sahte P0 Dönem", "is_active": False, "is_locked": False,
+                                      "results_published": False}, role
 
 
 # ---------------------------------------------------------------------------
@@ -508,6 +540,48 @@ def test_alt_period_center_and_integration_refuse_period_creation(app, role) -> 
     assert _assignment_count(app) == 0, role
 
 
+@pytest.mark.parametrize("role", ROLES)
+def test_alt_task_management_generate_is_real_admin_only(app, role) -> None:
+    """Görev yönetimi ekranındaki ikinci görev üretimi yolu (ön kontrol override dahil): yalnız gerçek admin.
+
+    Kişi bazlı menü izni de verilir: menü izni sabit rol sınırının üzerinde yetki vermemeli."""
+    period_id = _period(app, is_active=True)
+    sicil = f"P0-GEN-{role[:10]}"
+    client = _client_for(app, role, sicil)
+    _grant_menu(app, sicil, "performance_task_management", True)
+    _grant_role_menu(app, role, "performance_task_management")
+    before = (_assignment_count(app), _state(app, period_id))
+    plain = client.post("/performance/task-management/generate", data={"period_id": str(period_id)})
+    forced = client.post("/performance/task-management/generate", data={"period_id": str(period_id), "force_generate": "1"})
+    if role in REAL_ADMIN:
+        assert plain.status_code == 302 and forced.status_code == 302, role
+    else:
+        assert _denied(plain) and _denied(forced), (role, plain.status_code, forced.status_code)
+        assert (_assignment_count(app), _state(app, period_id)) == before, role
+
+
+@pytest.mark.parametrize("role", ROLES)
+def test_alt_single_evaluation_publish_matrix(app, role) -> None:
+    """Tek değerlendirme sonucunu yayınlama ve yayından kaldırma: dönem yayınıyla aynı sınır (admin, başkan).
+
+    Rol matrisinden ve kişi bazlı menü izni de verilir: menü izni sabit rol sınırının üzerinde
+    yetki vermemeli (rol matrisi izni kişisel izinden farklı olarak menü tavanına takılmaz)."""
+    period_id = _period(app)
+    evaluation_id = _seed_publishable_evaluation(app, period_id)
+    _mark_published(app, period_id, evaluation_id)
+    sicil = f"P0-PUB1-{role[:10]}"
+    client = _client_for(app, role, sicil)
+    _grant_menu(app, sicil, "performance_publish", True)
+    _grant_role_menu(app, role, "performance_publish")
+    unpublish = client.post(f"/performance/unpublish/evaluation/{evaluation_id}")
+    if role in PUBLISHERS:
+        assert unpublish.status_code == 302 and _evaluation_published(app, evaluation_id) is False, role
+    else:
+        publish = client.post(f"/performance/publish/evaluation/{evaluation_id}")
+        assert _denied(unpublish) and _denied(publish), (role, unpublish.status_code, publish.status_code)
+        assert _publish_state(app, period_id, evaluation_id) == (True, True), role
+
+
 # ---------------------------------------------------------------------------
 # 15 ve 16. Statik sözleşmeler
 # ---------------------------------------------------------------------------
@@ -534,6 +608,11 @@ _GUARDED_VIEWS = {
     "app/performance/engagement_publish_routes.py": {
         "performance_publish_period": ("performance_publish", "period_publish"),
         "performance_unpublish_period": ("performance_publish", "period_publish"),
+        "performance_publish_evaluation": ("performance_publish", "period_publish"),
+        "performance_unpublish_evaluation": ("performance_publish", "period_publish"),
+    },
+    "app/performance/task_routes.py": {
+        "performance_task_management_generate": ("performance_task_management", "assignment_generate"),
     },
     "app/performance/v2_routes.py": {
         "performance_v2_phase5_publish": ("performance_publish", "period_publish"),
