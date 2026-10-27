@@ -111,16 +111,18 @@ def hierarchy_sync_refusal(reason: str, target_user: Any, redirect_url: str, *, 
     return redirect(redirect_url)
 
 
-def frozen_period_generation_refusal(period: Any, redirect_url: str):
+def frozen_period_generation_refusal(period: Any, redirect_url: str, *, action: str = "assignment_generate"):
     """M-1 Q3: kilitli/yayımlanmış dönemde doğrudan görev üretimi/senkronu yok (gerçek admin dahil); uygunsa None.
 
-    Yeniden açma yetkisi tanımlanmamıştır; red denetim kaydına yazılır, hiçbir kayıt değişmez.
+    Q3-1 (M-2 sahip kararı): aynı kural görev ve değerlendirme temizliği için de geçerlidir
+    (``action="assignment_clear"``). Yeniden açma yetkisi tanımlanmamıştır; red denetim kaydına
+    yazılır, hiçbir kayıt değişmez.
     """
     from app.services.performance.period_freeze import FROZEN_PERIOD_TASKS_MESSAGE, period_is_frozen
 
     if period is None or not period_is_frozen(period):
         return None
-    audit_refusal(None, f"assignment_generate_frozen_period:{getattr(period, 'id', None)}")
+    audit_refusal(None, f"{action}_frozen_period:{getattr(period, 'id', None)}")
     flash(FROZEN_PERIOD_TASKS_MESSAGE, "danger")
     return redirect(redirect_url)
 

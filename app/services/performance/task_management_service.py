@@ -795,6 +795,13 @@ def build_task_recommendation_export_response(action_plan_rows, *, export_format
 
 
 def clear_period_task_records(period_id: int) -> dict[str, int]:
+    from app.services.performance.period_freeze import FROZEN_PERIOD_TASKS_MESSAGE, period_is_frozen
+
+    # P0 (Q3-1, M-2 sahip kararı): dondurulmuş dönemin kayıtları hiçbir çağrıdan temizlenmez
+    # (gerçek admin dahil); rota denetim kaydıyla önce reddeder, bu kontrol servis düzeyinde ikinci kapı.
+    period = db.session.get(PerformancePeriod, period_id)
+    if period is not None and period_is_frozen(period):
+        raise PermissionError(FROZEN_PERIOD_TASKS_MESSAGE)
     evaluation_ids = [row.id for row in PerformanceEvaluation.query.filter_by(period_id=period_id).all()]
     item_count = 0
     if evaluation_ids:

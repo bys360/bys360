@@ -936,3 +936,83 @@ def test_period_center_launch_never_changes_a_frozen_period(env):
     with env.app.app_context():
         guard = build_assignment_launch_guard(plan_key)
     assert guard["can_launch"] is False and guard["status"] == "donem_kilitli_veya_yayimlanmis"
+
+
+# ---------------------------------------------------------------------------
+# Q3-1 (M-2 sahip kararı): dondurulmuş dönemin görev ve değerlendirme kayıtları temizlenmez
+# (gerçek admin dahil); açık ve yayımlanmamış dönemin yetkili temizliği değişmez
+# ---------------------------------------------------------------------------
+def _period_state(env, period_id):
+    from app.extensions import db
+    from app.models import AssignmentCoverageLog, PerformanceEvaluation, PerformancePeriod
+
+    with env.app.app_context():
+        period = db.session.get(PerformancePeriod, period_id)
+        assert period is not None
+        evaluations = sorted((e.id, bool(e.is_published_to_employee), e.published_to_employee_at)
+                             for e in db.session.query(PerformanceEvaluation).filter_by(period_id=period_id).all())
+        logs = db.session.query(AssignmentCoverageLog).filter_by(period_id=period_id).count()
+        return (period.is_active, period.is_locked, period.results_published, period.published_at,
+                period.published_by_id, evaluations, logs)
+
+
+def _clear(client, period_id):
+    return client.post(f"/performance/task-management/clear/{period_id}")
+
+
+@pytest.mark.parametrize("how", ["locked", "results_published", "evaluation_published"])
+def test_a_frozen_periods_tasks_and_evaluations_are_not_cleared_even_by_the_real_admin(env, how):
+    period_id = _setup(env)
+    _freeze(env, period_id, how)
+    tasks, state = _tasks(env), _period_state(env, period_id)
+    assert any(row[0] == period_id for row in tasks[0]) and any(row[0] == period_id for row in tasks[1])
+
+    from app.services.performance.period_freeze import FROZEN_PERIOD_TASKS_MESSAGE
+
+    client = _fresh_admin(env)
+    response = _clear(client, period_id)
+
+    assert response.status_code == 302, how
+    assert _tasks(env) == tasks, how
+    assert _period_state(env, period_id) == state, how
+    assert _audits(env, f"assignment_clear_frozen_period:{period_id}"), how
+    with client.session_transaction() as session:
+        messages = [message for _category, message in session.get("_flashes", [])]
+    assert messages == [FROZEN_PERIOD_TASKS_MESSAGE], (how, messages)  # a plain refusal, not an error path
+
+
+def test_the_clear_service_refuses_a_frozen_period_for_any_caller(env):
+    from app.extensions import db
+    from app.services.performance.task_management_service import clear_period_task_records
+
+    period_id = _setup(env)
+    _freeze(env, period_id, "locked")
+    tasks = _tasks(env)
+    with env.app.app_context():
+        with pytest.raises(PermissionError):
+            clear_period_task_records(period_id)
+        db.session.rollback()
+    assert _tasks(env) == tasks
+
+
+def test_the_real_admin_still_clears_an_open_unpublished_period(env):
+    period_id = _setup(env)
+    assert any(row[0] == period_id for row in _tasks(env)[0])
+
+    response = _clear(_fresh_admin(env), period_id)
+
+    assignments, evaluations = _tasks(env)
+    assert response.status_code == 302
+    assert not [row for row in assignments if row[0] == period_id]
+    assert not [row for row in evaluations if row[0] == period_id]
+    assert not _audits(env, "assignment_clear_frozen_period")
+
+
+@pytest.mark.parametrize("actor", NON_ADMIN_EDITORS)
+def test_a_non_admin_still_cannot_clear_an_open_period(env, actor):
+    period_id = _setup(env)
+    tasks = _tasks(env)
+
+    _clear(_web(env, actor), period_id)
+
+    assert _tasks(env) == tasks

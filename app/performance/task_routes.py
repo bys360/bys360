@@ -444,6 +444,15 @@ def performance_task_management_clear(period_id):
     if not period:
         flash("Dönem bulunamadı.", "danger")
         return redirect(url_for("main.performance_task_management", scope=selected_scope or None))
+    # P0 (Q3-1, M-2 sahip kararı): kilitli, sonuçları yayımlanmış veya personele yayımlanmış
+    # değerlendirmesi olan dönemin görev/değerlendirme kayıtları kimse tarafından temizlenemez.
+    refusal = frozen_period_generation_refusal(
+        period,
+        url_for("main.performance_task_management", period_id=period.id, scope=selected_scope or None),
+        action="assignment_clear",
+    )
+    if refusal is not None:
+        return refusal
 
     try:
         clear_period_task_records(period.id)
