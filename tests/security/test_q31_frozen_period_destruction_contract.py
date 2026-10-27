@@ -267,9 +267,14 @@ def test_a_publication_after_the_route_check_is_refused_by_the_service(env, monk
     monkeypatch.setattr(core, "protected_period_deletion_refusal", lambda *args, **kwargs: None)
     monkeypatch.setattr(tasks, "protected_period_deletion_refusal", lambda *args, **kwargs: None)
     real_ids = ops.delete_protected_period_ids
-    calls = []
-    monkeypatch.setattr(ops, "delete_protected_period_ids",
-                        lambda **kwargs: calls.append(1) or ([] if len(calls) == 1 else real_ids(**kwargs)))
+    calls: list[int] = []
+
+    def route_check_passes_once(**kwargs):
+        """Rota ön kontrolü dönemi korunmuyor görür; sonraki çağrılar gerçek kontrolü yapar."""
+        calls.append(1)
+        return [] if len(calls) == 1 else real_ids(**kwargs)
+
+    monkeypatch.setattr(ops, "delete_protected_period_ids", route_check_passes_once)
     client = _fresh_admin(env)
     before = _state(env)
 
