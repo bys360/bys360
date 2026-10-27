@@ -967,7 +967,7 @@ def test_a_frozen_periods_tasks_and_evaluations_are_not_cleared_even_by_the_real
     tasks, state = _tasks(env), _period_state(env, period_id)
     assert any(row[0] == period_id for row in tasks[0]) and any(row[0] == period_id for row in tasks[1])
 
-    from app.services.performance.period_freeze import FROZEN_PERIOD_TASKS_MESSAGE
+    from app.services.performance.period_freeze import PROTECTED_PERIOD_DELETE_MESSAGE
 
     client = _fresh_admin(env)
     response = _clear(client, period_id)
@@ -978,7 +978,7 @@ def test_a_frozen_periods_tasks_and_evaluations_are_not_cleared_even_by_the_real
     assert _audits(env, f"assignment_clear_frozen_period:{period_id}"), how
     with client.session_transaction() as session:
         messages = [message for _category, message in session.get("_flashes", [])]
-    assert messages == [FROZEN_PERIOD_TASKS_MESSAGE], (how, messages)  # a plain refusal, not an error path
+    assert messages == [PROTECTED_PERIOD_DELETE_MESSAGE], (how, messages)  # a plain refusal, not an error path
 
 
 def test_the_clear_service_refuses_a_frozen_period_for_any_caller(env):

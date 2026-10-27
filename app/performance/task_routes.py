@@ -14,7 +14,9 @@ from app.route_support import admin_required, menu_key_required, safe_all, safe_
 from app.security.critical_operations import (
     critical_operation_required,
     frozen_period_generation_refusal,
+    protected_period_deletion_refusal,
 )
+from app.services.account_change_guard import audit_refusal
 from app.services.availability_service import refresh_assignment_live_coverages
 from app.services.performance.assignments import build_assignment_log_summary
 from app.services.performance.hardening_service import (
@@ -444,9 +446,9 @@ def performance_task_management_clear(period_id):
     if not period:
         flash("Dönem bulunamadı.", "danger")
         return redirect(url_for("main.performance_task_management", scope=selected_scope or None))
-    # P0 (Q3-1, M-2 sahip kararı): kilitli, sonuçları yayımlanmış veya personele yayımlanmış
-    # değerlendirmesi olan dönemin görev/değerlendirme kayıtları kimse tarafından temizlenemez.
-    refusal = frozen_period_generation_refusal(
+    # P0 (Q3-1, sahip kararı): kilitli, sonuçları yayımlanmış, personele yayımlanmış değerlendirmesi
+    # olan veya yayını geri alınmış dönemin görev/değerlendirme kayıtları kimse tarafından temizlenemez.
+    refusal = protected_period_deletion_refusal(
         period,
         url_for("main.performance_task_management", period_id=period.id, scope=selected_scope or None),
         action="assignment_clear",
@@ -458,6 +460,10 @@ def performance_task_management_clear(period_id):
         clear_period_task_records(period.id)
         db.session.commit()
         flash("Seçili dönemin görevleri ve değerlendirme kayıtları temizlendi.", "success")
+    except PermissionError as exc:
+        # Kontrolden sonra yayımlanan dönem: servis kilitli satırda yeniden kontrol edip reddetti.
+        audit_refusal(None, f"assignment_clear_frozen_period:{period_id}")
+        flash(str(exc), "danger")
     except Exception as exc:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)
         db.session.rollback()

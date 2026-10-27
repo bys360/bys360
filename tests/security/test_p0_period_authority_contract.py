@@ -437,8 +437,11 @@ def test_12_admin_full_flow_changes_real_records(app) -> None:
     assert client.post(f"/performance/periods/{period_id}/toggle-publish", data={"target_state": "true"}).status_code == 302
     assert _period_state(app, period_id) == {"title": EDIT_FORM["title"], "is_active": False, "is_locked": False,
                                              "results_published": True}
+    # Q3-1 (sahip kararı a): sonuçları yayımlanmış dönem gerçek admin tarafından da silinemez; açık ve hiç
+    # yayımlanmamış dönemin silinmesi test_03'te ölçülür.
     assert client.post(f"/performance/periods/{period_id}/delete").status_code == 302
-    assert _period_state(app, period_id) is None
+    assert _period_state(app, period_id) == {"title": EDIT_FORM["title"], "is_active": False, "is_locked": False,
+                                             "results_published": True}
 
 
 def test_13_president_creates_edits_and_publishes_but_does_not_delete(app) -> None:

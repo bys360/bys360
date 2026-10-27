@@ -18,7 +18,7 @@ import sqlalchemy as sa
 from sqlalchemy import inspect
 
 from app.extensions import db
-from app.models import AuditLog, PerformancePeriod
+from app.models import AuditLog
 
 logger = logging.getLogger(__name__)
 
@@ -233,9 +233,19 @@ def delete_performance_period_with_related_records(period_id: int, actor: Any = 
     - Dönem içi not, hatırlatma, aksatan amir, gelişim önerisi gibi dönem artefaktları silinir.
     - Personel/izin/devamsızlık gibi kurumsal ana kayıtlar silinmez; sadece dönem bağlantısı boşaltılır.
     """
-    period = db.session.get(PerformancePeriod, period_id)
+    from app.services.performance.period_freeze import (
+        PROTECTED_PERIOD_DELETE_MESSAGE,
+        lock_period_for_deletion,
+        period_is_delete_protected,
+    )
+
+    # P0 (Q3-1, sahip kararı a): dondurulmuş veya yayını geri alınmış dönem hiçbir çağrıdan silinmez.
+    # Dönem satırı kilitlenir: kontrol ile silme arasında dönem yayımlanamaz.
+    period = lock_period_for_deletion(period_id)
     if not period:
         return PeriodDeleteResult(False, period_id=period_id, message="Dönem bulunamadı.")
+    if period_is_delete_protected(period):
+        raise PermissionError(PROTECTED_PERIOD_DELETE_MESSAGE)
 
     period_title = str(getattr(period, "title", None) or getattr(period, "name", None) or f"#{period_id}")
     result = PeriodDeleteResult(True, period_id=period_id, period_title=period_title)

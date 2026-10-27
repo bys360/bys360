@@ -471,7 +471,15 @@ def _delete_models_in_dependency_order(*models) -> None:
 
 def reset_all_personnel_and_related_data() -> None:
     from app.services.account_change_guard import lock_active_admin_ids
+    from app.services.performance.period_freeze import (
+        RESET_ALL_PROTECTED_MESSAGE,
+        delete_protected_period_ids,
+    )
 
+    # P0 (Q3-1, sahip kararı a): dondurulmuş veya yayını geri alınmış dönem varken hiçbir şey silinmez.
+    # Bütün dönem satırları işlem sonuna kadar kilitlenir: kontrol ile silme arasında yayın yapılamaz.
+    if delete_protected_period_ids(lock=True):
+        raise PermissionError(RESET_ALL_PROTECTED_MESSAGE)
     lock_active_admin_ids()
     non_admin_ids = _non_admin_user_ids()
     _delete_models_in_dependency_order(

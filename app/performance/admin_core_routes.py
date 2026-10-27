@@ -6,6 +6,7 @@ from flask import current_app, flash, redirect, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
+from app.core.datetime_utils import utc_now
 from app.extensions import db
 from app.models import (
     EvaluationAssignment,
@@ -23,7 +24,9 @@ from app.route_support import admin_required, ensure_boolean_toggle, menu_key_re
 from app.security.critical_operations import (
     critical_operation_required,
     frozen_period_generation_refusal,
+    protected_period_deletion_refusal,
 )
+from app.services.account_change_guard import audit_refusal
 from app.services.ai.dashboard_panels import build_period_form_ai_panel, build_periods_ai_panel
 from app.services.hierarchy_admin_service import parse_date
 from app.services.performance.assignment_rule_audit import build_assignment_generation_preflight
@@ -633,6 +636,10 @@ def performance_period_toggle_publish(period_id):
 
     try:
         period.results_published = ensure_boolean_toggle(current_value=getattr(period, "results_published", False), entity_label="Dönem yayın durumu", requested_state=request.form.get("target_state"))
+        # Q3-1 (sahip kararı a): yayın ve geri alma, çekirdek yayın işlemleri gibi kalıcı iz bırakır
+        # (publish_period_results / unpublish_period_results); yayını geri alınmış dönem silinemez.
+        period.published_at = utc_now() if period.results_published else None
+        period.published_by_id = current_user.id
         db.session.commit()
         flash("Dönem yayın durumu güncellendi.", "success")
     except ValueError as exc:
@@ -650,12 +657,23 @@ def performance_period_toggle_publish(period_id):
 @critical_operation_required("period_delete")
 @menu_key_required("performance_periods")
 def performance_period_delete(period_id):
+    # P0 (Q3-1, sahip kararı a): kilitli, sonuçları yayımlanmış, personele yayımlanmış değerlendirmesi
+    # olan veya yayını geri alınmış dönem gerçek admin dahil kimse tarafından silinemez.
+    refusal = protected_period_deletion_refusal(
+        db.session.get(PerformancePeriod, period_id), url_for("main.performance_periods"), action="period_delete"
+    )
+    if refusal is not None:
+        return refusal
     try:
         result = delete_performance_period_with_related_records(period_id, actor=current_user)
         if result.ok:
             flash(result.message or "Dönem silindi.", "success")
         else:
             flash(result.message or "Dönem bulunamadı.", "warning")
+    except PermissionError as exc:
+        # Kontrolden sonra yayımlanan dönem: servis kilitli satırda yeniden kontrol edip reddetti.
+        audit_refusal(None, f"period_delete_frozen_period:{period_id}")
+        flash(str(exc), "danger")
     except Exception as exc:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)
         db.session.rollback()

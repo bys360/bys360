@@ -36,7 +36,7 @@ from app.models import (
 )
 from app.services.account_change_guard import is_real_admin
 from app.services.performance.assignments import generate_assignments_for_active_period
-from app.services.performance.period_freeze import period_is_frozen
+from app.services.performance.period_freeze import period_is_delete_protected, period_is_frozen
 
 logger = logging.getLogger(__name__)
 
@@ -200,12 +200,13 @@ def _users_period_ids(user_ids: list[int]) -> set[int]:
 
 
 def user_deletion_refusal(user_ids: list[int], plan: HierarchyChangePlan) -> str | None:
-    """Silme bağlı satırları siler veya boşaltır: kilitli/yayımlanmış dönemde satırı olan kullanıcı
-    kimse tarafından silinmez; aktif dönemi etkileyen silme gerçek admin dışında reddedilir."""
+    """Silme bağlı satırları siler veya boşaltır: kilitli/yayımlanmış veya yayını geri alınmış dönemde
+    satırı olan kullanıcı kimse tarafından silinmez; aktif dönemi etkileyen silme gerçek admin dışında reddedilir."""
     touched = _users_period_ids(user_ids)
     for period_id in touched:
         period = db.session.get(PerformancePeriod, period_id)
-        if period is not None and period_is_frozen(period):
+        # Q3-1 (sahip kararı a): yayını geri alınmış dönemin geçmiş değerlendirmeleri de silinmez.
+        if period is not None and period_is_delete_protected(period):
             return FROZEN_PERIOD
     if plan.target is not None and not plan.actor_is_real_admin and user_deletion_requires_sync(user_ids, plan, touched):
         return NON_ADMIN_PERIOD_SYNC

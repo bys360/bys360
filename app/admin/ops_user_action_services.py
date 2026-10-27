@@ -34,6 +34,10 @@ from app.services.performance.hierarchy_assignment_sync_guard import (
     user_deletion_refusal,
     user_deletion_requires_sync,
 )
+from app.services.performance.period_freeze import (
+    RESET_ALL_PROTECTED_MESSAGE,
+    delete_protected_period_ids,
+)
 from app.services.profile_photo_service import (
     delete_profile_photo_file as _delete_profile_photo_file,
     save_profile_photo as _save_profile_photo,
@@ -357,17 +361,32 @@ def admin_users_reset_all_impl():
         audit_refusal(None, "reset_all")
         flash(REFUSAL_MESSAGE, "danger")
         return redirect(url_for("main.admin_users"))
+    # P0 (Q3-1, sahip kararı a): tek bir dondurulmuş veya yayını geri alınmış dönem bile varsa sıfırlama
+    # baştan ve bütün olarak reddedilir; hiçbir kayıt silinmez (gerçek admin dahil).
+    protected_ids = delete_protected_period_ids()
+    if protected_ids:
+        _refuse_reset_all(protected_ids)
+        return redirect(url_for("main.admin_users"))
     try:
         audit_account_change("account.reset_all", None, summary="reset_all_personnel_and_related_data")
         reset_all_personnel_and_related_data()
         db.session.commit()
         flash("Personel, hiyerarşi ve ilişkili performans verileri tamamen sıfırlandı.", "success")
+    except PermissionError:
+        # Kontrolden sonra yayımlanan dönem: servis kilitli satırlarda yeniden kontrol edip reddetti.
+        db.session.rollback()
+        _refuse_reset_all(delete_protected_period_ids())
     except Exception as exc:
         logger.exception("Beklenmeyen hata: %s", exc)
         db.session.rollback()
         flash("Sıfırlama işlemi sırasında hata oluştu.", "danger")
 
     return redirect(url_for("main.admin_users"))
+
+
+def _refuse_reset_all(protected_ids) -> None:
+    audit_refusal(None, "reset_all_frozen_period:" + ",".join(str(period_id) for period_id in protected_ids[:50]))
+    flash(RESET_ALL_PROTECTED_MESSAGE, "danger")
 
 
 def _report_continuity_refusals(refused_ids, reason: str) -> None:

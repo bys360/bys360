@@ -91,7 +91,8 @@ FROZEN_PERIOD_HIERARCHY_MESSAGE = (
 
 
 FROZEN_PERIOD_DELETE_MESSAGE = (
-    "Bu personelin kilitli veya sonuçları yayımlanmış dönemde kaydı var; silme o dönemi değiştirir. "
+    "Bu personelin kilitli, sonuçları yayımlanmış veya daha önce yayımlanmış dönemde kaydı var; silme o "
+    "dönemi değiştirir. "
     "Hiçbir kayıt silinmedi. Silmek yerine arşivleyin."
 )
 
@@ -111,19 +112,35 @@ def hierarchy_sync_refusal(reason: str, target_user: Any, redirect_url: str, *, 
     return redirect(redirect_url)
 
 
-def frozen_period_generation_refusal(period: Any, redirect_url: str, *, action: str = "assignment_generate"):
+def frozen_period_generation_refusal(period: Any, redirect_url: str):
     """M-1 Q3: kilitli/yayımlanmış dönemde doğrudan görev üretimi/senkronu yok (gerçek admin dahil); uygunsa None.
 
-    Q3-1 (M-2 sahip kararı): aynı kural görev ve değerlendirme temizliği için de geçerlidir
-    (``action="assignment_clear"``). Yeniden açma yetkisi tanımlanmamıştır; red denetim kaydına
-    yazılır, hiçbir kayıt değişmez.
+    Yeniden açma yetkisi tanımlanmamıştır; red denetim kaydına yazılır, hiçbir kayıt değişmez.
     """
     from app.services.performance.period_freeze import FROZEN_PERIOD_TASKS_MESSAGE, period_is_frozen
 
     if period is None or not period_is_frozen(period):
         return None
-    audit_refusal(None, f"{action}_frozen_period:{getattr(period, 'id', None)}")
+    audit_refusal(None, f"assignment_generate_frozen_period:{getattr(period, 'id', None)}")
     flash(FROZEN_PERIOD_TASKS_MESSAGE, "danger")
+    return redirect(redirect_url)
+
+
+def protected_period_deletion_refusal(period: Any, redirect_url: str, *, action: str):
+    """Q3-1 (sahip kararı a): dondurulmuş veya yayını geri alınmış dönem silinmez, temizlenmez; uygunsa None.
+
+    Gerçek admin dahil herkes için geçerlidir. Red denetim kaydına ``<action>_frozen_period:<id>``
+    olarak yazılır, hiçbir kayıt değişmez. Yeniden açma veya istisna yetkisi tanımlanmamıştır.
+    """
+    from app.services.performance.period_freeze import (
+        PROTECTED_PERIOD_DELETE_MESSAGE,
+        period_is_delete_protected,
+    )
+
+    if period is None or not period_is_delete_protected(period):
+        return None
+    audit_refusal(None, f"{action}_frozen_period:{getattr(period, 'id', None)}")
+    flash(PROTECTED_PERIOD_DELETE_MESSAGE, "danger")
     return redirect(redirect_url)
 
 
