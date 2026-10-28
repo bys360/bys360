@@ -1,8 +1,9 @@
 """BYS360 PostgreSQL 15 concurrency (race) gate.
 
 The admin-continuity race tests (R05c ``test_c_postgresql_*`` and
-``tests/postgresql/test_r05d_admin_access_race.py``) prove the
-``FOR UPDATE`` row lock with two independent database connections. On SQLite
+``tests/postgresql/test_r05d_admin_access_race.py``) and the File Center
+chunked-upload finalize race (``tests/postgresql/test_f09_chunk_finalize_race.py``)
+prove their ``FOR UPDATE`` row locks with two independent database connections. On SQLite
 they cannot run, and without ``BYS360_R05C_PG_URL`` the R05c pair is skipped.
 This gate runs exactly those tests against a disposable PostgreSQL 15
 database and fails unless every one of them ran and passed:
@@ -36,9 +37,10 @@ RACE_TESTS = (
     "tests/postgresql/test_r05d_admin_access_race.py",
     f"{R05C}::test_c_postgresql_concurrent_mutual_demotion_keeps_one_active_admin",
     f"{R05C}::test_c_postgresql_control_without_the_row_lock_the_race_loses_every_admin",
+    "tests/postgresql/test_f09_chunk_finalize_race.py",
 )
-# test_r05d is parametrised (revoke, demote) + the two R05c tests.
-EXPECTED_TEST_COUNT = 4
+# test_r05d is parametrised (revoke, demote) + the two R05c tests + the F-09 finalize race.
+EXPECTED_TEST_COUNT = 5
 
 ROOT = Path(__file__).resolve().parents[2]
 

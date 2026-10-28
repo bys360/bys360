@@ -135,8 +135,8 @@ def test_the_selected_race_tests_exist() -> None:
         source = (ROOT / path).read_text(encoding="utf-8")
         if name:
             assert re.search(rf"^def {re.escape(name)}\(", source, re.MULTILINE), node
-    # two parametrised cases in test_r05d + the two R05c tests
-    assert EXPECTED_TEST_COUNT == 4
+    # two parametrised cases in test_r05d + the two R05c tests + the F-09 finalize race
+    assert EXPECTED_TEST_COUNT == 5
 
 
 # --- CI wiring ---

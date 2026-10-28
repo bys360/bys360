@@ -863,6 +863,73 @@ def default_chunk_size_bytes() -> int:
     return int(mb * 1024 * 1024)
 
 
+# F-09: limits of the chunked upload (settings in settings_service.SETTING_DEFINITIONS, env fallback).
+# The declared total may not exceed max_file_bytes(), the single-file limit, so splitting a file
+# into parts cannot get past it; every part has an exact expected size, so the parts on disk never
+# add up to more than the declared total; a user has a bounded number of unfinished sessions, so
+# the temporary disk use per user is at most chunk_max_open_sessions() x max_file_bytes().
+CHUNK_OPEN_SESSION_STATUSES = ("prepared", "uploading", "failed", "finalizing")
+
+
+def chunk_min_size_bytes() -> int:
+    return int(_db_float("chunk_min_mb", "FILE_CENTER_CHUNK_MIN_MB", 1.0) * 1024 * 1024)
+
+
+def chunk_max_size_bytes() -> int:
+    from app.core.form_body_limit import configured_limit
+
+    configured = int(_db_float("chunk_max_mb", "FILE_CENTER_CHUNK_MAX_MB", 100.0) * 1024 * 1024)
+    # A part travels in one multipart request; leave room for its headers.
+    request_limit = configured_limit(current_app.config, "UPLOAD_MAX_CONTENT_LENGTH") - 1024 * 1024
+    return max(1, min(configured, request_limit))
+
+
+def chunk_max_parts() -> int:
+    return _db_int("chunk_max_parts", "FILE_CENTER_CHUNK_MAX_PARTS", 10000)
+
+
+def chunk_max_open_sessions() -> int:
+    return _db_int("chunk_max_open_sessions", "FILE_CENTER_CHUNK_MAX_OPEN_SESSIONS", 3)
+
+
+def _remove_chunk_temp_dir(session: FileUploadSession) -> None:
+    """Delete a session's temporary part folder, only ever inside the chunk_sessions root."""
+    if not session.temp_dir:
+        return
+    root = (storage_root() / "temp" / "chunk_sessions").resolve()
+    path = Path(session.temp_dir).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError:
+        logger.warning("BYS360 Dosya Merkezi: parça klasörü kök dışında, silinmedi: session_id=%s", session.id)
+        return
+    shutil.rmtree(path, ignore_errors=True)
+
+
+def release_expired_chunk_sessions(owner_user_id: int) -> int:
+    """Mark the user's unfinished sessions whose time is up as expired and delete their parts."""
+    now = utc_now()
+    stale = FileUploadSession.query.filter(
+        FileUploadSession.owner_user_id == owner_user_id,
+        FileUploadSession.status.in_(CHUNK_OPEN_SESSION_STATUSES),
+        FileUploadSession.expires_at.isnot(None),
+        FileUploadSession.expires_at < now,
+    ).all()
+    for session in stale:
+        session.status = "expired"
+        _remove_chunk_temp_dir(session)
+        log_audit("chunk_upload_session_expired", message=f"Parçalı yükleme oturumunun süresi doldu: {session.original_filename}", actor_user_id=owner_user_id)
+    return len(stale)
+
+
+def _expected_part_size(session: FileUploadSession, chunk_index: int) -> int:
+    chunk = int(session.chunk_size_bytes or 0)
+    total_chunks = int(session.total_chunks or 0)
+    if chunk_index < total_chunks - 1:
+        return chunk
+    return int(session.total_size_bytes or 0) - chunk * (total_chunks - 1)
+
+
 def quota_scope_label(scope_type: str | None, scope_value: str | None = None) -> str:
     scope = str(scope_type or "global").lower()
     value = str(scope_value or "").strip()
@@ -1059,13 +1126,29 @@ def create_chunk_upload_session(*, owner_user_id: int, original_filename: str, t
     total = int(total_size_bytes or 0)
     if total <= 0:
         raise ValueError("Toplam dosya boyutu belirtilmelidir.")
-    ok, quota_message = check_user_quota_for_upload(owner_user_id, estimated_bytes=total)
-    if not ok:
-        raise ValueError(quota_message)
+    if total > max_file_bytes():
+        raise ValueError("Dosya boyutu izin verilen sınırı aşıyor.")
     chunk_size = int(chunk_size_bytes or default_chunk_size_bytes())
     if chunk_size <= 0:
         chunk_size = default_chunk_size_bytes()
+    chunk_size = min(chunk_size, total)  # a file no larger than one part is one part
+    if chunk_size < total and chunk_size < chunk_min_size_bytes():
+        raise ValueError("Parça boyutu izin verilen en küçük değerin altında.")
+    if chunk_size > chunk_max_size_bytes():
+        raise ValueError("Parça boyutu izin verilen en büyük değeri aşıyor.")
     total_chunks = int((total + chunk_size - 1) // chunk_size)
+    if total_chunks > chunk_max_parts():
+        raise ValueError("Parça sayısı izin verilen sınırı aşıyor; daha büyük parça boyutu seçin.")
+    release_expired_chunk_sessions(owner_user_id)
+    open_sessions = FileUploadSession.query.filter(
+        FileUploadSession.owner_user_id == owner_user_id,
+        FileUploadSession.status.in_(CHUNK_OPEN_SESSION_STATUSES),
+    ).count()
+    if open_sessions >= chunk_max_open_sessions():
+        raise ValueError("Tamamlanmamış yükleme oturumu sınırına ulaşıldı. Önce mevcut bir oturumu tamamlayın veya iptal edin.")
+    ok, quota_message = check_user_quota_for_upload(owner_user_id, estimated_bytes=total)
+    if not ok:
+        raise ValueError(quota_message)
     token = token_urlsafe(32)
     temp_dir = storage_root() / "temp" / "chunk_sessions" / str(owner_user_id) / token
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -1132,16 +1215,21 @@ def chunk_upload_session_to_dict(session: FileUploadSession) -> dict:
     }
 
 
-def _get_user_chunk_session(session_id: int, user_id: int, *, allow_admin: bool = False) -> FileUploadSession:
-    session = FileUploadSession.query.get_or_404(session_id)
+def _get_user_chunk_session(session_id: int, user_id: int, *, allow_admin: bool = False, lock: bool = False) -> FileUploadSession:
+    query = FileUploadSession.query.filter_by(id=session_id)
+    if lock:
+        # Row lock until commit (PostgreSQL): part writes and finalize of one session run one at a
+        # time, so a second finalize sees the first one's result instead of joining again.
+        query = query.with_for_update().populate_existing()
+    session = query.first_or_404()
     if session.owner_user_id != user_id and not allow_admin:
         raise PermissionError("Bu yükleme oturumuna erişim yetkiniz bulunmamaktadır.")
     return session
 
 
 def upload_chunk_part(*, session_id: int, owner_user_id: int, chunk_index: int, file_storage) -> FileUploadChunk:
-    session = _get_user_chunk_session(session_id, owner_user_id)
-    if session.status in {"cancelled", "completed", "verified", "expired"}:
+    session = _get_user_chunk_session(session_id, owner_user_id, lock=True)
+    if session.status in {"cancelled", "completed", "verified", "expired", "finalizing"}:
         raise ValueError("Bu yükleme oturumu artık parça kabul etmiyor.")
     if session.expires_at and session.expires_at < utc_now():
         session.status = "expired"
@@ -1157,27 +1245,29 @@ def upload_chunk_part(*, session_id: int, owner_user_id: int, chunk_index: int, 
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     part_path = (temp_dir / f"{chunk_index:08d}.part").resolve()
-    tmp_path = (temp_dir / f"{chunk_index:08d}.part.tmp").resolve()
+    # Each write has its own temporary file and replaces the part atomically: two writes of the
+    # same part (a client retry) cannot mix their bytes.
+    tmp_path = (temp_dir / f"{chunk_index:08d}.{token_urlsafe(8)}.tmp").resolve()
     sha = hashlib.sha256()
     size = 0
-    max_chunk = int(session.chunk_size_bytes or default_chunk_size_bytes())
-    with open(tmp_path, "wb") as out:
-        while True:
-            data = file_storage.stream.read(1024 * 1024)
-            if not data:
-                break
-            size += len(data)
-            if size > max_chunk and chunk_index < int(session.total_chunks or 0) - 1:
-                out.close()
-                try:
-                    tmp_path.unlink(missing_ok=True)
-                except TypeError:
-                    if tmp_path.exists():
-                        tmp_path.unlink()
-                raise ValueError("Yüklenen parça beklenen parça boyutunu aşıyor.")
-            sha.update(data)
-            out.write(data)
-    tmp_path.replace(part_path)
+    expected = _expected_part_size(session, chunk_index)
+    try:
+        with open(tmp_path, "wb") as out:
+            while True:
+                data = file_storage.stream.read(1024 * 1024)
+                if not data:
+                    break
+                size += len(data)
+                if size > expected:
+                    raise ValueError("Yüklenen parça beklenen parça boyutunu aşıyor.")
+                sha.update(data)
+                out.write(data)
+        if size != expected:
+            raise ValueError("Yüklenen parça beklenen parça boyutunda değil.")
+        os.replace(tmp_path, part_path)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
 
     row = FileUploadChunk.query.filter_by(session_id=session.id, chunk_index=chunk_index).one_or_none()
     if row is None:
@@ -1199,7 +1289,9 @@ def upload_chunk_part(*, session_id: int, owner_user_id: int, chunk_index: int, 
 
 
 def finalize_chunk_upload_session(*, session_id: int, owner_user_id: int) -> FileStorageItem:
-    session = _get_user_chunk_session(session_id, owner_user_id)
+    session = _get_user_chunk_session(session_id, owner_user_id, lock=True)
+    if session.status == "finalizing":
+        raise ValueError("Bu yükleme oturumu zaten birleştiriliyor.")
     if session.status in {"cancelled", "completed", "verified", "expired"}:
         if session.finalized_file_id:
             existing = FileStorageItem.query.get(session.finalized_file_id)
@@ -1214,6 +1306,11 @@ def finalize_chunk_upload_session(*, session_id: int, owner_user_id: int) -> Fil
     missing = [idx for idx in range(int(session.total_chunks or 0)) if idx not in parts]
     if missing:
         raise ValueError("Eksik parçalar var: " + ", ".join(str(x + 1) for x in missing[:20]))
+    for idx, part in parts.items():
+        expected_size = _expected_part_size(session, idx)
+        part_path = Path(part.storage_path or "")
+        if int(part.size_bytes or 0) != expected_size or not part_path.is_file() or part_path.stat().st_size != expected_size:
+            raise ValueError(f"{idx + 1}. parça beklenen boyutta değil; parçayı yeniden yükleyin.")
 
     ok, quota_message = check_user_quota_for_upload(owner_user_id, estimated_bytes=int(session.total_size_bytes or 0))
     if not ok:
