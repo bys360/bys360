@@ -8,7 +8,108 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Parallel quality gate (2026-10-28, PR #92). The single quality-gate job ran every gate and
+  # the whole "Run integration and architecture tests" command (~9000 tests) in one process and
+  # no longer fit its 240-minute budget: on 19c92a35 one run lost its runner at 93 min and the
+  # rerun was cancelled by timeout-minutes at pytest 89% with 0 failures; cf0a3ad6 was cancelled
+  # the same way (89%, 0 failures). The last green run (17f9cdb3, job 122504819166) needed
+  # 3h13m for that step alone, and the same 112 progress lines took 28% longer on the slower
+  # runners of 28 Oct, so the budget was exhausted by runner speed, not by a failing test.
+  #
+  # Same gates, same commands, now in three jobs:
+  #   quality-gate-tests  -- the unchanged Step2 command in 6 matrix shards. The shard plugin
+  #                          (scripts/ci/bys360_pytest_shard.py) splits the full collection by
+  #                          test file, balanced by measured CI durations
+  #                          (config/quality/bys360_ci_step2_test_durations.json), and writes a
+  #                          manifest; it deselects other shards' files, it never skips a test.
+  #   quality-gate-checks -- every other gate of the old job, in its old order, in parallel
+  #                          with the shards (secret/release/Ruff/compile, ci_safe tests,
+  #                          PostgreSQL 15 race and migration gates, mypy, ops audit, Quality9,
+  #                          pip-audit).
+  #   quality-gate        -- the required check. It always runs (if: always(), so a failed,
+  #                          cancelled or skipped job can never leave it skipped, which GitHub
+  #                          would count as passing), requires both jobs to have succeeded,
+  #                          proves with scripts/ci/bys360_verify_test_shards.py that the shards
+  #                          ran every collected test exactly once, combines the coverage of the
+  #                          ci_safe step and all shards into reports/quality/coverage.xml and
+  #                          runs the coverage ratchet on it.
+  # Every job runs on its own fresh runner (own checkout, temp directory, SQLite files and
+  # postgres:15 service), so the shards share no state. tests/architecture/
+  # test_ci_parallel_quality_gate_contract.py locks this structure in.
   quality-gate:
+    needs: [quality-gate-checks, quality-gate-tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Require every quality-gate job to pass
+        env:
+          CHECKS_RESULT: ${{ needs.quality-gate-checks.result }}
+          TESTS_RESULT: ${{ needs.quality-gate-tests.result }}
+        run: |
+          echo "quality-gate-checks: $CHECKS_RESULT; quality-gate-tests (all shards): $TESTS_RESULT"
+          test "$CHECKS_RESULT" = success
+          test "$TESTS_RESULT" = success
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
+      - name: Download quality test and shard results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bys360-ci-*
+          path: ci-data
+
+      # Fails unless one manifest per shard is present, every shard saw the same full
+      # collection, the selections are disjoint and cover it exactly, and every shard exited 0
+      # with a JUnit count equal to its selection. No bypass flag.
+      - name: Verify the test shards ran every collected test once
+        run: python scripts/ci/bys360_verify_test_shards.py --data-dir ci-data --shards 6
+
+      # The ci_safe step (quality-gate-checks) and every shard measure --cov=app with the
+      # [tool.coverage] settings of pyproject.toml; their data files are combined here into the
+      # one reports/quality/coverage.xml the ratchet below reads, as --cov-append did when they
+      # ran in one job. Every job checks out to the same workspace path, so coverage.py merges
+      # the same files; the inputs gate fails if any input measured files outside this checkout
+      # (that would count app/ twice and silently lower the combined percentage).
+      - name: Combine coverage of the quality tests and every shard
+        run: |
+          python scripts/ci/bys360_verify_coverage_inputs.py --root . ci-data/bys360-ci-quality-tests/coverage-quality-tests ci-data/bys360-ci-step2-shard-*/coverage-step2-shard-*
+          python -m coverage combine --keep ci-data/bys360-ci-quality-tests/coverage-quality-tests ci-data/bys360-ci-step2-shard-*/coverage-step2-shard-*
+          mkdir -p reports/quality
+          python -m coverage xml -o reports/quality/coverage.xml
+          echo "combined coverage: $(python -m coverage report --format=total)%"
+
+      # NOT (BYS360 Truthful Quality Gates, Campaign 1B, 2026-07-24): pyproject.toml
+      # [tool.coverage.report] fail_under is enforced by pytest-cov on EVERY
+      # invocation, but the ci_safe step alone measures ~0% (it imports almost no
+      # app code), which would abort this sequence before the broader step ever
+      # runs. --cov-fail-under=0 disables that per-invocation check; this ratchet
+      # step is the real, single enforcement point instead.
+      - name: Coverage ratchet gate
+        run: python scripts/quality/bys360_coverage_ratchet.py --coverage-xml reports/quality/coverage.xml --baseline reports/quality/coverage_baseline.json
+
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bys360-quality-reports
+          path: reports/quality
+          if-no-files-found: ignore
+
+  quality-gate-checks:
     runs-on: ubuntu-latest
     # TD-032 remote-CI unblock (2026-08-17): the prior 25-minute budget was
     # proven insufficient by a real remote run cancelled at ~25m18s with
@@ -39,7 +140,10 @@ jobs:
     # 103-178 min. 240 minutes leaves ~60 min over the slowest observed
     # success. Step selection, commands and every gate below are unchanged;
     # reducing the runtime itself is separate work (see PR #84).
-    timeout-minutes: 240
+    #
+    # Fourth change (2026-10-28, parallel quality gate): this job no longer runs Step2 (see
+    # quality-gate-tests); the rest of the old job measured ~15 min on the 17f9cdb3 green run.
+    timeout-minutes: 60
 
     # TD-032 closure: real PostgreSQL 15 target for the migration-integrity
     # gate below. Disposable, CI-only credentials -- never production
@@ -141,6 +245,163 @@ jobs:
           BYS360_R05C_PG_URL: postgresql://postgres:bys360_ci_test_only_password@127.0.0.1:5432/bys360_race_test_ci
         run: python scripts/quality/bys360_postgres_race_gate.py
 
+      # TD-032 closure (2026-08-16): the `postgres:15` service above is a
+      # fresh container per job run, so `postgres` (its own maintenance DB)
+      # is always empty of app tables -- CREATE DATABASE here only adds the
+      # one disposable target database the gate below is allowed to touch,
+      # matching this gate's own naming contract
+      # (bys360_postgres_migration_integrity_gate.py's SAFE_DB_NAME_RE).
+      #
+      # TD-032 remote-CI unblock (2026-08-17): this job has no job-level
+      # `container:`, so it runs directly on the ubuntu-latest HOST runner,
+      # not inside a Docker container alongside the `postgres` service. Per
+      # GitHub's own documented service-container networking model, the
+      # service's Docker-network hostname ("postgres", the service label)
+      # is only resolvable from *other containers on that same job's
+      # network -- a host-runner process has no such DNS entry, only the
+      # published host port (`ports: 5432:5432` above already publishes it
+      # to the runner). Confirmed by the exact reproduced remote error:
+      # `psycopg2.OperationalError: could not translate host name "postgres"
+      # to address: Temporary failure in name resolution`. Fixed by using
+      # 127.0.0.1 (the runner's own loopback, where the published port
+      # lands) instead of the service label -- the correct host for a
+      # host-runner job with a port-mapped service, not a DNS problem to
+      # retry around.
+      - name: Create disposable PostgreSQL 15 migration-test database
+        run: |
+          python -c "
+          import psycopg2
+          conn = psycopg2.connect(host='127.0.0.1', port=5432, user='postgres', password='bys360_ci_test_only_password', dbname='postgres')
+          conn.autocommit = True
+          with conn.cursor() as cur:
+              cur.execute('CREATE DATABASE bys360_migration_test_ci;')
+          conn.close()
+          "
+
+      # TD-032 closure: same harness used for every local ad-hoc TD-032
+      # verification run in this repo's history (see
+      # scripts/quality/bys360_postgres_migration_integrity_gate.py) --
+      # empty DB -> flask db upgrade -> head match -> second upgrade is a
+      # no-op -> critical schema introspection, all against a real
+      # PostgreSQL 15 server, not SQLite. Host/db-name/PG-major guards are
+      # hardcoded in the gate itself (no bypass flag); this step only
+      # supplies a target that satisfies them.
+      #
+      # TD-032 remote-CI unblock (2026-08-17): host changed from the
+      # unreachable "postgres" service-label to 127.0.0.1, matching the
+      # create-database step above -- see that step's comment for the full
+      # host-runner-vs-container networking explanation. 127.0.0.1 was
+      # already in the gate's own ALLOWED_HOSTS (no harness change needed);
+      # only the now-unused "postgres" CI-host allowance in
+      # ALLOWED_CI_HOSTS is left as-is, unused but harmless.
+      - name: PostgreSQL 15 migration integrity gate
+        env:
+          BYS360_REALDB_MIGRATION_TEST_URL: postgresql://postgres:bys360_ci_test_only_password@127.0.0.1:5432/bys360_migration_test_ci
+        run: python scripts/quality/bys360_postgres_migration_integrity_gate.py
+
+      - name: Type check service layer
+        run: python -m mypy app tests scripts --ignore-missing-imports --no-error-summary
+
+      - name: BYS360 operations audit
+        run: |
+          mkdir -p reports/quality
+          python scripts/quality/bys360_ops_audit.py --mode ci --source-paths app config.py wsgi.py run.py --report reports/quality/BYS360_OPS_AUDIT_CI.md --max-print 0 --max-broad-except 2064
+
+      - name: BYS360 Quality 9 CI contract gate
+        run: python scripts/quality/bys360_quality9_ci_gate.py --root .
+
+      - name: Ruff syntax/import sanity
+        run: python -m ruff check app config.py wsgi.py run.py scripts --select E9,F63,F7,F82
+
+      - name: Dependency vulnerability audit
+        run: python -m pip_audit -r requirements.txt --progress-spinner off
+
+      # requirements.txt above is resolved fresh on Linux; production installs the hash-pinned
+      # Windows lock, whose transitive pins can lag behind. --disable-pip audits exactly the pinned
+      # versions (every entry carries a hash), with no exceptions.
+      - name: Dependency vulnerability audit (requirements.lock)
+        run: python -m pip_audit -r requirements.lock --disable-pip --progress-spinner off
+
+      - name: Save quality test coverage data
+        if: always()
+        run: |
+          mkdir -p ci-data
+          cp .coverage ci-data/coverage-quality-tests
+
+      - name: Upload quality test coverage data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bys360-ci-quality-tests
+          path: ci-data
+          if-no-files-found: error
+
+      - name: Upload quality check reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bys360-quality-check-reports
+          path: reports/quality
+          if-no-files-found: ignore
+
+  quality-gate-tests:
+    name: quality-gate-tests (${{ matrix.shard }}/6)
+    runs-on: ubuntu-latest
+    # Measured, not guessed: the balanced split puts 32.6 min of the 17f9cdb3 green run's
+    # Step2 time on every shard (41 min at the 28% slower runner speed of 28 Oct). 90 minutes
+    # leaves more than 2x that, so a shard is only cancelled by a real hang.
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+
+    # Same postgres:15 service as quality-gate-checks: Step2 always ran next to it, so every
+    # shard keeps the environment Step2 had (Step2 itself sets no database URL).
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: bys360_ci_test_only_password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      # TD-032 remote-CI unblock (2026-08-16): actions/checkout@v4's default
+      # fetch-depth (1) produces a shallow clone with only the tip commit's
+      # object present. Several historical-wave contract tests (e.g.
+      # tests/quality/test_openapi_workflow_drift_cleanup_contract.py) run
+      # `git show <fixed-historical-sha>:<path>` to prove what a past commit
+      # actually contained -- a real, currently-reproduced shallow-clone
+      # error ("fatal: path ... does not exist in '<sha>'") because that
+      # commit object is absent from a depth-1 checkout, even though the
+      # path exists in the current working tree. fetch-depth: 0 fetches full
+      # history so every such fixed-ref lookup resolves identically to a
+      # local full clone. This is the only change to this step.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
       # NOT (BYS360 Phase 6, CI Coverage Scope Policy Closure, 2026-07-27): tests/services
       # (422 tests) was identified back in Campaign 1 as the lowest-risk, highest-priority
       # candidate for CI coverage inclusion ("izole ve birlikte %100 geçiyor") but the
@@ -227,98 +488,22 @@ jobs:
       # test_ci_test_selection_blind_spot_contract.py fails if a loose
       # tests/test_*.py file or an unmarked tests/quality module is left out again.
       - name: Run integration and architecture tests
-        run: python -m pytest tests/integration tests/architecture tests/security tests/critical tests/services tests/migrations tests/release tests/communication tests/behavior tests/mobile tests/performance tests/quality/test_workflow_orphan_presentation_subsystem_cleanup_contract.py tests/test_10_10_core_static_gate.py tests/test_ai_analysis_excel_preview_static.py tests/test_ai_executive_report_static.py tests/test_ai_recommendation_priority_static.py tests/test_ai_routes.py tests/test_claude_phase5_function_signatures.py tests/test_claude_phase5_template_compilation.py tests/test_compat_redirects.py tests/test_datetime_utils.py tests/test_error_support.py tests/test_feedback_admin_endpoint_static.py tests/test_feedback_privacy_static.py tests/test_feedback_pulse_admin_tab_static.py tests/test_feedback_pulse_menu_visibility_static.py tests/test_feedback_pulse_privacy_behavior.py tests/test_h1e_n_feedback_meeting_p4_archive_status_label_contract.py tests/test_h1e_n_team_compare_status_label_contract.py tests/test_hr_reports_template_no_unpack_static.py tests/test_live_scope_and_security_static.py tests/test_module_maturity_scoring.py tests/test_no_admin_org_units_duplicate_static.py tests/test_no_duplicate_admin_org_units_static.py tests/test_performance_archive_visibility_contract.py tests/test_performance_chain_constitution.py tests/test_performance_form_guard.py tests/test_performance_ops_center.py tests/test_performance_preflight.py tests/test_performance_publish_guard.py tests/test_performance_publish_preflight_static.py tests/test_performance_publish_preflight_rules_behavior.py tests/test_personel_analizi_dalga7_static.py tests/test_score100_handover_docs_contract_v1.py tests/test_shared_cache_store_behavior.py tests/test_sp_routes_smoke.py tests/test_team_compare_publish_visibility.py tests/test_team_compare_service.py --cov=app --cov-append --cov-report=term-missing --cov-report=xml:reports/quality/coverage.xml --cov-fail-under=0 --tb=short -q
-
-      # TD-032 closure (2026-08-16): the `postgres:15` service above is a
-      # fresh container per job run, so `postgres` (its own maintenance DB)
-      # is always empty of app tables -- CREATE DATABASE here only adds the
-      # one disposable target database the gate below is allowed to touch,
-      # matching this gate's own naming contract
-      # (bys360_postgres_migration_integrity_gate.py's SAFE_DB_NAME_RE).
-      #
-      # TD-032 remote-CI unblock (2026-08-17): this job has no job-level
-      # `container:`, so it runs directly on the ubuntu-latest HOST runner,
-      # not inside a Docker container alongside the `postgres` service. Per
-      # GitHub's own documented service-container networking model, the
-      # service's Docker-network hostname ("postgres", the service label)
-      # is only resolvable from *other containers on that same job's
-      # network -- a host-runner process has no such DNS entry, only the
-      # published host port (`ports: 5432:5432` above already publishes it
-      # to the runner). Confirmed by the exact reproduced remote error:
-      # `psycopg2.OperationalError: could not translate host name "postgres"
-      # to address: Temporary failure in name resolution`. Fixed by using
-      # 127.0.0.1 (the runner's own loopback, where the published port
-      # lands) instead of the service label -- the correct host for a
-      # host-runner job with a port-mapped service, not a DNS problem to
-      # retry around.
-      - name: Create disposable PostgreSQL 15 migration-test database
-        run: |
-          python -c "
-          import psycopg2
-          conn = psycopg2.connect(host='127.0.0.1', port=5432, user='postgres', password='bys360_ci_test_only_password', dbname='postgres')
-          conn.autocommit = True
-          with conn.cursor() as cur:
-              cur.execute('CREATE DATABASE bys360_migration_test_ci;')
-          conn.close()
-          "
-
-      # TD-032 closure: same harness used for every local ad-hoc TD-032
-      # verification run in this repo's history (see
-      # scripts/quality/bys360_postgres_migration_integrity_gate.py) --
-      # empty DB -> flask db upgrade -> head match -> second upgrade is a
-      # no-op -> critical schema introspection, all against a real
-      # PostgreSQL 15 server, not SQLite. Host/db-name/PG-major guards are
-      # hardcoded in the gate itself (no bypass flag); this step only
-      # supplies a target that satisfies them.
-      #
-      # TD-032 remote-CI unblock (2026-08-17): host changed from the
-      # unreachable "postgres" service-label to 127.0.0.1, matching the
-      # create-database step above -- see that step's comment for the full
-      # host-runner-vs-container networking explanation. 127.0.0.1 was
-      # already in the gate's own ALLOWED_HOSTS (no harness change needed);
-      # only the now-unused "postgres" CI-host allowance in
-      # ALLOWED_CI_HOSTS is left as-is, unused but harmless.
-      - name: PostgreSQL 15 migration integrity gate
         env:
-          BYS360_REALDB_MIGRATION_TEST_URL: postgresql://postgres:bys360_ci_test_only_password@127.0.0.1:5432/bys360_migration_test_ci
-        run: python scripts/quality/bys360_postgres_migration_integrity_gate.py
+          BYS360_CI_SHARD: ${{ matrix.shard }}/6
+          BYS360_CI_SHARD_MANIFEST: reports/quality/step2-shard-manifest.json
+        run: python -m pytest tests/integration tests/architecture tests/security tests/critical tests/services tests/migrations tests/release tests/communication tests/behavior tests/mobile tests/performance tests/quality/test_workflow_orphan_presentation_subsystem_cleanup_contract.py tests/test_10_10_core_static_gate.py tests/test_ai_analysis_excel_preview_static.py tests/test_ai_executive_report_static.py tests/test_ai_recommendation_priority_static.py tests/test_ai_routes.py tests/test_claude_phase5_function_signatures.py tests/test_claude_phase5_template_compilation.py tests/test_compat_redirects.py tests/test_datetime_utils.py tests/test_error_support.py tests/test_feedback_admin_endpoint_static.py tests/test_feedback_privacy_static.py tests/test_feedback_pulse_admin_tab_static.py tests/test_feedback_pulse_menu_visibility_static.py tests/test_feedback_pulse_privacy_behavior.py tests/test_h1e_n_feedback_meeting_p4_archive_status_label_contract.py tests/test_h1e_n_team_compare_status_label_contract.py tests/test_hr_reports_template_no_unpack_static.py tests/test_live_scope_and_security_static.py tests/test_module_maturity_scoring.py tests/test_no_admin_org_units_duplicate_static.py tests/test_no_duplicate_admin_org_units_static.py tests/test_performance_archive_visibility_contract.py tests/test_performance_chain_constitution.py tests/test_performance_form_guard.py tests/test_performance_ops_center.py tests/test_performance_preflight.py tests/test_performance_publish_guard.py tests/test_performance_publish_preflight_static.py tests/test_performance_publish_preflight_rules_behavior.py tests/test_personel_analizi_dalga7_static.py tests/test_score100_handover_docs_contract_v1.py tests/test_shared_cache_store_behavior.py tests/test_sp_routes_smoke.py tests/test_team_compare_publish_visibility.py tests/test_team_compare_service.py --cov=app --cov-append --cov-report=term-missing --cov-report=xml:reports/quality/coverage.xml --cov-fail-under=0 --tb=short -q -p scripts.ci.bys360_pytest_shard --junitxml=reports/quality/step2-junit.xml
 
-      # NOT (BYS360 Truthful Quality Gates, Campaign 1B, 2026-07-24): pyproject.toml
-      # [tool.coverage.report] fail_under is enforced by pytest-cov on EVERY
-      # invocation, but the ci_safe step alone measures ~0% (it imports almost no
-      # app code), which would abort this sequence before the broader step ever
-      # runs. --cov-fail-under=0 disables that per-invocation check; this ratchet
-      # step is the real, single enforcement point instead.
-      - name: Coverage ratchet gate
-        run: python scripts/quality/bys360_coverage_ratchet.py --coverage-xml reports/quality/coverage.xml --baseline reports/quality/coverage_baseline.json
-
-      - name: Type check service layer
-        run: python -m mypy app tests scripts --ignore-missing-imports --no-error-summary
-
-      - name: BYS360 operations audit
+      - name: Save shard results
+        if: always()
         run: |
-          mkdir -p reports/quality
-          python scripts/quality/bys360_ops_audit.py --mode ci --source-paths app config.py wsgi.py run.py --report reports/quality/BYS360_OPS_AUDIT_CI.md --max-print 0 --max-broad-except 2064
+          mkdir -p ci-data
+          cp .coverage ci-data/coverage-step2-shard-${{ matrix.shard }}
+          cp reports/quality/step2-shard-manifest.json reports/quality/step2-junit.xml ci-data/
 
-      - name: BYS360 Quality 9 CI contract gate
-        run: python scripts/quality/bys360_quality9_ci_gate.py --root .
-
-      - name: Ruff syntax/import sanity
-        run: python -m ruff check app config.py wsgi.py run.py scripts --select E9,F63,F7,F82
-
-      - name: Dependency vulnerability audit
-        run: python -m pip_audit -r requirements.txt --progress-spinner off
-
-      # requirements.txt above is resolved fresh on Linux; production installs the hash-pinned
-      # Windows lock, whose transitive pins can lag behind. --disable-pip audits exactly the pinned
-      # versions (every entry carries a hash), with no exceptions.
-      - name: Dependency vulnerability audit (requirements.lock)
-        run: python -m pip_audit -r requirements.lock --disable-pip --progress-spinner off
-
-      - name: Upload quality reports
+      - name: Upload shard results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bys360-quality-reports
-          path: reports/quality
-          if-no-files-found: ignore
+          name: bys360-ci-step2-shard-${{ matrix.shard }}
+          path: ci-data
+          if-no-files-found: error

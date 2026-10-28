@@ -42,8 +42,23 @@ def test_ci_workflow_file_exists() -> None:
     assert CI_WORKFLOW.exists(), f"{CI_WORKFLOW} not found."
 
 
-_JOB_TIMEOUT_RE = re.compile(r"timeout-minutes:\s*(\d+)")
+_JOB_TIMEOUT_RE = re.compile(r"^    timeout-minutes:\s*(\d+)", re.MULTILINE)
+_JOB_KEY_RE = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$", re.MULTILINE)
 _MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES = 40
+# The jobs that run pytest (since the 2026-10-28 parallel quality gate: the PostgreSQL/ci_safe
+# job and the Step2 shards; the final quality-gate job only verifies and combines).
+_TEST_RUNNING_JOBS = ("quality-gate-checks", "quality-gate-tests")
+
+
+def _jobs() -> dict[str, str]:
+    """Job key -> job text (header and steps), split on the two-space job keys under jobs:."""
+    text = _workflow_text()
+    body = text[text.index("\njobs:\n") :]
+    keys = list(_JOB_KEY_RE.finditer(body))
+    return {
+        match.group(1): body[match.end() : keys[i + 1].start() if i + 1 < len(keys) else len(body)]
+        for i, match in enumerate(keys)
+    }
 
 
 def test_quality_gate_job_timeout_has_an_evidence_backed_floor() -> None:
@@ -53,18 +68,25 @@ def test_quality_gate_job_timeout_has_an_evidence_backed_floor() -> None:
     future, deliberate, evidence-based change (e.g. Step2 growing further)
     isn't blocked by an over-fitted exact-match assertion -- but a
     regression back toward the old, proven-insufficient 25 minutes is
-    caught immediately."""
-    text = _workflow_text()
-    job_header = text[text.index("runs-on: ubuntu-latest") : text.index("\n    services:")]
-    match = _JOB_TIMEOUT_RE.search(job_header)
-    assert match, "Could not find quality-gate's job-level timeout-minutes."
-    timeout_minutes = int(match.group(1))
-    assert timeout_minutes >= _MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES, (
-        f"quality-gate timeout-minutes is {timeout_minutes}; must be at least "
-        f"{_MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES} (local measurement: Step2 alone "
-        "takes ~26-28 minutes, before checkout/install/Ruff/PostgreSQL/coverage/mypy/"
-        "quality9/pip-audit in the same job budget)."
-    )
+    caught immediately.
+
+    Since the parallel quality gate (2026-10-28) every job carries its own
+    budget; each job that runs pytest keeps this floor (the Step2 shards have
+    a higher, measured floor in test_ci_parallel_quality_gate_contract.py)."""
+    jobs = _jobs()
+    assert set(_TEST_RUNNING_JOBS) <= set(jobs), f"missing jobs: {sorted(jobs)}"
+    for name, job in jobs.items():
+        match = _JOB_TIMEOUT_RE.search(job)
+        assert match, f"job {name!r} has no job-level timeout-minutes."
+        if name not in _TEST_RUNNING_JOBS:
+            continue
+        timeout_minutes = int(match.group(1))
+        assert timeout_minutes >= _MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES, (
+            f"{name} timeout-minutes is {timeout_minutes}; must be at least "
+            f"{_MINIMUM_EVIDENCE_BACKED_TIMEOUT_MINUTES} (local measurement: Step2 alone "
+            "takes ~26-28 minutes, before checkout/install/Ruff/PostgreSQL/coverage/mypy/"
+            "quality9/pip-audit in the same job budget)."
+        )
 
 
 def test_postgres_15_service_is_declared() -> None:
@@ -119,14 +141,18 @@ def test_create_db_step_and_harness_step_use_the_same_reachable_host() -> None:
     service's published port on the loopback interface instead (already
     published: `ports: - 5432:5432` on the service). If this job is ever
     moved under a job-level `container:`, this test's premise (and the
-    workflow's DSN hosts) needs re-deriving, not just re-asserting."""
+    workflow's DSN hosts) needs re-deriving, not just re-asserting.
+
+    Since the parallel quality gate (2026-10-28) the check covers every job:
+    each one with the postgres service connects to it the same way."""
     text = _workflow_text()
-    job_header = text[text.index("runs-on: ubuntu-latest") : text.index("\n    steps:")]
-    assert "container:" not in job_header, (
-        "quality-gate now has a job-level `container:` -- the loopback-host requirement "
-        "this test enforces no longer applies as-is; re-derive the correct DSN host for "
-        "the new topology instead of just updating this assertion."
-    )
+    for name, job in _jobs().items():
+        job_header = job[: job.index("\n    steps:")]
+        assert "container:" not in job_header, (
+            f"{name} now has a job-level `container:` -- the loopback-host requirement "
+            "this test enforces no longer applies as-is; re-derive the correct DSN host for "
+            "the new topology instead of just updating this assertion."
+        )
 
     create_step_match = _DSN_HOST_RE.search(text)
     assert create_step_match, "Could not find the create-database step's psycopg2.connect host=... argument."
