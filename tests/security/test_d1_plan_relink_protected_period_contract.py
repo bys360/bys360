@@ -42,19 +42,24 @@ UNLOCKED_PROTECTED_STATES = ["results_published", "evaluation_published", "publi
 # Ölçüm
 # ---------------------------------------------------------------------------
 def _database(app) -> dict:
-    """Denetim kaydı dışındaki her tablonun tüm satırları (plan ve entegrasyon tabloları dahil)."""
+    """Denetim kaydı dışındaki her tablonun tüm satırları (plan ve entegrasyon tabloları dahil).
+
+    Satırlar ``SELECT *`` ile ham değerleriyle okunur. Tablo yansıtma (reflection) her çağrıda
+    yüzlerce tabloyu yeniden okuyup testin süresinin çoğunu alıyordu (CI'da ~14 dk). Karşılaştırma
+    aynı kalır: her tablo, her sütun, her satır.
+    """
     import sqlalchemy as sa
 
     from app.extensions import db
 
     with app.app_context():
         tables = sorted(sa.inspect(db.engine).get_table_names())
+        quote = db.engine.dialect.identifier_preparer.quote
         dump = {}
         for name in tables:
             if name == "audit_logs":
                 continue
-            table = sa.Table(name, sa.MetaData(), autoload_with=db.engine)
-            rows = db.session.execute(sa.select(table)).mappings().all()
+            rows = db.session.execute(sa.text(f"SELECT * FROM {quote(name)}")).mappings().all()
             dump[name] = sorted(repr(sorted(dict(row).items())) for row in rows)
         return dump
 
