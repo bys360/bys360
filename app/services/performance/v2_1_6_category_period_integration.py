@@ -7,6 +7,7 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
 from app.models import PerformancePeriod, User
@@ -227,18 +228,67 @@ def _find_period(period_id: Any) -> PerformancePeriod | None:
     return db.session.get(PerformancePeriod, pid)
 
 
+def linked_period_reset_flags(plan_key: str) -> tuple[bool, bool]:
+    """Plana bağlı dönemin (kilitli, sonuçları yayında) durumu; yalnız okur.
+
+    F-A rol sınırı: rotalar bu bayraklarla kilit ve yayın yetkisini ayrıca ister. D1'den beri
+    yeniden bağlama bu alanlara dokunmaz ve korunan dönemi hiç bağlamaz
+    (``ensure_plan_relink_allowed``); bu kontrol rol sınırı olarak kalır. Bağlı dönem yoksa
+    (False, False); okunamazsa kapalı kalır: (True, True).
+    """
+    try:
+        row = _db().session.execute(
+            text(f"SELECT period_id FROM {INTEGRATION_TABLE} WHERE plan_key=:plan_key"),
+            {"plan_key": str(plan_key or "")},
+        ).mappings().first()
+        period = _find_period(row.get("period_id") if row else None)
+    except SQLAlchemyError:
+        logger.exception("BYS360 P0: plana bağlı dönemin kilit/yayın durumu okunamadı.")
+        _db().session.rollback()
+        return True, True
+    if period is None:
+        return False, False
+    return bool(getattr(period, "is_locked", False)), bool(getattr(period, "results_published", False))
+
+
 def _set_if_has(obj: Any, attr: str, value: Any) -> None:
     if hasattr(obj, attr):
         setattr(obj, attr, value)
+
+
+def ensure_plan_relink_allowed(plan_key: str) -> None:
+    """D1: plana bağlı mevcut dönem korunuyorsa yeniden bağlama reddedilir (gerçek admin dahil).
+
+    Korunan dönem: kilitli, sonuçları yayımlanmış, personele yayımlanmış değerlendirmesi olan ya da
+    yayın geçmişi bulunan dönem (``period_is_delete_protected``). Dönem satırı işlem sonuna kadar
+    kilitlenir; kontrol ile yazma arasında dönem yayımlanamaz veya kilitlenemez. Plana bağlı dönem
+    yoksa (yeni dönem oluşturulacaksa) korunacak bir şey yoktur.
+    """
+    from app.services.performance.period_freeze import (
+        ProtectedPeriodRelinkError,
+        lock_period_for_deletion,
+        period_is_delete_protected,
+    )
+
+    row = _db().session.execute(
+        text(f"SELECT period_id FROM {INTEGRATION_TABLE} WHERE plan_key=:plan_key"), {"plan_key": str(plan_key or "")}
+    ).mappings().first()
+    if not row or not row.get("period_id"):
+        return
+    period = lock_period_for_deletion(int(row["period_id"]))
+    if period is not None and period_is_delete_protected(period):
+        raise ProtectedPeriodRelinkError(int(period.id))
 
 
 def create_or_update_period_from_plan(plan_key: str, *, created_by: int | None = None, activate_period: bool = False) -> dict[str, Any]:
     """V2.1.5 planını gerçek performans dönemine bağlar.
 
     Bu işlem local geliştirme için gerçek `performance_periods` kaydı oluşturabilir.
-    Görev üretimi yapılmaz.
+    Görev üretimi yapılmaz. Korunan dönem yeniden bağlanmaz (``ensure_plan_relink_allowed``);
+    yeniden bağlama kilit ve yayın durumuna hiçbir zaman dokunmaz.
     """
     ensure_category_period_integration_schema()
+    ensure_plan_relink_allowed(plan_key)
     plan = get_scope_plan(plan_key)
     if not plan:
         return {"ok": False, "message": "Kategori dönem kapsam planı bulunamadı.", "plan_key": plan_key}
@@ -292,8 +342,6 @@ def create_or_update_period_from_plan(plan_key: str, *, created_by: int | None =
     _set_if_has(period, "scope_unit_label", None)
     _set_if_has(period, "scope_personnel_filter", None)
     _set_if_has(period, "special_scenario_type", "category_scope")
-    _set_if_has(period, "results_published", False)
-    _set_if_has(period, "is_locked", False)
 
     if activate_period:
         # BYS360 DEFECT W: reuses the same canonical single-active-period

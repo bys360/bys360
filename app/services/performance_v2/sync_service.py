@@ -21,6 +21,7 @@ from app.services.availability_service import (
 from app.services.hierarchy_rulebook_service import build_lookup
 from app.services.performance.chain_rule_engine import resolve_authoritative_desired_chain
 from app.services.performance.common import is_president
+from app.services.performance.period_freeze import FROZEN_PERIOD_TASKS_MESSAGE, period_is_frozen
 
 # BYS360_PHASE8_4_PERIOD_SCOPE_IMPORT_START
 from app.services.performance.period_scope_assignment import (
@@ -280,6 +281,10 @@ def _upsert_assignment(
         .first()
     )
     created = False
+    if assignment is not None and _assignment_is_completed(assignment):
+        # P0 (M-1, inceleme 4. tur): tamamlanmış görev, onu tamamlayan değerlendiricide kalır; canlı
+        # vekâlet yenilemesi de (availability_service) tamamlanmış görevi yeniden yönlendirmez.
+        return assignment, created, deduped
     if assignment is None:
         assignment = EvaluationAssignment(
             period_id=period.id,
@@ -439,8 +444,19 @@ def _resolved_payloads(period, resolved_chain):
     return payloads
 
 
-def _apply_evaluation_links(evaluation, payloads):
+def _assignment_is_completed(assignment) -> bool:
+    return bool(assignment.completed_at) or (assignment.status or '').strip().lower() in {'tamamlandi', 'submitted'}
+
+
+def _completed_levels(period, employee) -> set[int]:
+    rows = EvaluationAssignment.query.filter_by(period_id=period.id, employee_id=employee.id).all()
+    return {int(row.manager_level) for row in rows if _assignment_is_completed(row)}
+
+
+def _apply_evaluation_links(evaluation, payloads, *, keep_levels: set[int] | None = None):
     for level, attr in {1: 'level_1_evaluator_id', 2: 'level_2_evaluator_id', 3: 'level_3_evaluator_id'}.items():
+        if keep_levels and level in keep_levels:
+            continue  # a completed level keeps the evaluator who completed it
         payload = payloads.get(level)
         setattr(evaluation, attr, payload['evaluator_id'] if payload else None)
     db.session.add(evaluation)
@@ -491,7 +507,7 @@ def sync_employee_assignments(period, employee, *, run_key: str | None = None, a
     _log_issue_rows(period=period, employee=employee, resolved_chain=resolved_chain, run_key=run_key, actor_user_id=actor_user_id)
 
     if availability.exempted:
-        _apply_evaluation_links(evaluation, {})
+        _apply_evaluation_links(evaluation, {}, keep_levels=_completed_levels(period, employee))
         cleared_count = _deactivate_stale_assignments(period, employee, set(), status='muaf')
         updated_count += cleared_count
         _create_generation_log(
@@ -582,7 +598,7 @@ def sync_employee_assignments(period, employee, *, run_key: str | None = None, a
                 created_by_user_id=actor_user_id,
             )
 
-    _apply_evaluation_links(evaluation, effective_payloads)
+    _apply_evaluation_links(evaluation, effective_payloads, keep_levels=_completed_levels(period, employee))
 
     active_levels: set[int] = set()
     for level in sorted(effective_payloads):
@@ -639,6 +655,22 @@ def sync_employee_assignments(period, employee, *, run_key: str | None = None, a
 
 
 def ensure_assignments_for_period(period, employee_ids: list[int] | None = None, actor_user_id: int | None = None):
+    # P0 (M-1 Q3): kilitli/yayımlanmış dönemin görevleri hiçbir yoldan yeniden üretilmez (gerçek admin
+    # dahil); kontrol her yazımdan (puanlama penceresi alanı dahil) önce yapılır.
+    if period_is_frozen(period):
+        logger.warning("BYS360 P0 görev üretimi reddedildi: dönem kilitli/yayımlanmış | period_id=%s | actor=%s", period.id, actor_user_id)
+        return {
+            'ok': False,
+            'frozen': True,
+            'period_id': getattr(period, 'id', None),
+            'created': 0,
+            'updated': 0,
+            'created_count': 0,
+            'updated_count': 0,
+            'warnings': [FROZEN_PERIOD_TASKS_MESSAGE],
+            'message': FROZEN_PERIOD_TASKS_MESSAGE,
+            'actor_user_id': actor_user_id,
+        }
     issues = validate_period_ready(period)
     rows = []
     run_key = uuid4().hex

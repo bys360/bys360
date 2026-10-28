@@ -35,6 +35,10 @@ from app.route_support import (  # noqa: E402 - deferred import (staged facade/r
     admin_required,
     menu_key_required,
 )
+from app.security.critical_operations import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
+    FROZEN_PERIOD_DELETE_MESSAGE,
+    hierarchy_sync_refusal,
+)
 from app.services.account_change_guard import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
     ADMIN_CONTINUITY_MESSAGE,
     REFUSAL_MESSAGE,
@@ -43,6 +47,13 @@ from app.services.account_change_guard import (  # noqa: E402 - deferred import 
     audit_refusal,
     may_change_account_state,
     record_account_changes,
+)
+from app.services.performance.hierarchy_assignment_sync_guard import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
+    begin_hierarchy_change,
+    commit_hierarchy_change,
+    hierarchy_change_refusal,
+    user_deletion_refusal,
+    user_deletion_requires_sync,
 )
 
 from .ops_health_services import (  # noqa: E402 - deferred import (staged facade/route-registration architecture)
@@ -243,10 +254,15 @@ def personnel_toggle_active(user_id: int):
 
     try:
         if hasattr(user, "is_active"):
+            plan = begin_hierarchy_change()
             old_active = bool(user.is_active)
             user.is_active = not old_active
             record_account_changes(user, old_role=user.role, old_active=old_active)
-            db.session.commit()
+            # M-1: aktif dönemde görev üretimini etkileyen değişiklik gerçek admin dışında reddedilir.
+            refusal = hierarchy_change_refusal(plan)
+            if refusal is not None:
+                return hierarchy_sync_refusal(refusal, user, url_for("main.personnel_list"))
+            commit_hierarchy_change(plan, actor_user_id=current_user.id)
             flash("Personel aktiflik durumu güncellendi.", "success")
         else:
             flash("Bu kullanıcı modelinde aktiflik alanı bulunamadı.", "warning")
@@ -274,6 +290,13 @@ def personnel_delete(user_id: int):
         flash(REFUSAL_MESSAGE, "danger")
         return redirect(url_for("main.personnel_list"))
 
+    # M-1: kilitli/yayımlanmış dönem kaydı olan personel silinmez; aktif dönemi etkileyen silme
+    # gerçek admin dışında reddedilir.
+    plan = begin_hierarchy_change()
+    refusal = user_deletion_refusal([user.id], plan)
+    if refusal is not None:
+        return hierarchy_sync_refusal(refusal, user, url_for("main.personnel_list"), frozen_message=FROZEN_PERIOD_DELETE_MESSAGE)
+    force_sync = user_deletion_requires_sync([user.id], plan)
     try:
         audit_account_change(
             "account.delete",
@@ -281,7 +304,7 @@ def personnel_delete(user_id: int):
             old={"role": user.role, "is_active": bool(user.is_active), "sicil_no": user.sicil_no},
         )
         safe_delete_user_by_id(getattr(user, "id", user), commit=False)
-        db.session.commit()
+        commit_hierarchy_change(plan, actor_user_id=current_user.id, force_sync=force_sync)
         flash("Personel kaydı silindi.", "success")
     except Exception as exc:
         logger.exception("Beklenmeyen hata: %s", exc)

@@ -16,6 +16,8 @@ from app.institutional.hr_form_helpers import (
     _handle_leave_balance_post,
     _handle_leave_post,
     _handle_manual_delegation_post,
+    _people_outside_caller_scope,
+    _refuse_out_of_scope,
 )
 from app.institutional.hr_scope_helpers import (
     ACTIVE_STATUSES,
@@ -111,6 +113,7 @@ from app.institutional.hr_scope_helpers import (
     url_for,
     utc_now,
 )
+from app.services.availability_service import APPROVED_STATUSES
 from app.services.ui_context.scope import build_user_scope_context
 
 logger = logging.getLogger(__name__)
@@ -281,6 +284,14 @@ def _set_status(model: Any, row_id: int, status: str, redirect_endpoint: str) ->
             flash("Kayıt bulunamadı.", "warning")
         elif not _row_in_caller_scope(row):
             flash("Bu kayıt yetki kapsamınız dışında.", "danger")
+        elif (
+            isinstance(row, DelegationAssignment)
+            and (status or "").strip().lower() in APPROVED_STATUSES
+            and _people_outside_caller_scope(row.delegator_user_id, row.delegate_user_id)
+        ):
+            # P0 (M-1 Q4, inceleme 4. tur): vekâleti geçerli hale getirmek onu oluşturmaktır; aynı
+            # oluşturma kuralı (kayıttaki her kişi kapsamda). İptal/silme durum kuralıyla kalır.
+            return _refuse_out_of_scope("delegation_status", redirect_endpoint)
         else:
             row.status = status
             db.session.add(row)

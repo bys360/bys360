@@ -795,6 +795,18 @@ def build_task_recommendation_export_response(action_plan_rows, *, export_format
 
 
 def clear_period_task_records(period_id: int) -> dict[str, int]:
+    from app.services.performance.period_freeze import (
+        PROTECTED_PERIOD_DELETE_MESSAGE,
+        lock_period_for_deletion,
+        period_is_delete_protected,
+    )
+
+    # P0 (Q3-1, sahip kararı): dondurulmuş veya yayını geri alınmış dönemin kayıtları hiçbir çağrıdan
+    # temizlenmez (gerçek admin dahil); rota denetim kaydıyla önce reddeder, bu kontrol servis düzeyinde
+    # ikinci kapı. Dönem satırı kilitlenir: kontrol ile silme arasında dönem yayımlanamaz.
+    period = lock_period_for_deletion(period_id)
+    if period is not None and period_is_delete_protected(period):
+        raise PermissionError(PROTECTED_PERIOD_DELETE_MESSAGE)
     evaluation_ids = [row.id for row in PerformanceEvaluation.query.filter_by(period_id=period_id).all()]
     item_count = 0
     if evaluation_ids:

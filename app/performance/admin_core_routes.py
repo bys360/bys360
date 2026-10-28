@@ -6,6 +6,7 @@ from flask import current_app, flash, redirect, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
+from app.core.datetime_utils import utc_now
 from app.extensions import db
 from app.models import (
     EvaluationAssignment,
@@ -19,7 +20,13 @@ from app.models import (
     User,
 )
 from app.route_registry import main_bp
-from app.route_support import admin_required, ensure_boolean_toggle, safe_render
+from app.route_support import admin_required, ensure_boolean_toggle, menu_key_required, safe_render
+from app.security.critical_operations import (
+    critical_operation_required,
+    frozen_period_generation_refusal,
+    protected_period_deletion_refusal,
+)
+from app.services.account_change_guard import audit_refusal
 from app.services.ai.dashboard_panels import build_period_form_ai_panel, build_periods_ai_panel
 from app.services.hierarchy_admin_service import parse_date
 from app.services.performance.assignment_rule_audit import build_assignment_generation_preflight
@@ -271,6 +278,8 @@ def performance_criteria_seed_defaults():
 @main_bp.route("/performance/periods")
 @login_required
 @admin_required
+@critical_operation_required("period_manage")
+@menu_key_required("performance_periods")
 def performance_periods():
     q = (request.args.get("q") or "").strip()
     status = (request.args.get("status") or "").strip()
@@ -496,6 +505,8 @@ def _build_period_create_scope_options() -> dict[str, list]:
 @main_bp.route("/performance/periods/create", methods=["GET", "POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_manage")
+@menu_key_required("performance_periods")
 def performance_period_create():
     if request.method == "POST":
         try:
@@ -527,6 +538,8 @@ def performance_period_create():
 @main_bp.route("/performance/periods/<int:period_id>/edit", methods=["GET", "POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_manage")
+@menu_key_required("performance_periods")
 def performance_period_edit(period_id):
     period = db.session.get(PerformancePeriod, period_id)
     if not period:
@@ -552,6 +565,8 @@ def performance_period_edit(period_id):
 @main_bp.route("/performance/periods/<int:period_id>/toggle-active", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_activate")
+@menu_key_required("performance_periods")
 def performance_period_toggle_active(period_id):
     period = db.session.get(PerformancePeriod, period_id)
     if not period:
@@ -582,6 +597,8 @@ def performance_period_toggle_active(period_id):
 @main_bp.route("/performance/periods/<int:period_id>/toggle-lock", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_lock")
+@menu_key_required("performance_periods")
 def performance_period_toggle_lock(period_id):
     period = db.session.get(PerformancePeriod, period_id)
     if not period:
@@ -609,6 +626,8 @@ def performance_period_toggle_lock(period_id):
 @main_bp.route("/performance/periods/<int:period_id>/toggle-publish", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_publish")
+@menu_key_required("performance_publish")
 def performance_period_toggle_publish(period_id):
     period = db.session.get(PerformancePeriod, period_id)
     if not period:
@@ -617,6 +636,10 @@ def performance_period_toggle_publish(period_id):
 
     try:
         period.results_published = ensure_boolean_toggle(current_value=getattr(period, "results_published", False), entity_label="Dönem yayın durumu", requested_state=request.form.get("target_state"))
+        # Q3-1 (sahip kararı a): yayın ve geri alma, çekirdek yayın işlemleri gibi kalıcı iz bırakır
+        # (publish_period_results / unpublish_period_results); yayını geri alınmış dönem silinemez.
+        period.published_at = utc_now() if period.results_published else None
+        period.published_by_id = current_user.id
         db.session.commit()
         flash("Dönem yayın durumu güncellendi.", "success")
     except ValueError as exc:
@@ -631,13 +654,26 @@ def performance_period_toggle_publish(period_id):
 @main_bp.route("/performance/periods/<int:period_id>/delete", methods=["POST"])
 @login_required
 @admin_required
+@critical_operation_required("period_delete")
+@menu_key_required("performance_periods")
 def performance_period_delete(period_id):
+    # P0 (Q3-1, sahip kararı a): kilitli, sonuçları yayımlanmış, personele yayımlanmış değerlendirmesi
+    # olan veya yayını geri alınmış dönem gerçek admin dahil kimse tarafından silinemez.
+    refusal = protected_period_deletion_refusal(
+        db.session.get(PerformancePeriod, period_id), url_for("main.performance_periods"), action="period_delete"
+    )
+    if refusal is not None:
+        return refusal
     try:
         result = delete_performance_period_with_related_records(period_id, actor=current_user)
         if result.ok:
             flash(result.message or "Dönem silindi.", "success")
         else:
             flash(result.message or "Dönem bulunamadı.", "warning")
+    except PermissionError as exc:
+        # Kontrolden sonra yayımlanan dönem: servis kilitli satırda yeniden kontrol edip reddetti.
+        audit_refusal(None, f"period_delete_frozen_period:{period_id}")
+        flash(str(exc), "danger")
     except Exception as exc:
         logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)
         db.session.rollback()
@@ -649,6 +685,8 @@ def performance_period_delete(period_id):
 @main_bp.route("/performance/evaluation-tasks/generate", methods=["GET", "POST"])
 @login_required
 @admin_required
+@critical_operation_required("assignment_generate")
+@menu_key_required("performance_task_management")
 def performance_generate_assignments():
     periods = PerformancePeriod.query.order_by(
         PerformancePeriod.start_date.desc()
@@ -661,6 +699,10 @@ def performance_generate_assignments():
         if not period:
             flash("Geçerli bir dönem seçiniz.", "danger")
             return redirect(url_for("main.performance_generate_assignments"))
+        # P0 (M-1 Q3): kilitli/yayımlanmış dönemde görev üretimi yok (gerçek admin dahil).
+        refusal = frozen_period_generation_refusal(period, url_for("main.performance_generate_assignments"))
+        if refusal is not None:
+            return refusal
 
         try:
             preflight = build_assignment_generation_preflight(period_id=period.id)
