@@ -27,6 +27,32 @@ def _user_payload(user: User, full_name: Callable[[Any], str]) -> dict[str, Any]
     }
 
 
+# F-08: the forced account security steps of the web login (security question, then password;
+# see enforce_first_login_security_flow in app/account/routes.py) also gate the mobile API. The
+# mobile app has no screens for them, so the user completes them on the web; until then login and
+# refresh issue no tokens and require_mobile_user refuses earlier tokens.
+def open_account_security_steps(user: User) -> list[str]:
+    steps = []
+    if getattr(user, "must_set_security_question", False):
+        steps.append("set_security_question")
+    if getattr(user, "must_change_password", False):
+        steps.append("change_password")
+    return steps
+
+
+def account_security_required_response(user: User):
+    """The 403 answer for an account with an open forced security step, or None."""
+    steps = open_account_security_steps(user)
+    if not steps:
+        return None
+    return jsonify({
+        "code": "account_security_required",
+        "message": "Hesap güvenliği adımları tamamlanmadan mobil uygulama kullanılamaz. "
+                   "Lütfen BYS360 web arayüzüne giriş yapıp istenen adımları tamamlayın.",
+        "required_actions": steps,
+    }), 403
+
+
 def mobile_login_response(
     issue_token: Callable[[User], str],
     issue_refresh_token: Callable[[User], str],
@@ -47,6 +73,9 @@ def mobile_login_response(
     user = User.query.filter(or_(User.sicil_no == username, User.email == username)).first()
     if not user or not user.check_password(password) or not getattr(user, "is_active", True):
         return jsonify({"message": "Kullanıcı adı/sicil veya şifre hatalı."}), 401
+    refused = account_security_required_response(user)
+    if refused is not None:
+        return refused
 
     return jsonify({
         "access_token": issue_token(user),
@@ -67,6 +96,9 @@ def mobile_refresh_response(
     user = load_refresh_token_user(refresh_token)
     if not user:
         return jsonify({"message": "Mobil oturum yenilenemedi. Lütfen tekrar giriş yapın."}), 401
+    refused = account_security_required_response(user)
+    if refused is not None:
+        return refused
     return jsonify({
         "access_token": issue_token(user),
         "refresh_token": issue_refresh_token(user),

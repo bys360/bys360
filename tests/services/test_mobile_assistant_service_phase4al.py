@@ -77,7 +77,11 @@ def test_assistant_v2_ask_route_end_to_end(app, client) -> None:
                 role="admin",
             )
             db.session.add(user)
-            db.session.commit()
+        # An account that finished the forced first-login steps (the model defaults leave both
+        # open, and the mobile API refuses such accounts: F-08).
+        user.must_change_password = False
+        user.must_set_security_question = False
+        db.session.commit()
         token = _issue_token(user)
 
     response = client.post(

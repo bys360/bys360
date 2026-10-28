@@ -60,6 +60,7 @@ except Exception:  # pragma: no cover
     PerformanceTarget = None  # type: ignore
 
 from app.api.mobile.services.auth_service import (
+    account_security_required_response,
     mobile_login_response,
     mobile_me_response,
     mobile_refresh_response,
@@ -603,6 +604,9 @@ def require_mobile_user(fn):
         user = _load_token_user()
         if not user:
             return jsonify({"message": "Mobil oturum bulunamadı veya süresi doldu."}), 401
+        refused = account_security_required_response(user)
+        if refused is not None:
+            return refused
         return fn(user, *args, **kwargs)
     return wrapper
 
@@ -702,6 +706,7 @@ __all__ = [
     "notify_support_ticket_comment",
     "notify_support_ticket_created",
     "PerformanceTarget",
+    "account_security_required_response",
     "mobile_login_response",
     "mobile_me_response",
     "mobile_refresh_response",
