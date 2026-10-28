@@ -285,7 +285,11 @@ def seed_default_categories(overwrite: bool = False) -> dict[str, Any]:
         created += 1
         details.append({"category_key": item["category_key"], "action": "created"})
 
-    db.session.commit()
+    # Yalnız kendi değişikliğini commit eder. Değişiklik yokken commit, çağıranın açık işlemini (ve
+    # tuttuğu satır kilitlerini) erken bitirirdi; bu yardımcı birçok şema kontrolünün içinden çağrılır
+    # (D1: plan yeniden bağlamanın kilitli kontrolü ile yazımı aynı işlemde kalmalı).
+    if created or updated:
+        db.session.commit()
     return {"ok": True, "created": created, "updated": updated, "unchanged": unchanged, "details": details, "rule_version": RULE_VERSION, "dialect": dialect}
 
 

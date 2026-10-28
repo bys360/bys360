@@ -144,6 +144,15 @@ def protected_period_deletion_refusal(period: Any, redirect_url: str, *, action:
     return redirect(redirect_url)
 
 
+def protected_period_relink_refusal(error: Any) -> None:
+    """D1: servisin reddettiği plan yeniden bağlama; denetim kaydı ve açık mesaj (rota yönlendirir).
+
+    ``audit_refusal`` önce işlemi geri alır: plan ve dönem yazımlarından hiçbiri kalmaz.
+    """
+    audit_refusal(None, f"plan_relink_frozen_period:{getattr(error, 'period_id', None)}")
+    flash(str(error), "danger")
+
+
 def critical_operation_required(operation: str):
     def decorator(view_func):
         @wraps(view_func)

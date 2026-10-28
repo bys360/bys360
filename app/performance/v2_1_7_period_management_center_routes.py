@@ -8,7 +8,12 @@ from flask_login import current_user, login_required
 
 from app.route_registry import main_bp
 from app.route_support import menu_key_required, safe_render
-from app.security.critical_operations import critical_action_refusal, period_reset_refusal
+from app.security.critical_operations import (
+    critical_action_refusal,
+    period_reset_refusal,
+    protected_period_relink_refusal,
+)
+from app.services.performance.period_freeze import ProtectedPeriodRelinkError
 from app.services.performance.v2_1_5_category_period_scope import resolve_plan_key
 from app.services.performance.v2_1_6_category_period_integration import (
     build_assignment_preintegration,
@@ -301,6 +306,8 @@ def performance_v2_1_7_period_management_center():
                 selected_plan = request.form.get("plan_key") or ""
                 result = prepare_period_center_notifications(selected_plan, actor_user_id=getattr(current_user, "id", None))
                 flash(result.get("message") or "Bildirim hazırlığı tamamlandı.", "success" if result.get("ok") else "warning")
+        except ProtectedPeriodRelinkError as exc:
+            protected_period_relink_refusal(exc)
         except Exception:
             logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı.")
             flash("Dönem yönetim işlemi tamamlanamadı. Lütfen kayıtları kontrol edip tekrar deneyin.", "danger")

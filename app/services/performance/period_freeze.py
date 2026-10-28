@@ -31,6 +31,10 @@ PROTECTED_PERIOD_DELETE_MESSAGE = (
     "Dönem kilitli, sonuçları yayımlanmış veya daha önce yayımlanmış; görev, değerlendirme ve yayın "
     "kayıtları silinemez. Hiçbir kayıt silinmedi."
 )
+PROTECTED_PERIOD_RELINK_MESSAGE = (
+    "Dönem kilitli, sonuçları yayımlanmış veya daha önce yayımlanmış; plana yeniden bağlanamaz. Dönem, "
+    "kilit, yayın, görev ve değerlendirme kayıtlarında hiçbir değişiklik yapılmadı."
+)
 RESET_ALL_PROTECTED_MESSAGE = (
     "Sistemde kilitli, sonuçları yayımlanmış veya daha önce yayımlanmış dönem var; tümünü sıfırlama "
     "yapılamaz. Hiçbir kayıt silinmedi."
@@ -46,6 +50,14 @@ def period_is_frozen(period: Any) -> bool:
         .first()
     )
     return published is not None
+
+
+class ProtectedPeriodRelinkError(PermissionError):
+    """D1: korunan dönem plana yeniden bağlanamaz; ``period_id`` denetim kaydı içindir."""
+
+    def __init__(self, period_id: int) -> None:
+        super().__init__(PROTECTED_PERIOD_RELINK_MESSAGE)
+        self.period_id = period_id
 
 
 def period_has_publication_history(period: Any) -> bool:
@@ -86,8 +98,8 @@ def period_is_delete_protected(period: Any) -> bool:
 def lock_period_for_deletion(period_id: int) -> PerformancePeriod | None:
     """Dönem satırını işlem sonuna kadar kilitler (PostgreSQL ``FOR UPDATE``) ve güncel halini okur.
 
-    Her yayın dönem satırını yazar (``published_at``); kilitten sonra yapılan kontrol ile silme
-    arasında başka bir işlem dönemi yayımlayamaz. ``of=`` yalnız dönem satırını kilitler: dönemin
+    Her yayın dönem satırını yazar (``published_at``); kilitten sonra yapılan kontrol ile silme (ya da
+    plan yeniden bağlama) arasında başka bir işlem dönemi yayımlayamaz veya kilitleyemez. ``of=`` yalnız dönem satırını kilitler: dönemin
     eager ilişkileri dış birleşim üretir ve PostgreSQL birleşimin boş olabilen tarafını kilitlemez.
     """
     return (
@@ -110,6 +122,8 @@ def delete_protected_period_ids(*, lock: bool = False) -> list[int]:
 __all__ = [
     "FROZEN_PERIOD_TASKS_MESSAGE",
     "PROTECTED_PERIOD_DELETE_MESSAGE",
+    "PROTECTED_PERIOD_RELINK_MESSAGE",
+    "ProtectedPeriodRelinkError",
     "RESET_ALL_PROTECTED_MESSAGE",
     "delete_protected_period_ids",
     "lock_period_for_deletion",

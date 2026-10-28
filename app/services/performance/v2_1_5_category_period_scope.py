@@ -299,7 +299,10 @@ def upsert_category_period_scope_plan(
     notes: str | None = None,
     created_by: int | None = None,
     scope_visibility_mode: str = "summary_only",
+    *,
+    commit: bool = True,
 ) -> dict[str, Any]:
+    """``commit=False``: çağıran plan kaydını kendi işlemiyle birlikte commit eder (D1: dönem bağlama)."""
     ensure_category_period_scope_schema()
     key = canonical_category_key(category_key)
     start = _parse_date(start_date)
@@ -368,7 +371,8 @@ def upsert_category_period_scope_plan(
                 "preview_status": "gorev_uretimi_hazir" if ready else "gorev_uretimi_on_kontrol_bekliyor",
                 "notes": "V2.1.5 kategori dönem kapsam planına dahil edildi.",
             })
-    db.session.commit()
+    if commit:
+        db.session.commit()
     return {"ok": True, "action": action, "date_message": date_message, **payload, "rule_version": RULE_VERSION}
 
 

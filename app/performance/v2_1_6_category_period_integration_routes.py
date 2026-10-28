@@ -7,7 +7,12 @@ from flask_login import current_user, login_required
 
 from app.route_registry import main_bp
 from app.route_support import admin_required, safe_render
-from app.security.critical_operations import critical_action_refusal, period_reset_refusal
+from app.security.critical_operations import (
+    critical_action_refusal,
+    period_reset_refusal,
+    protected_period_relink_refusal,
+)
+from app.services.performance.period_freeze import ProtectedPeriodRelinkError
 from app.services.performance.v2_1_5_category_period_scope import list_category_period_scope_plans
 from app.services.performance.v2_1_6_category_period_integration import (
     build_assignment_preintegration,
@@ -63,6 +68,8 @@ def performance_v2_1_6_category_period_integration():
                     flash(f"Ön kontrol tamamlandı. Hazır: {summary.get('ready', 0)}, kontrol gereken: {summary.get('needs_manager_review', 0)}, kapsam uyumsuz: {summary.get('scope_mismatch', 0)}", "success")
                 else:
                     flash(result.get("message") or "Ön kontrol tamamlanamadı.", "warning")
+        except ProtectedPeriodRelinkError as exc:
+            protected_period_relink_refusal(exc)
         except Exception as exc:
             logger.exception("BYS360 performans modülünde beklenmeyen hata yakalandı. | exc=%s", exc)
             flash("Dönem entegrasyonu tamamlanamadı.", "danger")

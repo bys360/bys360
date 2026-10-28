@@ -631,22 +631,29 @@ def test_fa_period_managers_still_link_an_unlocked_unpublished_period(app, role)
     assert _period_titles(app) == ["Sahte FA Planı"]
 
 
-def test_fa_president_relinks_a_published_period_only_through_the_publish_right(app) -> None:
+# D1 (sahip kararı): yeniden bağlama kilit/yayın durumunu artık hiç sıfırlamaz; korunan dönem hiç
+# bağlanmaz. Bu iki test eskiden sessiz sıfırlamayı doğruluyordu (Başkan yayını, gerçek admin kilit ve
+# yayını bu yoldan kaldırabiliyordu; kanıt PR #92 açıklamasında). F-A rol sınırı aynen kalır: Başkan
+# yayın hakkı sayesinde rol sınırını geçer (403 değil), ret D1'den gelir.
+def test_fa_president_cannot_unpublish_a_period_by_relinking_it(app) -> None:
     plan_key, period_id = _linked_plan_period(app, is_locked=False, results_published=True)
     client = _client_for(app, "baskan")
+    before = _state(app, period_id)
     assert client.post(INTEGRATION_URL, data={"action": "link_period", "plan_key": plan_key}).status_code == 302
-    assert _state(app, period_id)["results_published"] is False
+    assert _state(app, period_id) == before and before["results_published"] is True
+    assert _period_titles(app) == ["Sahte FA Planı"]
 
 
 @pytest.mark.parametrize("url", [INTEGRATION_URL, CENTER_URL])
-def test_fa_admin_relink_keeps_resetting_lock_and_publish(app, url) -> None:
+def test_fa_admin_relink_never_unlocks_or_unpublishes_a_period(app, url) -> None:
     plan_key, period_id = _linked_plan_period(app, is_locked=True, results_published=True)
     admin = _client_for(app, "admin")
     data = {"action": "link_period", "plan_key": plan_key} if url == INTEGRATION_URL else {
-        "action": "prepare_and_link", "plan_name": "Sahte FA Planı", **FA_PLAN}
+        "action": "prepare_and_link", "plan_name": "Sahte FA Planı (değiştirilmek istendi)", **FA_PLAN}
+    before = _state(app, period_id)
     assert admin.post(url, data=data).status_code == 302
-    state = _state(app, period_id)
-    assert (state["is_locked"], state["results_published"]) == (False, False)
+    assert _state(app, period_id) == before
+    assert (before["is_locked"], before["results_published"]) == (True, True)
     assert _period_titles(app) == ["Sahte FA Planı"]
 
 

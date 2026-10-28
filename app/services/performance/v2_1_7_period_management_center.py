@@ -269,6 +269,8 @@ def create_center_period_plan(
     activate_period: bool = False,
     run_precheck: bool = False,
 ) -> dict[str, Any]:
+    # D1: bağlanacak plan, dönem bağlamasıyla aynı işlemde yazılır. Bağlama korunan dönemi kilitli
+    # satırda reddederse (ensure_plan_relink_allowed) plan kaydı da geri alınır; kısmi değişiklik kalmaz.
     plan_result = upsert_category_period_scope_plan(
         category_key=category_key,
         plan_name=plan_name,
@@ -278,11 +280,14 @@ def create_center_period_plan(
         notes=notes,
         created_by=created_by,
         scope_visibility_mode=scope_visibility_mode,
+        commit=not link_period,
     )
     result: dict[str, Any] = {"ok": bool(plan_result.get("ok")), "plan": plan_result, "rule_version": RULE_VERSION}
     plan_key = str(plan_result.get("plan_key") or "")
     if link_period and plan_key:
         link_result = create_or_update_period_from_plan(plan_key, created_by=created_by, activate_period=activate_period)
+        if not link_result.get("ok"):
+            _db().session.commit()  # bağlanamayan plan önceden olduğu gibi kaydedilir
         result["link"] = link_result
         if run_precheck and link_result.get("ok"):
             precheck_result = build_assignment_preintegration(plan_key, int(link_result.get("period_id") or 0), write=True)
